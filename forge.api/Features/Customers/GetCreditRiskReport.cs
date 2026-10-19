@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -34,7 +35,8 @@ public class GetCreditRiskReportHandler(AppDbContext db) : IRequestHandler<GetCr
             .Select(g => new
             {
                 CustomerId = g.Key,
-                Balance = g.Sum(i => i.Lines.Sum(l => l.Quantity * l.UnitPrice) * (1 + i.TaxRate)
+                Balance = g.Sum(i => i.Lines.Sum(l => l.Quantity * l.UnitPrice)
+                    + i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice) * i.TaxRate
                     - i.PaymentApplications.Sum(pa => pa.Amount)),
             })
             .ToListAsync(ct);

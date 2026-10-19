@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -23,7 +24,7 @@ public class CreateSalesTaxRateValidator : AbstractValidator<CreateSalesTaxRateC
     }
 }
 
-public class CreateSalesTaxRateHandler(AppDbContext db) : IRequestHandler<CreateSalesTaxRateCommand, SalesTaxRateResponseModel>
+public class CreateSalesTaxRateHandler(AppDbContext db, IClock clock) : IRequestHandler<CreateSalesTaxRateCommand, SalesTaxRateResponseModel>
 {
     public async Task<SalesTaxRateResponseModel> Handle(CreateSalesTaxRateCommand request, CancellationToken cancellationToken)
     {
@@ -31,16 +32,20 @@ public class CreateSalesTaxRateHandler(AppDbContext db) : IRequestHandler<Create
         if (exists)
             throw new InvalidOperationException($"Tax rate with code '{request.Data.Code}' already exists.");
 
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.UtcNow;
         var effectiveFrom = request.Data.EffectiveFrom ?? now;
         var stateCode = string.IsNullOrWhiteSpace(request.Data.StateCode) ? null : request.Data.StateCode.Trim().ToUpper();
 
-        // End-date any currently-active rate for the same state (or default if no state)
         if (stateCode is not null)
         {
-            await db.SalesTaxRates
-                .Where(r => r.StateCode == stateCode && r.EffectiveTo == null && r.EffectiveFrom <= effectiveFrom)
-                .ExecuteUpdateAsync(s => s.SetProperty(r => r.EffectiveTo, effectiveFrom), cancellationToken);
+            var superseded = await db.SalesTaxRates
+                .Where(r => r.StateCode == stateCode
+                    && r.EffectiveTo == null
+                    && r.EffectiveFrom < effectiveFrom
+                    && r.ExemptFlag == request.Data.ExemptFlag)
+                .ToListAsync(cancellationToken);
+            foreach (var old in superseded)
+                old.EffectiveTo = effectiveFrom;
         }
 
         // If this is set as default, clear other defaults

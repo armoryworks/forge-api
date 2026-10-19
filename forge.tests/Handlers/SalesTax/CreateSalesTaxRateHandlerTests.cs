@@ -3,6 +3,7 @@ using FluentAssertions;
 using Forge.Api.Features.SalesTax;
 using Forge.Core.Entities;
 using Forge.Core.Models;
+using Forge.Integrations;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.SalesTax;
@@ -14,7 +15,7 @@ public class CreateSalesTaxRateHandlerTests
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
-        var handler = new CreateSalesTaxRateHandler(db);
+        var handler = new CreateSalesTaxRateHandler(db, new SystemClock());
 
         // Use null stateCode to avoid ExecuteUpdateAsync (not supported by InMemory provider)
         var data = new CreateSalesTaxRateRequestModel(
@@ -50,7 +51,7 @@ public class CreateSalesTaxRateHandlerTests
         });
         await db.SaveChangesAsync();
 
-        var handler = new CreateSalesTaxRateHandler(db);
+        var handler = new CreateSalesTaxRateHandler(db, new SystemClock());
         var data = new CreateSalesTaxRateRequestModel(
             "Duplicate", "OH-SALES", null, 0.08m, null, false, null);
         var command = new CreateSalesTaxRateCommand(data);
@@ -68,7 +69,7 @@ public class CreateSalesTaxRateHandlerTests
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
-        var handler = new CreateSalesTaxRateHandler(db);
+        var handler = new CreateSalesTaxRateHandler(db, new SystemClock());
 
         // Empty/whitespace stateCode should be normalized to null
         var data = new CreateSalesTaxRateRequestModel(
@@ -84,5 +85,49 @@ public class CreateSalesTaxRateHandlerTests
 
         var saved = db.SalesTaxRates.Single();
         saved.StateCode.Should().BeNull();
+    }
+
+    private static readonly DateTimeOffset Jan1 = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+    private static CreateSalesTaxRateCommand Utah(string code, decimal rate, DateTimeOffset from, bool exempt = false) =>
+        new(new CreateSalesTaxRateRequestModel(code, code, "UT", rate, from, false, null, exempt));
+
+    [Fact]
+    public async Task Handle_SameStateSameStartDate_KeepsBothJurisdictionRatesOpen()
+    {
+        using var db = TestDbContextFactory.Create();
+        var handler = new CreateSalesTaxRateHandler(db, new SystemClock());
+
+        await handler.Handle(Utah("UT-STATE", 0.0485m, Jan1), CancellationToken.None);
+        await handler.Handle(Utah("UT-UTCO", 0.0725m, Jan1), CancellationToken.None);
+
+        db.SalesTaxRates.Where(r => r.EffectiveTo == null).Select(r => r.Code)
+            .Should().BeEquivalentTo(["UT-STATE", "UT-UTCO"]);
+    }
+
+    [Fact]
+    public async Task Handle_LaterStartDate_SupersedesTheEarlierRate()
+    {
+        using var db = TestDbContextFactory.Create();
+        var handler = new CreateSalesTaxRateHandler(db, new SystemClock());
+
+        await handler.Handle(Utah("UT-2025", 0.061m, Jan1.AddYears(-1)), CancellationToken.None);
+        await handler.Handle(Utah("UT-2026", 0.0725m, Jan1), CancellationToken.None);
+
+        db.SalesTaxRates.Single(r => r.Code == "UT-2025").EffectiveTo.Should().Be(Jan1);
+        db.SalesTaxRates.Single(r => r.Code == "UT-2026").EffectiveTo.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_ExemptionMarker_DoesNotEndTheTaxableRate()
+    {
+        using var db = TestDbContextFactory.Create();
+        var handler = new CreateSalesTaxRateHandler(db, new SystemClock());
+
+        await handler.Handle(Utah("UT-UTCO", 0.0725m, Jan1.AddDays(-30)), CancellationToken.None);
+        await handler.Handle(Utah("EXEMPT-RESALE", 0m, Jan1, exempt: true), CancellationToken.None);
+
+        db.SalesTaxRates.Where(r => r.EffectiveTo == null).Select(r => r.Code)
+            .Should().BeEquivalentTo(["UT-UTCO", "EXEMPT-RESALE"]);
     }
 }

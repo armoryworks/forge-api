@@ -92,6 +92,25 @@ public class CreateInvoiceHandlerTests
     }
 
     [Fact]
+    public async Task Handle_LapsedExemptionCertificate_ChargesTheRequestedTax()
+    {
+        var invoiceDate = new DateTimeOffset(2026, 10, 17, 0, 0, 0, TimeSpan.Zero);
+        var customer = new Customer
+        {
+            Id = 43, Name = "Lapsed Reseller", IsTaxExempt = true, TaxExemptionId = "RS-2",
+            ExemptionExpiryDate = new DateOnly(2026, 10, 1),
+        };
+        _customerRepo.Setup(r => r.FindAsync(customer.Id, It.IsAny<CancellationToken>())).ReturnsAsync(customer);
+        _invoiceRepo.Setup(r => r.GenerateNextInvoiceNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("INV-0043");
+
+        var result = await _handler.Handle(new CreateInvoiceCommand(
+            customer.Id, null, null, invoiceDate, invoiceDate.AddDays(30), null, 0.0725m, null,
+            [new CreateInvoiceLineModel(null, "Bracket", 2, 100m)]), CancellationToken.None);
+
+        result.Total.Should().Be(214.5m);
+    }
+
+    [Fact]
     public async Task Handle_WritesCreatedActivityOnTheInvoice()
     {
         var (customer, _, _) = await SeedOrderAsync();
@@ -328,5 +347,76 @@ public class CreateInvoiceHandlerTests
             OrderCommand(customer.Id, 9999, null, new CreateInvoiceLineModel(null, "Freight", 1m, 10m)), CancellationToken.None);
 
         await act.Should().ThrowAsync<KeyNotFoundException>().WithMessage("*Sales order 9999*");
+    }
+
+    [Fact]
+    public async Task Handle_NonTaxableLine_IsLeftOutOfTheTax()
+    {
+        var (customer, _, _) = await SeedOrderAsync();
+        Invoice? captured = null;
+        _invoiceRepo.Setup(r => r.AddAsync(It.IsAny<Invoice>(), It.IsAny<CancellationToken>()))
+            .Callback<Invoice, CancellationToken>((inv, _) => captured = inv);
+
+        var result = await _handler.Handle(new CreateInvoiceCommand(
+            customer.Id, null, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(30), null, 0.0725m, null,
+            [
+                new CreateInvoiceLineModel(null, "Bracket", 4m, 100m),
+                new CreateInvoiceLineModel(null, "Freight", 1m, 40m, Taxable: false),
+            ]), CancellationToken.None);
+
+        result.Total.Should().Be(469m);
+        captured!.Lines.Select(l => l.TaxCode).Should().Equal(null, InvoiceLine.NonTaxableCode);
+        captured.TaxableSubtotal.Should().Be(400m);
+        captured.TaxAmount.Should().Be(29m);
+    }
+
+    private async Task<Part> SeedServicePartOnOrderAsync(SalesOrder order, decimal orderedQuantity)
+    {
+        var service = new Part { PartNumber = "NRE-T112", Name = "Tooling NRE", InventoryClass = InventoryClass.Service };
+        _db.Parts.Add(service);
+        await _db.SaveChangesAsync();
+        _db.SalesOrderLines.Add(new SalesOrderLine
+        {
+            SalesOrderId = order.Id, PartId = service.Id, Description = "Tooling NRE", Quantity = orderedQuantity, UnitPrice = 6800m, LineNumber = 2,
+        });
+        await _db.SaveChangesAsync();
+        return service;
+    }
+
+    [Fact]
+    public async Task Handle_ServiceLineOnTheOrder_IsInvoicedWithoutAShipment()
+    {
+        var (customer, order, _) = await SeedOrderAsync();
+        var service = await SeedServicePartOnOrderAsync(order, 1m);
+
+        var result = await _handler.Handle(
+            OrderCommand(customer.Id, order.Id, null, new CreateInvoiceLineModel(service.Id, "Tooling NRE", 1m, 6800m)), CancellationToken.None);
+
+        result.Total.Should().Be(6800m);
+    }
+
+    [Fact]
+    public async Task Handle_ServiceLineBeyondTheOrderedQuantity_IsRefused()
+    {
+        var (customer, order, _) = await SeedOrderAsync();
+        var service = await SeedServicePartOnOrderAsync(order, 1m);
+
+        var act = () => _handler.Handle(
+            OrderCommand(customer.Id, order.Id, null, new CreateInvoiceLineModel(service.Id, "Tooling NRE", 2m, 6800m)), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Can't invoice 2 of NRE-T112: 1 ordered, 0 already invoiced, 1 left to invoice.");
+    }
+
+    [Fact]
+    public async Task Handle_GoodsLineNextToAServiceLine_IsStillCappedAtShipped()
+    {
+        var (customer, order, part) = await SeedOrderAsync();
+        await SeedServicePartOnOrderAsync(order, 1m);
+
+        var act = () => _handler.Handle(
+            OrderCommand(customer.Id, order.Id, null, new CreateInvoiceLineModel(part.Id, "Bracket", 1m, 10m)), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*0 shipped*");
     }
 }

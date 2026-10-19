@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -27,12 +28,13 @@ public class GetCreditStatusHandler(AppDbContext db) : IRequestHandler<GetCredit
             .Select(i => new
             {
                 LineTotal = i.Lines.Sum(l => l.Quantity * l.UnitPrice),
+                TaxableLineTotal = i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice),
                 TaxRate = i.TaxRate,
                 Paid = i.PaymentApplications.Sum(pa => pa.Amount),
             })
             .ToListAsync(ct);
 
-        var openArBalance = openInvoices.Sum(i => i.LineTotal * (1 + i.TaxRate) - i.Paid);
+        var openArBalance = openInvoices.Sum(i => i.LineTotal + i.TaxableLineTotal * i.TaxRate - i.Paid);
 
         // Sum pending sales order totals
         var pendingOrders = await db.SalesOrders

@@ -312,15 +312,72 @@ public class InvoiceArPostingServiceTests
     public async Task Post_TaxExemptCustomer_SuppressesTaxLine()
     {
         using var db = await SeedAsync();
-        var invoice = await AddInvoiceAsync(db, taxRate: 0.08m, taxExempt: true);
+        var invoice = await AddInvoiceAsync(db, taxRate: 0m, taxExempt: true);
         var service = CreateService(db, fullGlOn: true);
 
         await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
 
         var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
         entry.Lines.Should().NotContain(l => l.GlAccountId == SalesTaxPayableId);
-        // AR = subtotal only (no tax) = 200.
         entry.Lines.Single(l => l.GlAccountId == ArControlId).Debit.Should().Be(200m);
+    }
+
+    [Fact]
+    public async Task Post_TaxFollowsTheInvoice_NotTheCustomersCurrentExemption()
+    {
+        using var db = await SeedAsync();
+        var invoice = await AddInvoiceAsync(db, taxRate: 0.08m, taxExempt: true);
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == SalesTaxPayableId).Credit.Should().Be(invoice.TaxAmount);
+        entry.Lines.Single(l => l.GlAccountId == ArControlId).Debit.Should().Be(216m);
+    }
+
+    [Fact]
+    public async Task Post_NonTaxableLine_IsLeftOutOfSalesTax()
+    {
+        using var db = await SeedAsync();
+        var invoice = await AddInvoiceAsync(db, taxRate: 0.08m);
+        invoice.Lines.Single(l => l.LineNumber == 2).TaxCode = InvoiceLine.NonTaxableCode;
+        await db.SaveChangesAsync();
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == SalesTaxPayableId).Credit.Should().Be(8m);
+        entry.Lines.Single(l => l.GlAccountId == ArControlId).Debit.Should().Be(208m);
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+    }
+
+    [Fact]
+    public async Task SalesTaxLiabilityReport_TiesToTheSalesTaxPayableCredits()
+    {
+        using var db = await SeedAsync();
+        var taxed = await AddInvoiceAsync(db, taxRate: 0.08m);
+        var withFreight = await AddInvoiceAsync(db, taxRate: 0.0725m);
+        withFreight.Lines.Single(l => l.LineNumber == 2).TaxCode = InvoiceLine.NonTaxableCode;
+        var exempt = await AddInvoiceAsync(db, taxRate: 0m, taxExempt: true);
+        await db.SaveChangesAsync();
+        var service = CreateService(db, fullGlOn: true);
+
+        foreach (var invoice in new[] { taxed, withFreight, exempt })
+        {
+            await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+            invoice.Status = InvoiceStatus.Sent;
+        }
+        await db.SaveChangesAsync();
+
+        var report = await new GetSalesTaxLiabilityHandler(db).Handle(new GetSalesTaxLiabilityQuery(), default);
+        var credited = await db.JournalEntries.SelectMany(e => e.Lines)
+            .Where(l => l.GlAccountId == SalesTaxPayableId)
+            .SumAsync(l => l.Credit - l.Debit);
+
+        report.TotalLiability.Should().Be(credited);
+        report.TotalLiability.Should().Be(16m + 7.25m);
     }
 
     [Fact]

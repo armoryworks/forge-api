@@ -6,6 +6,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.PaymentSchedules;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -71,7 +72,7 @@ public class CreatePaymentHandler(
     IHttpContextAccessor? httpContextAccessor = null,
     // AUDIT-21-S1: same optional/null-default pattern — DI supplies both; the QBO enqueue self-gates
     // on a provider being connected.
-    IAccountingService? accountingService = null,
+    IAccountingProviderFactory? accountingProviders = null,
     ISyncQueueRepository? syncQueue = null,
     // Optional / null-default (same reason): a manual-number override needs the setting repo, and the
     // identifier registry records the number for resolution/history. DI supplies both.
@@ -160,6 +161,11 @@ public class CreatePaymentHandler(
         if (identifiers is not null)
             await identifiers.IssueAsync(BusinessEntityType.Payment, payment.Id, payment.PaymentNumber, cancellationToken);
 
+        var appliedInvoiceIds = payment.Applications.Select(a => a.InvoiceId).Distinct().ToList();
+        if (await InvoicedMilestonePayments.RefreshAsync(
+                db, appliedInvoiceIds, payment.PaymentDate, payment.PaymentNumber, cancellationToken))
+            await db.SaveChangesAsync(cancellationToken);
+
         // ── Order-to-cash completion. An order that is fully shipped with all its
         // (non-voided) invoices paid is done — advance it to Completed, the terminal
         // O2C state the prior pipeline never set (CreateShipment only reaches Shipped).
@@ -190,8 +196,8 @@ public class CreatePaymentHandler(
         // AUDIT-21-S1 (BLOCKER): enqueue a QBO payment sync row so AR cash receipts reach the
         // accounting provider — before this only MoveJobStage enqueued, leaving payments invisible to
         // sync. Inside the open transaction so the sync row commits/rolls back with the payment.
-        if (accountingService is not null && syncQueue is not null
-            && await accountingService.TestConnectionAsync(cancellationToken))
+        if (accountingProviders is not null && syncQueue is not null
+            && await accountingProviders.GetConnectedExternalProviderAsync(cancellationToken) is not null)
         {
             var accountingPayment = new AccountingPayment(
                 ExternalId: customer.ExternalId ?? string.Empty,

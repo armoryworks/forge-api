@@ -363,6 +363,7 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
             InventoryClass.FinishedGood => "FG-",
             InventoryClass.Consumable => "CON-",
             InventoryClass.Tool => "TLG-",
+            InventoryClass.Service => "SVC-",
             _ => "PRT-",
         };
 

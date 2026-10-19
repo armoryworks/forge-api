@@ -17,6 +17,9 @@ namespace Forge.Core.Enums;
 ///   fluid, gloves, sandpaper). Single-use semantics.
 /// • <c>Tool</c> — durable item used many times until worn (drill bits,
 ///   gauges, end mills). High-value durables also link to <c>Asset</c>.
+/// • <c>Service</c> — a non-stock charge sold or bought by the line (tooling
+///   NRE, engineering, setup, freight-in as a service). Never stocked, never
+///   shipped: an order line for it is fulfilled by invoicing it.
 ///
 /// See <c>phase-4-output/part-type-field-relevance.md</c> § 1 for the
 /// full rationale.
@@ -29,4 +32,5 @@ public enum InventoryClass
     FinishedGood,
     Consumable,
     Tool,
+    Service,
 }

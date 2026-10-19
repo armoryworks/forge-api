@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Entities;
 
 public class SalesOrderLine : BaseEntity
@@ -19,6 +21,8 @@ public class SalesOrderLine : BaseEntity
     public decimal LineTotal => Quantity * UnitPrice;
     public decimal RemainingQuantity => Quantity - ShippedQuantity;
     public bool IsFullyShipped => ShippedQuantity >= Quantity;
+
+    public bool ShipsGoods => Part?.InventoryClass != InventoryClass.Service;
 
     // F-032: per-line taxability code required by QBO AST. Null = inherit order-level default.
     // Values: "TAX" (taxable), "NON" (non-taxable). Propagated from Part.TaxCode at SO creation.

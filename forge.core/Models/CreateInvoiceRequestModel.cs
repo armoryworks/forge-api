@@ -23,4 +23,5 @@ public record CreateInvoiceLineModel(
     int? PartId,
     string Description,
     decimal Quantity,
-    decimal UnitPrice);
+    decimal UnitPrice,
+    bool Taxable = true);

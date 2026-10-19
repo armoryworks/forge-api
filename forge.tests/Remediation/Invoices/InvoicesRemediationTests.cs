@@ -33,14 +33,55 @@ public class InvoicesRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
+    private async Task SetAccountingProviderAsync(string? providerId)
+    {
+        using var scope = NewScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.SystemSettings.RemoveRange(db.SystemSettings.Where(s => s.Key == "accounting_provider"));
+        if (providerId is not null)
+            db.SystemSettings.Add(new SystemSetting { Key = "accounting_provider", Value = providerId });
+        await db.SaveChangesAsync();
+    }
+
     [Fact] // AUDIT-21-S1 / P06-9 (was RED): CreateInvoice now enqueues a QBO SyncQueueEntry.
     public async Task Creating_an_invoice_enqueues_a_sync_row()
+    {
+        await SetAccountingProviderAsync("mock");
+        try
+        {
+            var invoiceId = await PostInvoiceAsync("AUDIT21-Invoice");
+
+            using var verify = NewScope();
+            var db2 = verify.ServiceProvider.GetRequiredService<AppDbContext>();
+            db2.SyncQueueEntries.Any(e => e.EntityType == "Invoice" && e.EntityId == invoiceId).Should().BeTrue(
+                "an AR invoice must enqueue a QBO sync row so accounting stays in sync (today nothing enqueues)");
+        }
+        finally
+        {
+            await SetAccountingProviderAsync(null);
+        }
+    }
+
+    [Fact]
+    public async Task Creating_an_invoice_in_standalone_mode_enqueues_nothing()
+    {
+        await SetAccountingProviderAsync(null);
+
+        var invoiceId = await PostInvoiceAsync("Standalone-Invoice");
+
+        using var verify = NewScope();
+        var db2 = verify.ServiceProvider.GetRequiredService<AppDbContext>();
+        db2.SyncQueueEntries.Any(e => e.EntityType == "Invoice" && e.EntityId == invoiceId).Should().BeFalse(
+            "a standalone install keeps its invoices local; there is no provider to sync to");
+    }
+
+    private async Task<int> PostInvoiceAsync(string customerName)
     {
         int customerId;
         using (var scope = NewScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var customer = new Customer { Name = "AUDIT21-Invoice" };
+            var customer = new Customer { Name = customerName };
             db.Customers.Add(customer);
             await db.SaveChangesAsync();
             customerId = customer.Id;
@@ -54,12 +95,14 @@ public class InvoicesRemediationTests
             taxRate = 0m,
             lines = new[] { new { description = "Widget", quantity = 1m, unitPrice = 10m } },
         });
-        await AuthClient().PostAsync("/api/v1/invoices", body);
+        var response = await AuthClient().PostAsync("/api/v1/invoices", body);
+        response.IsSuccessStatusCode.Should().BeTrue(await response.Content.ReadAsStringAsync());
 
-        using var verify = NewScope();
-        var db2 = verify.ServiceProvider.GetRequiredService<AppDbContext>();
-        db2.SyncQueueEntries.Any().Should().BeTrue(
-            "an AR invoice must enqueue a QBO sync row so accounting stays in sync (today nothing enqueues)");
+        using var read = NewScope();
+        return read.ServiceProvider.GetRequiredService<AppDbContext>().Invoices
+            .Where(i => i.CustomerId == customerId)
+            .Select(i => i.Id)
+            .Single();
     }
 
     [Fact] // AUDIT-P06-1 / Q2C-BE-8 — invoicing more than has shipped is rejected.

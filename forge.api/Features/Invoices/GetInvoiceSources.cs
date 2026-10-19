@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -27,7 +28,7 @@ public class GetInvoiceSourcesHandler(AppDbContext db)
             .OrderByDescending(so => so.CreatedAt)
             .Take(MaxResults)
             .Select(so => new InvoiceSourceSalesOrderResponseModel(
-                so.Id, so.OrderNumber, so.Customer.Name))
+                so.Id, so.OrderNumber, so.Customer.Name, so.TaxRate))
             .ToListAsync(cancellationToken);
 
         var candidates = await db.Shipments.AsNoTracking()
@@ -49,7 +50,8 @@ public class GetInvoiceSourcesHandler(AppDbContext db)
                         l.Description ?? (l.SalesOrderLine != null ? l.SalesOrderLine.Description : null)
                             ?? (l.Part != null ? l.Part.Name : string.Empty),
                         l.Quantity,
-                        l.SalesOrderLine != null ? l.SalesOrderLine.UnitPrice : 0m))
+                        l.SalesOrderLine != null ? l.SalesOrderLine.UnitPrice : 0m,
+                        l.SalesOrderLine == null || l.SalesOrderLine.TaxCode != InvoiceLine.NonTaxableCode))
                     .ToList()))
             .ToListAsync(cancellationToken);
 

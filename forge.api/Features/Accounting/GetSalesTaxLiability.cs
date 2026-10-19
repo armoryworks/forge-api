@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
@@ -11,14 +12,23 @@ namespace Forge.Api.Features.Accounting;
 /// <summary>
 /// Sales-tax liability report — the seller sales-tax the business owes,
 /// aggregated by jurisdiction (ship-to US state) over an optional date range.
-/// Read-only aggregate over <see cref="Forge.Core.Entities.SalesOrder"/>; no
+/// Read-only aggregate over finalized <see cref="Invoice"/>s (not Draft, not
+/// Voided), dated by invoice date: tax is owed when it is billed, which is also
+/// when <see cref="InvoiceArPostingService"/> credits Sales Tax Payable. Each
+/// invoice contributes its own <see cref="Invoice.TaxAmount"/> (taxable lines ×
+/// the rate stored on the invoice) in functional currency (× the booking
+/// <see cref="Invoice.FxRate"/>), so the total ties to that account. No
 /// mutation, so no <c>ActivityLog</c>.
 ///
-/// <para><b>Correctness invariant (Sales Channels &amp; the Retail Lane).</b> The
-/// liability sums <see cref="Forge.Core.Entities.SalesOrder.SellerTaxLiability"/>,
-/// never <c>TaxAmount</c>: marketplace-facilitator orders are collected and
-/// remitted by the platform, so their tax is never the seller's payable and must
-/// not inflate what the report says the business owes.</para>
+/// <para><b>Correctness invariant (Sales Channels &amp; the Retail Lane).</b> An
+/// invoice for a marketplace-facilitator order
+/// (<see cref="SalesOrder.TaxCollectedBy"/> = Marketplace) is counted but
+/// contributes zero: the platform collects and remits that tax, so it is never
+/// the seller's payable.</para>
+///
+/// <para>Jurisdiction = the order's ship-to state (customer shipping address,
+/// else the frozen retail ship-to), else the customer's default shipping
+/// address state for invoices without an order.</para>
 ///
 /// <para>Gated on <c>CAP-ACCT-GL-VIEW</c> like the sibling aging reports on
 /// <see cref="Forge.Api.Controllers.AccountingGlController"/>.</para>
@@ -40,49 +50,47 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db)
             ? new DateTimeOffset(t.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero)
             : null;
 
-        // Draft orders aren't yet real sales and Cancelled orders never shipped —
-        // neither carries a liability. Order date = ConfirmedDate when set, else
-        // the row's creation date.
-        var query = db.SalesOrders.AsNoTracking()
-            .Where(o => o.Status != SalesOrderStatus.Draft && o.Status != SalesOrderStatus.Cancelled);
+        var query = db.Invoices.AsNoTracking()
+            .Where(i => i.Status != InvoiceStatus.Draft && i.Status != InvoiceStatus.Voided);
 
         if (fromBound is not null)
-            query = query.Where(o => (o.ConfirmedDate ?? o.CreatedAt) >= fromBound);
+            query = query.Where(i => i.InvoiceDate >= fromBound);
         if (toBound is not null)
-            query = query.Where(o => (o.ConfirmedDate ?? o.CreatedAt) <= toBound);
+            query = query.Where(i => i.InvoiceDate <= toBound);
 
-        // Project only the scalars the liability needs — subtotal is a translatable
-        // correlated Σ(qty × unit price), not the NotMapped SalesOrder.Subtotal.
-        // Jurisdiction = ship-to state: the customer shipping address, else the
-        // frozen retail ship-to (SalesOrder.ShippingAddress ?? SalesOrder.ShipTo).
-        var orders = await query
-            .Select(o => new OrderTaxRow(
-                o.ShippingAddress != null ? o.ShippingAddress.State
-                    : (o.ShipTo != null ? o.ShipTo.State : null),
-                o.TaxRate,
-                o.TaxCollectedBy,
-                o.Lines.Sum(l => l.Quantity * l.UnitPrice)))
+        var invoices = await query
+            .Select(i => new InvoiceTaxRow(
+                i.SalesOrder != null && i.SalesOrder.ShippingAddress != null ? i.SalesOrder.ShippingAddress.State
+                    : i.SalesOrder != null && i.SalesOrder.ShipTo != null ? i.SalesOrder.ShipTo.State
+                    : i.Customer.Addresses
+                        .Where(a => a.AddressType == AddressType.Shipping || a.AddressType == AddressType.Both)
+                        .OrderByDescending(a => a.IsDefault)
+                        .ThenBy(a => a.Id)
+                        .Select(a => a.State)
+                        .FirstOrDefault(),
+                i.TaxRate,
+                i.FxRate,
+                i.SalesOrder != null && i.SalesOrder.TaxCollectedBy == TaxCollectedBy.Marketplace,
+                i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice)))
             .ToListAsync(cancellationToken);
 
         var rows = new List<SalesTaxLiabilityJurisdictionRow>();
 
-        foreach (var group in orders.GroupBy(NormalizeJurisdiction))
+        foreach (var group in invoices.GroupBy(NormalizeJurisdiction))
         {
             decimal taxableBase = 0m;
             decimal liability = 0m;
-            var orderCount = 0;
+            var invoiceCount = 0;
 
-            foreach (var order in group)
+            foreach (var invoice in group)
             {
-                orderCount++;
+                invoiceCount++;
 
-                // SellerTaxLiability: marketplace-collected tax is remitted by the
-                // platform, never the seller's payable — it contributes zero.
-                if (order.TaxCollectedBy == TaxCollectedBy.Marketplace)
+                if (invoice.MarketplaceCollected)
                     continue;
 
-                taxableBase += order.Subtotal;
-                liability += order.Subtotal * order.TaxRate;
+                taxableBase += ToFunctional(invoice.TaxableSubtotal, invoice.FxRate);
+                liability += ToFunctional(invoice.TaxableSubtotal * invoice.TaxRate, invoice.FxRate);
             }
 
             rows.Add(new SalesTaxLiabilityJurisdictionRow
@@ -90,7 +98,7 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db)
                 Jurisdiction = group.Key,
                 TaxableBase = taxableBase,
                 Liability = liability,
-                OrderCount = orderCount,
+                InvoiceCount = invoiceCount,
             });
         }
 
@@ -104,12 +112,16 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db)
                 .ToList(),
             TotalTaxableBase = rows.Sum(r => r.TaxableBase),
             TotalLiability = rows.Sum(r => r.Liability),
-            TotalOrderCount = rows.Sum(r => r.OrderCount),
+            TotalInvoiceCount = rows.Sum(r => r.InvoiceCount),
         };
     }
 
-    private static string? NormalizeJurisdiction(OrderTaxRow row) =>
+    private static decimal ToFunctional(decimal amount, decimal fxRate) =>
+        fxRate == 1m ? amount : Math.Round(amount * fxRate, 2, MidpointRounding.AwayFromZero);
+
+    private static string? NormalizeJurisdiction(InvoiceTaxRow row) =>
         string.IsNullOrWhiteSpace(row.State) ? null : row.State.Trim().ToUpperInvariant();
 
-    private sealed record OrderTaxRow(string? State, decimal TaxRate, TaxCollectedBy TaxCollectedBy, decimal Subtotal);
+    private sealed record InvoiceTaxRow(
+        string? State, decimal TaxRate, decimal FxRate, bool MarketplaceCollected, decimal TaxableSubtotal);
 }

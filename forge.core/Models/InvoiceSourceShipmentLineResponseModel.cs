@@ -5,4 +5,5 @@ public record InvoiceSourceShipmentLineResponseModel(
     string? PartNumber,
     string Description,
     decimal Quantity,
-    decimal UnitPrice);
+    decimal UnitPrice,
+    bool Taxable = true);

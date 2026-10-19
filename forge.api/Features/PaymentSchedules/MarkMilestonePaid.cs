@@ -11,9 +11,11 @@ using Forge.Data.Extensions;
 namespace Forge.Api.Features.PaymentSchedules;
 
 /// <summary>
-/// Records a (possibly partial) payment against a milestone. Payments
-/// accumulate; the first payment locks the derived amount (AmountLocked) so
-/// later document edits can't retroactively change a collected deposit.
+/// Records a (possibly partial) payment against a milestone that has not been
+/// invoiced. Payments accumulate; the first payment locks the derived amount
+/// (AmountLocked) so later document edits can't retroactively change a collected
+/// deposit. An invoiced milestone is paid through its invoice instead
+/// (<see cref="InvoicedMilestonePayments"/>), so the money is never counted twice.
 /// </summary>
 public record MarkMilestonePaidCommand(int MilestoneId, decimal PaidAmount, string? PaidReference)
     : IRequest<PaymentMilestoneResponseModel>;
@@ -42,6 +44,16 @@ public class MarkMilestonePaidHandler(AppDbContext db, IClock clock)
             throw new InvalidOperationException("Cannot record a payment against a waived milestone");
         if (milestone.Status == PaymentMilestoneStatus.Paid)
             throw new InvalidOperationException("Milestone is already fully paid");
+        if (milestone.InvoiceId is int invoiceId)
+        {
+            var invoiceNumber = await db.Invoices.AsNoTracking()
+                .Where(i => i.Id == invoiceId)
+                .Select(i => i.InvoiceNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+            throw new InvalidOperationException(
+                $"Milestone {milestone.Sequence} is billed on invoice {invoiceNumber ?? invoiceId.ToString()}. "
+                + "Record the payment against that invoice; the milestone follows it.");
+        }
 
         var schedule = milestone.PaymentSchedule;
         var quote = schedule.QuoteId is int quoteId

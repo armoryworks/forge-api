@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.PaymentSchedules;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Core.Settings;
@@ -99,6 +100,11 @@ public class ApplyPaymentHandler(
             .Where(a => !existingApplications.Contains(a))
             .Select(a => a.Id)
             .ToList();
+
+        var appliedInvoiceIds = request.Applications.Select(a => a.InvoiceId).Distinct().ToList();
+        if (await InvoicedMilestonePayments.RefreshAsync(
+                db, appliedInvoiceIds, payment.PaymentDate, payment.PaymentNumber, cancellationToken))
+            await db.SaveChangesAsync(cancellationToken);
 
         await PaymentApplicationRules.CompletePaidSalesOrdersAsync(db, completionCandidateSoIds, cancellationToken);
 

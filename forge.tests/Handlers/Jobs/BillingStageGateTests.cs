@@ -77,7 +77,7 @@ public class BillingStageGateTests
         Mock.Of<IActivityLogRepository>(),
         Mock.Of<ICustomerRepository>(),
         _db,
-        Mock.Of<IAccountingService>(),
+        Mock.Of<IAccountingProviderFactory>(),
         Mock.Of<ISyncQueueRepository>(),
         Mock.Of<IWorkCenterContext>(),
         _mediator.Object,

@@ -59,7 +59,7 @@ public class CreateInvoiceHandler(
     AppDbContext db,
     // AUDIT-21-S1: optional / null-default so isolated unit-test constructions stay valid; the DI
     // path supplies both. The QBO enqueue self-gates on a provider being connected.
-    IAccountingService? accountingService = null,
+    IAccountingProviderFactory? accountingProviders = null,
     ISyncQueueRepository? syncQueue = null,
     // Optional / null-default (same reason): a manual-number override needs the setting repo, and the
     // identifier registry records the number for resolution/history. DI supplies both.
@@ -135,6 +135,18 @@ public class CreateInvoiceHandler(
                 .Select(g => new { PartId = g.Key, Qty = g.Sum(x => x.Quantity) })
                 .ToDictionaryAsync(x => x.PartId, x => x.Qty, cancellationToken);
 
+            var requestedPartIds = request.Lines.Where(l => l.PartId != null).Select(l => l.PartId!.Value).Distinct().ToList();
+            var orderedServiceByPart = await db.SalesOrderLines
+                .Where(l => l.SalesOrderId == shippedSoId
+                    && l.PartId != null
+                    && requestedPartIds.Contains(l.PartId.Value)
+                    && l.Part!.InventoryClass == InventoryClass.Service)
+                .GroupBy(l => l.PartId!.Value)
+                .Select(g => new { PartId = g.Key, Qty = g.Sum(x => x.Quantity) })
+                .ToDictionaryAsync(x => x.PartId, x => x.Qty, cancellationToken);
+            foreach (var (partId, ordered) in orderedServiceByPart)
+                shippedByPart[partId] = ordered;
+
             var invoicedByPart = await db.InvoiceLines
                 .Where(il => il.PartId != null && il.Invoice.SalesOrderId == shippedSoId)
                 .GroupBy(il => il.PartId!.Value)
@@ -163,7 +175,7 @@ public class CreateInvoiceHandler(
 
                 throw new InvalidOperationException(string.Join(" ", overInvoiced.Select(x =>
                     $"Can't invoice {Qty(x.Requested)} of {partNumbers.GetValueOrDefault(x.PartId) ?? $"part {x.PartId}"}: " +
-                    $"{Qty(x.Shipped)} shipped, {Qty(x.Already)} already invoiced, " +
+                    $"{Qty(x.Shipped)} {(orderedServiceByPart.ContainsKey(x.PartId) ? "ordered" : "shipped")}, {Qty(x.Already)} already invoiced, " +
                     $"{Qty(Math.Max(0m, x.Shipped - x.Already))} left to invoice.")));
             }
         }
@@ -195,7 +207,7 @@ public class CreateInvoiceHandler(
             InvoiceDate = request.InvoiceDate,
             DueDate = request.DueDate,
             CreditTerms = creditTerms,
-            TaxRate = customer.IsTaxExempt ? 0m : request.TaxRate,
+            TaxRate = customer.IsTaxExemptOn(DateOnly.FromDateTime(request.InvoiceDate.UtcDateTime)) ? 0m : request.TaxRate,
             Notes = request.Notes,
             CustomerPO = customerPo,
         };
@@ -210,6 +222,7 @@ public class CreateInvoiceHandler(
                 Quantity = line.Quantity,
                 UnitPrice = line.UnitPrice,
                 LineNumber = lineNumber++,
+                TaxCode = line.Taxable ? null : InvoiceLine.NonTaxableCode,
             });
         }
 
@@ -223,15 +236,15 @@ public class CreateInvoiceHandler(
         if (identifiers is not null)
             await identifiers.IssueAsync(BusinessEntityType.Invoice, invoice.Id, invoice.InvoiceNumber, cancellationToken);
 
-        var total = invoice.Lines.Sum(l => l.Quantity * l.UnitPrice) * (1 + invoice.TaxRate);
+        var total = invoice.Total;
 
         // AUDIT-21-S1 (BLOCKER): enqueue a QBO sync row so AR reaches the accounting provider —
         // previously only MoveJobStage enqueued, leaving invoices created any other way invisible to
         // sync. Only when a provider is actually connected (mirrors MoveJobStage); unlike the job path
         // we do NOT require the customer to be pre-synced — the sync worker upserts the customer, so a
         // first invoice for a brand-new customer still syncs.
-        if (accountingService is not null && syncQueue is not null
-            && await accountingService.TestConnectionAsync(cancellationToken))
+        if (accountingProviders is not null && syncQueue is not null
+            && await accountingProviders.GetConnectedExternalProviderAsync(cancellationToken) is not null)
         {
             var document = new AccountingDocument(
                 Type: AccountingDocumentType.Invoice,

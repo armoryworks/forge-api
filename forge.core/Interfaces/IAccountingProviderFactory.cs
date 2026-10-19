@@ -30,4 +30,11 @@ public interface IAccountingProviderFactory
     /// Returns null when in standalone mode.
     /// </summary>
     Task<string?> GetActiveProviderIdAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Gets the active external accounting provider when one is selected and answers its
+    /// connection probe. Returns null in standalone mode (no provider, "local" or
+    /// "forge-native"), where Forge's own invoices and payments are the books of record.
+    /// </summary>
+    Task<IAccountingService?> GetConnectedExternalProviderAsync(CancellationToken ct);
 }

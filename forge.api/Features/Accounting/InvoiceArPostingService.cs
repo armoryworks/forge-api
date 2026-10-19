@@ -537,7 +537,7 @@ public sealed class InvoiceArPostingService(
     /// The amounts the AR origination posts, in the invoice's currency at 2 dp: each line's revenue
     /// rounded half away from zero, with any rounding residual on the largest line so the lines sum to the
     /// rounded subtotal; the AR total as <see cref="Invoice.BalanceDue"/> quantizes it (subtotal plus
-    /// non-exempt tax); and the tax as the difference, so the journal, the open item and the invoice's
+    /// the invoice's tax on its taxable lines); and the tax as the difference, so the journal, the open item and the invoice's
     /// balance agree to the cent.
     /// </summary>
     internal static (decimal ArTotal, decimal TaxAmount, IReadOnlyList<(InvoiceLine Line, decimal Amount)> Lines)
@@ -558,9 +558,7 @@ public sealed class InvoiceArPostingService(
             amounts[largest] += residual;
         }
 
-        var arTotal = invoice.Customer.IsTaxExempt
-            ? roundedSubtotal
-            : Math.Round(subtotal + subtotal * invoice.TaxRate, 2, MidpointRounding.AwayFromZero);
+        var arTotal = Math.Round(invoice.Total, 2, MidpointRounding.AwayFromZero);
 
         return (arTotal, arTotal - roundedSubtotal, ordered.Select((l, i) => (l, amounts[i])).ToList());
     }

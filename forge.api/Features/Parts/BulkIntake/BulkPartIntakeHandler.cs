@@ -183,6 +183,7 @@ public class BulkPartIntakeHandler(AppDbContext db, IPartRepository repo, IBarco
             "finishedgood" or "finished" or "fg" or "finishedgoods" => InventoryClass.FinishedGood,
             "consumable" or "con" => InventoryClass.Consumable,
             "tool" or "tooling" or "tlg" => InventoryClass.Tool,
+            "service" or "svc" or "nre" => InventoryClass.Service,
             _ => InventoryClass.Component,
         };
     }

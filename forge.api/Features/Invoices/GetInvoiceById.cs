@@ -14,9 +14,9 @@ public class GetInvoiceByIdHandler(IInvoiceRepository repo)
         var invoice = await repo.FindWithDetailsAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Invoice {request.Id} not found");
 
-        var subtotal = invoice.Lines.Sum(l => l.Quantity * l.UnitPrice);
-        var taxAmount = subtotal * invoice.TaxRate;
-        var total = subtotal + taxAmount;
+        var subtotal = invoice.Subtotal;
+        var taxAmount = invoice.TaxAmount;
+        var total = invoice.Total;
         var amountPaid = invoice.PaymentApplications.Sum(pa => pa.Amount);
 
         return new InvoiceDetailResponseModel(
@@ -42,7 +42,7 @@ public class GetInvoiceByIdHandler(IInvoiceRepository repo)
             invoice.Notes,
             invoice.Lines.Select(l => new InvoiceLineResponseModel(
                 l.Id, l.PartId, l.Part?.PartNumber, l.Description,
-                l.Quantity, l.UnitPrice, l.Quantity * l.UnitPrice, l.LineNumber)).ToList(),
+                l.Quantity, l.UnitPrice, l.Quantity * l.UnitPrice, l.LineNumber, l.IsTaxable)).ToList(),
             invoice.PaymentApplications.Select(pa => new PaymentApplicationResponseModel(
                 pa.Id, pa.PaymentId, pa.Payment.PaymentNumber,
                 pa.InvoiceId, invoice.InvoiceNumber, pa.Amount)).ToList(),

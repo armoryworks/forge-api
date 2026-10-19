@@ -8,4 +8,5 @@ public record InvoiceLineResponseModel(
     decimal Quantity,
     decimal UnitPrice,
     decimal LineTotal,
-    int LineNumber);
+    int LineNumber,
+    bool Taxable = true);

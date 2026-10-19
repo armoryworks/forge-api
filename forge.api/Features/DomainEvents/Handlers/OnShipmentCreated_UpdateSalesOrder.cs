@@ -22,7 +22,7 @@ public class OnShipmentCreated_UpdateSalesOrder(
         if (shipment is null) return;
 
         var so = await db.SalesOrders
-            .Include(s => s.Lines)
+            .Include(s => s.Lines).ThenInclude(l => l.Part)
             .FirstOrDefaultAsync(s => s.Id == notification.SalesOrderId, ct);
 
         if (so is null) return;
@@ -30,7 +30,7 @@ public class OnShipmentCreated_UpdateSalesOrder(
         // Update SO status based on fulfillment
         // ShippedQuantity is already committed by CreateShipment (inline increment + SaveChanges)
         // before this event fires — do NOT increment here or it doubles the count (INV-SH1).
-        var allFullyShipped = so.Lines.All(l => l.IsFullyShipped);
+        var allFullyShipped = so.Lines.Where(l => l.ShipsGoods).All(l => l.IsFullyShipped);
         var anyShipped = so.Lines.Any(l => l.ShippedQuantity > 0);
 
         if (allFullyShipped)

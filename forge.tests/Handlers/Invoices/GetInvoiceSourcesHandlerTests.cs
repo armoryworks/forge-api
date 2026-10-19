@@ -162,4 +162,26 @@ public class GetInvoiceSourcesHandlerTests
         line.Quantity.Should().Be(4m);
         line.UnitPrice.Should().Be(42.5m);
     }
+
+    [Fact]
+    public async Task Order_carries_its_tax_rate_and_a_non_taxable_line_stays_non_taxable()
+    {
+        var customer = new Customer { Name = "Acme" };
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync();
+        var order = new SalesOrder { OrderNumber = "SO-7", CustomerId = customer.Id, Status = SalesOrderStatus.Shipped, TaxRate = 0.0725m };
+        var freight = new SalesOrderLine { Description = "Freight", Quantity = 1m, UnitPrice = 40m, LineNumber = 1, TaxCode = InvoiceLine.NonTaxableCode };
+        order.Lines.Add(freight);
+        _db.SalesOrders.Add(order);
+        await _db.SaveChangesAsync();
+        var shipment = new Shipment { ShipmentNumber = "SHP-7", SalesOrderId = order.Id, Status = ShipmentStatus.Shipped };
+        shipment.Lines.Add(new ShipmentLine { SalesOrderLineId = freight.Id, Quantity = 1m });
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+
+        var result = await new GetInvoiceSourcesHandler(_db).Handle(new GetInvoiceSourcesQuery(customer.Id), CancellationToken.None);
+
+        result.SalesOrders.Should().ContainSingle().Which.TaxRate.Should().Be(0.0725m);
+        result.Shipments.Single().Lines.Should().ContainSingle().Which.Taxable.Should().BeFalse();
+    }
 }
