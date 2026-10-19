@@ -223,7 +223,7 @@ public class CreateVendorPaymentHandler(
         var awaitsNachaBatch = method == PaymentMethod.BankTransfer
             && (capabilities?.IsEnabled("CAP-BANK-NACHA") ?? false);
 
-        // banking.wire.manual-attestation: a wire sits Queued until a SECOND user attests it was
+        // banking.wire.manual-attestation: a wire sits AwaitingAttestation until a SECOND user attests it was
         // entered at the bank portal — no fake auto-success on money movement (mirror of the
         // batch-release SoD step). The mock channel remains the dev default.
         var awaitsWireAttestation = method == PaymentMethod.Wire
@@ -247,18 +247,21 @@ public class CreateVendorPaymentHandler(
                 SourceId = payment.Id,
                 Amount = payment.Amount,
                 Method = method.ToString(),
+                Status = awaitsWireAttestation
+                    ? PaymentTransmissionStatus.AwaitingAttestation
+                    : PaymentTransmissionStatus.Queued,
                 CreatedByUserId = db.CurrentUserId,
             };
             db.PaymentTransmissions.Add(transmission);
             db.LogActivityAt(
-                awaitsWireAttestation ? "awaiting-wire-attestation" : "transmission-queued",
+                awaitsWireAttestation ? WireAttestationState.AwaitingActivityAction : "transmission-queued",
                 awaitsWireAttestation
                     ? $"Payment {payment.PaymentNumber} ({payment.Amount:C}) awaiting wire attestation — enter the wire at the bank, then a second user attests it"
                     : $"Bank transmission queued — {payment.PaymentNumber} {payment.Amount:C} via {method}",
                 ("VendorPayment", payment.Id));
             await db.SaveChangesAsync(cancellationToken);
 
-            // Manual attestation: no channel job — the transmission stays Queued until attested.
+            // Manual attestation: no channel job — the transmission stays AwaitingAttestation until attested.
             if (!awaitsWireAttestation)
             {
                 backgroundJobs?.Enqueue<PaymentTransmissionJob>(

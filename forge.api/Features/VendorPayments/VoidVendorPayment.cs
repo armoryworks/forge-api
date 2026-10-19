@@ -62,6 +62,7 @@ public class VoidVendorPaymentHandler(
         var openTransmissions = await db.PaymentTransmissions
             .Where(t => t.SourceType == "VendorPayment" && t.SourceId == payment.Id
                 && (t.Status == PaymentTransmissionStatus.Queued
+                    || t.Status == PaymentTransmissionStatus.AwaitingAttestation
                     || t.Status == PaymentTransmissionStatus.Retrying
                     || t.Status == PaymentTransmissionStatus.Failed))
             .ToListAsync(cancellationToken);

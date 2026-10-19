@@ -44,5 +44,12 @@ public class VendorBillLineConfiguration : IEntityTypeConfiguration<VendorBillLi
             .HasForeignKey(e => e.JobId)
             .HasConstraintName("fk_vendor_bill_lines_job")
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(e => e.GlAccountId).HasDatabaseName("ix_vendor_bill_lines_gl_account");
+        builder.HasOne(e => e.GlAccount)
+            .WithMany()
+            .HasForeignKey(e => e.GlAccountId)
+            .HasConstraintName("fk_vendor_bill_lines_gl_account")
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

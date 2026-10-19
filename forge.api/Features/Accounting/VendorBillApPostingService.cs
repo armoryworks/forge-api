@@ -260,7 +260,8 @@ public sealed class VendorBillApPostingService(
     }
 
     /// <summary>
-    /// Standalone (non-PO) bill: Dr each line's resolved expense/asset account for the line total.
+    /// Standalone (non-PO) bill: Dr each line's expense/asset account for the line total — the line's explicit
+    /// GL account when one was chosen, else its determination key.
     /// </summary>
     private static void BuildStandaloneDebits(VendorBill bill, List<PostingLine> lines)
     {
@@ -271,7 +272,8 @@ public sealed class VendorBillApPostingService(
                 continue; // skip degenerate/zero lines rather than emit a 0-amount posting line
             lines.Add(new PostingLine
             {
-                AccountKey = l.AccountDeterminationKey,
+                AccountKey = l.GlAccountId is null ? l.AccountDeterminationKey : null,
+                GlAccountId = l.GlAccountId,
                 JobId = l.JobId, // carry the job tag for job costing (e.g. promoted job-costed expenses)
                 Debit = amount,
                 Description = l.Description,

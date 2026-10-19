@@ -11,7 +11,8 @@ namespace Forge.Api.Features.Banking;
 /// MIT). Everything bank-specific is the banking.sftp.* settings group: host, port, username,
 /// password (encrypted at rest), upload + returns directories. Processed return files are
 /// renamed with a ".processed" suffix rather than deleted — the bank's drop stays auditable.
-/// Connections are per-operation (bank drops are low-frequency; no pooling complexity).
+/// The server's host key must match the pinned banking.sftp.host-key-fingerprint; an unpinned or
+/// mismatched key refuses the connection. Connections are per-operation (bank drops are low-frequency; no pooling complexity).
 /// </summary>
 public sealed class SftpBankFileChannel(ISettingsService settings) : IBankFileChannel
 {
@@ -72,8 +73,35 @@ public sealed class SftpBankFileChannel(ISettingsService settings) : IBankFileCh
         var uploadDir = await settings.GetStringAsync(BankingSettings.SftpUploadDirKey, ct) ?? "/inbound";
         var returnsDir = await settings.GetStringAsync(BankingSettings.SftpReturnsDirKey, ct) ?? "/outbound";
 
+        var pinned = SftpHostKeyPin.Normalise(await settings.GetStringAsync(BankingSettings.SftpHostKeyFingerprintKey, ct));
+
         var client = new SftpClient(host, port, username, password);
-        client.Connect();
+        string? presented = null;
+        client.HostKeyReceived += (_, e) =>
+        {
+            presented = e.FingerPrintSHA256;
+            e.CanTrust = SftpHostKeyPin.Matches(pinned, presented);
+        };
+
+        try
+        {
+            await client.ConnectAsync(ct);
+        }
+        catch (Exception) when (presented is not null && !SftpHostKeyPin.Matches(pinned, presented))
+        {
+            client.Dispose();
+            throw new InvalidOperationException(pinned is null
+                ? $"Bank SFTP host key is not pinned. The server {host} presented SHA256:{presented}; confirm it "
+                    + $"with the bank, then set '{BankingSettings.SftpHostKeyFingerprintKey}'."
+                : $"Bank SFTP host key mismatch for {host}: the server presented SHA256:{presented}, which is not "
+                    + $"the pinned '{BankingSettings.SftpHostKeyFingerprintKey}'. The connection was refused.");
+        }
+        catch
+        {
+            client.Dispose();
+            throw;
+        }
+
         return (client, uploadDir, returnsDir);
     }
 

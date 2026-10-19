@@ -79,6 +79,16 @@ public class PaymentTransmissionJob(
             return;
         }
 
+        if (await Forge.Api.Features.VendorPayments.WireAttestationState.IsAwaitingAttestationAsync(db, transmission, ct))
+        {
+            transmission.Status = PaymentTransmissionStatus.AwaitingAttestation;
+            await db.SaveChangesAsync(ct);
+            logger.LogWarning(
+                "PaymentTransmissionJob: transmission {Id} is a wire awaiting manual attestation — not submitting it",
+                transmissionId);
+            return;
+        }
+
         transmission.AttemptCount++;
         transmission.LastAttemptAt = clock.UtcNow;
         await db.SaveChangesAsync(ct);

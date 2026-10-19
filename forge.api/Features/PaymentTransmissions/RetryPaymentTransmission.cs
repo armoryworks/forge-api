@@ -30,7 +30,8 @@ public class RetryPaymentTransmissionHandler(
     AppDbContext db,
     // Optional / null-default (mirrors the CreateVendorPayment seam) so unit tests without Hangfire
     // storage can exercise the state transition; only the enqueue is skipped when null.
-    IBackgroundJobClient? backgroundJobs = null)
+    IBackgroundJobClient? backgroundJobs = null,
+    Forge.Core.Settings.ISettingsService? settings = null)
     : IRequestHandler<RetryPaymentTransmissionCommand, PaymentTransmissionListItemModel>
 {
     public async Task<PaymentTransmissionListItemModel> Handle(
@@ -56,19 +57,31 @@ public class RetryPaymentTransmissionHandler(
                     $"Payment transmission {transmission.Id} cannot be retried: the payment has been voided");
         }
 
-        transmission.Status = PaymentTransmissionStatus.Queued;
+        var awaitsWireAttestation = transmission.SourceType == "VendorPayment"
+            && string.Equals(transmission.Method, nameof(PaymentMethod.Wire), StringComparison.OrdinalIgnoreCase)
+            && settings is not null
+            && await settings.GetBoolAsync(Forge.Core.Settings.BankingSettings.WireManualAttestationKey, cancellationToken);
+
+        transmission.Status = awaitsWireAttestation
+            ? PaymentTransmissionStatus.AwaitingAttestation
+            : PaymentTransmissionStatus.Queued;
         transmission.AttemptCount = 0;
         transmission.NextAttemptAt = null;
         // LastError intentionally kept — visible in triage until the next attempt overwrites it.
 
         db.LogActivityAt(
-            "transmission-retried",
-            $"Bank transmission manually re-queued — {transmission.Amount:C} via {transmission.Method}",
+            Forge.Api.Features.VendorPayments.WireAttestationState.RetriedActivityAction,
+            awaitsWireAttestation
+                ? $"Wire returned to manual attestation — {transmission.Amount:C}"
+                : $"Bank transmission manually re-queued — {transmission.Amount:C} via {transmission.Method}",
             (transmission.SourceType, transmission.SourceId));
         await db.SaveChangesAsync(cancellationToken);
 
-        backgroundJobs?.Enqueue<PaymentTransmissionJob>(
-            j => j.ProcessAsync(transmission.Id, CancellationToken.None));
+        if (!awaitsWireAttestation)
+        {
+            backgroundJobs?.Enqueue<PaymentTransmissionJob>(
+                j => j.ProcessAsync(transmission.Id, CancellationToken.None));
+        }
 
         return new PaymentTransmissionListItemModel(
             transmission.Id, transmission.SourceType, transmission.SourceId, transmission.Status.ToString(),

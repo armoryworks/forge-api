@@ -82,7 +82,7 @@ public class UpdateExpenseStatusHandler(
         // small-shop case (no request row at all) is unaffected. db is null only in isolated
         // unit tests (mocked repo) → no governing request to find, guard is a no-op.
         var isDecisionOutcome = request.Data.Status
-            is ExpenseStatus.Approved or ExpenseStatus.Rejected or ExpenseStatus.NeedsRevision;
+            is ExpenseStatus.Approved or ExpenseStatus.SelfApproved or ExpenseStatus.Rejected or ExpenseStatus.NeedsRevision;
         if (isDecisionOutcome && db is not null)
         {
             var hasPendingWorkflow = await db.ApprovalRequests
@@ -104,7 +104,11 @@ public class UpdateExpenseStatusHandler(
         var userId = request.ActorUserId
             ?? int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        expense.Status = request.Data.Status;
+        var status = request.ActorUserId is null
+            ? await ResolveDirectApprovalStatusAsync(expense, request.Data.Status, userId, cancellationToken)
+            : request.Data.Status;
+
+        expense.Status = status;
         expense.ApprovedBy = userId;
         expense.ApprovalNotes = request.Data.ApprovalNotes?.Trim();
 
@@ -125,7 +129,7 @@ public class UpdateExpenseStatusHandler(
 
         await repo.SaveChangesAsync(cancellationToken);
 
-        if (request.Data.Status is ExpenseStatus.Approved or ExpenseStatus.SelfApproved)
+        if (status is ExpenseStatus.Approved or ExpenseStatus.SelfApproved)
         {
             // Promotion first: a vendor-settled expense becomes a real vendor bill (open item, aging,
             // payable via vendor payments). Promotion handles the GL through the bill posting; only
@@ -149,7 +153,7 @@ public class UpdateExpenseStatusHandler(
             await tx.CommitAsync(cancellationToken);
 
         // Enqueue QB expense creation when approved
-        if (request.Data.Status is ExpenseStatus.Approved or ExpenseStatus.SelfApproved)
+        if (status is ExpenseStatus.Approved or ExpenseStatus.SelfApproved)
         {
             try
             {
@@ -188,6 +192,35 @@ public class UpdateExpenseStatusHandler(
         }
 
         return (await repo.GetByIdAsync(expense.Id, cancellationToken))!;
+    }
+
+    /// <summary>
+    /// Applies the expense_self_approval setting to a direct (PATCH) approval. The submitter may approve
+    /// their own expense only while the setting is on, and that approval is recorded as
+    /// <see cref="ExpenseStatus.SelfApproved"/>; <see cref="ExpenseStatus.SelfApproved"/> is never valid
+    /// for someone else's expense. With no <see cref="AppDbContext"/> (isolated unit tests) the setting
+    /// reads as off.
+    /// </summary>
+    private async Task<ExpenseStatus> ResolveDirectApprovalStatusAsync(
+        Expense expense, ExpenseStatus requested, int actorUserId, CancellationToken cancellationToken)
+    {
+        if (requested is not (ExpenseStatus.Approved or ExpenseStatus.SelfApproved))
+            return requested;
+
+        var isOwner = expense.UserId == actorUserId;
+        if (!isOwner)
+        {
+            if (requested == ExpenseStatus.SelfApproved)
+                throw new InvalidOperationException("Only the person who submitted an expense can self-approve it.");
+            return requested;
+        }
+
+        var allowSelfApproval = db is not null && await db.SystemSettings.AsNoTracking()
+            .AnyAsync(s => s.Key == "expense_self_approval" && s.Value == "true", cancellationToken);
+        if (!allowSelfApproval)
+            throw new InvalidOperationException("You cannot approve your own expense. Another approver must review it.");
+
+        return ExpenseStatus.SelfApproved;
     }
 
     /// <summary>
