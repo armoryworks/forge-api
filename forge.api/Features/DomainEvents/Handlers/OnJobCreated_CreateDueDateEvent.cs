@@ -2,6 +2,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Data;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
@@ -31,6 +32,11 @@ public class OnJobCreated_CreateDueDateEvent(
             return;
         }
 
+        var eventTypeId = await db.CalendarEventTypes
+            .Where(t => t.Key == SeedData.JobDueEventTypeKey)
+            .Select(t => (int?)t.Id)
+            .FirstOrDefaultAsync(ct);
+
         var title = $"Job Due: {job.JobNumber} - {job.Title}";
 
         db.Events.Add(new Event
@@ -40,6 +46,7 @@ public class OnJobCreated_CreateDueDateEvent(
             StartTime = job.DueDate.Value,
             EndTime = job.DueDate.Value,
             EventType = EventType.Other,
+            EventTypeId = eventTypeId,
             IsAllDay = true,
             IsSystemGenerated = true,
             CreatedByUserId = notification.UserId,
