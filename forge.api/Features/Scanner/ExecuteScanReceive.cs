@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Extensions;
 using Forge.Api.Features.Inventory;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -39,7 +40,7 @@ public class ExecuteScanReceiveHandler(
     {
         var data = request.Data;
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var userName = httpContext.HttpContext.User.FindFirstValue(ClaimTypes.Name) ?? "Unknown";
+        var userName = httpContext.HttpContext.User.DisplayName();
         var now = clock.UtcNow;
 
         // Validate PO line exists and has unreceived qty

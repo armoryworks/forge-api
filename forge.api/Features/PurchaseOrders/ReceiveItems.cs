@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Extensions;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.Inventory;
@@ -98,6 +99,7 @@ public class ReceiveItemsHandler(
         var newRecords = new List<(ReceiveLineModel req, PurchaseOrderLine line, ReceivingRecord rec, decimal baseQty, string? lot)>();
         decimal totalExtended = 0m;
         decimal totalQty = 0m;
+        var receivedBy = httpContext.HttpContext?.User.DisplayName();
         foreach (var receiveItem in request.Lines)
         {
             var line = po.Lines.FirstOrDefault(l => l.Id == receiveItem.LineId)
@@ -126,6 +128,7 @@ public class ReceiveItemsHandler(
                 LotNumber = lot,
                 PackingSlipNumber = packingSlip,
                 ReceiptNumber = receiptNumber,
+                ReceivedBy = receivedBy,
                 InspectionStatus = ReceivingInspectionPolicy.InitialStatus(line.Part?.RequiresReceivingInspection == true, capabilities),
                 ActualFreight = actualFreight,
                 FreightAllocationMethod = request.FreightAllocationMethod,

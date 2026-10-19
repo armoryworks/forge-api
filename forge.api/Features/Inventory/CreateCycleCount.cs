@@ -4,6 +4,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
+using Forge.Api.Extensions;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -30,7 +31,7 @@ public class CreateCycleCountHandler(
     {
         var data = request.Data;
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var userName = httpContext.HttpContext.User.FindFirstValue(ClaimTypes.Name) ?? "Unknown";
+        var userName = httpContext.HttpContext.User.DisplayName();
 
         var location = await repo.FindLocationAsync(data.LocationId, cancellationToken)
             ?? throw new KeyNotFoundException($"Location {data.LocationId} not found");
