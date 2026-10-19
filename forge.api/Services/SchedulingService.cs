@@ -179,7 +179,8 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                         cursor = cursor.Value.AddHours((double)(-(decimal)prevDuration.TotalHours * overlapFraction));
                     }
 
-                    var earliest = cursor ?? capacity.MidnightUtc(parameters.ScheduleFrom);
+                    var notBefore = cursor ?? capacity.MidnightUtc(parameters.ScheduleFrom);
+                    var earliest = notBefore > run.RunDate ? notBefore : run.RunDate;
                     var slot = FindAvailableSlot(
                         wcId, earliest, totalHours, capacity, capacityUsed, parameters.ScheduleTo);
 

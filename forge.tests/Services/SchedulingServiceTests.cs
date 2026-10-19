@@ -471,6 +471,55 @@ public class SchedulingServiceTests
             .Should().Be(new DateTimeOffset(2026, 10, 6, 8, 0, 0, TimeSpan.Zero));
     }
 
+    [Fact]
+    public async Task Schedule_RunMidShift_NeverStartsBeforeTheRun()
+    {
+        SeedDenverCalendar();
+        var wc = await SeedWorkCenterAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        await SeedJobAsync(part, 60m);
+        var clock = new Mock<IClock>();
+        clock.Setup(c => c.UtcNow).Returns(new DateTimeOffset(2026, 10, 5, 14, 30, 0, TimeSpan.Zero));
+        var service = new SchedulingService(_db, clock.Object, NullLogger<SchedulingService>.Instance);
+
+        await service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var scheduled = await _db.ScheduledOperations.SingleAsync();
+        scheduled.ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, 14, 30, 0, TimeSpan.Zero));
+        scheduled.ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 5, 15, 30, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task Schedule_SuccessorOfAFinishedLockedOperation_StartsNoEarlierThanTheRun()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var (part, first) = await SeedPartAsync(wc, estimatedMs: 60000);
+        _db.Operations.Add(new Operation { PartId = part.Id, StepNumber = 20, Title = "Trim", WorkCenterId = wc.Id, EstimatedMs = 60000 });
+        await _db.SaveChangesAsync();
+        var job = await SeedJobAsync(part, 60m);
+        _db.ScheduledOperations.Add(new ScheduledOperation
+        {
+            JobId = job.Id,
+            OperationId = first.Id,
+            WorkCenterId = wc.Id,
+            ScheduledStart = new DateTimeOffset(2026, 10, 2, 8, 0, 0, TimeSpan.Zero),
+            ScheduledEnd = new DateTimeOffset(2026, 10, 2, 9, 0, 0, TimeSpan.Zero),
+            RunHours = 1m,
+            TotalHours = 1m,
+            Status = ScheduledOperationStatus.Scheduled,
+            IsLocked = true,
+        });
+        await _db.SaveChangesAsync();
+        var clock = new Mock<IClock>();
+        clock.Setup(c => c.UtcNow).Returns(new DateTimeOffset(2026, 10, 5, 10, 15, 0, TimeSpan.Zero));
+        var service = new SchedulingService(_db, clock.Object, NullLogger<SchedulingService>.Instance);
+
+        await service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        (await _db.ScheduledOperations.SingleAsync(so => so.JobId == job.Id && !so.IsLocked)).ScheduledStart
+            .Should().Be(new DateTimeOffset(2026, 10, 5, 10, 15, 0, TimeSpan.Zero));
+    }
+
     private void SeedDenverCalendar()
     {
         var calendar = new WorkingCalendar { Name = "Plant", IsDefault = true, TimeZone = "America/Denver" };
