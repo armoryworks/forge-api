@@ -121,6 +121,15 @@ public class QualityController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("ecos/{id:int}/submit")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
+    [RequiresCapability("CAP-MD-ECO")]
+    public async Task<IActionResult> SubmitEcoForReview(int id)
+    {
+        await mediator.Send(new SubmitEcoForReviewCommand(id));
+        return NoContent();
+    }
+
     [HttpPost("ecos/{id:int}/approve")]
     [Authorize(Roles = "Admin,Manager")]
     [RequiresCapability("CAP-MD-ECO")]
