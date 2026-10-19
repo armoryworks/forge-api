@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Forge.Api.Features.Auth;
+using Forge.Api.Middleware;
 using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -126,7 +127,9 @@ public class LoginHandlerTests
             .ReturnsAsync(SignInResult.Success);
         _tokenServiceMock.Setup(x => x.GenerateToken(
                 It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<IList<string>>(), null, null))
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<IList<string>>(), null,
+                It.Is<IDictionary<string, string>?>(c =>
+                    c != null && c[MfaEnrollmentGateMiddleware.ClaimType] == "true")))
             .Returns(new TokenResult("jwt", "jti", DateTimeOffset.UtcNow.AddHours(1)));
 
         var result = await _handler.Handle(new LoginCommand(user.Email, "ValidPassword1!"), CancellationToken.None);

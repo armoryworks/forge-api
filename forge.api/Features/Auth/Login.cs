@@ -7,10 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.EmployeeProfile;
+using Forge.Api.Middleware;
 using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
-using Forge.Data.Services;
 
 namespace Forge.Api.Features.Auth;
 
@@ -125,10 +125,12 @@ public class LoginHandler(
         // WU-06 / C1 — combine identity roles with any roles included via
         // the user's assigned RoleTemplate so the JWT carries the full set.
         var roles = await roleClaimsExpander.GetEffectiveRolesAsync(user, cancellationToken);
+        var enrollmentRequired = await MfaEnrollmentGateMiddleware.IsRequiredAsync(db, user, cancellationToken);
 
         var result = tokenService.GenerateToken(
             user.Id, user.Email!, user.FirstName, user.LastName,
-            user.Initials, user.AvatarColor, roles);
+            user.Initials, user.AvatarColor, roles,
+            extraClaims: MfaEnrollmentGateMiddleware.ExtraClaims(enrollmentRequired));
 
         await sessionStore.CreateSessionAsync(user.Id, result.Jti, result.ExpiresAt,
             "credentials",
@@ -157,8 +159,6 @@ public class LoginHandler(
             user.AvatarColor,
             roles.ToArray(),
             profileComplete);
-
-        var enrollmentRequired = !user.MfaEnabled && await MfaRolePolicy.IsEnforcedAsync(db, user, cancellationToken);
 
         return new LoginResponse(result.Token, result.ExpiresAt, userResponse, MfaEnrollmentRequired: enrollmentRequired);
     }
