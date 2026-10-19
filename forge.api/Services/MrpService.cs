@@ -74,7 +74,7 @@ public class MrpService(
                 mrpRun.Status = MrpRunStatus.Completed;
                 mrpRun.CompletedAt = clock.UtcNow;
                 await db.SaveChangesAsync(cancellationToken);
-                return MapToResponse(mrpRun);
+                return MapToResponse(mrpRun) with { UnplannedDemandPartCount = await CountUnplannedDemandPartsAsync(options, cancellationToken) };
             }
 
             var partIds = parts.Select(p => p.Id).ToHashSet();
@@ -622,7 +622,7 @@ public class MrpService(
             logger.LogInformation("MRP run {RunNumber} completed: {DemandCount} demands, {SupplyCount} supplies, {PlannedCount} planned orders, {ExceptionCount} exceptions",
                 runNumber, demandRecords.Count, supplyRecords.Count, plannedOrders.Count, exceptions.Count);
 
-            return MapToResponse(mrpRun);
+            return MapToResponse(mrpRun) with { UnplannedDemandPartCount = await CountUnplannedDemandPartsAsync(options, cancellationToken) };
         }
         catch (Exception ex)
         {
@@ -1078,6 +1078,22 @@ public class MrpService(
         } while (changed && iterations < maxIterations);
 
         return codes;
+    }
+
+    private async Task<int> CountUnplannedDemandPartsAsync(MrpRunOptions options, CancellationToken cancellationToken)
+    {
+        var candidates = db.Parts.AsNoTracking()
+            .Where(p => !p.IsMrpPlanned && p.Status == PartStatus.Active && p.InventoryClass != InventoryClass.Service);
+        if (options.PartIds is { Count: > 0 })
+            candidates = candidates.Where(p => options.PartIds.Contains(p.Id));
+
+        return await candidates
+            .Where(p => db.MasterScheduleLines.Any(l => l.PartId == p.Id && l.MasterSchedule!.Status == MasterScheduleStatus.Active)
+                || db.SalesOrderLines.Any(l => l.PartId == p.Id
+                    && l.SalesOrder!.Status != SalesOrderStatus.Cancelled
+                    && l.SalesOrder!.Status != SalesOrderStatus.Completed
+                    && (l.Quantity - l.ShippedQuantity) > 0))
+            .CountAsync(cancellationToken);
     }
 
     private static MrpRunResponseModel MapToResponse(MrpRun run) => new(
