@@ -74,15 +74,29 @@ public class InvoiceArPostingRoundingTests
     }
 
     [Fact]
-    public void TaxExemptCustomer_PostsNoTax()
+    public void TaxExemptCustomer_InvoiceStoredAtZeroRate_PostsNoTax()
     {
-        var invoice = InvoiceOf(0.0725m, true, (3m, 10.005m));
+        var invoice = InvoiceOf(0m, true, (3m, 10.005m));
 
         var posted = InvoiceArPostingService.ComputePostedAmounts(invoice);
 
         posted.TaxAmount.Should().Be(0m);
         posted.ArTotal.Should().Be(30.02m);
         posted.Lines.Single().Amount.Should().Be(30.02m);
+        posted.ArTotal.Should().Be(invoice.BalanceDue);
+    }
+
+    [Fact]
+    public void NonTaxableLine_PostsTaxOnTheTaxableLinesOnly()
+    {
+        var invoice = InvoiceOf(0.10m, false, (1m, 100m), (1m, 50m));
+        invoice.Lines.Last().TaxCode = InvoiceLine.NonTaxableCode;
+
+        var posted = InvoiceArPostingService.ComputePostedAmounts(invoice);
+
+        posted.TaxAmount.Should().Be(10m);
+        posted.ArTotal.Should().Be(160m);
+        posted.ArTotal.Should().Be(invoice.BalanceDue);
     }
 
     [Fact]
