@@ -17,4 +17,5 @@ public record WorkCenterResponseModel(
     string? LocationName,
     int SortOrder,
     int? TeamId,
-    string? TeamName);
+    string? TeamName,
+    decimal? IdealCycleTimeSeconds = null);

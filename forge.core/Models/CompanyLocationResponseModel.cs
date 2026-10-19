@@ -13,4 +13,5 @@ public record CompanyLocationResponseModel(
     bool IsDefault,
     bool IsActive,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    int? WorkingCalendarId = null);

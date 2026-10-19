@@ -21,7 +21,7 @@ public class GetCompanyLocationsHandler(AppDbContext db)
 
         return locations.Select(l => new CompanyLocationResponseModel(
             l.Id, l.Name, l.Line1, l.Line2, l.City, l.State, l.PostalCode,
-            l.Country, l.Phone, l.IsDefault, l.IsActive, l.CreatedAt, l.UpdatedAt
+            l.Country, l.Phone, l.IsDefault, l.IsActive, l.CreatedAt, l.UpdatedAt, l.WorkingCalendarId
         )).ToList();
     }
 }

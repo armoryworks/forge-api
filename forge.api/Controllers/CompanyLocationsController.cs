@@ -34,7 +34,7 @@ public class CompanyLocationsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new CreateCompanyLocationCommand(
             request.Name, request.Line1, request.Line2, request.City,
             request.State, request.PostalCode, request.Country,
-            request.Phone, request.IsActive));
+            request.Phone, request.IsActive, request.WorkingCalendarId));
         return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
     }
 
@@ -45,7 +45,7 @@ public class CompanyLocationsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new UpdateCompanyLocationCommand(
             id, request.Name, request.Line1, request.Line2, request.City,
             request.State, request.PostalCode, request.Country,
-            request.Phone, request.IsActive));
+            request.Phone, request.IsActive, request.WorkingCalendarId));
         return Ok(result);
     }
 

@@ -176,4 +176,32 @@ public class WorkCenterHandlerTests
         result.Single(w => w.Code == "WC-BE").TeamName.Should().Be("Assembly");
         result.Single(w => w.Code == "WC-PR").TeamId.Should().BeNull();
     }
+
+    [Fact]
+    public async Task IdealCycleTime_IsSavedOnCreateAndUpdate()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        var created = await new CreateWorkCenterHandler(db).Handle(new CreateWorkCenterCommand(
+            "Press", "WC-PR", null, 8m, 100m, 1, 40m, 20m, null, null, 1, IdealCycleTimeSeconds: 12.5m), CancellationToken.None);
+        created.IdealCycleTimeSeconds.Should().Be(12.5m);
+
+        var updated = await new UpdateWorkCenterHandler(db).Handle(new UpdateWorkCenterCommand(
+            created.Id, "Press", "WC-PR", null, 8m, 100m, 1, 40m, 20m, true, null, null, 1, IdealCycleTimeSeconds: 9m), CancellationToken.None);
+
+        updated.IdealCycleTimeSeconds.Should().Be(9m);
+        (await db.WorkCenters.AsNoTracking().SingleAsync()).IdealCycleTimeSeconds.Should().Be(9m);
+        db.ActivityLogs.Should().Contain(a => a.Description.Contains("idealCycleTimeSeconds"));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void IdealCycleTime_MustBePositive(int seconds)
+    {
+        new CreateWorkCenterValidator().Validate(new CreateWorkCenterCommand(
+            "Press", "WC-PR", null, 8m, 100m, 1, 40m, 20m, null, null, 1, IdealCycleTimeSeconds: seconds)).IsValid.Should().BeFalse();
+        new UpdateWorkCenterValidator().Validate(new UpdateWorkCenterCommand(
+            1, "Press", "WC-PR", null, 8m, 100m, 1, 40m, 20m, true, null, null, 1, IdealCycleTimeSeconds: seconds)).IsValid.Should().BeFalse();
+    }
 }
