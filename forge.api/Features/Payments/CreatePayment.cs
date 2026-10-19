@@ -6,6 +6,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.PaymentSchedules;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -202,6 +203,11 @@ public class CreatePaymentHandler(
         // transaction so the registry row commits/rolls back with the payment.
         if (identifiers is not null)
             await identifiers.IssueAsync(BusinessEntityType.Payment, payment.Id, payment.PaymentNumber, cancellationToken);
+
+        var appliedInvoiceIds = payment.Applications.Select(a => a.InvoiceId).Distinct().ToList();
+        if (await InvoicedMilestonePayments.RefreshAsync(
+                db, appliedInvoiceIds, payment.PaymentDate, payment.PaymentNumber, cancellationToken))
+            await db.SaveChangesAsync(cancellationToken);
 
         // ── Order-to-cash completion. An order that is fully shipped with all its
         // (non-voided) invoices paid is done — advance it to Completed, the terminal

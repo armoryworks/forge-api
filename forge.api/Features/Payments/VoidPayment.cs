@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.PaymentSchedules;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -60,6 +61,9 @@ public class VoidPaymentHandler(
             ("Payment", payment.Id), ("Customer", payment.CustomerId));
 
         await db.SaveChangesAsync(cancellationToken);
+
+        await InvoicedMilestonePayments.RefreshAsync(
+            db, affectedInvoiceIds, payment.PaymentDate, null, cancellationToken);
 
         // Recompute each affected invoice's status from its remaining applications.
         foreach (var invoiceId in affectedInvoiceIds)
