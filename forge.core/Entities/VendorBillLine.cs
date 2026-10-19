@@ -1,3 +1,5 @@
+using Forge.Core.Entities.Accounting;
+
 namespace Forge.Core.Entities;
 
 /// <summary>
@@ -37,10 +39,18 @@ public class VendorBillLine : BaseEntity
     /// </summary>
     public string AccountDeterminationKey { get; set; } = "OPERATING_EXPENSE";
 
+    /// <summary>
+    /// Optional explicit GL account this line debits, chosen on a standalone bill when no determination key
+    /// fits (e.g. an expense account the company added to its chart). When set it wins over
+    /// <see cref="AccountDeterminationKey"/>; PO-matched lines always clear GRNI and never carry one.
+    /// </summary>
+    public int? GlAccountId { get; set; }
+
     public decimal LineTotal => Quantity * UnitPrice;
 
     public VendorBill VendorBill { get; set; } = null!;
     public Part? Part { get; set; }
     public PurchaseOrderLine? PurchaseOrderLine { get; set; }
     public Job? Job { get; set; }
+    public GlAccount? GlAccount { get; set; }
 }

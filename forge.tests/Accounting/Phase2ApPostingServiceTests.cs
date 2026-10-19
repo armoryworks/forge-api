@@ -809,4 +809,94 @@ public class Phase2ApPostingServiceTests
         await service.PostVendorPaymentCreatedAsync(payment.Id, createdByUserId: 7);
         (await db.ApOpenItems.SingleAsync()).AppliedTxnAmount.Should().Be(80m);
     }
+
+    // ─────────────────────────── Explicit line GL account ───────────────────────────
+
+    private const int OfficeSuppliesId = 220;
+
+    private static async Task AddOfficeSuppliesAccountAsync(AppDbContext db, bool isActive = true)
+    {
+        db.Set<GlAccount>().Add(new GlAccount
+        {
+            Id = OfficeSuppliesId, BookId = BookId, AccountNumber = "61000", Name = "Office Supplies",
+            AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = isActive,
+        });
+        await db.SaveChangesAsync();
+    }
+
+    private static Forge.Api.Features.VendorBills.CreateVendorBillCommand StandaloneBill(int vendorId, int? glAccountId)
+        => new(vendorId, null, null,
+            new DateTimeOffset(2026, 1, 18, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2026, 2, 17, 0, 0, 0, TimeSpan.Zero),
+            0m, null,
+            [new Forge.Core.Models.CreateVendorBillLineModel(null, "Printer paper", 2m, 25m, null, GlAccountId: glAccountId)]);
+
+    private static Forge.Api.Features.VendorBills.CreateVendorBillHandler CreateHandler(AppDbContext db)
+        => new(new Forge.Data.Repositories.VendorBillRepository(db), new Forge.Data.Repositories.VendorRepository(db), db);
+
+    [Fact]
+    public async Task Bill_LineWithExplicitGlAccount_DebitsThatAccountNotTheKey()
+    {
+        using var db = await SeedAsync();
+        await AddOfficeSuppliesAccountAsync(db);
+        var vendorId = await AddVendorAsync(db);
+        var created = await CreateHandler(db).Handle(StandaloneBill(vendorId, OfficeSuppliesId), CancellationToken.None);
+        var bill = await db.VendorBills.SingleAsync(b => b.Id == created.Id);
+        bill.Status = VendorBillStatus.Approved;
+        await db.SaveChangesAsync();
+
+        await BillService(db, fullGlOn: true).PostVendorBillApprovedAsync(bill.Id, approvedByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.Debit > 0).GlAccountId.Should().Be(OfficeSuppliesId);
+        entry.Lines.Should().NotContain(l => l.GlAccountId == OperatingExpenseId);
+        entry.Lines.Single(l => l.GlAccountId == ApControlId).Credit.Should().Be(50m);
+    }
+
+    [Theory]
+    [InlineData(ApControlId)]
+    [InlineData(OfficeSuppliesId)]
+    [InlineData(9999)]
+    public async Task CreateBill_WithAnAccountThatCannotTakeABillLine_IsRefused(int glAccountId)
+    {
+        using var db = await SeedAsync();
+        await AddOfficeSuppliesAccountAsync(db, isActive: false);
+        var vendorId = await AddVendorAsync(db);
+
+        var act = () => CreateHandler(db).Handle(StandaloneBill(vendorId, glAccountId), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*cannot take a bill line*");
+        (await db.VendorBills.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CreateBill_PoLinkedLineNamingAGlAccount_FailsValidation()
+    {
+        var command = new Forge.Api.Features.VendorBills.CreateVendorBillCommand(1, null, 5,
+            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(30), 0m, null,
+            [new Forge.Core.Models.CreateVendorBillLineModel(null, "Bar stock", 1m, 10m, null, PurchaseOrderLineId: 8, GlAccountId: OperatingExpenseId)]);
+
+        var result = new Forge.Api.Features.VendorBills.CreateVendorBillValidator().Validate(command);
+
+        result.Errors.Should().Contain(e => e.ErrorMessage.Contains("cannot name a GL account"));
+    }
+
+    [Fact]
+    public async Task BillableAccounts_OfferPostableNonControlAccountsOfTheActiveBook()
+    {
+        using var db = await SeedAsync();
+        await AddOfficeSuppliesAccountAsync(db);
+        db.Set<GlAccount>().Add(new GlAccount
+        {
+            Id = 221, BookId = BookId, AccountNumber = "15000", Name = "WIP", AccountType = AccountType.Asset,
+            NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true, RequiresJob = true,
+        });
+        await db.SaveChangesAsync();
+
+        var accounts = await new Forge.Api.Features.VendorBills.GetBillableGlAccountsHandler(db)
+            .Handle(new Forge.Api.Features.VendorBills.GetBillableGlAccountsQuery(), CancellationToken.None);
+
+        accounts.Select(a => a.Id).Should().Contain([OfficeSuppliesId, OperatingExpenseId])
+            .And.NotContain([ApControlId, 221]);
+        accounts.Select(a => a.AccountNumber).Should().BeInAscendingOrder();
+    }
 }

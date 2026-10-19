@@ -41,7 +41,9 @@ public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorReposit
                 .OrderBy(l => l.LineNumber)
                 .Select(l => new VendorBillLineDetailModel(
                     l.Id, l.LineNumber, l.PartId, l.PurchaseOrderLineId,
-                    l.Description, l.Quantity, l.UnitPrice, l.LineTotal, l.AccountDeterminationKey))
+                    l.Description, l.Quantity, l.UnitPrice, l.LineTotal, l.AccountDeterminationKey,
+                    l.GlAccountId,
+                    l.GlAccount is null ? null : $"{l.GlAccount.AccountNumber} {l.GlAccount.Name}"))
                 .ToList(),
             hasFailedTransmission,
             bill.ExpenseId);

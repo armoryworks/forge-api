@@ -63,6 +63,11 @@ public class CreateVendorBillValidator : AbstractValidator<CreateVendorBillComma
                 line.RuleFor(l => l.PurchaseOrderLineId)
                     .Null()
                     .WithMessage("A standalone (non-PO) bill line cannot reference a purchase-order line.")));
+        When(x => x.PurchaseOrderId is not null, () =>
+            RuleForEach(x => x.Lines).ChildRules(line =>
+                line.RuleFor(l => l.GlAccountId)
+                    .Null()
+                    .WithMessage("A PO-linked bill line clears goods received not invoiced and cannot name a GL account.")));
     }
 }
 
@@ -86,6 +91,9 @@ public class CreateVendorBillHandler(
             throw new InvalidOperationException(
                 $"A bill for vendor {request.VendorId} with invoice number '{request.VendorInvoiceNumber}' already exists.");
         }
+
+        await BillableGlAccounts.EnsureBillableAsync(
+            db, request.Lines.Where(l => l.GlAccountId is not null).Select(l => l.GlAccountId!.Value), cancellationToken);
 
         var billNumber = await repo.GenerateNextBillNumberAsync(cancellationToken);
 
@@ -122,6 +130,7 @@ public class CreateVendorBillHandler(
                 AccountDeterminationKey = string.IsNullOrWhiteSpace(line.AccountDeterminationKey)
                     ? "OPERATING_EXPENSE"
                     : line.AccountDeterminationKey!,
+                GlAccountId = line.GlAccountId,
             });
         }
 

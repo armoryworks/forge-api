@@ -32,6 +32,14 @@ public class VendorBillsController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(VendorBillReadsController.GetVendorBill), "VendorBillReads", new { id = result.Id }, result);
     }
 
+    /// <summary>
+    /// The GL accounts a standalone bill line can debit directly (active, postable, non-control accounts of
+    /// the active book), for the bill dialog's account picker.
+    /// </summary>
+    [HttpGet("billable-accounts")]
+    public async Task<ActionResult<List<BillableGlAccountModel>>> GetBillableAccounts(CancellationToken ct)
+        => Ok(await mediator.Send(new GetBillableGlAccountsQuery(), ct));
+
     [HttpPost("{id:int}/approve")]
     public async Task<IActionResult> ApproveVendorBill(int id)
     {

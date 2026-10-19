@@ -20,7 +20,8 @@ public record CreateVendorBillRequestModel(
 
 /// <summary>
 /// A line on a new vendor bill. <c>AccountDeterminationKey</c> is the GL key the line debits when
-/// the bill is posted (default <c>OPERATING_EXPENSE</c> when null/blank).
+/// the bill is posted (default <c>OPERATING_EXPENSE</c> when null/blank). <c>GlAccountId</c> instead names
+/// the exact expense or asset account on a standalone bill and wins over the key.
 /// </summary>
 public record CreateVendorBillLineModel(
     int? PartId,
@@ -29,4 +30,5 @@ public record CreateVendorBillLineModel(
     decimal UnitPrice,
     string? AccountDeterminationKey,
     // STAGE-D 3-way match: the PO line this bill line matches (required when the bill is PO-linked).
-    int? PurchaseOrderLineId = null);
+    int? PurchaseOrderLineId = null,
+    int? GlAccountId = null);
