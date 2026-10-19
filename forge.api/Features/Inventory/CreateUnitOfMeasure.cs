@@ -54,6 +54,6 @@ public class CreateUnitOfMeasureHandler(AppDbContext db)
 
         return new UomResponseModel(
             uom.Id, uom.Code, uom.Name, uom.Symbol,
-            uom.Category.ToString(), uom.DecimalPlaces, uom.IsBaseUnit, uom.IsActive, uom.SortOrder);
+            uom.Category.ToString(), uom.DecimalPlaces, uom.IsBaseUnit, uom.IsActive, uom.SortOrder, uom.Version);
     }
 }

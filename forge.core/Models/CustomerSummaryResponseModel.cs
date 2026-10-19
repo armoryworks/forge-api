@@ -31,4 +31,5 @@ public record CustomerSummaryResponseModel(
     string? ReferenceNotes = null,
     decimal? CreditLimit = null,
     bool IsTaxExempt = false,
-    string? TaxExemptionId = null);
+    string? TaxExemptionId = null,
+    uint RowVersion = 0);

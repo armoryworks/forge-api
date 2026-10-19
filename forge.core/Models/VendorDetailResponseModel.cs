@@ -22,4 +22,5 @@ public record VendorDetailResponseModel(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     List<PurchaseOrderListItemModel> PurchaseOrders,
-    string? Fax = null);
+    string? Fax = null,
+    uint RowVersion = 0);

@@ -2,8 +2,11 @@ using Forge.Core.Interfaces;
 
 namespace Forge.Core.Entities;
 
-public class Customer : BaseAuditableEntity, IActiveAware
+public class Customer : BaseAuditableEntity, IActiveAware, IConcurrencyVersioned
 {
+    /// <summary>Optimistic-locking version. See IConcurrencyVersioned.</summary>
+    public uint Version { get; set; }
+
     public string Name { get; set; } = string.Empty;
     public string? CompanyName { get; set; }
 

@@ -80,6 +80,7 @@ public class GetCustomerSummaryHandler(AppDbContext db)
             customer.ReferenceNotes,
             customer.CreditLimit,
             customer.IsTaxExempt,
-            customer.TaxExemptionId);
+            customer.TaxExemptionId,
+            customer.Version);
     }
 }

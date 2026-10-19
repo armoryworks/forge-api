@@ -4,6 +4,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Concurrency;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -11,7 +12,8 @@ namespace Forge.Api.Features.EmployeeProfile;
 
 public record AdminUpdateEmployeeProfileCommand(
     int UserId,
-    AdminUpdateEmployeeProfileRequestModel Data) : IRequest<EmployeeProfileResponseModel>;
+    AdminUpdateEmployeeProfileRequestModel Data,
+    string? IfMatch = null) : IRequest<EmployeeProfileResponseModel>;
 
 public class AdminUpdateEmployeeProfileValidator : AbstractValidator<AdminUpdateEmployeeProfileCommand>
 {
@@ -36,6 +38,10 @@ public class AdminUpdateEmployeeProfileHandler(AppDbContext db) : IRequestHandle
         {
             profile = new Core.Entities.EmployeeProfile { UserId = request.UserId };
             db.EmployeeProfiles.Add(profile);
+        }
+        else
+        {
+            StaleVersionException.ThrowIfStale(request.IfMatch, profile.Version);
         }
 
         var data = request.Data;
@@ -86,6 +92,7 @@ public class AdminUpdateEmployeeProfileHandler(AppDbContext db) : IRequestHandle
             I9ExpirationDate: profile.I9ExpirationDate,
             DirectDepositCompletedAt: profile.DirectDepositCompletedAt,
             WorkersCompAcknowledgedAt: profile.WorkersCompAcknowledgedAt,
-            HandbookAcknowledgedAt: profile.HandbookAcknowledgedAt);
+            HandbookAcknowledgedAt: profile.HandbookAcknowledgedAt,
+            RowVersion: profile.Version);
     }
 }

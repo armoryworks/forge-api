@@ -92,6 +92,7 @@ public class UpdateMasterScheduleHandler(AppDbContext db)
             }
         }
 
+        db.Entry(schedule).Property(s => s.Version).IsModified = true;
         await db.SaveChangesAsync(cancellationToken);
 
         // Reload with Part nav
@@ -117,7 +118,8 @@ public class UpdateMasterScheduleHandler(AppDbContext db)
                 l.Quantity,
                 l.DueDate,
                 l.Notes
-            )).ToList()
+            )).ToList(),
+            schedule.Version
         );
     }
 }

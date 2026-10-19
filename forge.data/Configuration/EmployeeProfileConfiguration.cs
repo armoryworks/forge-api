@@ -10,6 +10,7 @@ public class EmployeeProfileConfiguration : IEntityTypeConfiguration<EmployeePro
     public void Configure(EntityTypeBuilder<EmployeeProfile> builder)
     {
         builder.Ignore(e => e.IsDeleted);
+        builder.Property(e => e.Version).HasDefaultValue(1u);
 
         // Phase 3 / WU-19 / F9: Employee can exist with no User account.
         // UserId is nullable; the unique constraint is filtered to non-null

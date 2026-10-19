@@ -62,6 +62,7 @@ public class GetEmployeeProfileHandler(AppDbContext db) : IRequestHandler<GetEmp
             I9ExpirationDate: profile.I9ExpirationDate,
             DirectDepositCompletedAt: profile.DirectDepositCompletedAt,
             WorkersCompAcknowledgedAt: profile.WorkersCompAcknowledgedAt,
-            HandbookAcknowledgedAt: profile.HandbookAcknowledgedAt);
+            HandbookAcknowledgedAt: profile.HandbookAcknowledgedAt,
+            RowVersion: profile.Version);
     }
 }

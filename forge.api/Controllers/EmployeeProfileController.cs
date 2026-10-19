@@ -30,7 +30,7 @@ public class EmployeeProfileController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<EmployeeProfileResponseModel>> UpdateProfile(
         [FromBody] UpdateEmployeeProfileRequestModel data, CancellationToken ct)
     {
-        var result = await mediator.Send(new UpdateEmployeeProfileCommand(GetUserId(), data), ct);
+        var result = await mediator.Send(new UpdateEmployeeProfileCommand(GetUserId(), data, Request.Headers.IfMatch.ToString()), ct);
         return Ok(result);
     }
 

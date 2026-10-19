@@ -23,7 +23,7 @@ public class GetUnitsOfMeasureHandler(AppDbContext db)
             .ThenBy(u => u.SortOrder)
             .Select(u => new UomResponseModel(
                 u.Id, u.Code, u.Name, u.Symbol,
-                u.Category.ToString(), u.DecimalPlaces, u.IsBaseUnit, u.IsActive, u.SortOrder))
+                u.Category.ToString(), u.DecimalPlaces, u.IsBaseUnit, u.IsActive, u.SortOrder, u.Version))
             .ToListAsync(ct);
     }
 }

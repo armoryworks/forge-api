@@ -11,7 +11,8 @@ namespace Forge.Api.Concurrency;
 ///
 /// Action filter applied to PATCH/PUT/DELETE endpoints on transactional
 /// resources (Job, Invoice, PurchaseOrder, Payment, Shipment, SalesOrder,
-/// Quote). Behaviour:
+/// Quote) and on the full-form master-data editors (Vendor, Customer,
+/// UnitOfMeasure, MasterSchedule). Behaviour:
 ///
 ///   • If the request carries an If-Match header, the filter loads the entity's
 ///     current Version and compares. Mismatch → 412 Precondition Failed with

@@ -6,6 +6,8 @@ using Forge.Api.Capabilities;
 using Forge.Api.Features.Inventory;
 using Forge.Core.Enums;
 using Forge.Core.Models;
+using Forge.Api.Concurrency;
+using Forge.Core.Entities;
 
 namespace Forge.Api.Controllers;
 
@@ -280,6 +282,7 @@ public class InventoryController(IMediator mediator) : ControllerBase
     [HttpPut("uom/{id:int}")]
     [Authorize(Roles = "Admin,Manager")]
     [RequiresCapability("CAP-MD-UOM")]
+    [IfMatch(typeof(UnitOfMeasure))]
     public async Task<ActionResult<UomResponseModel>> UpdateUnitOfMeasure(int id, [FromBody] CreateUomRequestModel data)
     {
         var result = await mediator.Send(new UpdateUnitOfMeasureCommand(id, data));

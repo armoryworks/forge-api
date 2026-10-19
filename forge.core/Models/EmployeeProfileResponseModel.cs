@@ -43,4 +43,5 @@ public record EmployeeProfileResponseModel(
     DateTimeOffset? I9ExpirationDate,
     DateTimeOffset? DirectDepositCompletedAt,
     DateTimeOffset? WorkersCompAcknowledgedAt,
-    DateTimeOffset? HandbookAcknowledgedAt);
+    DateTimeOffset? HandbookAcknowledgedAt,
+    uint RowVersion = 0);

@@ -49,6 +49,7 @@ public class GetVendorByIdHandler(IVendorRepository repo)
                 po.ExpectedDeliveryDate,
                 po.IsBlanket,
                 po.CreatedAt)).ToList(),
-            vendor.Fax);
+            vendor.Fax,
+            vendor.Version);
     }
 }

@@ -9,6 +9,8 @@ using Forge.Api.Features.Customers.Segments;
 using Forge.Api.Features.CustomerTaxDocuments;
 using Forge.Api.Features.OutreachPreferences;
 using Forge.Core.Models;
+using Forge.Api.Concurrency;
+using Forge.Core.Entities;
 
 namespace Forge.Api.Controllers;
 
@@ -128,6 +130,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [IfMatch(typeof(Customer))]
     public async Task<IActionResult> UpdateCustomer(int id, UpdateCustomerRequestModel request)
     {
         var changesCommercialTerms = request.IsTaxExempt.HasValue || request.TaxExemptionId is not null
@@ -153,6 +156,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [IfMatch(typeof(Customer))]
     public async Task<IActionResult> DeleteCustomer(int id)
     {
         await mediator.Send(new DeleteCustomerCommand(id));
