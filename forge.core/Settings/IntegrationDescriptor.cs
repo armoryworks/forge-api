@@ -32,9 +32,9 @@ public sealed record IntegrationDescriptor(
     /// OAuth, ApiKey for API-key services, Host for SMTP). Null = derive
     /// from "any required field has a value".</summary>
     string? IsConfiguredCheckKey = null,
-    /// <summary>Optional brand logo URL — clearbit.com/{domain} works
-    /// for most. Null when the integration is generic (SMTP, local
-    /// storage).</summary>
+    /// <summary>Optional brand logo as a same-origin path (e.g. a
+    /// bundled asset). The CSP only loads images from 'self', so an
+    /// off-origin URL never renders. Null shows the card's icon.</summary>
     string? LogoUrl = null,
     /// <summary>Step-by-step walkthrough an admin reads while signing
     /// up for the provider's developer portal + dropping creds into

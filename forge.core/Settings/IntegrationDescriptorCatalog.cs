@@ -39,7 +39,7 @@ public static class IntegrationDescriptorCatalog
                 OAuthImapSettings.KeyGoogleClientSecret,
             ],
             IsConfiguredCheckKey: OAuthImapSettings.KeyGoogleClientId,
-            LogoUrl: "https://logo.clearbit.com/gmail.com",
+            LogoUrl: null,
             SetupSteps:
             [
                 "Go to console.cloud.google.com and create a new project (or select an existing one).",
@@ -64,7 +64,7 @@ public static class IntegrationDescriptorCatalog
                 OAuthImapSettings.KeyMicrosoftClientSecret,
             ],
             IsConfiguredCheckKey: OAuthImapSettings.KeyMicrosoftClientId,
-            LogoUrl: "https://logo.clearbit.com/microsoft.com",
+            LogoUrl: null,
             SetupSteps:
             [
                 "Go to portal.azure.com → Azure Active Directory → App registrations → New registration.",
@@ -94,7 +94,7 @@ public static class IntegrationDescriptorCatalog
                 TwilioSettings.KeyWebhookUrl,
             ],
             IsConfiguredCheckKey: TwilioSettings.KeyAuthToken,
-            LogoUrl: "https://logo.clearbit.com/twilio.com",
+            LogoUrl: null,
             SetupSteps:
             [
                 "Sign up at twilio.com — free trial includes a sandbox phone number.",
@@ -152,7 +152,7 @@ public static class IntegrationDescriptorCatalog
                 MinioSettings.KeyUseSsl,
             ],
             IsConfiguredCheckKey: MinioSettings.KeyEndpoint,
-            LogoUrl: "https://logo.clearbit.com/min.io",
+            LogoUrl: null,
             SetupSteps:
             [
                 "MinIO is already running locally via Docker — no external account or sign-up is needed.",
@@ -176,7 +176,7 @@ public static class IntegrationDescriptorCatalog
                 GoogleDriveSettings.KeyScopes,
             ],
             IsConfiguredCheckKey: GoogleDriveSettings.KeyClientId,
-            LogoUrl: "https://logo.clearbit.com/google.com",
+            LogoUrl: null,
             SetupSteps:
             [
                 "Open Google Cloud Console (console.cloud.google.com) and select or create a project.",
@@ -197,7 +197,7 @@ public static class IntegrationDescriptorCatalog
             Category: "service",
             FieldKeys: [UspsSettings.KeyMode, UspsSettings.KeyConsumerKey, UspsSettings.KeyConsumerSecret],
             IsConfiguredCheckKey: UspsSettings.KeyConsumerKey,
-            LogoUrl: "https://logo.clearbit.com/usps.com",
+            LogoUrl: null,
             SetupSteps:
             [
                 "Go to cop.usps.com (USPS Customer Onboarding Portal) — sign in with a USPS business account or create one for free.",
@@ -223,7 +223,7 @@ public static class IntegrationDescriptorCatalog
                 DocuSealSettings.KeyTimeoutSeconds,
             ],
             IsConfiguredCheckKey: DocuSealSettings.KeyApiKey,
-            LogoUrl: "https://logo.clearbit.com/docuseal.com",
+            LogoUrl: null,
             SetupSteps:
             [
                 "The local DocuSeal container (port 3000) is your sandbox — no external sign-up required for self-hosted mode. Or create a free cloud account at docuseal.com/sign_up.",
@@ -253,7 +253,7 @@ public static class IntegrationDescriptorCatalog
                 AiSettings.KeyClientDocsPath,
             ],
             IsConfiguredCheckKey: AiSettings.KeyBaseUrl,
-            LogoUrl: "https://logo.clearbit.com/ollama.com",
+            LogoUrl: null,
             SetupSteps:
             [
                 "Ollama is already running locally via Docker — no external account is needed.",
@@ -282,7 +282,7 @@ public static class IntegrationDescriptorCatalog
             // admin UI doesn't pretend to take it as input.
             FieldKeys: ["quickbooks.mode", "quickbooks.client-id", "quickbooks.client-secret"],
             IsConfiguredCheckKey: "quickbooks.client-id",
-            LogoUrl: "https://logo.clearbit.com/quickbooks.intuit.com",
+            LogoUrl: null,
             SetupSteps:
             [
                 "developer.intuit.com → sign in with Intuit (free dev account, no card required).",
@@ -302,7 +302,7 @@ public static class IntegrationDescriptorCatalog
             Category: "accounting",
             FieldKeys: ["xero.mode", "xero.client-id", "xero.client-secret", "xero.tenant-id"],
             IsConfiguredCheckKey: "xero.client-id",
-            LogoUrl: "https://logo.clearbit.com/xero.com",
+            LogoUrl: null,
             SetupSteps:
             [
                 "Free Xero account at xero.com/signup. Then developer.xero.com → My Apps → New App.",
@@ -320,7 +320,7 @@ public static class IntegrationDescriptorCatalog
             Category: "accounting",
             FieldKeys: ["freshbooks.mode", "freshbooks.client-id", "freshbooks.client-secret", "freshbooks.account-id"],
             IsConfiguredCheckKey: "freshbooks.client-id",
-            LogoUrl: "https://logo.clearbit.com/freshbooks.com",
+            LogoUrl: null,
             SetupSteps:
             [
                 "Free FreshBooks account at freshbooks.com/signup → my.freshbooks.com/#/developer.",
@@ -339,7 +339,7 @@ public static class IntegrationDescriptorCatalog
             Category: "accounting",
             FieldKeys: ["sage.mode", "sage.client-id", "sage.client-secret", "sage.country-code"],
             IsConfiguredCheckKey: "sage.client-id",
-            LogoUrl: "https://logo.clearbit.com/sage.com",
+            LogoUrl: null,
             SetupSteps:
             [
                 "Free dev account at developer.sage.com → My Applications → register.",
@@ -366,7 +366,7 @@ public static class IntegrationDescriptorCatalog
                 "netsuite.token-secret",
             ],
             IsConfiguredCheckKey: "netsuite.account-id",
-            LogoUrl: "https://logo.clearbit.com/netsuite.com",
+            LogoUrl: null,
             SetupSteps:
             [
                 "Free Trial at netsuite.com/portal/free-trial.shtml for a usable dev account. Existing customers request a sandbox via Support.",
@@ -389,7 +389,7 @@ public static class IntegrationDescriptorCatalog
             // reflect that.
             FieldKeys: ["wave.mode", "wave.access-token", "wave.business-id"],
             IsConfiguredCheckKey: "wave.access-token",
-            LogoUrl: "https://logo.clearbit.com/waveapps.com",
+            LogoUrl: null,
             SetupSteps:
             [
                 "Free Wave account at waveapps.com → developer.waveapps.com → Manage Applications → Create Application.",
@@ -408,7 +408,7 @@ public static class IntegrationDescriptorCatalog
             Category: "accounting",
             FieldKeys: ["zoho.mode", "zoho.client-id", "zoho.client-secret", "zoho.organization-id", "zoho.data-center"],
             IsConfiguredCheckKey: "zoho.client-id",
-            LogoUrl: "https://logo.clearbit.com/zoho.com",
+            LogoUrl: null,
             SetupSteps:
             [
                 "Free Zoho account at zoho.com/signup → accounts.zoho.com/developerconsole → Add Client ID → Server-Based Applications.",

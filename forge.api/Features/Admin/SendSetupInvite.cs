@@ -35,7 +35,7 @@ public class SendSetupInviteHandler(
             $"<a href=\"{setupUrl}\" style=\"display:inline-block;padding:12px 24px;background:#1e293b;color:white;text-decoration:none;font-weight:600;\">Complete Setup</a><br><br>" +
             $"This link expires in 7 days. If the button doesn't work, copy and paste this URL:<br>{setupUrl}");
 
-        var operationKey = $"setup-invite:{user.Id}:{CreateAdminUserHandler.HashSetupToken(tokenResult.Token)}";
+        var operationKey = $"setup-invite:{user.Id}:{Guid.NewGuid():N}";
         await outbox.EnqueueEmailAsync(
             operationKey,
             new EmailMessage(
