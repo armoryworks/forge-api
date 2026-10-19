@@ -26,33 +26,15 @@ public class CreateMaintenanceJobHandler(AppDbContext db, IJobRepository jobRepo
             .FirstOrDefaultAsync(s => s.Id == request.MaintenanceScheduleId, ct)
             ?? throw new KeyNotFoundException($"MaintenanceSchedule {request.MaintenanceScheduleId} not found.");
 
-        // Find the Maintenance track type
-        var maintenanceTrack = await db.TrackTypes
-            .Include(t => t.Stages.OrderBy(s => s.SortOrder))
-            .FirstOrDefaultAsync(t => t.Name.Contains("Maintenance"), ct)
-            ?? throw new KeyNotFoundException("No Maintenance track type found. Create one in Admin → Track Types.");
+        var job = await MaintenanceJobFactory.AddAsync(
+            db,
+            jobRepo,
+            $"Maintenance: {schedule.Asset.Name} — {schedule.Title}",
+            schedule.Description ?? $"Scheduled maintenance for {schedule.Asset.Name}.",
+            schedule.NextDueAt,
+            ct);
 
-        var firstStage = maintenanceTrack.Stages.Where(s => s.IsActive).OrderBy(s => s.SortOrder).FirstOrDefault()
-            ?? throw new KeyNotFoundException("Maintenance track has no stages configured.");
-
-        var jobNumber = await jobRepo.GenerateNextJobNumberAsync(ct);
-        var maxPos = await jobRepo.GetMaxBoardPositionAsync(firstStage.Id, ct);
-
-        var job = new Job
-        {
-            JobNumber = jobNumber,
-            Title = $"Maintenance: {schedule.Asset.Name} — {schedule.Title}",
-            Description = schedule.Description ?? $"Scheduled maintenance for {schedule.Asset.Name}.",
-            TrackTypeId = maintenanceTrack.Id,
-            CurrentStageId = firstStage.Id,
-            BoardPosition = maxPos + 1,
-            DueDate = schedule.NextDueAt,
-        };
-
-        await jobRepo.AddAsync(job, ct);
-
-        // Link schedule to job
-        schedule.MaintenanceJobId = job.Id;
+        schedule.MaintenanceJob = job;
         await db.SaveChangesAsync(ct);
 
         return job.Id;

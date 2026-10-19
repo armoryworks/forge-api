@@ -29,16 +29,6 @@ public class GetDocumentRevisionsHandler(
             .OrderByDescending(r => r.RevisionNumber)
             .ToListAsync(cancellationToken);
 
-        return revisions.Select(r => new DocumentRevisionResponseModel(
-            r.Id,
-            r.DocumentId,
-            r.RevisionNumber,
-            r.FileAttachmentId,
-            r.ChangeDescription,
-            r.AuthoredById,
-            r.ReviewedById,
-            r.ApprovedById,
-            r.ApprovedAt,
-            r.Status)).ToList();
+        return revisions.Select(DocumentRevisionMapping.ToResponse).ToList();
     }
 }

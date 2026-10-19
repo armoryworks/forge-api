@@ -8,6 +8,7 @@ public record MaintenanceScheduleResponseModel(
     string? Description,
     int IntervalDays,
     decimal? IntervalHours,
+    int? IntervalShots,
     DateTimeOffset? LastPerformedAt,
     DateTimeOffset NextDueAt,
     bool IsActive,

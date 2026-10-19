@@ -21,7 +21,6 @@
     "forge.api/Features/Assets/DeleteMaintenanceSchedule.cs": 1,
     "forge.api/Features/Assets/EndDowntimeLog.cs": 1,
     "forge.api/Features/Assets/GetDowntimeLogs.cs": 1,
-    "forge.api/Features/Assets/GetMaintenanceSchedules.cs": 1,
     "forge.api/Features/Assets/LogMaintenance.cs": 1,
     "forge.api/Features/AssignmentRules/AssignmentRuleHandlers.cs": 1,
     "forge.api/Features/Auth/ChangePassword.cs": 1,

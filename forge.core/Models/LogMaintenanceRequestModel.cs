@@ -3,4 +3,5 @@ namespace Forge.Core.Models;
 public record LogMaintenanceRequestModel(
     decimal? HoursAtService,
     string? Notes,
-    decimal? Cost);
+    decimal? Cost,
+    int? ShotCountAtService = null);

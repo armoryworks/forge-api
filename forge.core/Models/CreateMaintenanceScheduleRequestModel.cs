@@ -6,4 +6,5 @@ public record CreateMaintenanceScheduleRequestModel(
     string? Description,
     int IntervalDays,
     decimal? IntervalHours,
-    DateTimeOffset NextDueAt);
+    DateTimeOffset NextDueAt,
+    int? IntervalShots = null);

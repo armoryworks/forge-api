@@ -7,6 +7,7 @@ public class MaintenanceSchedule : BaseAuditableEntity
     public string? Description { get; set; }
     public int IntervalDays { get; set; }
     public decimal? IntervalHours { get; set; }
+    public int? IntervalShots { get; set; }
     public DateTimeOffset? LastPerformedAt { get; set; }
     public DateTimeOffset NextDueAt { get; set; }
     public bool IsActive { get; set; } = true;

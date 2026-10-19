@@ -665,7 +665,22 @@ public class ReportRepository(AppDbContext db) : IReportRepository
             .Where(l => l.PerformedAt >= startUtc && l.PerformedAt <= endUtc)
             .ToListAsync(ct);
 
-        var assetMap = assets.ToDictionary(a => a.Id, a => a.Name);
+        var downtime = await db.DowntimeLogs
+            .AsNoTracking()
+            .Where(d => d.StartedAt <= endUtc && (d.EndedAt == null || d.EndedAt >= startUtc))
+            .Select(d => new { d.AssetId, d.StartedAt, d.EndedAt, d.IsPlanned })
+            .ToListAsync(ct);
+
+        var windowEnd = end < now ? end : now;
+        var windowHours = windowEnd > start ? (decimal)(windowEnd - start).TotalHours : 0m;
+
+        decimal ClippedHours(DateTimeOffset startedAt, DateTimeOffset? endedAt)
+        {
+            var from = startedAt > start ? startedAt : start;
+            var to = endedAt ?? now;
+            if (to > windowEnd) to = windowEnd;
+            return to > from ? (decimal)(to - from).TotalHours : 0m;
+        }
 
         return assets
             .Select(a =>
@@ -675,15 +690,29 @@ public class ReportRepository(AppDbContext db) : IReportRepository
                 var overdue = assetSchedules.Count(s => s.NextDueAt < now);
                 var totalCost = assetLogs.Sum(l => l.Cost ?? 0);
 
+                var assetDowntime = downtime.Where(d => d.AssetId == a.Id).ToList();
+                var failures = assetDowntime.Where(d => !d.IsPlanned).ToList();
+                var downtimeHours = Math.Round(assetDowntime.Sum(d => ClippedHours(d.StartedAt, d.EndedAt)), 2);
+                var unplannedHours = Math.Round(failures.Sum(d => ClippedHours(d.StartedAt, d.EndedAt)), 2);
+                decimal? mtbf = failures.Count > 0
+                    ? Math.Round(Math.Max(0m, windowHours - unplannedHours) / failures.Count, 2)
+                    : null;
+
                 return new MaintenanceReportItem(
                     a.Id, a.Name,
                     assetSchedules.Count,
                     assetLogs.Count,
                     overdue,
-                    totalCost);
+                    totalCost,
+                    assetDowntime.Count,
+                    failures.Count,
+                    downtimeHours,
+                    unplannedHours,
+                    mtbf);
             })
-            .Where(r => r.ScheduledCount > 0 || r.CompletedCount > 0)
+            .Where(r => r.ScheduledCount > 0 || r.CompletedCount > 0 || r.DowntimeEvents > 0)
             .OrderByDescending(r => r.OverdueCount)
+            .ThenByDescending(r => r.UnplannedDowntimeHours)
             .ThenByDescending(r => r.TotalCost)
             .ToList();
     }

@@ -15,11 +15,13 @@ public record CreateDeliverableCommand(CreateDeliverableRequestModel Request) : 
 
 public class CreateDeliverableValidator : AbstractValidator<CreateDeliverableCommand>
 {
-    public CreateDeliverableValidator()
+    public CreateDeliverableValidator(AppDbContext db)
     {
         RuleFor(x => x.Request.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Request.Description).MaximumLength(4000);
-        RuleFor(x => x.Request.DeliverableTypeId).GreaterThan(0);
+        RuleFor(x => x.Request.DeliverableTypeId).GreaterThan(0)
+            .MustAsync((id, ct) => DeliverableTypes.ExistsAsync(db, id, ct))
+            .WithMessage(DeliverableTypes.UnknownTypeMessage);
     }
 }
 
@@ -102,12 +104,14 @@ public record UpdateDeliverableCommand(int Id, UpdateDeliverableRequestModel Req
 
 public class UpdateDeliverableValidator : AbstractValidator<UpdateDeliverableCommand>
 {
-    public UpdateDeliverableValidator()
+    public UpdateDeliverableValidator(AppDbContext db)
     {
         RuleFor(x => x.Request.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Request.Status).NotEmpty().Must(BeKnownStatus)
             .WithMessage("Status must be one of: Draft, In Review, Approved, Delivered");
-        RuleFor(x => x.Request.DeliverableTypeId).GreaterThan(0);
+        RuleFor(x => x.Request.DeliverableTypeId).GreaterThan(0)
+            .MustAsync((id, ct) => DeliverableTypes.ExistsAsync(db, id, ct))
+            .WithMessage(DeliverableTypes.UnknownTypeMessage);
     }
 
     private static bool BeKnownStatus(string status) =>

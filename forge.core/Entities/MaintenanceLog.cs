@@ -6,6 +6,7 @@ public class MaintenanceLog : BaseEntity
     public int PerformedById { get; set; }
     public DateTimeOffset PerformedAt { get; set; }
     public decimal? HoursAtService { get; set; }
+    public int? ShotCountAtService { get; set; }
     public string? Notes { get; set; }
     public decimal? Cost { get; set; }
 
