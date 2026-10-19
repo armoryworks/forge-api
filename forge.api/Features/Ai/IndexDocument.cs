@@ -3,12 +3,14 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pgvector;
 
+using Forge.Api.Capabilities;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Ai;
 
+[RequiresCapability("CAP-EXT-AI-ASSISTANT")]
 public record IndexDocumentCommand(string EntityType, int EntityId) : IRequest<int>;
 
 public class IndexDocumentValidator : AbstractValidator<IndexDocumentCommand>

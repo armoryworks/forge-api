@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Features.Ai;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -12,12 +13,17 @@ public class DocumentIndexJob(
     IMediator mediator,
     IAiService aiService,
     IClock clock,
-    ILogger<DocumentIndexJob> logger)
+    ILogger<DocumentIndexJob> logger,
+    ICapabilitySnapshotProvider capabilities)
 {
+    private const string AiCapability = "CAP-EXT-AI-ASSISTANT";
     private static readonly string[] SupportedEntityTypes = ["Job", "Part", "Customer", "Asset"];
 
     public async Task IndexDocumentationAsync(CancellationToken ct = default)
     {
+        if (!capabilities.IsEnabled(AiCapability))
+            return;
+
         var available = await aiService.IsAvailableAsync(ct);
         if (!available)
         {
@@ -39,6 +45,9 @@ public class DocumentIndexJob(
 
     public async Task IndexRecentlyUpdatedAsync(CancellationToken ct = default)
     {
+        if (!capabilities.IsEnabled(AiCapability))
+            return;
+
         var available = await aiService.IsAvailableAsync(ct);
         if (!available)
         {
