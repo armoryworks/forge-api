@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Jobs;
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
 
@@ -13,7 +15,22 @@ public static class JobQualityGate
     public static string BlockedMessage(string blocking) =>
         "Cannot complete this job while it has an unresolved non-conformance (NCR) or a failed QC " +
         $"inspection ({blocking}). Disposition or close each NCR, and re-inspect or disposition each " +
-        "failed inspection, before advancing to the final stage.";
+        "failed inspection, before shipping, billing or completing it.";
+
+    public static bool Applies(JobStage target, JobStage? current, IReadOnlyCollection<JobStage> trackStages)
+    {
+        var lastStage = trackStages.MaxBy(s => s.SortOrder);
+        if (lastStage is not null && lastStage.Id == target.Id)
+            return true;
+
+        var firstBillingStage = trackStages
+            .Where(s => BillingStageGate.IsBillingStage(s.AccountingDocumentType))
+            .MinBy(s => s.SortOrder);
+        if (firstBillingStage is null || target.SortOrder < firstBillingStage.SortOrder)
+            return false;
+
+        return current is null || current.SortOrder < firstBillingStage.SortOrder;
+    }
 
     public static async Task<Dictionary<int, string>> FindBlockersAsync(
         AppDbContext db, IReadOnlyCollection<int> jobIds, CancellationToken cancellationToken)

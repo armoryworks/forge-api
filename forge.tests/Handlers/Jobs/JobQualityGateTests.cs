@@ -176,4 +176,41 @@ public class JobQualityGateTests
 
         message.Should().Contain("non-conformance").And.Contain("NCR-0001").And.Contain("re-inspect");
     }
+
+    private static readonly List<JobStage> ProductionStages =
+    [
+        new JobStage { Id = 6, Name = "In Production", SortOrder = 6 },
+        new JobStage { Id = 7, Name = "QC/Review", SortOrder = 7 },
+        new JobStage { Id = 8, Name = "Shipped", SortOrder = 8, AccountingDocumentType = AccountingDocumentType.Invoice },
+        new JobStage { Id = 9, Name = "Invoiced/Sent", SortOrder = 9, AccountingDocumentType = AccountingDocumentType.Invoice },
+        new JobStage { Id = 10, Name = "Payment Received", SortOrder = 10, AccountingDocumentType = AccountingDocumentType.Payment },
+    ];
+
+    private static JobStage Stage(int id) => ProductionStages.Single(s => s.Id == id);
+
+    [Theory]
+    [InlineData(7, 8, true)]
+    [InlineData(6, 9, true)]
+    [InlineData(9, 10, true)]
+    [InlineData(6, 7, false)]
+    [InlineData(8, 9, false)]
+    [InlineData(9, 8, false)]
+    public void Applies_OnEntryIntoShippingOrBillingAndOnTheLastStage(int from, int to, bool expected)
+    {
+        JobQualityGate.Applies(Stage(to), Stage(from), ProductionStages).Should().Be(expected);
+    }
+
+    [Fact]
+    public void Applies_OnlyOnTheLastStageWhenTheTrackHasNoBillingStage()
+    {
+        List<JobStage> stages =
+        [
+            new JobStage { Id = 1, Name = "Requested", SortOrder = 1 },
+            new JobStage { Id = 2, Name = "In Progress", SortOrder = 2 },
+            new JobStage { Id = 3, Name = "Complete", SortOrder = 3 },
+        ];
+
+        JobQualityGate.Applies(stages[1], stages[0], stages).Should().BeFalse();
+        JobQualityGate.Applies(stages[2], stages[1], stages).Should().BeTrue();
+    }
 }
