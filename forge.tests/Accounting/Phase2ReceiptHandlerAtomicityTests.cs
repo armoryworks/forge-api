@@ -162,10 +162,11 @@ END $$;");
             new ReceiveItemsCommand(poId, [new ReceiveLineModel(lineId, 10m, null, null)]), CancellationToken.None);
 
         await using var verify = fixture.CreateContext();
-        (await verify.Set<ReceivingRecord>().CountAsync()).Should().Be(1);
+        var record = await verify.Set<ReceivingRecord>().SingleAsync();
         (await verify.Set<PurchaseOrderLine>().SingleAsync(l => l.Id == lineId)).ReceivedQuantity.Should().Be(10m);
         var entry = await verify.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines).SingleAsync();
         entry.Source.Should().Be(JournalSource.Inventory);
+        (entry.SourceType, entry.SourceId).Should().Be(("Receipt", (long?)record.Id));
         entry.Lines.Single(l => l.GlAccountId == InvRawId).Debit.Should().Be(50m);
         entry.Lines.Single(l => l.GlAccountId == GrniId).Credit.Should().Be(50m);
     }

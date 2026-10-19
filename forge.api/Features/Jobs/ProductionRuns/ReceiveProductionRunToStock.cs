@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.Lots;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -16,7 +17,9 @@ namespace Forge.Api.Features.Jobs.ProductionRuns;
 /// Receive a completed production run's good output into finished-goods stock — the explicit job-complete→FG
 /// step (separate from flipping the run to Completed). Stocks the chosen bin operationally and, when
 /// CAP-ACCT-FULLGL is on, posts Dr INVENTORY_FG / Cr INVENTORY_WIP at standard cost + feeds the FG valuation
-/// store. Idempotent: a run already received to stock is a no-op (returns current state).
+/// store. A lot-tracked part (with CAP-INV-LOTS on) is stocked under the run's lot: the lot record already
+/// made for the run, else a new one with the next house lot number. Idempotent: a run already received to stock is a
+/// no-op (returns current state).
 /// </summary>
 public record ReceiveProductionRunToStockCommand(int JobId, int RunId, int ReceivedByUserId, int? LocationId = null)
     : IRequest<ProductionRunResponseModel>;
@@ -31,7 +34,8 @@ public class ReceiveProductionRunToStockHandler(
     // Phase-2 STAGE E — inline FG/WIP GL posting; null/default keeps the handler constructible without an
     // accounting context, and it no-ops while CAP-ACCT-FULLGL is off.
     IProductionReceiptPostingService? posting = null,
-    IBackflushService? backflush = null)
+    IBackflushService? backflush = null,
+    IBarcodeService? barcodes = null)
     : IRequestHandler<ReceiveProductionRunToStockCommand, ProductionRunResponseModel>
 {
     public const string MultiLocationCapability = "CAP-INV-MULTILOC";
@@ -68,8 +72,10 @@ public class ReceiveProductionRunToStockHandler(
                 ? await db.Database.BeginTransactionAsync(cancellationToken)
                 : null;
 
-            // Operational FG stock-in (not CAP-ACCT-FULLGL gated): find-or-create the active un-lotted BinContent for
-            // (part, bin) and increment it, then record a Receive movement.
+            var lotNumber = await ResolveRunLotAsync(run, goodQty, cancellationToken);
+
+            // Operational FG stock-in (not CAP-ACCT-FULLGL gated): find-or-create the active BinContent for
+            // (part, bin, lot) and increment it, then record a Receive movement.
             string? binName = null;
             if (inventory is not null)
             {
@@ -79,7 +85,7 @@ public class ReceiveProductionRunToStockHandler(
                 binName = location.Name;
 
                 var existing = await inventory.FindActiveBinContentByPartLocationLotAsync(
-                    run.PartId, locationId, null, BinContentStatus.Stored, cancellationToken);
+                    run.PartId, locationId, lotNumber, BinContentStatus.Stored, cancellationToken);
                 if (existing is not null)
                 {
                     existing.Quantity += goodQty;
@@ -92,6 +98,7 @@ public class ReceiveProductionRunToStockHandler(
                         EntityType = "part",
                         EntityId = run.PartId,
                         Quantity = goodQty,
+                        LotNumber = lotNumber,
                         Status = BinContentStatus.Stored,
                         PlacedBy = request.ReceivedByUserId,
                         PlacedAt = receivedAt,
@@ -103,6 +110,7 @@ public class ReceiveProductionRunToStockHandler(
                     EntityType = "part",
                     EntityId = run.PartId,
                     Quantity = goodQty,
+                    LotNumber = lotNumber,
                     ToLocationId = locationId,
                     MovedBy = request.ReceivedByUserId,
                     MovedAt = receivedAt,
@@ -141,6 +149,42 @@ public class ReceiveProductionRunToStockHandler(
         }
 
         return await BuildResponseAsync(run, cancellationToken);
+    }
+
+    /// <summary>The lot the run's output is stocked under: null unless the part is lot-tracked and CAP-INV-LOTS
+    /// is on; then the lot record already made for this run, else a new lot record with the next house lot number
+    /// carrying the good quantity and its barcode.</summary>
+    private async Task<string?> ResolveRunLotAsync(ProductionRun run, decimal goodQty, CancellationToken ct)
+    {
+        if (!ReceiptLotRecords.TracksLot(run.Part, capabilities))
+            return null;
+
+        var existing = await db.LotRecords
+            .Where(l => l.ProductionRunId == run.Id && l.PartId == run.PartId)
+            .OrderBy(l => l.Id)
+            .Select(l => l.LotNumber)
+            .FirstOrDefaultAsync(ct);
+        if (existing is not null)
+            return existing;
+
+        var lotNumber = await LotNumbers.NextAsync(db, clock, ct);
+
+        var lot = new LotRecord
+        {
+            LotNumber = lotNumber,
+            PartId = run.PartId,
+            PartRevision = run.Job.PartRevision ?? run.Part.Revision,
+            JobId = run.JobId,
+            ProductionRunId = run.Id,
+            Quantity = goodQty,
+        };
+        db.LotRecords.Add(lot);
+        await db.SaveChangesAsync(ct);
+
+        if (barcodes is not null)
+            await barcodes.CreateBarcodeAsync(BarcodeEntityType.Lot, lot.Id, lot.LotNumber, ct);
+
+        return lotNumber;
     }
 
     /// <summary>The bin to stock into: the requested bin when it is an active bin, else (with multi-location

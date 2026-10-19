@@ -19,7 +19,8 @@ public record ScanMoveRequestModel(int PartId, int FromLocationId, int ToLocatio
 
 public record ScanCountRequestModel(int PartId, int LocationId, decimal ActualCount);
 
-public record ScanReceiveRequestModel(int PartId, int PurchaseOrderLineId, decimal Quantity, int ToLocationId);
+public record ScanReceiveRequestModel(
+    int PartId, int PurchaseOrderLineId, decimal Quantity, int ToLocationId, string? LotNumber = null);
 
 public record ScanShipRequestModel(int PartId, int ShipmentLineId, decimal Quantity);
 

@@ -2,7 +2,6 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -36,7 +35,7 @@ public class CreateLotRecordHandler(AppDbContext db, IBarcodeService barcodeServ
 
         var lotNumber = data.LotNumber?.Trim();
         if (string.IsNullOrWhiteSpace(lotNumber))
-            lotNumber = await GenerateLotNumber(cancellationToken);
+            lotNumber = await LotNumbers.NextAsync(db, clock, cancellationToken);
 
         var lot = new LotRecord
         {
@@ -100,14 +99,5 @@ public class CreateLotRecordHandler(AppDbContext db, IBarcodeService barcodeServ
             .Where(p => p.Id == partId)
             .Select(p => p.Revision)
             .FirstOrDefaultAsync(cancellationToken);
-    }
-
-    private async Task<string> GenerateLotNumber(CancellationToken cancellationToken)
-    {
-        var shopToday = ClockStateRules.LocalToday(await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), clock.UtcNow);
-        var datePrefix = $"LOT-{shopToday:yyyyMMdd}";
-        var todayCount = await db.LotRecords
-            .CountAsync(l => l.LotNumber.StartsWith(datePrefix), cancellationToken);
-        return $"{datePrefix}-{(todayCount + 1):D3}";
     }
 }

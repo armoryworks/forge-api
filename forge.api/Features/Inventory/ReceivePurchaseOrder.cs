@@ -71,7 +71,9 @@ public class ReceivePurchaseOrderHandler(
             ? clock.UtcNow.UtcDateTime.Date
             : ClockStateRules.LocalToday(await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), clock.UtcNow);
         var receiptNumber = $"R-{receiptDate:yyyyMMdd}-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}";
-        var lot = string.IsNullOrWhiteSpace(data.LotNumber) ? null : data.LotNumber.Trim();
+        var lot = await ReceiptLotRecords.ResolveAsync(
+            db, clock, line.Part, string.IsNullOrWhiteSpace(data.LotNumber) ? null : data.LotNumber.Trim(),
+            capabilities, new List<string>(), cancellationToken);
 
         // Create receiving record
         var record = new ReceivingRecord

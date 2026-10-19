@@ -144,7 +144,9 @@ public class ReceivingInspectionIntakeTests
         db.PurchaseOrderLines.Add(line);
         await db.SaveChangesAsync();
 
-        var handler = new ExecuteScanReceiveHandler(db, _clock, _httpContextAccessor.Object, new FakeCapabilities(capabilityOn));
+        var handler = new ExecuteScanReceiveHandler(
+            db, _httpContextAccessor.Object,
+            ReceiptMediator.For(db, _clock, _httpContextAccessor.Object, new FakeCapabilities(capabilityOn)));
 
         await handler.Handle(
             new ExecuteScanReceiveCommand(new ScanReceiveRequestModel(part.Id, line.Id, 10m, bin.Id)),

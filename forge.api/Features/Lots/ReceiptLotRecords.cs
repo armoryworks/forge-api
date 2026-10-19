@@ -14,11 +14,32 @@ namespace Forge.Api.Features.Lots;
 /// it. Only lot-tracked parts get one, and only while CAP-INV-LOTS is on. A later receipt of the same part and
 /// lot adds to that record. Lot numbers are unique across parts, so when the number already belongs to another
 /// part (vendors reuse lot strings) the receipt still goes through, no record is made, and the PO activity
-/// says so.
+/// says so. While CAP-INV-LOTS is on, a lot-tracked part received without a lot gets a house lot number
+/// (<see cref="LotNumbers"/>), so every receipt of it can be traced.
 /// </summary>
 public static class ReceiptLotRecords
 {
     public const string Capability = "CAP-INV-LOTS";
+
+    public static bool TracksLot(Part? part, ICapabilitySnapshotProvider? capabilities)
+        => TracksLot(part?.TraceabilityType, capabilities);
+
+    public static bool TracksLot(TraceabilityType? traceability, ICapabilitySnapshotProvider? capabilities)
+        => traceability == TraceabilityType.Lot && capabilities?.IsEnabled(Capability) == true;
+
+    public static async Task<string?> ResolveAsync(
+        AppDbContext? db,
+        IClock clock,
+        Part? part,
+        string? lotNumber,
+        ICapabilitySnapshotProvider? capabilities,
+        ICollection<string> reserved,
+        CancellationToken ct)
+    {
+        if (lotNumber is not null || db is null || !TracksLot(part, capabilities))
+            return lotNumber;
+        return await LotNumbers.NextAsync(db, clock, ct, reserved);
+    }
 
     public static async Task EnsureAsync(
         AppDbContext db,
@@ -29,9 +50,9 @@ public static class ReceiptLotRecords
         decimal baseQuantity,
         CancellationToken ct)
     {
-        if (lotNumber is null || line.Part is not { TraceabilityType: TraceabilityType.Lot } part
-            || capabilities?.IsEnabled(Capability) != true)
+        if (lotNumber is null || !TracksLot(line.Part, capabilities))
             return;
+        var part = line.Part!;
 
         var existing = await db.LotRecords
             .IgnoreQueryFilters()
