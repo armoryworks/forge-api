@@ -26,6 +26,9 @@ public class ReviewRegulatoryProposalHandler(AppDbContext db, IClock clock)
             .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Proposal {request.Id} not found");
 
+        if (proposal.Status != RegulatoryProposalStatus.Pending)
+            throw new InvalidOperationException($"Proposal {request.Id} was already {proposal.Status.ToString().ToLowerInvariant()}.");
+
         proposal.Status = request.Apply ? RegulatoryProposalStatus.Applied : RegulatoryProposalStatus.Dismissed;
         proposal.ReviewedByUserId = db.CurrentUserId;
         proposal.ReviewedAt = clock.UtcNow;

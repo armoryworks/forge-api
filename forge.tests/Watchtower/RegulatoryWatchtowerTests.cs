@@ -108,4 +108,50 @@ public sealed class RegulatoryWatchtowerTests(PostgresFixture fixture)
         evt.Title.Should().Be("New 300A deadline");
         evt.IsAllDay.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Reviewing_an_already_reviewed_proposal_is_refused_and_adds_no_second_deadline()
+    {
+        await using var db = fixture.CreateContext();
+        await db.Events.ExecuteDeleteAsync();
+        await db.RegulatoryChangeProposals.ExecuteDeleteAsync();
+        await db.RegulatorySources.ExecuteDeleteAsync();
+        await db.CalendarEventTypes.ExecuteDeleteAsync();
+        await db.CalendarSuperGroups.ExecuteDeleteAsync();
+
+        var group = new CalendarSuperGroup { Key = "safety-osha", Name = "OSHA", RequiresTracking = true, SortOrder = 1 };
+        db.CalendarSuperGroups.Add(group);
+        await db.SaveChangesAsync();
+        var type = new CalendarEventType { SuperGroupId = group.Id, Key = "osha-300a", Name = "OSHA 300A", RequiresTracking = true, SortOrder = 1 };
+        db.CalendarEventTypes.Add(type);
+        await db.SaveChangesAsync();
+        var src = new RegulatorySource { Name = "OSHA", Url = "https://x", FeedType = RegulatoryFeedType.Rss, IsActive = true };
+        db.RegulatorySources.Add(src);
+        await db.SaveChangesAsync();
+        var proposal = new RegulatoryChangeProposal { RegulatorySourceId = src.Id, Title = "New 300A deadline", Status = RegulatoryProposalStatus.Pending };
+        db.RegulatoryChangeProposals.Add(proposal);
+        await db.SaveChangesAsync();
+
+        db.CurrentUserId = 1;
+        var due = DateTimeOffset.UtcNow.AddDays(30);
+        await new ReviewRegulatoryProposalHandler(db, new SystemClock())
+            .Handle(new ReviewRegulatoryProposalCommand(proposal.Id, Apply: true, due, type.Id), default);
+
+        await using var again = fixture.CreateContext();
+        again.CurrentUserId = 2;
+        var reapply = () => new ReviewRegulatoryProposalHandler(again, new SystemClock())
+            .Handle(new ReviewRegulatoryProposalCommand(proposal.Id, Apply: true, due, type.Id), default);
+        await reapply.Should().ThrowAsync<InvalidOperationException>();
+
+        await using var dismissCtx = fixture.CreateContext();
+        var dismiss = () => new ReviewRegulatoryProposalHandler(dismissCtx, new SystemClock())
+            .Handle(new ReviewRegulatoryProposalCommand(proposal.Id, Apply: false), default);
+        await dismiss.Should().ThrowAsync<InvalidOperationException>();
+
+        await using var verify = fixture.CreateContext();
+        (await verify.Events.CountAsync(e => e.EventTypeId == type.Id && e.IsSystemGenerated)).Should().Be(1);
+        var reloaded = await verify.RegulatoryChangeProposals.SingleAsync(x => x.Id == proposal.Id);
+        reloaded.Status.Should().Be(RegulatoryProposalStatus.Applied);
+        reloaded.ReviewedByUserId.Should().Be(1);
+    }
 }
