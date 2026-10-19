@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.SalesOrders.Acceptance;
+using Forge.Api.Features.Shipments;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -42,6 +43,8 @@ public class CreateJobsForSalesOrderLinesHandler(
         var so = await db.SalesOrders.AsNoTracking()
             .Include(s => s.Lines)
                 .ThenInclude(l => l.Part)
+            .Include(s => s.Shipments)
+                .ThenInclude(sh => sh.Lines)
             .FirstOrDefaultAsync(s => s.Id == request.SalesOrderId, cancellationToken)
             ?? throw new KeyNotFoundException($"Sales order {request.SalesOrderId} not found.");
 
@@ -97,7 +100,7 @@ public class CreateJobsForSalesOrderLinesHandler(
                 continue;
             }
 
-            if (line.IsFullyShipped)
+            if (SalesOrderShipping.OpenToShip(so, line) <= 0)
             {
                 skipped.Add(new SkippedSalesOrderLineResponseModel(line.LineNumber, "Already shipped"));
                 continue;
@@ -120,7 +123,7 @@ public class CreateJobsForSalesOrderLinesHandler(
         foreach (var line in toCreate)
         {
             var partId = line.PartId!.Value;
-            var quantity = line.RemainingQuantity;
+            var quantity = SalesOrderShipping.OpenToShip(so, line);
             var jobNumber = await jobRepo.GenerateNextJobNumberAsync(cancellationToken);
 
             var job = new Job

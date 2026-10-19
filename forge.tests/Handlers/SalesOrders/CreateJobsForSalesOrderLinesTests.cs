@@ -293,6 +293,30 @@ public class CreateJobsForSalesOrderLinesTests
     }
 
     [Fact]
+    public async Task Quantity_on_a_shipment_not_shipped_yet_is_not_made_again()
+    {
+        SeedTrack();
+        AddPart(900, "CW-1001", ProcurementSource.Make);
+        var covered = Line(601, 1, 900, 10m);
+        var partCovered = Line(602, 2, 900, 40m);
+        var so = await SeedOrderAsync(covered, partCovered);
+        var pending = new Shipment { ShipmentNumber = "SH-1", SalesOrderId = so.Id, Status = ShipmentStatus.Pending };
+        pending.Lines.Add(new ShipmentLine { SalesOrderLineId = 601, Quantity = 10m });
+        pending.Lines.Add(new ShipmentLine { SalesOrderLineId = 602, Quantity = 15m });
+        _db.Shipments.Add(pending);
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var result = await Handler().Handle(new CreateJobsForSalesOrderLinesCommand(so.Id), CancellationToken.None);
+
+        result.Created.Should().Be(1);
+        result.Skipped.Should().ContainSingle().Which.LineNumber.Should().Be(1);
+        var job = await _db.Jobs.Include(j => j.JobParts).SingleAsync();
+        job.SalesOrderLineId.Should().Be(602);
+        job.JobParts.Single().Quantity.Should().Be(25m);
+    }
+
+    [Fact]
     public async Task Created_jobs_raise_job_created_and_get_a_cloud_folder()
     {
         SeedTrack();
