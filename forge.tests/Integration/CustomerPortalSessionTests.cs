@@ -177,6 +177,14 @@ public class CustomerPortalSessionTests
         db.Quotes.Add(quote);
         await db.SaveChangesAsync();
 
+        db.CustomerPortalAccesses.Add(new CustomerPortalAccess
+        {
+            ContactId = contact.Id,
+            CustomerId = customer.Id,
+            IsEnabled = true,
+        });
+        await db.SaveChangesAsync();
+
         return (email, contact.Id, quote.Id);
     }
 }

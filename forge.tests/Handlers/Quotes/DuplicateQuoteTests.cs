@@ -225,12 +225,23 @@ public class DuplicateQuoteTests
     }
 
     [Fact]
-    public async Task The_portal_lists_the_revision_and_not_the_superseded_quote()
+    public async Task The_portal_lists_the_revision_once_sent_and_never_the_superseded_quote()
     {
         await SeedAsync(QuoteStatus.Sent);
         var revision = await Handler().Handle(new DuplicateQuoteCommand(5, AsRevision: true), CancellationToken.None);
+        var clock = new Mock<IClock>();
+        clock.Setup(c => c.UtcNow).Returns(Now);
+        var portalHandler = new Forge.Api.Features.CustomerPortal.GetPortalQuotesHandler(_db, clock.Object);
 
-        var portal = await new Forge.Api.Features.CustomerPortal.GetPortalQuotesHandler(_db)
+        var whileDraft = await portalHandler
+            .Handle(new Forge.Api.Features.CustomerPortal.GetPortalQuotesQuery(2), CancellationToken.None);
+        whileDraft.Should().BeEmpty();
+
+        var stored = await _db.Quotes.FindAsync(revision.Id);
+        stored!.Status = QuoteStatus.Sent;
+        await _db.SaveChangesAsync();
+
+        var portal = await portalHandler
             .Handle(new Forge.Api.Features.CustomerPortal.GetPortalQuotesQuery(2), CancellationToken.None);
 
         portal.Select(q => q.Id).Should().Equal(revision.Id);

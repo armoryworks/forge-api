@@ -21,6 +21,7 @@ public class GetPortalSalesOrdersHandler(AppDbContext db)
             .OrderByDescending(o => o.CreatedAt)
             .Take(200)
             .ToListAsync(ct);
+        var currencyCode = await PortalReadRules.FunctionalCurrencyCodeAsync(db, ct);
 
         return orders.Select(o => new PortalSalesOrderListItem(
             Id: o.Id,
@@ -28,6 +29,7 @@ public class GetPortalSalesOrdersHandler(AppDbContext db)
             Status: o.Status.ToString(),
             OrderDate: o.ConfirmedDate ?? o.CreatedAt,
             RequestedDate: o.RequestedDeliveryDate,
-            Total: o.Total)).ToList();
+            Total: o.Total,
+            CurrencyCode: currencyCode)).ToList();
     }
 }

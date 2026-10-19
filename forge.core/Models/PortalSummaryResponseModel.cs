@@ -20,7 +20,8 @@ public record PortalSalesOrderListItem(
     string Status,
     DateTimeOffset OrderDate,
     DateTimeOffset? RequestedDate,
-    decimal Total);
+    decimal Total,
+    string? CurrencyCode);
 
 public record PortalQuoteListItem(
     int Id,
@@ -29,7 +30,8 @@ public record PortalQuoteListItem(
     string Status,
     DateTimeOffset QuoteDate,
     DateTimeOffset? ExpiresAt,
-    decimal Total);
+    decimal Total,
+    string? CurrencyCode);
 
 public record PortalInvoiceListItem(
     int Id,
@@ -39,7 +41,8 @@ public record PortalInvoiceListItem(
     DateTimeOffset? DueDate,
     decimal Total,
     decimal AmountPaid,
-    decimal Balance);
+    decimal Balance,
+    string? CurrencyCode);
 
 public record PortalShipmentListItem(
     int Id,

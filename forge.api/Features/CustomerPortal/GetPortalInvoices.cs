@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -25,7 +26,8 @@ public class GetPortalInvoicesHandler(AppDbContext db, IAccountingService accoun
 
         var invoices = await db.Invoices.AsNoTracking()
             .Include(i => i.Lines)
-            .Where(i => i.CustomerId == request.CustomerId)
+            .Include(i => i.Currency)
+            .Where(i => i.CustomerId == request.CustomerId && i.Status != InvoiceStatus.Draft)
             .OrderByDescending(i => i.InvoiceDate)
             .Take(200)
             .ToListAsync(ct);
@@ -48,7 +50,8 @@ public class GetPortalInvoicesHandler(AppDbContext db, IAccountingService accoun
                 DueDate: i.DueDate,
                 Total: i.Total,
                 AmountPaid: paid,
-                Balance: i.Total - paid);
+                Balance: i.Status == InvoiceStatus.Voided ? 0m : i.Total - paid,
+                CurrencyCode: i.Currency?.Code);
         }).ToList();
     }
 }
