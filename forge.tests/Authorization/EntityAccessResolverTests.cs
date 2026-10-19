@@ -94,6 +94,24 @@ public sealed class EntityAccessResolverTests
     }
 
     [Fact]
+    public async Task An_employee_record_resolves_its_id_the_way_the_employee_screen_does()
+    {
+        _db.Users.AddRange(
+            new ApplicationUser { Id = CallerId, UserName = "caller", FirstName = "Cal", LastName = "Ler" },
+            new ApplicationUser { Id = OtherUserId, UserName = "other", FirstName = "Oth", LastName = "Er" });
+        var ownProfile = new EmployeeProfile { Id = OtherUserId, UserId = CallerId };
+        _db.EmployeeProfiles.Add(ownProfile);
+        await _db.SaveChangesAsync();
+
+        (await _resolver.CanAccessAsync("employees", CallerId, As("ProductionWorker"), false, CancellationToken.None))
+            .Should().BeTrue("the employee list keys a linked employee by user id");
+        (await _resolver.CanAccessAsync("employees", OtherUserId, As("ProductionWorker"), false, CancellationToken.None))
+            .Should().BeFalse("that id is another user's, even though the caller's profile id matches it");
+        (await _resolver.CanAccessAsync("employees", OtherUserId, As("Manager"), false, CancellationToken.None))
+            .Should().BeTrue();
+    }
+
+    [Fact]
     public async Task A_compliance_submission_is_open_to_its_employee()
     {
         var submission = new ComplianceFormSubmission { UserId = CallerId, TemplateId = 1 };

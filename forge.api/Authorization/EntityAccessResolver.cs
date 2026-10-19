@@ -59,13 +59,24 @@ public class EntityAccessResolver(AppDbContext db) : IEntityAccessResolver
         {
             EntityOwnership.User => Task.FromResult(entityId == userId),
             EntityOwnership.Expense => db.Expenses.AnyAsync(e => e.Id == entityId && e.UserId == userId, ct),
-            EntityOwnership.Employee => db.EmployeeProfiles.AnyAsync(p => p.Id == entityId && p.UserId == userId, ct),
+            EntityOwnership.Employee => IsEmployeeOwnerAsync(entityId, userId, ct),
             EntityOwnership.ComplianceSubmission =>
                 db.ComplianceFormSubmissions.AnyAsync(s => s.Id == entityId && s.UserId == userId, ct),
             EntityOwnership.ChatRoom =>
                 db.ChatRoomMembers.AnyAsync(m => m.ChatRoomId == entityId && m.UserId == userId, ct),
             _ => Task.FromResult(false),
         };
+
+    private async Task<bool> IsEmployeeOwnerAsync(int employeeId, int userId, CancellationToken ct)
+    {
+        if (await db.EmployeeProfiles.AnyAsync(p => p.Id == employeeId && p.UserId == null, ct))
+            return false;
+
+        if (await db.Users.AnyAsync(u => u.Id == employeeId, ct))
+            return employeeId == userId;
+
+        return await db.EmployeeProfiles.AnyAsync(p => p.Id == employeeId && p.UserId == userId, ct);
+    }
 
     private async Task<bool> IsLinkedToUserAsync(int fileId, int userId, CancellationToken ct) =>
         await db.PayStubs.AnyAsync(p => p.FileAttachmentId == fileId && p.UserId == userId, ct)
