@@ -217,6 +217,32 @@ public class VoidVendorPaymentTests
     }
 
     [Fact]
+    public async Task Void_LogsTheReasonAndTheBillsItWasAppliedTo()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var bill = await AddApprovedBillAsync(db, vendorId);
+        var created = await CreateWirePaymentAsync(db, vendorId, bill.Id, 200m, fullGlOn: false);
+
+        await VoidHandler(db, fullGlOn: false).Handle(
+            new VoidVendorPaymentCommand(created.Id, "duplicate entry"), CancellationToken.None);
+
+        db.ActivityLogs.Should().Contain(a =>
+            a.EntityType == "VendorPayment" && a.EntityId == created.Id && a.Action == "voided"
+            && a.Description.Contains("duplicate entry") && a.Description.Contains(bill.BillNumber));
+        (await new VendorPaymentRepository(db).GetAllAsync(vendorId, CancellationToken.None))
+            .Should().NotContain(p => p.Id == created.Id);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Validator_RequiresAReason(string reason)
+    {
+        new VoidVendorPaymentValidator().Validate(new VoidVendorPaymentCommand(1, reason))
+            .IsValid.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Void_PartiallyVoided_BillDropsToPartiallyPaid()
     {
         var (db, vendorId) = await SeedAsync();

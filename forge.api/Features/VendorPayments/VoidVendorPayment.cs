@@ -1,5 +1,6 @@
 using System.Security.Claims;
 
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,14 @@ namespace Forge.Api.Features.VendorPayments;
 /// </para>
 /// </summary>
 public record VoidVendorPaymentCommand(int Id, string Reason) : IRequest;
+
+public class VoidVendorPaymentValidator : AbstractValidator<VoidVendorPaymentCommand>
+{
+    public VoidVendorPaymentValidator()
+    {
+        RuleFor(x => x.Reason).NotEmpty().MaximumLength(500);
+    }
+}
 
 public class VoidVendorPaymentHandler(
     IVendorPaymentRepository repo,
@@ -84,6 +93,9 @@ public class VoidVendorPaymentHandler(
 
         // Drop the applications so each bill's computed balance reopens.
         var affectedBillIds = payment.Applications.Select(a => a.VendorBillId).Distinct().ToList();
+        var appliedTo = string.Join(", ", payment.Applications
+            .OrderBy(a => a.Id)
+            .Select(a => $"{a.VendorBill?.BillNumber ?? $"Bill {a.VendorBillId}"} ({a.Amount:C})"));
         foreach (var app in payment.Applications.ToList())
             db.Remove(app);
 
@@ -92,7 +104,9 @@ public class VoidVendorPaymentHandler(
 
         db.LogActivityAt(
             "voided",
-            $"Vendor payment {payment.PaymentNumber} voided: {reason}",
+            appliedTo.Length == 0
+                ? $"Vendor payment {payment.PaymentNumber} voided: {reason}"
+                : $"Vendor payment {payment.PaymentNumber} voided: {reason}. It was applied to {appliedTo}.",
             ("VendorPayment", payment.Id));
 
         await db.SaveChangesAsync(cancellationToken);
