@@ -56,9 +56,7 @@ public class RecordFmeaActionHandler(AppDbContext db, IClock clock)
             RevisedSeverity = item.RevisedSeverity,
             RevisedOccurrence = item.RevisedOccurrence,
             RevisedDetection = item.RevisedDetection,
-            RevisedRpn = item.RevisedSeverity.HasValue && item.RevisedOccurrence.HasValue && item.RevisedDetection.HasValue
-                ? item.RevisedSeverity.Value * item.RevisedOccurrence.Value * item.RevisedDetection.Value
-                : null,
+            RevisedRpn = FmeaRpn.Revised(item),
             CapaId = item.CapaId,
         };
     }

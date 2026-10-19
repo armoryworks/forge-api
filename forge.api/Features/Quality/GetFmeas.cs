@@ -37,7 +37,7 @@ public class GetFmeasHandler(AppDbContext db)
 
         return fmeas.Select(f =>
         {
-            var rpns = f.Items.Select(i => i.Severity * i.Occurrence * i.Detection).ToList();
+            var rpns = f.Items.Select(FmeaRpn.Current).ToList();
             return new FmeaResponseModel
             {
                 Id = f.Id,

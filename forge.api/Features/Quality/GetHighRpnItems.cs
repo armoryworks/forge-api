@@ -21,8 +21,8 @@ public class GetHighRpnItemsHandler(AppDbContext db)
             .ToListAsync(cancellationToken);
 
         var highRpn = items
-            .Where(i => i.Severity * i.Occurrence * i.Detection > request.Threshold)
-            .OrderByDescending(i => i.Severity * i.Occurrence * i.Detection)
+            .Where(i => FmeaRpn.Current(i) > request.Threshold)
+            .OrderByDescending(FmeaRpn.Current)
             .ToList();
 
         var userIds = highRpn
@@ -57,9 +57,7 @@ public class GetHighRpnItemsHandler(AppDbContext db)
             RevisedSeverity = i.RevisedSeverity,
             RevisedOccurrence = i.RevisedOccurrence,
             RevisedDetection = i.RevisedDetection,
-            RevisedRpn = i.RevisedSeverity.HasValue && i.RevisedOccurrence.HasValue && i.RevisedDetection.HasValue
-                ? i.RevisedSeverity.Value * i.RevisedOccurrence.Value * i.RevisedDetection.Value
-                : null,
+            RevisedRpn = FmeaRpn.Revised(i),
             CapaId = i.CapaId,
         }).ToList();
     }

@@ -48,7 +48,7 @@ public class GetFmeaHandler(AppDbContext db)
                 .ToDictionaryAsync(c => c.Id, c => c.CapaNumber, cancellationToken)
             : new Dictionary<int, string>();
 
-        var rpns = f.Items.Select(i => i.Severity * i.Occurrence * i.Detection).ToList();
+        var rpns = f.Items.Select(FmeaRpn.Current).ToList();
 
         return new FmeaResponseModel
         {
@@ -93,9 +93,7 @@ public class GetFmeaHandler(AppDbContext db)
                 RevisedSeverity = i.RevisedSeverity,
                 RevisedOccurrence = i.RevisedOccurrence,
                 RevisedDetection = i.RevisedDetection,
-                RevisedRpn = i.RevisedSeverity.HasValue && i.RevisedOccurrence.HasValue && i.RevisedDetection.HasValue
-                    ? i.RevisedSeverity.Value * i.RevisedOccurrence.Value * i.RevisedDetection.Value
-                    : null,
+                RevisedRpn = FmeaRpn.Revised(i),
                 CapaId = i.CapaId,
                 CapaCorrNum = i.CapaId.HasValue && capaNumbers.TryGetValue(i.CapaId.Value, out var cn) ? cn : null,
             }).ToList(),

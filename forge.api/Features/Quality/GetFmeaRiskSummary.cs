@@ -35,7 +35,7 @@ public class GetFmeaRiskSummaryHandler(AppDbContext db)
             };
         }
 
-        var rpns = items.Select(i => i.Severity * i.Occurrence * i.Detection).ToList();
+        var rpns = items.Select(FmeaRpn.Current).ToList();
 
         var distribution = new List<RpnDistributionBucket>
         {
@@ -47,7 +47,7 @@ public class GetFmeaRiskSummaryHandler(AppDbContext db)
         };
 
         var heatmap = items
-            .GroupBy(i => new { i.Severity, i.Occurrence, i.Detection })
+            .GroupBy(FmeaRpn.CurrentRatings)
             .Select(g => new RpnHeatmapCell
             {
                 Severity = g.Key.Severity,

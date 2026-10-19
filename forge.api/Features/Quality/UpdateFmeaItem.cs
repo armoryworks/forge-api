@@ -71,9 +71,7 @@ public class UpdateFmeaItemHandler(AppDbContext db)
             RevisedSeverity = item.RevisedSeverity,
             RevisedOccurrence = item.RevisedOccurrence,
             RevisedDetection = item.RevisedDetection,
-            RevisedRpn = item.RevisedSeverity.HasValue && item.RevisedOccurrence.HasValue && item.RevisedDetection.HasValue
-                ? item.RevisedSeverity.Value * item.RevisedOccurrence.Value * item.RevisedDetection.Value
-                : null,
+            RevisedRpn = FmeaRpn.Revised(item),
             CapaId = item.CapaId,
         };
     }
