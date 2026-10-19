@@ -213,21 +213,21 @@ public sealed class DoubleSubmitSerializationTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task CostingPeriod_overlapping_an_existing_period_is_refused()
+    public async Task CostingPeriod_with_the_same_dates_is_refused_but_an_overlapping_one_is_not()
     {
         var start = UniqueYearStart();
+        var month = new CreateCostingPeriodCommand(start, start.AddMonths(1));
 
         await using (var first = fixture.CreateContext())
-            await new CreateCostingPeriodHandler(first).Handle(new CreateCostingPeriodCommand(start, start.AddMonths(1)), CancellationToken.None);
+            await new CreateCostingPeriodHandler(first).Handle(month, CancellationToken.None);
 
         await using var db = fixture.CreateContext();
-        var overlapping = () => new CreateCostingPeriodHandler(db)
-            .Handle(new CreateCostingPeriodCommand(start.AddDays(15), start.AddMonths(2)), CancellationToken.None);
-        await overlapping.Should().ThrowAsync<InvalidOperationException>().WithMessage("This period overlaps the costing period*");
+        var duplicate = () => new CreateCostingPeriodHandler(db).Handle(month, CancellationToken.None);
+        await duplicate.Should().ThrowAsync<InvalidOperationException>().WithMessage("A costing period with these dates already exists.");
 
-        var next = await new CreateCostingPeriodHandler(db)
-            .Handle(new CreateCostingPeriodCommand(start.AddMonths(1), start.AddMonths(2)), CancellationToken.None);
-        next.StartDate.Should().Be(start.AddMonths(1));
+        var fiscalYear = await new CreateCostingPeriodHandler(db)
+            .Handle(new CreateCostingPeriodCommand(start, start.AddYears(1).AddDays(-1)), CancellationToken.None);
+        fiscalYear.StartDate.Should().Be(start);
     }
 
     [Fact]

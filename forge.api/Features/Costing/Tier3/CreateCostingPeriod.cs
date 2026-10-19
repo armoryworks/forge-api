@@ -36,13 +36,8 @@ public class CreateCostingPeriodHandler(AppDbContext db)
             : null;
         await db.AcquireAdvisoryLockAsync("costing-periods.create", string.Empty, ct);
 
-        var overlapping = await db.CostingPeriods
-            .Where(p => p.StartDate < end && p.EndDate > start)
-            .OrderBy(p => p.StartDate)
-            .FirstOrDefaultAsync(ct);
-        if (overlapping is not null)
-            throw new InvalidOperationException(
-                $"This period overlaps the costing period {overlapping.StartDate:MM/dd/yyyy}–{overlapping.EndDate:MM/dd/yyyy}.");
+        if (await db.CostingPeriods.AnyAsync(p => p.StartDate == start && p.EndDate == end, ct))
+            throw new InvalidOperationException("A costing period with these dates already exists.");
 
         var period = new CostingPeriod
         {
