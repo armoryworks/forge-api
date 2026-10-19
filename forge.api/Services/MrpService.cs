@@ -48,7 +48,7 @@ public class MrpService(
 
             // Step 1: Gather MRP-planned parts
             var partsQuery = db.Parts.AsNoTracking()
-                .Where(p => p.IsMrpPlanned && p.Status == PartStatus.Active);
+                .Where(p => p.IsMrpPlanned && p.Status == PartStatus.Active && p.InventoryClass != InventoryClass.Service);
 
             if (options.PartIds is { Count: > 0 })
                 partsQuery = partsQuery.Where(p => options.PartIds.Contains(p.Id));

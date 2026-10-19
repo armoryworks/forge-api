@@ -158,7 +158,7 @@ public class CreateShipmentHandler(
         shipment.ScanCode = ShipmentScanCode.Compute(shipmentNumber, shipment.Lines);
 
         // Update order status based on fulfillment (only applies when SO lines are linked)
-        if (order.Lines.Any() && order.Lines.All(l => l.IsFullyShipped))
+        if (order.Lines.Any(l => l.ShipsGoods) && order.Lines.Where(l => l.ShipsGoods).All(l => l.IsFullyShipped))
             order.Status = SalesOrderStatus.Shipped;
         else if (order.Lines.Any(l => l.ShippedQuantity > 0))
             order.Status = SalesOrderStatus.PartiallyShipped;

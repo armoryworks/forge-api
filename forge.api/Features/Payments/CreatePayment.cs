@@ -219,13 +219,19 @@ public class CreatePaymentHandler(
             foreach (var soId in completionCandidateSoIds)
             {
                 var so = await db.SalesOrders
-                    .Include(o => o.Lines)
-                    .Include(o => o.Invoices)
+                    .Include(o => o.Lines).ThenInclude(l => l.Part)
+                    .Include(o => o.Invoices).ThenInclude(i => i.Lines)
                     .FirstOrDefaultAsync(o => o.Id == soId, cancellationToken);
-                if (so is null || so.Status != SalesOrderStatus.Shipped) continue;
-                if (so.Lines.Count == 0 || !so.Lines.All(l => l.IsFullyShipped)) continue;
+                if (so is null || so.Lines.Count == 0) continue;
+                var shippedLines = so.Lines.Where(l => l.ShipsGoods).ToList();
+                var reachedFulfilment = shippedLines.Count > 0
+                    ? so.Status == SalesOrderStatus.Shipped
+                    : so.Status is SalesOrderStatus.Confirmed or SalesOrderStatus.InProduction
+                        or SalesOrderStatus.PartiallyShipped or SalesOrderStatus.Shipped;
+                if (!reachedFulfilment || !shippedLines.All(l => l.IsFullyShipped)) continue;
                 var billable = so.Invoices.Where(i => i.Status != InvoiceStatus.Voided).ToList();
                 if (billable.Count == 0 || !billable.All(i => i.Status == InvoiceStatus.Paid)) continue;
+                if (!ServiceLinesInvoiced(so, billable)) continue;
                 so.Status = SalesOrderStatus.Completed;
                 anyCompleted = true;
             }
@@ -275,6 +281,20 @@ public class CreatePaymentHandler(
             payment.Method.ToString(), payment.Amount, appliedTotal,
             payment.Amount - appliedTotal, payment.PaymentDate,
             payment.ReferenceNumber, payment.CreatedAt);
+    }
+
+    private static bool ServiceLinesInvoiced(SalesOrder so, List<Invoice> billable)
+    {
+        var invoicedByPart = billable
+            .SelectMany(i => i.Lines)
+            .Where(l => l.PartId != null)
+            .GroupBy(l => l.PartId!.Value)
+            .ToDictionary(g => g.Key, g => g.Sum(l => l.Quantity));
+
+        return so.Lines
+            .Where(l => !l.ShipsGoods)
+            .GroupBy(l => l.PartId!.Value)
+            .All(g => invoicedByPart.GetValueOrDefault(g.Key) >= g.Sum(l => l.Quantity));
     }
 
     // Uses a caller-supplied payment number when manual numbers are enabled and one

@@ -238,7 +238,7 @@ public sealed class ReceiptInventoryPostingService(
         InventoryClass.Raw or InventoryClass.Component or InventoryClass.Subassembly or InventoryClass.FinishedGood;
 
     /// <summary>Maps a received part's <see cref="InventoryClass"/> to the inventory determination key
-    /// it capitalizes to. Consumables / tools are expensed (not stocked-for-production). A line with NO
+    /// it capitalizes to. Consumables / tools / services are expensed (not stocked-for-production). A line with NO
     /// part at all (service / described material) is expensed — nothing enters inventory. A part with an
     /// unknown class defaults to raw-materials inventory (a purchased input).</summary>
     private static string DebitKeyFor(Part? part) => part is null
@@ -248,7 +248,7 @@ public sealed class ReceiptInventoryPostingService(
             InventoryClass.Raw or InventoryClass.Component => KeyInventoryRaw,
             InventoryClass.Subassembly => KeyInventorySubassembly,
             InventoryClass.FinishedGood => KeyInventoryFg,
-            InventoryClass.Consumable or InventoryClass.Tool => KeyOperatingExpense,
+            InventoryClass.Consumable or InventoryClass.Tool or InventoryClass.Service => KeyOperatingExpense,
             _ => KeyInventoryRaw,
         };
 

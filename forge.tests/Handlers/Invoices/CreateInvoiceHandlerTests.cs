@@ -350,4 +350,54 @@ public class CreateInvoiceHandlerTests
         captured.TaxableSubtotal.Should().Be(400m);
         captured.TaxAmount.Should().Be(29m);
     }
+
+    private async Task<Part> SeedServicePartOnOrderAsync(SalesOrder order, decimal orderedQuantity)
+    {
+        var service = new Part { PartNumber = "NRE-T112", Name = "Tooling NRE", InventoryClass = InventoryClass.Service };
+        _db.Parts.Add(service);
+        await _db.SaveChangesAsync();
+        _db.SalesOrderLines.Add(new SalesOrderLine
+        {
+            SalesOrderId = order.Id, PartId = service.Id, Description = "Tooling NRE", Quantity = orderedQuantity, UnitPrice = 6800m, LineNumber = 2,
+        });
+        await _db.SaveChangesAsync();
+        return service;
+    }
+
+    [Fact]
+    public async Task Handle_ServiceLineOnTheOrder_IsInvoicedWithoutAShipment()
+    {
+        var (customer, order, _) = await SeedOrderAsync();
+        var service = await SeedServicePartOnOrderAsync(order, 1m);
+
+        var result = await _handler.Handle(
+            OrderCommand(customer.Id, order.Id, null, new CreateInvoiceLineModel(service.Id, "Tooling NRE", 1m, 6800m)), CancellationToken.None);
+
+        result.Total.Should().Be(6800m);
+    }
+
+    [Fact]
+    public async Task Handle_ServiceLineBeyondTheOrderedQuantity_IsRefused()
+    {
+        var (customer, order, _) = await SeedOrderAsync();
+        var service = await SeedServicePartOnOrderAsync(order, 1m);
+
+        var act = () => _handler.Handle(
+            OrderCommand(customer.Id, order.Id, null, new CreateInvoiceLineModel(service.Id, "Tooling NRE", 2m, 6800m)), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Can't invoice 2 of NRE-T112: 1 ordered, 0 already invoiced, 1 left to invoice.");
+    }
+
+    [Fact]
+    public async Task Handle_GoodsLineNextToAServiceLine_IsStillCappedAtShipped()
+    {
+        var (customer, order, part) = await SeedOrderAsync();
+        await SeedServicePartOnOrderAsync(order, 1m);
+
+        var act = () => _handler.Handle(
+            OrderCommand(customer.Id, order.Id, null, new CreateInvoiceLineModel(part.Id, "Bracket", 1m, 10m)), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*0 shipped*");
+    }
 }

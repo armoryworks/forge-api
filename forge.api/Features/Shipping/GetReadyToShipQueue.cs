@@ -31,7 +31,8 @@ public class GetReadyToShipQueueHandler(AppDbContext db)
             .Include(so => so.Customer)
             .Include(so => so.Lines).ThenInclude(l => l.Part)
             .Where(so => OpenStatuses.Contains(so.Status)
-                && so.Lines.Any(l => l.Quantity - l.ShippedQuantity > 0))
+                && so.Lines.Any(l => l.Quantity - l.ShippedQuantity > 0
+                    && (l.Part == null || l.Part.InventoryClass != InventoryClass.Service)))
             .ToListAsync(ct);
 
         return orders
@@ -45,7 +46,7 @@ public class GetReadyToShipQueueHandler(AppDbContext db)
                 so.RequestedDeliveryDate,
                 so.Status.ToString(),
                 so.Lines
-                    .Where(l => l.RemainingQuantity > 0)
+                    .Where(l => l.RemainingQuantity > 0 && l.ShipsGoods)
                     .OrderBy(l => l.LineNumber)
                     .Select(l => new ReadyToShipLineModel(
                         l.Id,

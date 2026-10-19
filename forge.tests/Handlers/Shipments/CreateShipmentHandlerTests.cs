@@ -466,4 +466,23 @@ public class CreateShipmentHandlerTests
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
     }
+
+    [Fact]
+    public async Task Handle_ShippingEveryGoodsLine_MarksTheOrderShippedWhileItsServiceLineAwaitsInvoicing()
+    {
+        var order = CreateConfirmedOrder(1, 10, 20);
+        order.Lines.Add(new SalesOrderLine
+        {
+            Id = 11, SalesOrderId = 1, PartId = 77, Description = "Tooling NRE", Quantity = 1, UnitPrice = 6800m, LineNumber = 2,
+            Part = new Part { Id = 77, PartNumber = "NRE-T112", Name = "Tooling NRE", InventoryClass = InventoryClass.Service },
+        });
+        _orderRepo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _shipmentRepo.Setup(r => r.GenerateNextShipmentNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("SHP-0001");
+
+        await _handler.Handle(new CreateShipmentCommand(
+            1, null, null, null, null, null, null,
+            [new CreateShipmentLineModel(10, 20, null)]), CancellationToken.None);
+
+        order.Status.Should().Be(SalesOrderStatus.Shipped);
+    }
 }

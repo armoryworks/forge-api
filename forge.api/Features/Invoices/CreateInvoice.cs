@@ -135,6 +135,18 @@ public class CreateInvoiceHandler(
                 .Select(g => new { PartId = g.Key, Qty = g.Sum(x => x.Quantity) })
                 .ToDictionaryAsync(x => x.PartId, x => x.Qty, cancellationToken);
 
+            var requestedPartIds = request.Lines.Where(l => l.PartId != null).Select(l => l.PartId!.Value).Distinct().ToList();
+            var orderedServiceByPart = await db.SalesOrderLines
+                .Where(l => l.SalesOrderId == shippedSoId
+                    && l.PartId != null
+                    && requestedPartIds.Contains(l.PartId.Value)
+                    && l.Part!.InventoryClass == InventoryClass.Service)
+                .GroupBy(l => l.PartId!.Value)
+                .Select(g => new { PartId = g.Key, Qty = g.Sum(x => x.Quantity) })
+                .ToDictionaryAsync(x => x.PartId, x => x.Qty, cancellationToken);
+            foreach (var (partId, ordered) in orderedServiceByPart)
+                shippedByPart[partId] = ordered;
+
             var invoicedByPart = await db.InvoiceLines
                 .Where(il => il.PartId != null && il.Invoice.SalesOrderId == shippedSoId)
                 .GroupBy(il => il.PartId!.Value)
@@ -163,7 +175,7 @@ public class CreateInvoiceHandler(
 
                 throw new InvalidOperationException(string.Join(" ", overInvoiced.Select(x =>
                     $"Can't invoice {Qty(x.Requested)} of {partNumbers.GetValueOrDefault(x.PartId) ?? $"part {x.PartId}"}: " +
-                    $"{Qty(x.Shipped)} shipped, {Qty(x.Already)} already invoiced, " +
+                    $"{Qty(x.Shipped)} {(orderedServiceByPart.ContainsKey(x.PartId) ? "ordered" : "shipped")}, {Qty(x.Already)} already invoiced, " +
                     $"{Qty(Math.Max(0m, x.Shipped - x.Already))} left to invoice.")));
             }
         }

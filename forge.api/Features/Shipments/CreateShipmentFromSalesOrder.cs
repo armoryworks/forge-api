@@ -29,13 +29,14 @@ public class CreateShipmentFromSalesOrderHandler(AppDbContext db, IMediator medi
     {
         var order = await db.SalesOrders
             .Include(o => o.Lines).ThenInclude(l => l.Jobs).ThenInclude(j => j.CurrentStage)
+            .Include(o => o.Lines).ThenInclude(l => l.Part)
             .FirstOrDefaultAsync(o => o.Id == request.SalesOrderId, cancellationToken)
             ?? throw new KeyNotFoundException($"Sales order {request.SalesOrderId} not found");
 
         var lines = new List<CreateShipmentLineModel>();
         foreach (var line in order.Lines)
         {
-            if (line.RemainingQuantity <= 0) continue;
+            if (line.RemainingQuantity <= 0 || !line.ShipsGoods) continue;
 
             // Ship a line only once its production is done: no jobs, or every job at a ship/complete stage.
             var productionComplete = line.Jobs.Count == 0 || line.Jobs.All(j =>
