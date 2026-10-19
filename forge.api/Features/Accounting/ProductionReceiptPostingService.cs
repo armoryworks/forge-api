@@ -27,10 +27,12 @@ namespace Forge.Api.Features.Accounting;
 /// and feeds the perpetual FG valuation store via <see cref="IInventoryValuationService.ApplyReceiptAsync"/>.
 ///
 /// <para><b>Costing — standard.</b> FG is valued at <c>standard cost × good qty</c> (the documented
-/// manufacturing default). Any difference between the standard FG value credited out of WIP and the actual
-/// WIP accumulated (material issues at weighted-average + labor) <b>remains in INVENTORY_WIP as a production
-/// variance</b>, recognized at period-end variance analysis — symmetric with the PO-receipt service deferring
-/// PPV to the 3-way match. A part with no resolvable standard cost is stocked operationally but its GL/value
+/// manufacturing default). Before the relief, the job's labor, overhead and subcontract cost incurred so far is
+/// absorbed into WIP (<see cref="IProductionVariancePostingService.AbsorbConversionToDateAsync"/>), so the
+/// relief does not drive the job's WIP negative. Any difference between the standard FG value credited out of
+/// WIP and the actual WIP accumulated <b>remains in INVENTORY_WIP as a production variance</b>, swept by the
+/// job-cost close — symmetric with the PO-receipt service deferring PPV to the 3-way match. A part with no
+/// resolvable standard cost is stocked operationally but its GL/value
 /// is skipped (logged), so a missing cost never blocks the receipt.</para>
 ///
 /// <para><b>STAYS DARK while CAP-ACCT-FULLGL is OFF (the default)</b> — a no-op on the first check, so the
@@ -59,7 +61,8 @@ public sealed class ProductionReceiptPostingService(
     IPostingEngine postingEngine,
     ICapabilitySnapshotProvider capabilities,
     ISystemAuditWriter? auditWriter = null,
-    IInventoryValuationService? valuation = null) : IProductionReceiptPostingService
+    IInventoryValuationService? valuation = null,
+    IProductionVariancePostingService? conversion = null) : IProductionReceiptPostingService
 {
     private const string FullGlCapability = "CAP-ACCT-FULLGL";
 
@@ -114,6 +117,9 @@ public sealed class ProductionReceiptPostingService(
             .AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == idempotencyKey, ct);
         if (alreadyPosted)
             return;
+
+        if (conversion is not null)
+            await conversion.AbsorbConversionToDateAsync(run.JobId, run.Id, entryDate, receivedByUserId, ct);
 
         var partLabel = run.Part?.PartNumber ?? $"part {run.PartId}";
         var desc = $"Production receipt — run {run.RunNumber} (job {run.JobId}) {partLabel} x{run.ReceivedQuantity}";

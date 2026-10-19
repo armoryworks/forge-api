@@ -10,7 +10,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/inventory/transfers")]
-[Authorize]
+[Authorize(Roles = "Admin,Manager,OfficeManager,Engineer,ProductionWorker")]
 [RequiresCapability("CAP-INV-MULTILOC")]
 public class InterPlantTransfersController(IMediator mediator) : ControllerBase
 {
@@ -24,6 +24,7 @@ public class InterPlantTransfersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Manager,OfficeManager,Engineer")]
     public async Task<ActionResult<InterPlantTransferResponseModel>> CreateTransfer([FromBody] CreateInterPlantTransferRequestModel request)
     {
         var result = await mediator.Send(new CreateInterPlantTransferCommand(request));
@@ -31,6 +32,7 @@ public class InterPlantTransfersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/ship")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager,Engineer")]
     public async Task<IActionResult> ShipTransfer(int id, [FromBody] ShipTransferRequestModel request)
     {
         await mediator.Send(new ShipInterPlantTransferCommand(id, request));
@@ -38,6 +40,7 @@ public class InterPlantTransfersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/receive")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager,Engineer")]
     public async Task<IActionResult> ReceiveTransfer(int id, [FromBody] List<ReceiveTransferLineRequestModel> lines)
     {
         await mediator.Send(new ReceiveInterPlantTransferCommand(id, lines));

@@ -27,7 +27,7 @@ public class ReceiveInterPlantTransferHandlerTests
         };
         db.InterPlantTransfers.Add(transfer);
         await db.SaveChangesAsync();
-        var handler = new ReceiveInterPlantTransferHandler(db, new SystemClock());
+        var handler = new ReceiveInterPlantTransferHandler(db, new SystemClock(), InventoryLedgerTestBook.UserAccessor(7));
 
         var act = () => handler.Handle(new ReceiveInterPlantTransferCommand(transfer.Id, []), CancellationToken.None);
 
@@ -51,7 +51,7 @@ public class ReceiveInterPlantTransferHandlerTests
         };
         db.InterPlantTransfers.Add(transfer);
         await db.SaveChangesAsync();
-        var handler = new ReceiveInterPlantTransferHandler(db, new SystemClock());
+        var handler = new ReceiveInterPlantTransferHandler(db, new SystemClock(), InventoryLedgerTestBook.UserAccessor(7));
 
         await handler.Handle(new ReceiveInterPlantTransferCommand(transfer.Id, []), CancellationToken.None);
 

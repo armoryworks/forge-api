@@ -428,6 +428,7 @@ try
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IProductionReceiptPostingService, Forge.Api.Features.Accounting.ProductionReceiptPostingService>();
     // Phase-2 STAGE E — job-cost close: absorb labor+overhead into WIP, sweep WIP residual to PRODUCTION_VARIANCE.
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IProductionVariancePostingService, Forge.Api.Features.Accounting.ProductionVariancePostingService>();
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IInventoryAdjustmentPostingService, Forge.Api.Features.Accounting.InventoryAdjustmentPostingService>();
     // Standard costing Phase 4 — single-plant overhead pool: record actual overhead + period spending variance.
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IOverheadPoolService, Forge.Api.Features.Accounting.OverheadPoolService>();
     // Standard costing Phase 5 — variance rollup report (lumped = SUM of the six variance accounts).

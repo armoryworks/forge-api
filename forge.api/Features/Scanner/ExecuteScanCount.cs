@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Inventory;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -29,7 +30,8 @@ public class ExecuteScanCountCommandValidator : AbstractValidator<ExecuteScanCou
 public class ExecuteScanCountHandler(
     AppDbContext db,
     IClock clock,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    IInventoryAdjustmentPostingService? posting = null)
     : IRequestHandler<ExecuteScanCountCommand, int>
 {
     private const decimal VarianceThresholdPercent = 0.10m;
@@ -61,6 +63,10 @@ public class ExecuteScanCountHandler(
         if (delta < 0 && data.ActualCount < reserved)
             throw new InvalidOperationException(
                 $"Cannot count {data.ActualCount}: {reserved} unit(s) here are reserved. Release the reservation first.");
+
+        await using var tx = posting is not null && delta != 0 && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
 
         // Create scan action log
         var scanLog = new ScanActionLog
@@ -144,6 +150,14 @@ public class ExecuteScanCountHandler(
         }
 
         await db.SaveChangesAsync(cancellationToken);
+
+        if (posting is not null && delta != 0)
+            await posting.PostAdjustmentAsync(new InventoryAdjustmentPosting(
+                "ScanCount", scanLog.Id, data.PartId, delta,
+                DateOnly.FromDateTime(now.UtcDateTime), userId, $"scanner count {scanLog.Id}"), cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
         return scanLog.Id;
     }

@@ -4,10 +4,12 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
+using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Inventory;
 
@@ -23,13 +25,17 @@ public class UpdateCycleCountCommandValidator : AbstractValidator<UpdateCycleCou
 
 public class UpdateCycleCountHandler(
     IInventoryRepository repo,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    IClock clock,
+    AppDbContext db,
+    IInventoryAdjustmentPostingService posting)
     : IRequestHandler<UpdateCycleCountCommand>
 {
     public async Task Handle(UpdateCycleCountCommand request, CancellationToken cancellationToken)
     {
         var data = request.Data;
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var now = clock.UtcNow;
 
         var cycleCount = await repo.FindCycleCountAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Cycle count {request.Id} not found");
@@ -52,6 +58,11 @@ public class UpdateCycleCountHandler(
 
         if (data.Notes != null)
             cycleCount.Notes = data.Notes;
+
+        await using var tx = data.Status == "Approved" && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        var adjustments = new List<InventoryAdjustmentPosting>();
 
         // If approving, adjust bin contents to match actuals
         if (data.Status == "Approved")
@@ -76,7 +87,7 @@ public class UpdateCycleCountHandler(
 
                         if (line.ActualQuantity == 0)
                         {
-                            content.RemovedAt = DateTimeOffset.UtcNow;
+                            content.RemovedAt = now;
                             content.RemovedBy = userId;
                         }
 
@@ -90,11 +101,16 @@ public class UpdateCycleCountHandler(
                             FromLocationId = line.Variance < 0 ? content.LocationId : null,
                             ToLocationId = line.Variance > 0 ? content.LocationId : null,
                             MovedBy = userId,
-                            MovedAt = DateTimeOffset.UtcNow,
+                            MovedAt = now,
                             Reason = BinMovementReason.CycleCount,
                         };
 
                         await repo.AddMovementAsync(movement, cancellationToken);
+
+                        if (string.Equals(line.EntityType, "part", StringComparison.OrdinalIgnoreCase))
+                            adjustments.Add(new InventoryAdjustmentPosting(
+                                "CycleCountLine", line.Id, line.EntityId, line.Variance,
+                                DateOnly.FromDateTime(now.UtcDateTime), userId, $"cycle count {cycleCount.Id}"));
                     }
                 }
             }
@@ -105,5 +121,11 @@ public class UpdateCycleCountHandler(
         }
 
         await repo.SaveChangesAsync(cancellationToken);
+
+        foreach (var adjustment in adjustments)
+            await posting.PostAdjustmentAsync(adjustment, cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
     }
 }

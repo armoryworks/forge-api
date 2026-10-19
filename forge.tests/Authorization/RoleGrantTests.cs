@@ -291,4 +291,22 @@ public sealed class RoleGrantTests
             EffectiveRoles(Single(verb, template)).Should().BeEquivalentTo(CustomersController.CommercialTermsRoles, template);
         }
     }
+
+    [Fact]
+    public void Inter_plant_transfers_are_readable_by_inventory_roles_and_moved_by_inventory_managers()
+    {
+        EffectiveRoles(Single("GET", "api/v1/inventory/transfers"))
+            .Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager", "Engineer", "ProductionWorker"]);
+
+        foreach (var (verb, template) in new[]
+        {
+            ("POST", "api/v1/inventory/transfers"),
+            ("POST", "api/v1/inventory/transfers/{id:int}/ship"),
+            ("POST", "api/v1/inventory/transfers/{id:int}/receive"),
+        })
+        {
+            EffectiveRoles(Single(verb, template))
+                .Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager", "Engineer"], $"{verb} {template}");
+        }
+    }
 }
