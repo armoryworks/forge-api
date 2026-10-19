@@ -47,6 +47,7 @@ public class GetInvoiceByIdHandler(IInvoiceRepository repo)
                 pa.Id, pa.PaymentId, pa.Payment.PaymentNumber,
                 pa.InvoiceId, invoice.InvoiceNumber, pa.Amount)).ToList(),
             invoice.CreatedAt,
-            invoice.UpdatedAt);
+            invoice.UpdatedAt,
+            invoice.Version);
     }
 }

@@ -1,12 +1,32 @@
+using System.Security.Claims;
+
 using MediatR;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+
+using Forge.Api.Features.Accounting;
+using Forge.Api.Features.ShopFloor;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Invoices;
 
 public record VoidInvoiceCommand(int Id) : IRequest;
 
-public class VoidInvoiceHandler(IInvoiceRepository repo)
+/// <summary>
+/// Voids a sent invoice. When CAP-ACCT-FULLGL is on, the void also reverses everything the invoice posted
+/// (AR / revenue / tax, the delivery reclass and the COGS / finished-goods relief) and voids its AR open item,
+/// inline in one transaction with the status flip (mirrors <see cref="VendorBills.VoidVendorBillHandler"/>).
+/// An invoice with payments applied cannot be voided until the payments are voided first.
+/// </summary>
+public class VoidInvoiceHandler(
+    IInvoiceRepository repo,
+    IInvoiceArPostingService? arPosting = null,
+    IHttpContextAccessor? httpContextAccessor = null,
+    AppDbContext? db = null,
+    IClock? clock = null)
     : IRequestHandler<VoidInvoiceCommand>
 {
     // F-033: source-state whitelist — Draft invoices should be deleted not voided;
@@ -28,6 +48,29 @@ public class VoidInvoiceHandler(IInvoiceRepository repo)
 
         invoice.Status = InvoiceStatus.Voided;
 
+        await using var tx = db is not null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
+        if (arPosting is not null)
+        {
+            var userId = int.TryParse(
+                httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier),
+                out var uid) ? uid : 0;
+            var now = clock?.UtcNow ?? invoice.InvoiceDate;
+            var shopZone = db is not null
+                ? await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken)
+                : TimeZoneInfo.Utc;
+            var voidDate = DateOnly.FromDateTime(ClockStateRules.LocalToday(shopZone, now));
+
+            await arPosting.ReverseInvoiceFinalizedAsync(invoice.Id, voidDate, userId, cancellationToken);
+        }
+
+        db?.LogActivityAt("voided", $"Voided invoice {invoice.InvoiceNumber}", ("Invoice", invoice.Id));
+
         await repo.SaveChangesAsync(cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
     }
 }

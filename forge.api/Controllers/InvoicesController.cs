@@ -66,6 +66,10 @@ public class InvoicesController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("{id:int}/email-recipient")]
+    public async Task<ActionResult<InvoiceEmailRecipientResponseModel>> GetInvoiceEmailRecipient(int id, CancellationToken ct)
+        => Ok(await mediator.Send(new GetInvoiceEmailRecipientQuery(id), ct));
+
     [HttpPost("{id:int}/email")]
     public async Task<IActionResult> EmailInvoice(int id, SendInvoiceEmailRequestModel request)
     {
@@ -81,6 +85,7 @@ public class InvoicesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id:int}/number")]
+    [IfMatch(typeof(Invoice))]
     public async Task<IActionResult> RenameInvoiceNumber(int id, RenameInvoiceNumberRequestModel request)
     {
         await mediator.Send(new RenameInvoiceNumberCommand(id, request.InvoiceNumber));
