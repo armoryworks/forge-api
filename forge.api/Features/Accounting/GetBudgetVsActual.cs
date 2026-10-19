@@ -31,7 +31,7 @@ public class GetBudgetVsActualValidator : AbstractValidator<GetBudgetVsActualQue
     {
         RuleFor(x => x.BookId).GreaterThan(0);
         RuleFor(x => x.FiscalYear).InclusiveBetween(1900, 9999);
-        RuleFor(x => x.PeriodMonth).InclusiveBetween(1, 12)
+        RuleFor(x => x.PeriodMonth).InclusiveBetween(1, 13)
             .When(x => x.PeriodMonth is not null);
     }
 }
@@ -201,6 +201,9 @@ public class GetBudgetVsActualHandler(AppDbContext db, IFinancialStatementServic
 
         if (month is null)
             return (new DateOnly(fiscalYear, 1, 1), new DateOnly(fiscalYear, 12, 31));
+
+        if (month.Value > 12)
+            throw new KeyNotFoundException($"Fiscal year {fiscalYear} has no period {month.Value}.");
 
         var monthStart = new DateOnly(fiscalYear, month.Value, 1);
         return (monthStart, monthStart.AddMonths(1).AddDays(-1));

@@ -21,13 +21,14 @@ namespace Forge.Api.Features.Accounting;
 [RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record Get1099ReportQuery(int Year, bool IncludeZeroPayments = false) : IRequest<Form1099Report>;
 
-public class Get1099ReportHandler(AppDbContext db)
+public class Get1099ReportHandler(AppDbContext db, Forge.Core.Settings.ISettingsService? settings = null)
     : IRequestHandler<Get1099ReportQuery, Form1099Report>
 {
     /// <summary>
     /// IRS 1099-NEC/MISC reporting threshold for a tax year — a vendor paid at least this in the year
     /// requires a filing: $600 through tax year 2025, $2,000 for payments from 2026-01-01. The amount
-    /// is inflation-indexed after 2026; later years use the 2026 figure until that is configured.
+    /// is inflation-indexed after 2026; later years use the 2026 figure unless the
+    /// <c>accounting.1099.threshold</c> setting overrides it.
     /// </summary>
     internal static decimal ReportingThreshold(int year) => year <= 2025 ? 600m : 2000m;
 
@@ -50,7 +51,13 @@ public class Get1099ReportHandler(AppDbContext db)
                 .Select(g => new { VendorId = g.Key, Total = g.Sum(x => x.Amount) })
                 .ToDictionaryAsync(x => x.VendorId, x => x.Total, ct);
 
-        var threshold = ReportingThreshold(request.Year);
+        var configured = settings is null
+            ? null
+            : await settings.GetStringAsync(Forge.Core.Settings.AccountingSettings.Form1099ThresholdKey, ct);
+        var threshold = decimal.TryParse(configured, System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture, out var overridden) && overridden > 0m
+            ? overridden
+            : ReportingThreshold(request.Year);
         var allRows = vendors
             .Select(v =>
             {

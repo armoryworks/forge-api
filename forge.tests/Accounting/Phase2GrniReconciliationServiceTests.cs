@@ -249,7 +249,7 @@ public class Phase2GrniReconciliationServiceTests
     {
         using var db = await SeedAsync();
         var vendorId = await AddVendorAsync(db);
-        // Line A received today (Current), line B received 40 days before AsOf (31-60); both unbilled.
+        // Line A received today (0-30), line B received 40 days before AsOf (31-60); both unbilled.
         var (poA, _) = await AddPoLineWithReceiptAsync(db, vendorId, unitPrice: 5m, received: 2m, billed: 0m, receivedOn: AsOf);
         var (poB, _) = await AddPoLineWithReceiptAsync(db, vendorId, unitPrice: 5m, received: 4m, billed: 0m, receivedOn: AsOf.AddDays(-40));
         await PostGrniReceiptAsync(db, poA, "R-1", amount: 10m, date: AsOf);
@@ -259,7 +259,7 @@ public class Phase2GrniReconciliationServiceTests
 
         r.OperationalOpen.Should().Be(30m);
         r.IsReconciled.Should().BeTrue();
-        BucketAmount(r.TotalsByBucket, "Current").Should().Be(10m);
+        BucketAmount(r.TotalsByBucket, "0-30").Should().Be(10m);
         BucketAmount(r.TotalsByBucket, "31-60").Should().Be(20m);
     }
 
@@ -277,7 +277,7 @@ public class Phase2GrniReconciliationServiceTests
 
         r.OperationalOpen.Should().Be(20m);
         BucketAmount(r.TotalsByBucket, "61-90").Should().Be(20m);
-        BucketAmount(r.TotalsByBucket, "Current").Should().Be(0m);
+        BucketAmount(r.TotalsByBucket, "0-30").Should().Be(0m);
     }
 
     [Fact]
@@ -307,7 +307,7 @@ public class Phase2GrniReconciliationServiceTests
         r.OperationalOpen.Should().Be(50m);
         r.IsReconciled.Should().BeTrue();
         BucketAmount(r.TotalsByBucket, "31-60").Should().Be(50m);
-        BucketAmount(r.TotalsByBucket, "Current").Should().Be(0m);
+        BucketAmount(r.TotalsByBucket, "0-30").Should().Be(0m);
     }
 
     [Fact]

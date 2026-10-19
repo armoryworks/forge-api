@@ -73,7 +73,7 @@ public sealed class GrniPoRow
     public IReadOnlyList<GrniAgingBucket> Buckets { get; init; } = [];
 }
 
-/// <summary>An aging bucket (Current, 1-30, 31-60, 61-90, 91+), matching the AP/AR bucket grain.</summary>
+/// <summary>An aging bucket (0-30, 31-60, 61-90, 91+), matching the AP/AR bucket grain.</summary>
 public sealed class GrniAgingBucket
 {
     public int FromDays { get; init; }

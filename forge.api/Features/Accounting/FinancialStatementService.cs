@@ -69,12 +69,12 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
         DateOnly? compareToDate = null,
         CancellationToken ct = default)
     {
-        var (curFrom, curTo) = await ResolveCurrentPnlWindowAsync(bookId, fromDate, toDate, ct);
+        var (curFrom, curTo, fyStart) = await ResolveCurrentPnlWindowAsync(bookId, fromDate, toDate, ct);
         var current = await BuildProfitAndLossAsync(bookId, curFrom, curTo, ct);
         if (!compare)
             return current;
 
-        var (priFrom, priTo) = ResolvePriorPnlWindow(curFrom, curTo, compareFromDate, compareToDate);
+        var (priFrom, priTo) = ResolvePriorPnlWindow(curFrom, curTo, compareFromDate, compareToDate, fyStart);
         if (priFrom is null || priTo is null)
             return current;
 
@@ -334,15 +334,13 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
     /// Resolves the CURRENT P&amp;L window. Explicit bounds are used verbatim; a missing
     /// end defaults to today and a missing start to the start of the fiscal year that
     /// contains the end, so the default statement is fiscal year-to-date. When no fiscal
-    /// year covers the end, the start stays open (from inception).
+    /// year covers the end, the start stays open (from inception). Also returns that
+    /// fiscal year's start, which the prior-window rule uses to recognise year-to-date.
     /// </summary>
-    private async Task<(DateOnly? From, DateOnly? To)> ResolveCurrentPnlWindowAsync(
+    private async Task<(DateOnly? From, DateOnly? To, DateOnly? FiscalYearStart)> ResolveCurrentPnlWindowAsync(
         int bookId, DateOnly? fromDate, DateOnly? toDate, CancellationToken ct)
     {
         var to = toDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
-        if (fromDate is not null)
-            return (fromDate, to);
-
         var fyStart = await db.FiscalYears
             .IgnoreQueryFilters()
             .Where(fy => fy.BookId == bookId && fy.StartDate <= to && fy.EndDate >= to)
@@ -350,20 +348,20 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
             .Select(fy => (DateOnly?)fy.StartDate)
             .FirstOrDefaultAsync(ct);
 
-        return (fyStart, to);
+        return (fromDate ?? fyStart, to, fyStart);
     }
 
     /// <summary>
-    /// Resolves the PRIOR P&amp;L window. Explicit compare bounds win; otherwise it is
-    /// derived by whole calendar months, never by counting days: a window of whole
-    /// months compares with the same number of months just before it (October with
-    /// September, a quarter with the previous quarter); a partial window inside one
-    /// month compares with the same days of the previous month; any other partial
-    /// window (year-to-date) compares with the same dates one year earlier. Returns
-    /// nulls when the current window is unbounded.
+    /// Resolves the PRIOR P&amp;L window. Explicit compare bounds win. A fiscal
+    /// year-to-date window (starting on <paramref name="fiscalYearStart"/>, the default)
+    /// compares with the same dates one year earlier. Otherwise the immediately-preceding
+    /// period of equal length is derived: the same number of whole calendar months for a
+    /// whole-month window (October with September, a quarter with the previous quarter),
+    /// else the same number of days ending the day before the current window starts.
+    /// Returns nulls when the current window is unbounded.
     /// </summary>
     internal static (DateOnly? From, DateOnly? To) ResolvePriorPnlWindow(
-        DateOnly? curFrom, DateOnly? curTo, DateOnly? compareFrom, DateOnly? compareTo)
+        DateOnly? curFrom, DateOnly? curTo, DateOnly? compareFrom, DateOnly? compareTo, DateOnly? fiscalYearStart)
     {
         if (compareFrom is not null && compareTo is not null)
             return (compareFrom, compareTo);
@@ -371,15 +369,17 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
         if (curFrom is not DateOnly from || curTo is not DateOnly to)
             return (null, null);
 
-        var months = (to.Year * 12 + to.Month) - (from.Year * 12 + from.Month) + 1;
-        var wholeMonths = from.Day == 1 && to.AddDays(1).Day == 1;
-        if (wholeMonths)
+        if (from == fiscalYearStart)
+            return (from.AddYears(-1), to.AddYears(-1));
+
+        if (from.Day == 1 && to.AddDays(1).Day == 1)
+        {
+            var months = (to.Year * 12 + to.Month) - (from.Year * 12 + from.Month) + 1;
             return (from.AddMonths(-months), from.AddDays(-1));
+        }
 
-        if (months == 1)
-            return (from.AddMonths(-1), to.AddMonths(-1));
-
-        return (from.AddYears(-1), to.AddYears(-1));
+        var priorTo = from.AddDays(-1);
+        return (priorTo.AddDays(-(to.DayNumber - from.DayNumber)), priorTo);
     }
 
     /// <summary>

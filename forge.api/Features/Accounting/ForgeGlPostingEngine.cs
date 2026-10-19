@@ -73,6 +73,270 @@ public sealed class ForgeGlPostingEngine(
                 return existing;
         }
 
+        var (lines, period) = await ValidateLinesAndPeriodAsync(request, ct);
+
+        var entry = await BuildAndAddEntryAsync(
+            request, lines, period, postedByUserId, ct,
+            source: request.Source,
+            sourceType: request.SourceType,
+            sourceId: request.SourceId,
+            idempotencyKey: request.IdempotencyKey,
+            memo: request.Memo,
+            autoReverse: request.AutoReverseNextPeriod,
+            reversalOfEntryId: null,
+            status: status,
+            applyBalances: applyBalances);
+
+        await db.SaveChangesAsync(ct);
+        return entry;
+    }
+
+    public async Task<JournalEntry> ApprovePendingAsync(long entryId, int approvedByUserId, CancellationToken ct = default)
+    {
+        // SoD (§5.7): finalizing a posting reaches the books only with POST_JE.
+        authorizer?.EnsureAuthorized(GlCapability.PostJournalEntry);
+
+        var entry = await db.JournalEntries
+            .Include(e => e.Lines)
+            .FirstOrDefaultAsync(e => e.Id == entryId, ct)
+            ?? throw new PostingException("ENTRY_NOT_FOUND", $"Journal entry {entryId} not found.");
+
+        if (entry.Status != JournalEntryStatus.PendingApproval)
+            throw new PostingException(
+                "NOT_PENDING_APPROVAL",
+                $"Only a PendingApproval entry can be approved; entry {entryId} is {entry.Status}.");
+
+        // §5.7: the approver (checker) MUST differ from the submitter (maker, recorded as PostedBy).
+        if (entry.PostedBy is int maker && maker == approvedByUserId)
+            throw new PostingException(
+                "APPROVER_NOT_DISTINCT",
+                "The approver must differ from the user who submitted the entry for approval.");
+
+        // The period may have hard-closed since submission — re-check under a row lock.
+        var period = await ResolveAndLockPeriodAsync(entry.BookId, entry.EntryDate, ct);
+        if (period.Status == FiscalPeriodStatus.HardClosed)
+            throw new PostingException(
+                "PERIOD_HARD_CLOSED",
+                $"Cannot post into hard-closed period '{period.Name}' (EntryDate {entry.EntryDate}).");
+
+        // PendingApproval → Posted: the immutability interceptor permits this (it locks only entries whose
+        // ORIGINAL status was Posted/Reversed). Fold into the ledger-balance read-model now (deferred at submit).
+        entry.Status = JournalEntryStatus.Posted;
+        entry.ApprovedBy = approvedByUserId;
+        entry.PostedAt = clock.UtcNow;
+
+        await ApplyToLedgerBalancesAsync(entry, entry.FiscalPeriodId, ct);
+        await db.SaveChangesAsync(ct);
+        return entry;
+    }
+
+    public async Task<JournalEntry> ResubmitDraftAsync(
+        long entryId, PostingRequest request, int submittedByUserId, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        authorizer?.EnsureAuthorized(GlCapability.PostJournalEntry);
+
+        var entry = await db.JournalEntries
+            .Include(e => e.Lines)
+            .FirstOrDefaultAsync(e => e.Id == entryId, ct)
+            ?? throw new PostingException("ENTRY_NOT_FOUND", $"Journal entry {entryId} not found.");
+
+        if (entry.Status != JournalEntryStatus.Draft || entry.Source != JournalSource.Manual)
+            throw new PostingException(
+                "NOT_DRAFT",
+                $"Only a manual Draft entry can be resubmitted; entry {entryId} is {entry.Status}.");
+        if (entry.PostedBy is int maker && maker != submittedByUserId)
+            throw new PostingException(
+                "NOT_DRAFT_AUTHOR",
+                "Only the user who submitted the entry can resubmit it.");
+        if (request.BookId != entry.BookId)
+            throw new PostingException(
+                "BOOK_MISMATCH_ENTRY",
+                $"Entry {entryId} is in book {entry.BookId}, not book {request.BookId}.");
+
+        var (lines, period) = await ValidateLinesAndPeriodAsync(request, ct);
+        var fiscalYearId = period.FiscalYear?.Id ?? await db.FiscalPeriods
+            .Where(p => p.Id == period.Id)
+            .Select(p => p.FiscalYearId)
+            .FirstAsync(ct);
+        if (fiscalYearId != entry.FiscalYearId)
+            throw new PostingException(
+                "FISCAL_YEAR_CHANGED",
+                $"Entry {entry.EntryNumber} is numbered in its original fiscal year; resubmit it with a date in that year or create a new entry.");
+
+        entry.EntryDate = request.EntryDate;
+        entry.FiscalPeriodId = period.Id;
+        entry.CurrencyId = request.CurrencyId;
+        entry.Memo = request.Memo;
+        entry.Status = JournalEntryStatus.PendingApproval;
+        entry.PostedBy = submittedByUserId;
+        entry.ApprovedBy = null;
+        entry.PostedAt = null;
+
+        var existing = entry.Lines.OrderBy(l => l.LineNumber).ToList();
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var source = lines[i];
+            if (i >= existing.Count)
+            {
+                entry.Lines.Add(source);
+                continue;
+            }
+
+            var target = existing[i];
+            target.LineNumber = source.LineNumber;
+            target.GlAccountId = source.GlAccountId;
+            target.JobId = source.JobId;
+            target.CostCenterId = source.CostCenterId;
+            target.Debit = source.Debit;
+            target.Credit = source.Credit;
+            target.CurrencyId = source.CurrencyId;
+            target.TxnAmount = source.TxnAmount;
+            target.FunctionalAmount = source.FunctionalAmount;
+            target.FxRate = source.FxRate;
+            target.SubledgerPartyType = source.SubledgerPartyType;
+            target.SubledgerPartyId = source.SubledgerPartyId;
+            target.Description = source.Description;
+        }
+        if (existing.Count > lines.Count)
+            db.JournalLines.RemoveRange(existing.Skip(lines.Count));
+
+        await db.SaveChangesAsync(ct);
+        return entry;
+    }
+
+    public async Task<JournalEntry> ReverseAsync(
+        long entryId,
+        DateOnly reversalDate,
+        string reason,
+        int reversedByUserId,
+        CancellationToken ct = default)
+    {
+        // SoD boundary check (§5.7): reversal requires REVERSE_JE. Enforced only
+        // when the authorizer seam is wired (see ctor note).
+        authorizer?.EnsureAuthorized(GlCapability.ReverseJournalEntry);
+
+        var original = await db.JournalEntries
+            .Include(e => e.Lines)
+            .FirstOrDefaultAsync(e => e.Id == entryId, ct)
+            ?? throw new PostingException("ENTRY_NOT_FOUND", $"Journal entry {entryId} not found.");
+
+        // --- Preconditions: Posted AND not already reversed (no double-reverse).
+        // Check already-reversed first so a re-reverse reports the precise reason
+        // (the original is left Reversed by the prior reversal, so the status
+        // check alone would mask it). ---
+        // Reversal-of-reversal policy (§12): a reversal entry is itself Posted with a null ReversedByEntryId,
+        // so it MAY be reversed in turn — that re-instates the original economically (a correction of a
+        // correction). The same two preconditions apply uniformly; no special-casing for reversal entries.
+        if (original.ReversedByEntryId is not null)
+            throw new PostingException(
+                "ALREADY_REVERSED",
+                $"Entry {entryId} is already reversed by entry {original.ReversedByEntryId}.");
+        if (original.Status != JournalEntryStatus.Posted)
+            throw new PostingException(
+                "REVERSE_NOT_POSTED",
+                $"Only a Posted entry can be reversed; entry {entryId} is {original.Status}.");
+
+        // Idempotency: a reversal carries a REVERSAL-purpose key; a duplicate
+        // reversal request returns the existing reversal.
+        var idempotencyKey = $"{original.Source}:JournalEntry:{original.Id}:REVERSAL";
+        var existingReversal = await db.JournalEntries
+            .Include(e => e.Lines)
+            .FirstOrDefaultAsync(
+                e => e.BookId == original.BookId && e.IdempotencyKey == idempotencyKey, ct);
+        if (existingReversal is not null)
+            return existingReversal;
+
+        // --- Resolve the reversal's own period from its own date; reject HardClosed. ---
+        var period = await ResolveAndLockPeriodAsync(original.BookId, reversalDate, ct);
+        if (period.Status == FiscalPeriodStatus.HardClosed)
+            throw new PostingException(
+                "PERIOD_HARD_CLOSED",
+                $"Cannot post a reversal into hard-closed period '{period.Name}' (date {reversalDate}).");
+
+        // Equal-and-opposite lines (Dr<->Cr swapped), preserving dimensions/party.
+        var reversalLines = original.Lines
+            .OrderBy(l => l.LineNumber)
+            .Select((l, i) => new JournalLine
+            {
+                BookId = original.BookId,
+                LineNumber = i + 1,
+                GlAccountId = l.GlAccountId,
+                JobId = l.JobId,
+                CostCenterId = l.CostCenterId,
+                Debit = l.Credit,
+                Credit = l.Debit,
+                CurrencyId = l.CurrencyId,
+                TxnAmount = l.TxnAmount,
+                FunctionalAmount = l.FunctionalAmount,
+                FxRate = l.FxRate,
+                SubledgerPartyType = l.SubledgerPartyType,
+                SubledgerPartyId = l.SubledgerPartyId,
+                Description = l.Description,
+            })
+            .ToList();
+
+        var reversal = await BuildAndAddEntryAsync(
+            new PostingRequest
+            {
+                BookId = original.BookId,
+                EntryDate = reversalDate,
+                CurrencyId = original.CurrencyId,
+            },
+            reversalLines, period, reversedByUserId, ct,
+            source: original.Source,
+            sourceType: "JournalEntry",
+            sourceId: original.Id,
+            idempotencyKey: idempotencyKey,
+            memo: $"Reversal of entry {original.EntryNumber}: {reason}",
+            autoReverse: false,
+            reversalOfEntryId: original.Id);
+
+        // --- The sole permitted mutation on a Posted row: Posted→Reversed + link. ---
+        // Link via the NAVIGATION, not the Id value: the reversal is still Added here, so on a real
+        // store-generated-key provider (Npgsql) `reversal.Id` is 0 until SaveChanges — assigning it directly
+        // wrote 0 into reversed_by_entry_id and violated the FK (23503). EF fixes the navigation up to the
+        // real key during the insert. (InMemory assigns keys at Add, which is why tests never caught this.)
+        original.Status = JournalEntryStatus.Reversed;
+        original.ReversedByEntry = reversal;
+
+        await db.SaveChangesAsync(ct);
+        return reversal;
+    }
+
+    private async Task<GlAccount> ResolveLineAccountAsync(
+        int bookId, PostingLine l, int lineNumber, CancellationToken ct)
+    {
+        var hasKey = !string.IsNullOrWhiteSpace(l.AccountKey);
+        var hasId = l.GlAccountId is not null;
+        if (hasKey == hasId)
+            throw new PostingException(
+                "LINE_ACCOUNT_AMBIGUOUS",
+                $"Line {lineNumber}: supply exactly one of AccountKey or GlAccountId.");
+
+        if (hasKey)
+            return await resolver.ResolveAsync(bookId, l.AccountKey!, ct);
+
+        var account = await db.GlAccounts.AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == l.GlAccountId!.Value, ct)
+            ?? throw new PostingException("ACCOUNT_NOT_FOUND", $"Line {lineNumber}: account {l.GlAccountId} not found.");
+        return account;
+    }
+
+    /// <summary>
+    /// Builds a Posted journal entry header from resolved lines, allocates its
+    /// EntryNumber via the row-locked counter, adds it to the context (NOT yet
+    /// saved — the caller saves so the write joins their transaction), and
+    /// folds the lines into the incremental <see cref="LedgerBalance"/>.
+    /// </summary>
+    /// <summary>
+    /// The §5.2 checks shared by every new posting and a resubmitted draft: resolves and validates each
+    /// line's account and dimensions, requires Σdebit == Σcredit exactly, and resolves the fiscal period
+    /// under a row lock (HardClosed rejected, SoftClosed only with the override).
+    /// </summary>
+    private async Task<(List<JournalLine> Lines, FiscalPeriod Period)> ValidateLinesAndPeriodAsync(
+        PostingRequest request, CancellationToken ct)
+    {
         if (request.Lines is null || request.Lines.Count == 0)
             throw new PostingException("NO_LINES", "A posting request must have at least one line.");
 
@@ -207,185 +471,9 @@ public sealed class ForgeGlPostingEngine(
                 "PERIOD_SOFT_CLOSED",
                 $"Period '{period.Name}' is soft-closed; a controller override is required to post into it.");
 
-        var entry = await BuildAndAddEntryAsync(
-            request, lines, period, postedByUserId, ct,
-            source: request.Source,
-            sourceType: request.SourceType,
-            sourceId: request.SourceId,
-            idempotencyKey: request.IdempotencyKey,
-            memo: request.Memo,
-            autoReverse: request.AutoReverseNextPeriod,
-            reversalOfEntryId: null,
-            status: status,
-            applyBalances: applyBalances);
-
-        await db.SaveChangesAsync(ct);
-        return entry;
+        return (lines, period);
     }
 
-    public async Task<JournalEntry> ApprovePendingAsync(long entryId, int approvedByUserId, CancellationToken ct = default)
-    {
-        // SoD (§5.7): finalizing a posting reaches the books only with POST_JE.
-        authorizer?.EnsureAuthorized(GlCapability.PostJournalEntry);
-
-        var entry = await db.JournalEntries
-            .Include(e => e.Lines)
-            .FirstOrDefaultAsync(e => e.Id == entryId, ct)
-            ?? throw new PostingException("ENTRY_NOT_FOUND", $"Journal entry {entryId} not found.");
-
-        if (entry.Status != JournalEntryStatus.PendingApproval)
-            throw new PostingException(
-                "NOT_PENDING_APPROVAL",
-                $"Only a PendingApproval entry can be approved; entry {entryId} is {entry.Status}.");
-
-        // §5.7: the approver (checker) MUST differ from the submitter (maker, recorded as PostedBy).
-        if (entry.PostedBy is int maker && maker == approvedByUserId)
-            throw new PostingException(
-                "APPROVER_NOT_DISTINCT",
-                "The approver must differ from the user who submitted the entry for approval.");
-
-        // The period may have hard-closed since submission — re-check under a row lock.
-        var period = await ResolveAndLockPeriodAsync(entry.BookId, entry.EntryDate, ct);
-        if (period.Status == FiscalPeriodStatus.HardClosed)
-            throw new PostingException(
-                "PERIOD_HARD_CLOSED",
-                $"Cannot post into hard-closed period '{period.Name}' (EntryDate {entry.EntryDate}).");
-
-        // PendingApproval → Posted: the immutability interceptor permits this (it locks only entries whose
-        // ORIGINAL status was Posted/Reversed). Fold into the ledger-balance read-model now (deferred at submit).
-        entry.Status = JournalEntryStatus.Posted;
-        entry.ApprovedBy = approvedByUserId;
-        entry.PostedAt = clock.UtcNow;
-
-        await ApplyToLedgerBalancesAsync(entry, entry.FiscalPeriodId, ct);
-        await db.SaveChangesAsync(ct);
-        return entry;
-    }
-
-    public async Task<JournalEntry> ReverseAsync(
-        long entryId,
-        DateOnly reversalDate,
-        string reason,
-        int reversedByUserId,
-        CancellationToken ct = default)
-    {
-        // SoD boundary check (§5.7): reversal requires REVERSE_JE. Enforced only
-        // when the authorizer seam is wired (see ctor note).
-        authorizer?.EnsureAuthorized(GlCapability.ReverseJournalEntry);
-
-        var original = await db.JournalEntries
-            .Include(e => e.Lines)
-            .FirstOrDefaultAsync(e => e.Id == entryId, ct)
-            ?? throw new PostingException("ENTRY_NOT_FOUND", $"Journal entry {entryId} not found.");
-
-        // --- Preconditions: Posted AND not already reversed (no double-reverse).
-        // Check already-reversed first so a re-reverse reports the precise reason
-        // (the original is left Reversed by the prior reversal, so the status
-        // check alone would mask it). ---
-        // Reversal-of-reversal policy (§12): a reversal entry is itself Posted with a null ReversedByEntryId,
-        // so it MAY be reversed in turn — that re-instates the original economically (a correction of a
-        // correction). The same two preconditions apply uniformly; no special-casing for reversal entries.
-        if (original.ReversedByEntryId is not null)
-            throw new PostingException(
-                "ALREADY_REVERSED",
-                $"Entry {entryId} is already reversed by entry {original.ReversedByEntryId}.");
-        if (original.Status != JournalEntryStatus.Posted)
-            throw new PostingException(
-                "REVERSE_NOT_POSTED",
-                $"Only a Posted entry can be reversed; entry {entryId} is {original.Status}.");
-
-        // Idempotency: a reversal carries a REVERSAL-purpose key; a duplicate
-        // reversal request returns the existing reversal.
-        var idempotencyKey = $"{original.Source}:JournalEntry:{original.Id}:REVERSAL";
-        var existingReversal = await db.JournalEntries
-            .Include(e => e.Lines)
-            .FirstOrDefaultAsync(
-                e => e.BookId == original.BookId && e.IdempotencyKey == idempotencyKey, ct);
-        if (existingReversal is not null)
-            return existingReversal;
-
-        // --- Resolve the reversal's own period from its own date; reject HardClosed. ---
-        var period = await ResolveAndLockPeriodAsync(original.BookId, reversalDate, ct);
-        if (period.Status == FiscalPeriodStatus.HardClosed)
-            throw new PostingException(
-                "PERIOD_HARD_CLOSED",
-                $"Cannot post a reversal into hard-closed period '{period.Name}' (date {reversalDate}).");
-
-        // Equal-and-opposite lines (Dr<->Cr swapped), preserving dimensions/party.
-        var reversalLines = original.Lines
-            .OrderBy(l => l.LineNumber)
-            .Select((l, i) => new JournalLine
-            {
-                BookId = original.BookId,
-                LineNumber = i + 1,
-                GlAccountId = l.GlAccountId,
-                JobId = l.JobId,
-                CostCenterId = l.CostCenterId,
-                Debit = l.Credit,
-                Credit = l.Debit,
-                CurrencyId = l.CurrencyId,
-                TxnAmount = l.TxnAmount,
-                FunctionalAmount = l.FunctionalAmount,
-                FxRate = l.FxRate,
-                SubledgerPartyType = l.SubledgerPartyType,
-                SubledgerPartyId = l.SubledgerPartyId,
-                Description = l.Description,
-            })
-            .ToList();
-
-        var reversal = await BuildAndAddEntryAsync(
-            new PostingRequest
-            {
-                BookId = original.BookId,
-                EntryDate = reversalDate,
-                CurrencyId = original.CurrencyId,
-            },
-            reversalLines, period, reversedByUserId, ct,
-            source: original.Source,
-            sourceType: "JournalEntry",
-            sourceId: original.Id,
-            idempotencyKey: idempotencyKey,
-            memo: $"Reversal of entry {original.EntryNumber}: {reason}",
-            autoReverse: false,
-            reversalOfEntryId: original.Id);
-
-        // --- The sole permitted mutation on a Posted row: Posted→Reversed + link. ---
-        // Link via the NAVIGATION, not the Id value: the reversal is still Added here, so on a real
-        // store-generated-key provider (Npgsql) `reversal.Id` is 0 until SaveChanges — assigning it directly
-        // wrote 0 into reversed_by_entry_id and violated the FK (23503). EF fixes the navigation up to the
-        // real key during the insert. (InMemory assigns keys at Add, which is why tests never caught this.)
-        original.Status = JournalEntryStatus.Reversed;
-        original.ReversedByEntry = reversal;
-
-        await db.SaveChangesAsync(ct);
-        return reversal;
-    }
-
-    private async Task<GlAccount> ResolveLineAccountAsync(
-        int bookId, PostingLine l, int lineNumber, CancellationToken ct)
-    {
-        var hasKey = !string.IsNullOrWhiteSpace(l.AccountKey);
-        var hasId = l.GlAccountId is not null;
-        if (hasKey == hasId)
-            throw new PostingException(
-                "LINE_ACCOUNT_AMBIGUOUS",
-                $"Line {lineNumber}: supply exactly one of AccountKey or GlAccountId.");
-
-        if (hasKey)
-            return await resolver.ResolveAsync(bookId, l.AccountKey!, ct);
-
-        var account = await db.GlAccounts.AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == l.GlAccountId!.Value, ct)
-            ?? throw new PostingException("ACCOUNT_NOT_FOUND", $"Line {lineNumber}: account {l.GlAccountId} not found.");
-        return account;
-    }
-
-    /// <summary>
-    /// Builds a Posted journal entry header from resolved lines, allocates its
-    /// EntryNumber via the row-locked counter, adds it to the context (NOT yet
-    /// saved — the caller saves so the write joins their transaction), and
-    /// folds the lines into the incremental <see cref="LedgerBalance"/>.
-    /// </summary>
     private async Task<JournalEntry> BuildAndAddEntryAsync(
         PostingRequest request,
         List<JournalLine> lines,

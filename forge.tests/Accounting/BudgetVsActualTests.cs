@@ -154,13 +154,15 @@ public class BudgetVsActualTests
         result.NetBudget.Should().Be(950m);
         result.NetActual.Should().Be(700m);
         result.NetVariance.Should().Be(-250m);
+        revenue.IsFavorable.Should().BeFalse();
+        rent.IsFavorable.Should().BeFalse();
     }
 
     [Theory]
     [InlineData(0, 2026, null)]
     [InlineData(1, 0, null)]
     [InlineData(1, 2026, 0)]
-    [InlineData(1, 2026, 13)]
+    [InlineData(1, 2026, 14)]
     public void BudgetVsActualValidator_RejectsMissingOrOutOfRangeParameters(int bookId, int year, int? month)
     {
         var result = new GetBudgetVsActualValidator().Validate(new GetBudgetVsActualQuery(bookId, year, month));
@@ -175,7 +177,19 @@ public class BudgetVsActualTests
 
         validator.Validate(new GetBudgetVsActualQuery(1, 2026)).IsValid.Should().BeTrue();
         validator.Validate(new GetBudgetVsActualQuery(1, 2026, 12)).IsValid.Should().BeTrue();
+        validator.Validate(new GetBudgetVsActualQuery(1, 2026, 13)).IsValid.Should().BeTrue();
     }
+
+    [Theory]
+    [InlineData(true, 1200, 1000, false)]
+    [InlineData(true, 1000, 1200, true)]
+    [InlineData(false, 250, 300, false)]
+    [InlineData(false, 300, 250, true)]
+    [InlineData(true, -100, -150, false)]
+    [InlineData(true, -100, -50, true)]
+    public void Line_IsFavorable_FollowsTheAccountType(bool isIncome, int budget, int actual, bool favorable)
+        => new BudgetVsActualLine { IsIncome = isIncome, BudgetAmount = budget, ActualAmount = actual }
+            .IsFavorable.Should().Be(favorable);
 
     [Fact]
     public async Task BudgetVsActual_BudgetedAccountWithNoActual_ReadsActualZero_AndResolvesAccountName()

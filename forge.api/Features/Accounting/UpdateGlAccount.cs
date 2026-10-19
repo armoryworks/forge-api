@@ -11,11 +11,11 @@ namespace Forge.Api.Features.Accounting;
 
 /// <summary>
 /// Edits a chart-of-accounts account. Safe fields (name, description, active, requires-job/cost-center,
-/// cash-flow category, parent, normal balance) are always editable; a contra account may carry the side
-/// opposite its type's convention, and statements do not read the normal balance (only future conversion
-/// imports do). The <b>structural</b> fields — account number and type — may only change while the account
-/// has <b>no journal postings</b>; once it carries activity, changing them would corrupt the statements +
-/// the account-determination map, so they are locked. Control accounts (AR/AP/Inventory) are system-managed and cannot be edited or deactivated
+/// cash-flow category, parent) are always editable. The <b>structural</b> fields — account number, type,
+/// normal balance — may only change while the account has <b>no journal postings</b>; once it carries
+/// activity, changing them would corrupt the statements + the account-determination map, so they are
+/// locked. The normal balance defaults to the type's convention; the opposite side marks a contra
+/// account. Control accounts (AR/AP/Inventory) are system-managed and cannot be edited or deactivated
 /// here. Deactivation only hides the account from pickers; historical postings are untouched.
 /// </summary>
 public record UpdateGlAccountCommand(
@@ -66,15 +66,13 @@ public class UpdateGlAccountHandler(AppDbContext db)
         account.RequiresCostCenter = request.RequiresCostCenter;
         account.CashFlowCategory = request.CashFlowCategory;
         account.IsActive = request.IsActive;
-        if (request.NormalBalance is NormalBalance balance)
-            account.NormalBalance = balance;
 
         // Structural fields — only while the account has no postings.
-        var wantsStructural = request.AccountNumber is not null || request.AccountType is not null;
+        var wantsStructural = request.AccountNumber is not null || request.AccountType is not null || request.NormalBalance is not null;
         if (wantsStructural)
         {
             if (hasPostings)
-                throw new InvalidOperationException("This account has journal postings — its number and type are locked. Create a new account instead.");
+                throw new InvalidOperationException("This account has journal postings — its number, type, and normal balance are locked. Create a new account instead.");
 
             var newType = request.AccountType ?? account.AccountType;
 
@@ -87,6 +85,7 @@ public class UpdateGlAccountHandler(AppDbContext db)
                 account.AccountNumber = trimmed;
             }
             account.AccountType = newType;
+            account.NormalBalance = request.NormalBalance ?? account.NormalBalance;
         }
 
         db.LogActivityAt("updated",

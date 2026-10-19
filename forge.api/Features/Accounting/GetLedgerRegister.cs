@@ -110,7 +110,8 @@ public class GetLedgerRegisterHandler(AppDbContext db)
                     })
                     .ToList(),
                 e.ReversalOfEntryId is long ofId && entryNumberById.TryGetValue(ofId, out var ofNumber) ? ofNumber : null,
-                e.ReversedByEntryId is long byId && entryNumberById.TryGetValue(byId, out var byNumber) ? byNumber : null))
+                e.ReversedByEntryId is long byId && entryNumberById.TryGetValue(byId, out var byNumber) ? byNumber : null,
+                e.PostedBy))
             .ToList();
 
         var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
@@ -120,7 +121,7 @@ public class GetLedgerRegisterHandler(AppDbContext db)
 
 /// <summary>
 /// One journal entry in the register, with the drill-back refs the ledger UI navigates by; the reversal links
-/// carry the linked entries' numbers for display beside their ids.
+/// carry the linked entries' numbers for display beside their ids, and <c>PostedBy</c> is the submitting user.
 /// </summary>
 public record LedgerRegisterEntry(
     long Id,
@@ -136,7 +137,8 @@ public record LedgerRegisterEntry(
     DateTimeOffset? PostedAt,
     IReadOnlyList<LedgerRegisterLine> Lines,
     long? ReversalOfEntryNumber = null,
-    long? ReversedByEntryNumber = null);
+    long? ReversedByEntryNumber = null,
+    int? PostedBy = null);
 
 /// <summary>One posting line, with its account labelled and debit/credit kept as separate non-negative amounts.</summary>
 public record LedgerRegisterLine(

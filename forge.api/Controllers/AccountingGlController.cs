@@ -153,16 +153,23 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new ApproveJournalEntryCommand(id), ct));
 
     /// <summary>
-    /// Discard a manual <c>Draft</c> journal entry (where a rejected entry lands). It never posted, so it is
-    /// deleted outright and nothing unwinds.
+    /// Maker-checker edit-and-resubmit (§5.7): the submitter corrects a rejected manual JE (a <c>Draft</c>) and
+    /// returns it to <c>PendingApproval</c>. The body is the create shape; the entry keeps its number, so its
+    /// date must stay in the same fiscal year.
     /// </summary>
     [RequiresCapability("CAP-ACCT-FULLGL")]
-    [HttpDelete("journal-entries/{id:long}")]
-    public async Task<IActionResult> DiscardJournalEntry(long id, CancellationToken ct)
-    {
-        await mediator.Send(new DiscardJournalEntryCommand(id), ct);
-        return NoContent();
-    }
+    [HttpPost("journal-entries/{id:long}/resubmit")]
+    public async Task<ActionResult<ManualJournalEntryResult>> ResubmitJournalEntry(
+        long id, [FromBody] CreateManualJournalEntryRequest request, CancellationToken ct)
+        => Ok(await mediator.Send(
+            new ResubmitJournalEntryCommand(id, new CreateManualJournalEntryCommand(
+                request.BookId,
+                request.EntryDate,
+                request.CurrencyId,
+                request.Memo,
+                request.AllowSoftClosedOverride,
+                request.Lines)),
+            ct));
 
     /// <summary>
     /// Maker-checker async rejection (§5.7): return a <c>PendingApproval</c> manual JE to <c>Draft</c> with an

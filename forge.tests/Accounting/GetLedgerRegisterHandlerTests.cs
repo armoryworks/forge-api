@@ -149,8 +149,10 @@ public class GetLedgerRegisterHandlerTests
     public async Task Drafts_are_left_out_by_default_and_listed_on_request()
     {
         await using var db = SeededDb();
-        db.JournalEntries.Add(Entry(1004, 4, new DateOnly(2026, 3, 25), JournalEntryStatus.Draft, "[Rejected] wrong account",
-            Line(7, CashId, debit: 10m), Line(8, RevenueId, credit: 10m)));
+        var draft = Entry(1004, 4, new DateOnly(2026, 3, 25), JournalEntryStatus.Draft, "[Rejected] wrong account",
+            Line(7, CashId, debit: 10m), Line(8, RevenueId, credit: 10m));
+        draft.PostedBy = 7;
+        db.JournalEntries.Add(draft);
         await db.SaveChangesAsync();
         var handler = new GetLedgerRegisterHandler(db);
 
@@ -160,6 +162,7 @@ public class GetLedgerRegisterHandlerTests
 
         var drafts = await handler.Handle(new GetLedgerRegisterQuery(BookId, Status: JournalEntryStatus.Draft), default);
         drafts.Data.Should().ContainSingle().Which.EntryNumber.Should().Be(4);
+        drafts.Data.Single().PostedBy.Should().Be(7);
     }
 
     [Fact]

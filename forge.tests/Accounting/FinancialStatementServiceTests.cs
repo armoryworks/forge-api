@@ -505,18 +505,20 @@ public class FinancialStatementServiceTests
     }
 
     [Theory]
-    [InlineData("2026-10-01", "2026-10-31", "2026-09-01", "2026-09-30")]
-    [InlineData("2026-03-01", "2026-03-31", "2026-02-01", "2026-02-28")]
-    [InlineData("2026-04-01", "2026-06-30", "2026-01-01", "2026-03-31")]
-    [InlineData("2026-01-01", "2026-12-31", "2025-01-01", "2025-12-31")]
-    [InlineData("2026-10-01", "2026-10-19", "2026-09-01", "2026-09-19")]
-    [InlineData("2026-01-01", "2026-10-19", "2025-01-01", "2025-10-19")]
-    [InlineData("2026-07-01", "2026-10-19", "2025-07-01", "2025-10-19")]
-    public void PriorPnlWindow_ShiftsByWholeMonths_OrOneYearForYearToDate(
-        string from, string to, string priorFrom, string priorTo)
+    [InlineData("2026-10-01", "2026-10-31", "2026-01-01", "2026-09-01", "2026-09-30")]
+    [InlineData("2026-03-01", "2026-03-31", "2026-01-01", "2026-02-01", "2026-02-28")]
+    [InlineData("2026-04-01", "2026-06-30", "2026-01-01", "2026-01-01", "2026-03-31")]
+    [InlineData("2026-01-01", "2026-12-31", "2026-01-01", "2025-01-01", "2025-12-31")]
+    [InlineData("2026-01-01", "2026-10-19", "2026-01-01", "2025-01-01", "2025-10-19")]
+    [InlineData("2026-07-01", "2026-10-19", "2026-07-01", "2025-07-01", "2025-10-19")]
+    [InlineData("2028-01-01", "2028-02-29", "2028-01-01", "2027-01-01", "2027-02-28")]
+    [InlineData("2026-10-05", "2026-10-19", "2026-01-01", "2026-09-20", "2026-10-04")]
+    [InlineData("2026-07-01", "2026-10-19", "2026-01-01", "2026-03-12", "2026-06-30")]
+    public void PriorPnlWindow_PriorYearForYearToDate_ElsePrecedingEqualLength(
+        string from, string to, string fiscalYearStart, string priorFrom, string priorTo)
     {
         var (pf, pt) = FinancialStatementService.ResolvePriorPnlWindow(
-            DateOnly.Parse(from), DateOnly.Parse(to), null, null);
+            DateOnly.Parse(from), DateOnly.Parse(to), null, null, DateOnly.Parse(fiscalYearStart));
 
         pf.Should().Be(DateOnly.Parse(priorFrom));
         pt.Should().Be(DateOnly.Parse(priorTo));

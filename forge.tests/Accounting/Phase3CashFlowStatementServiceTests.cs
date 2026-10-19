@@ -145,6 +145,44 @@ public class Phase3CashFlowStatementServiceTests
         r.ActualCashChange.Should().Be(1000m);
         r.NetChangeInCash.Should().Be(1000m);
         r.IsReconciled.Should().BeTrue();
+        r.BeginningCash.Should().Be(5000m);
+        r.EndingCash.Should().Be(6000m);
+    }
+
+    [Fact]
+    public async Task BeginningPlusChange_TiesToTheCashBalanceAtTheWindowEnd()
+    {
+        using var db = await SeedAsync();
+        await Engine(db).PostAsync(new PostingRequest
+        {
+            BookId = BookId, EntryDate = new DateOnly(2026, 1, 1),
+            Source = JournalSource.Conversion, SourceType = "OpeningJournal", SourceId = 1,
+            CurrencyId = UsdId, IdempotencyKey = $"cf:{_seq++}",
+            Lines =
+            [
+                new PostingLine { AccountKey = "CASH", Debit = 5000m, Description = "dr" },
+                new PostingLine { AccountKey = "COMMON_STOCK", Credit = 5000m, Description = "cr" },
+            ],
+        }, 7);
+        await PostAsync(db, "CASH", "SALES_REVENUE", 1000m);
+        await PostAsync(db, "OPERATING_EXPENSE", "CASH", 400m);
+
+        var before = await Service(db).GetCashFlowStatementAsync(BookId, new DateOnly(2026, 7, 1), To);
+        var within = await Service(db).GetCashFlowStatementAsync(BookId, new DateOnly(2026, 6, 1), To);
+
+        var cashBalance = await db.JournalLines
+            .Where(l => l.GlAccountId == CashId)
+            .SumAsync(l => l.Debit - l.Credit);
+        cashBalance.Should().Be(5600m);
+
+        before.BeginningCash.Should().Be(5600m);
+        before.ActualCashChange.Should().Be(0m);
+        before.EndingCash.Should().Be(cashBalance);
+
+        within.BeginningCash.Should().Be(5000m);
+        within.NetChangeInCash.Should().Be(600m);
+        within.EndingCash.Should().Be(cashBalance);
+        within.IsReconciled.Should().BeTrue();
     }
 
     [Fact]

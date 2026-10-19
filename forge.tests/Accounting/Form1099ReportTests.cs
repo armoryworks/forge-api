@@ -1,9 +1,11 @@
 using FluentAssertions;
+using Moq;
 
 using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models.Accounting;
+using Forge.Core.Settings;
 using Forge.Data.Context;
 using Forge.Tests.Helpers;
 
@@ -132,5 +134,21 @@ public class Form1099ReportTests
         report.Vendors.Single(v => v.VendorId == 1).MeetsThreshold.Should().BeTrue();
         report.Vendors.Single(v => v.VendorId == 2).MeetsThreshold.Should().BeFalse();
         report.ReportableVendorCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Report_ThresholdSetting_OverridesTheBuiltInAmount()
+    {
+        using var db = await SeedAsync();
+        await PayAsync(db, 1, 2100m, new DateOnly(2027, 4, 1));
+        var settings = new Mock<ISettingsService>();
+        settings.Setup(s => s.GetStringAsync(AccountingSettings.Form1099ThresholdKey, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("2200");
+
+        var report = await new Get1099ReportHandler(db, settings.Object)
+            .Handle(new Get1099ReportQuery(2027), CancellationToken.None);
+
+        report.Threshold.Should().Be(2200m);
+        report.Vendors.Single(v => v.VendorId == 1).MeetsThreshold.Should().BeFalse();
     }
 }

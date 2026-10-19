@@ -10,8 +10,8 @@ namespace Forge.Tests.Accounting;
 
 /// <summary>
 /// Verifies the Chart-of-Accounts management handlers against real Postgres: create validation
-/// (contra normal balances allowed + unique number), safe-field edits (normal balance included),
-/// structural edits gated on no-postings, the has-postings lock, and the control-account guard.
+/// (contra normal balances allowed + unique number), safe-field edits, structural edits (normal
+/// balance included) gated on no-postings, the has-postings lock, and the control-account guard.
 /// </summary>
 [Collection(PostgresCollection.Name)]
 public sealed class GlAccountManagementPostgresTests(PostgresFixture fixture)
@@ -73,6 +73,9 @@ public sealed class GlAccountManagementPostgresTests(PostgresFixture fixture)
             updated.Name.Should().Be("Freight In");
             updated.AccountNumber.Should().Be("60250");
             updated.RequiresJob.Should().BeTrue();
+
+            var contraWhileUnposted = new UpdateGlAccountCommand(accountId, "Freight In", null, true, false, CashFlowCategory.Operating, "Inbound freight", true, null, null, NormalBalance.Credit);
+            (await new UpdateGlAccountHandler(db).Handle(contraWhileUnposted, CancellationToken.None)).NormalBalance.Should().Be("Credit");
         }
 
         // Post a journal line against the account.
@@ -103,7 +106,8 @@ public sealed class GlAccountManagementPostgresTests(PostgresFixture fixture)
             ok.HasPostings.Should().BeTrue();
 
             var contra = new UpdateGlAccountCommand(accountId, "Freight & Duty", null, false, false, CashFlowCategory.Operating, "renamed", true, null, null, NormalBalance.Credit);
-            (await handler.Handle(contra, CancellationToken.None)).NormalBalance.Should().Be("Credit");
+            await FluentActions.Awaiting(() => handler.Handle(contra, CancellationToken.None))
+                .Should().ThrowAsync<InvalidOperationException>();
         }
     }
 

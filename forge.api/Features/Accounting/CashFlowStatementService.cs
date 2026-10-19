@@ -93,6 +93,17 @@ public sealed class CashFlowStatementService(AppDbContext db, IClock clock) : IC
         // Actual cash movement (cash accounts are never touched by the close, so this is exact).
         var actualCashChange = lines.Where(r => cashAccountIds.Contains(r.AccountId)).Sum(r => r.NetDebit);
 
+        var beginningCash = cashAccountIds.Count == 0 ? 0m : await
+            (from line in db.JournalLines.IgnoreQueryFilters()
+             join entry in db.JournalEntries.IgnoreQueryFilters() on line.JournalEntryId equals entry.Id
+             where entry.BookId == bookId
+                 && cashAccountIds.Contains(line.GlAccountId)
+                 && (entry.Status == JournalEntryStatus.Posted || entry.Status == JournalEntryStatus.Reversed)
+                 && entry.EntryDate <= asOf
+                 && ((fromDate != null && entry.EntryDate < fromDate) || entry.Source == JournalSource.Conversion)
+             select line.Debit > 0 ? line.FunctionalAmount : -line.FunctionalAmount)
+            .SumAsync(ct);
+
         return new CashFlowStatement
         {
             BookId = bookId,
@@ -107,6 +118,8 @@ public sealed class CashFlowStatementService(AppDbContext db, IClock clock) : IC
             NetCashFromFinancing = netCashFinancing,
             NetChangeInCash = netCashOperating + netCashInvesting + netCashFinancing,
             ActualCashChange = actualCashChange,
+            BeginningCash = beginningCash,
+            EndingCash = beginningCash + actualCashChange,
             RoundingTolerance = tolerance,
         };
     }
