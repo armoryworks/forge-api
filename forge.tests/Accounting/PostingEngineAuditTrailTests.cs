@@ -189,6 +189,27 @@ public class PostingEngineAuditTrailTests
     }
 
     [Fact]
+    public async Task SubledgerPostAndReverseAsSystem_WriteEngineRows_WithTheActingUser()
+    {
+        using var db = await SeedAsync();
+        var engine = CreateEngine(db);
+
+        var posted = await engine.PostAsSystemAsync(Request(JournalSource.AP, "ap:vendor_bill:5:approve"), actingUserId: 11);
+        var reversal = await engine.ReverseAsSystemAsync(posted.Id, new DateOnly(2026, 1, 20), "Bill voided", 12);
+
+        var postedRows = await AuditRowsFor(db, posted.Id);
+        postedRows.Should().ContainSingle();
+        postedRows[0].Action.Should().Be("GlJournalPosted");
+        postedRows[0].UserId.Should().Be(11);
+        postedRows[0].Details.Should().Contain("\"source\":\"AP\"");
+
+        var reversalRows = await AuditRowsFor(db, reversal.Id);
+        reversalRows.Should().ContainSingle();
+        reversalRows[0].Action.Should().Be("GlJournalReversed");
+        reversalRows[0].UserId.Should().Be(12);
+    }
+
+    [Fact]
     public async Task EngineWithoutWriter_WritesNoRows()
     {
         using var db = await SeedAsync();
