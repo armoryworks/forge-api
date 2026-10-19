@@ -3,6 +3,7 @@ using System.Text;
 using FluentAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Moq;
 using QuestPDF.Infrastructure;
 
@@ -98,7 +99,7 @@ public class GetQuotePdfTests
         mediator.Setup(m => m.Send(It.Is<GetQuotePdfQuery>(q => q.Id == 7), It.IsAny<CancellationToken>()))
             .ReturnsAsync(pdf);
 
-        var result = await new QuotesController(mediator.Object).GetQuotePdf(7);
+        var result = await new QuotesController(mediator.Object, new ConfigurationBuilder().Build()).GetQuotePdf(7);
 
         var file = result.Should().BeOfType<FileContentResult>().Subject;
         file.ContentType.Should().Be("application/pdf");

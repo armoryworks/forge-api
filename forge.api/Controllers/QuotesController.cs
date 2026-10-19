@@ -5,6 +5,7 @@ using Forge.Api.Capabilities;
 using Forge.Api.Concurrency;
 using Forge.Api.Features.Quotes;
 using Forge.Api.Features.Terms;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -15,7 +16,7 @@ namespace Forge.Api.Controllers;
 [Route("api/v1/quotes")]
 [Authorize(Roles = "Admin,Manager,OfficeManager,PM")]
 [RequiresCapability("CAP-O2C-QUOTE")]
-public class QuotesController(IMediator mediator) : ControllerBase
+public class QuotesController(IMediator mediator, IConfiguration config) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<List<QuoteListItemModel>>> GetQuotes(
@@ -112,12 +113,13 @@ public class QuotesController(IMediator mediator) : ControllerBase
     /// <summary>
     /// S3 — email the quote (PDF + compiled terms + public full-terms link) and
     /// flip it to Sent in one call. The public base URL for the terms link is
-    /// derived from this request (same pattern as the customer-portal magic link).
+    /// the configured frontend base URL (same resolver as the customer-portal
+    /// magic link).
     /// </summary>
     [HttpPost("{id:int}/send-email")]
     public async Task<IActionResult> SendQuoteEmail(int id, SendQuoteEmailRequestModel request)
     {
-        var publicBaseUrl = $"{Request.Scheme}://{Request.Host}";
+        var publicBaseUrl = FrontendBaseUrl.Resolve(config, Request);
         await mediator.Send(new SendQuoteEmailCommand(id, request.RecipientEmail, request.Message, publicBaseUrl));
         return NoContent();
     }

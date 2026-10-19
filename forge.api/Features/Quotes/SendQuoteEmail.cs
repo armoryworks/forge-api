@@ -27,9 +27,10 @@ namespace Forge.Api.Features.Quotes;
 /// Separate from <see cref="SendQuoteCommand"/>, which remains the plain
 /// status-flip used when the quote is delivered out-of-band.
 ///
-/// <para><c>PublicBaseUrl</c> is supplied by the controller from the incoming
-/// request (scheme + host), mirroring the CustomerPortal magic-link pattern —
-/// there is no app-wide public-API-base-URL option to reuse.</para>
+/// <para><c>PublicBaseUrl</c> is supplied by the controller from
+/// <see cref="Forge.Api.Services.FrontendBaseUrl"/> (the operator's
+/// <c>FrontendBaseUrl</c> setting), the same resolver as the CustomerPortal
+/// magic link.</para>
 /// </summary>
 public record SendQuoteEmailCommand(
     int Id,

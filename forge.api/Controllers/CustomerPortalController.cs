@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.CustomerPortal;
 using Forge.Api.Features.Terminology;
+using Forge.Api.Services;
 using Forge.Core.Models;
 
 namespace Forge.Api.Controllers;
@@ -21,25 +22,21 @@ namespace Forge.Api.Controllers;
 /// settings read: it returns only the renames of the fixed term catalog (no
 /// other terminology rows) so the portal, login page included, shows the
 /// same terms as the employee app. The /me/*
-/// endpoints require an authenticated portal session JWT
-/// (`portal_session=true` claim).
+/// endpoints require a portal session JWT validated by the dedicated
+/// <see cref="PortalTokenService.SchemeName"/> bearer scheme
+/// (`portal_session=true` claim); employee tokens are not accepted there.
 /// </summary>
 [ApiController]
 [Route("api/v1/portal")]
 [RequiresCapability("CAP-EXT-CUSTOMER-PORTAL")]
-public class CustomerPortalController(IMediator mediator) : ControllerBase
+public class CustomerPortalController(IMediator mediator, IConfiguration config) : ControllerBase
 {
     [HttpPost("auth/request-link")]
     [AllowAnonymous]
     public async Task<ActionResult<RequestMagicLinkResult>> RequestLink([FromBody] RequestMagicLinkRequest request)
     {
-        // Construct portal base URL from incoming Origin header, falling
-        // back to the request's own scheme+host. The frontend's
-        // /portal/auth/callback?token=... is what the link points at.
-        var origin = Request.Headers.Origin.ToString();
-        if (string.IsNullOrWhiteSpace(origin)) origin = $"{Request.Scheme}://{Request.Host}";
-
-        var result = await mediator.Send(new RequestMagicLinkCommand(request.Email, origin));
+        var result = await mediator.Send(
+            new RequestMagicLinkCommand(request.Email, FrontendBaseUrl.Resolve(config, Request)));
         return Ok(result);
     }
 
@@ -60,7 +57,7 @@ public class CustomerPortalController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("me")]
-    [Authorize]
+    [Authorize(AuthenticationSchemes = PortalTokenService.SchemeName)]
     public ActionResult<PortalIdentityModel> Me()
     {
         var identity = ResolvePortalIdentity();
@@ -68,7 +65,7 @@ public class CustomerPortalController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("me/dashboard")]
-    [Authorize]
+    [Authorize(AuthenticationSchemes = PortalTokenService.SchemeName)]
     public async Task<ActionResult<PortalSummaryResponseModel>> Dashboard()
     {
         var (customerId, _) = RequirePortalClaims();
@@ -77,7 +74,7 @@ public class CustomerPortalController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("me/sales-orders")]
-    [Authorize]
+    [Authorize(AuthenticationSchemes = PortalTokenService.SchemeName)]
     public async Task<ActionResult<List<PortalSalesOrderListItem>>> SalesOrders()
     {
         var (customerId, _) = RequirePortalClaims();
@@ -86,7 +83,7 @@ public class CustomerPortalController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("me/quotes")]
-    [Authorize]
+    [Authorize(AuthenticationSchemes = PortalTokenService.SchemeName)]
     public async Task<ActionResult<List<PortalQuoteListItem>>> Quotes()
     {
         var (customerId, _) = RequirePortalClaims();
@@ -95,7 +92,7 @@ public class CustomerPortalController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("me/invoices")]
-    [Authorize]
+    [Authorize(AuthenticationSchemes = PortalTokenService.SchemeName)]
     public async Task<ActionResult<List<PortalInvoiceListItem>>> Invoices()
     {
         var (customerId, _) = RequirePortalClaims();
@@ -104,7 +101,7 @@ public class CustomerPortalController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("me/shipments")]
-    [Authorize]
+    [Authorize(AuthenticationSchemes = PortalTokenService.SchemeName)]
     public async Task<ActionResult<List<PortalShipmentListItem>>> Shipments()
     {
         var (customerId, _) = RequirePortalClaims();
@@ -113,7 +110,7 @@ public class CustomerPortalController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("me/quotes/{id:int}/respond")]
-    [Authorize]
+    [Authorize(AuthenticationSchemes = PortalTokenService.SchemeName)]
     public async Task<IActionResult> RespondToQuote(int id, [FromBody] QuoteResponseRequest request)
     {
         var (customerId, contactId) = RequirePortalClaims();
@@ -123,12 +120,12 @@ public class CustomerPortalController(IMediator mediator) : ControllerBase
 
     private (int CustomerId, int ContactId) RequirePortalClaims()
     {
-        var portalSession = User.FindFirst("portal_session")?.Value;
+        var portalSession = User.FindFirst(PortalTokenService.SessionClaim)?.Value;
         if (portalSession != "true")
             throw new UnauthorizedAccessException("This endpoint requires a portal session token.");
 
-        var customerIdRaw = User.FindFirst("customer_id")?.Value;
-        var contactIdRaw = User.FindFirst("contact_id")?.Value;
+        var customerIdRaw = User.FindFirst(PortalTokenService.CustomerIdClaim)?.Value;
+        var contactIdRaw = User.FindFirst(PortalTokenService.ContactIdClaim)?.Value;
 
         if (!int.TryParse(customerIdRaw, out var customerId) ||
             !int.TryParse(contactIdRaw, out var contactId))

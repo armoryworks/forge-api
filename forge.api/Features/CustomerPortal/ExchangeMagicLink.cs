@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -9,17 +10,18 @@ namespace Forge.Api.Features.CustomerPortal;
 
 /// <summary>
 /// Phase 1q — exchanges a magic-link token for a portal session JWT. The
-/// session token is signed with the same secret the employee scheme uses
-/// but carries `portal_session=true`, `customer_id`, `contact_id` claims.
-/// On exchange we clear the one-time token + stamp LastLoginAt so the
-/// link is consumed (replays return 404).
+/// session token is minted by <see cref="IPortalTokenService"/> for the
+/// dedicated portal bearer scheme (its own audience and derived signing key,
+/// never accepted by the employee scheme) and carries `portal_session=true`,
+/// `customer_id`, `contact_id` claims. On exchange we clear the one-time
+/// token + stamp LastLoginAt so the link is consumed (replays return 404).
 /// </summary>
 public record ExchangeMagicLinkCommand(string Token) : IRequest<PortalSessionResponseModel>;
 
 public class ExchangeMagicLinkHandler(
     AppDbContext db,
     IPortalAuthService portalAuth,
-    ITokenService tokens)
+    IPortalTokenService tokens)
     : IRequestHandler<ExchangeMagicLinkCommand, PortalSessionResponseModel>
 {
     private static readonly TimeSpan PortalSessionLifetime = TimeSpan.FromHours(2);
@@ -48,21 +50,13 @@ public class ExchangeMagicLinkHandler(
 
         await db.SaveChangesAsync(ct);
 
-        var token = tokens.GenerateToken(
-            userId: access.ContactId,
+        var token = tokens.Issue(
+            contactId: access.ContactId,
+            customerId: access.CustomerId,
             email: access.Contact.Email ?? string.Empty,
             firstName: access.Contact.FirstName,
             lastName: access.Contact.LastName,
-            initials: $"{access.Contact.FirstName.FirstOrDefault()}{access.Contact.LastName.FirstOrDefault()}".ToUpper(),
-            avatarColor: null,
-            roles: new[] { "PortalUser" },
-            expiry: PortalSessionLifetime,
-            extraClaims: new Dictionary<string, string>
-            {
-                ["portal_session"] = "true",
-                ["customer_id"] = access.CustomerId.ToString(),
-                ["contact_id"] = access.ContactId.ToString(),
-            });
+            lifetime: PortalSessionLifetime);
 
         return new PortalSessionResponseModel(
             Token: token.Token,

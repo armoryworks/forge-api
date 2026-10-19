@@ -207,6 +207,31 @@ try
         };
     });
 
+    authBuilder.AddJwtBearer(PortalTokenService.SchemeName, options =>
+    {
+        options.TokenValidationParameters = PortalTokenService.CreateValidationParameters(builder.Configuration);
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var principal = context.Principal;
+                if (principal?.FindFirst(PortalTokenService.SessionClaim)?.Value != "true" ||
+                    !int.TryParse(principal.FindFirst(PortalTokenService.ContactIdClaim)?.Value, out var contactId) ||
+                    !int.TryParse(principal.FindFirst(PortalTokenService.CustomerIdClaim)?.Value, out var customerId))
+                {
+                    context.Fail("Not a portal session token.");
+                    return;
+                }
+
+                var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var stillEnabled = await db.CustomerPortalAccesses.AsNoTracking().AnyAsync(a =>
+                    a.ContactId == contactId && a.CustomerId == customerId && a.IsEnabled);
+                if (!stillEnabled)
+                    context.Fail("Portal access is no longer enabled.");
+            }
+        };
+    });
+
     // BI API-key auth scheme (Phase 3 / WU-04 / A3) — used by /api/v1/bi/*
     // endpoints for third-party BI tool access. Issuance/revocation stay on
     // JWT (Admin role); keys cannot issue keys.
@@ -530,6 +555,7 @@ try
     builder.Services.AddSingleton<IMfaPreAuthTokenService, MfaPreAuthTokenService>();
     builder.Services.AddSingleton<IMfaTrustedDeviceTokenService, MfaTrustedDeviceTokenService>();
     builder.Services.AddSingleton<IPortalAuthService, PortalAuthService>();
+    builder.Services.AddSingleton<IPortalTokenService, PortalTokenService>();
     builder.Services.AddScoped<ISessionStore, DbSessionStore>();
     builder.Services.AddScoped<IDeviceCredentialService, DeviceCredentialService>();
     builder.Services.AddScoped<IPasskeyService, PasskeyService>();
