@@ -25,12 +25,13 @@ public class CreditManagementService(AppDbContext db) : ICreditManagementService
             .Select(i => new
             {
                 LineTotal = i.Lines.Sum(l => l.Quantity * l.UnitPrice),
+                TaxableLineTotal = i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice),
                 TaxRate = i.TaxRate,
                 Paid = i.PaymentApplications.Sum(pa => pa.Amount),
             })
             .ToListAsync(ct);
 
-        var arBalance = openArBalance.Sum(i => i.LineTotal * (1 + i.TaxRate) - i.Paid);
+        var arBalance = openArBalance.Sum(i => i.LineTotal + i.TaxableLineTotal * i.TaxRate - i.Paid);
 
         var pendingOrders = await db.SalesOrders
             .AsNoTracking()

@@ -44,7 +44,8 @@ public class Invoice : BaseAuditableEntity, IConcurrencyVersioned
     public DateTimeOffset? LastSyncedAt { get; set; }
 
     public decimal Subtotal => Lines.Sum(l => l.LineTotal);
-    public decimal TaxAmount => Subtotal * TaxRate;
+    public decimal TaxableSubtotal => Lines.Where(l => l.IsTaxable).Sum(l => l.LineTotal);
+    public decimal TaxAmount => TaxableSubtotal * TaxRate;
     public decimal Total => Subtotal + TaxAmount;
     public decimal AmountPaid => PaymentApplications.Sum(pa => pa.Amount);
 

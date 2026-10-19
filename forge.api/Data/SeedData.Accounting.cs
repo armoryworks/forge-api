@@ -327,9 +327,7 @@ public static partial class SeedData
                 foreach (var invoice in invoices)
                 {
                     // Mirror InvoiceArPostingService: posted total = subtotal + non-exempt tax.
-                    var subtotal = invoice.Lines.Sum(l => l.LineTotal);
-                    var taxAmount = invoice.Customer.IsTaxExempt ? 0m : subtotal * invoice.TaxRate;
-                    var arTotal = subtotal + taxAmount;
+                    var arTotal = invoice.Total;
                     if (arTotal <= 0m)
                         continue; // the posting skipped degenerate totals; mirror it defensively
 

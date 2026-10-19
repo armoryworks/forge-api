@@ -14,7 +14,11 @@ public class InvoiceLine : BaseEntity
     public decimal UnitPrice { get; set; }
     public int LineNumber { get; set; }
 
+    public const string NonTaxableCode = "NON";
+
     public decimal LineTotal => Quantity * UnitPrice;
+
+    public bool IsTaxable => TaxCode != NonTaxableCode;
 
     // F-032: per-line taxability code required by QBO AST. Null = inherit invoice-level default.
     // Values: "TAX" (taxable), "NON" (non-taxable). Propagated from Part.TaxCode at invoice creation.

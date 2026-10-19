@@ -210,6 +210,7 @@ public class CreateInvoiceHandler(
                 Quantity = line.Quantity,
                 UnitPrice = line.UnitPrice,
                 LineNumber = lineNumber++,
+                TaxCode = line.Taxable ? null : InvoiceLine.NonTaxableCode,
             });
         }
 
@@ -223,7 +224,7 @@ public class CreateInvoiceHandler(
         if (identifiers is not null)
             await identifiers.IssueAsync(BusinessEntityType.Invoice, invoice.Id, invoice.InvoiceNumber, cancellationToken);
 
-        var total = invoice.Lines.Sum(l => l.Quantity * l.UnitPrice) * (1 + invoice.TaxRate);
+        var total = invoice.Total;
 
         // AUDIT-21-S1 (BLOCKER): enqueue a QBO sync row so AR reaches the accounting provider —
         // previously only MoveJobStage enqueued, leaving invoices created any other way invisible to

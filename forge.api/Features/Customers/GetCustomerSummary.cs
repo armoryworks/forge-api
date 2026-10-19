@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -41,7 +42,8 @@ public class GetCustomerSummaryHandler(AppDbContext db)
                 && (i.Status == InvoiceStatus.Sent || i.Status == InvoiceStatus.PartiallyPaid || i.Status == InvoiceStatus.Overdue))
             .Select(i => new
             {
-                Total = i.Lines.Sum(l => l.Quantity * l.UnitPrice) * (1 + i.TaxRate)
+                Total = i.Lines.Sum(l => l.Quantity * l.UnitPrice)
+                    + i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice) * i.TaxRate
             })
             .ToListAsync(ct);
 

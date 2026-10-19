@@ -262,12 +262,12 @@ public sealed class InvoiceArPostingService(
 
         // Per-line money. Subtotal/Tax/Total mirror the Invoice entity's own
         // computed accessors so the journal ties out to the document exactly.
-        var subtotal = invoice.Lines.Sum(l => l.LineTotal);
+        var subtotal = invoice.Subtotal;
 
         // Sales tax accrues to SALES_TAX_PAYABLE — UNLESS the customer is
         // tax-exempt (resellers / gov / non-profit), which suppresses the tax
         // line on the document and therefore in the ledger too.
-        var taxAmount = invoice.Customer.IsTaxExempt ? 0m : subtotal * invoice.TaxRate;
+        var taxAmount = invoice.TaxAmount;
 
         // ── Revenue recognition (§8.4). Default PointInTime = recognize at
         // control transfer. If the invoice is finalized BEFORE delivery we book

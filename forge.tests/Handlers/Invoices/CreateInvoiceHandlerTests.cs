@@ -329,4 +329,25 @@ public class CreateInvoiceHandlerTests
 
         await act.Should().ThrowAsync<KeyNotFoundException>().WithMessage("*Sales order 9999*");
     }
+
+    [Fact]
+    public async Task Handle_NonTaxableLine_IsLeftOutOfTheTax()
+    {
+        var (customer, _, _) = await SeedOrderAsync();
+        Invoice? captured = null;
+        _invoiceRepo.Setup(r => r.AddAsync(It.IsAny<Invoice>(), It.IsAny<CancellationToken>()))
+            .Callback<Invoice, CancellationToken>((inv, _) => captured = inv);
+
+        var result = await _handler.Handle(new CreateInvoiceCommand(
+            customer.Id, null, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(30), null, 0.0725m, null,
+            [
+                new CreateInvoiceLineModel(null, "Bracket", 4m, 100m),
+                new CreateInvoiceLineModel(null, "Freight", 1m, 40m, Taxable: false),
+            ]), CancellationToken.None);
+
+        result.Total.Should().Be(469m);
+        captured!.Lines.Select(l => l.TaxCode).Should().Equal(null, InvoiceLine.NonTaxableCode);
+        captured.TaxableSubtotal.Should().Be(400m);
+        captured.TaxAmount.Should().Be(29m);
+    }
 }
