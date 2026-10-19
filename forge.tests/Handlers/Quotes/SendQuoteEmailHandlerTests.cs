@@ -120,6 +120,45 @@ public class SendQuoteEmailHandlerTests
     }
 
     [Fact]
+    public async Task Handle_FormatsMoneyInTheBaseCurrency_NotTheGenericCurrencySign()
+    {
+        var quote = await SeedQuoteAsync(QuoteStatus.Draft);
+        EmailMessage? sent = null;
+        _outbox.Setup(o => o.EnqueueEmailAsync(
+                It.IsAny<string>(), It.IsAny<EmailMessage>(), It.IsAny<string?>(),
+                It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, EmailMessage, string?, int?, CancellationToken>((_, m, _, _, _) => sent = m)
+            .ReturnsAsync(new IntegrationOutboxEntry());
+
+        await _handler.Handle(
+            new SendQuoteEmailCommand(quote.Id, "buyer@acme.test", null, "https://forge.example.com"),
+            CancellationToken.None);
+
+        sent!.HtmlBody.Should().Contain("$10.00").And.Contain("$50.00").And.NotContain("\u00a4");
+    }
+
+    [Fact]
+    public async Task Handle_UsesTheBaseCurrencySymbolFromTheCurrenciesTable()
+    {
+        _settings.Setup(s => s.FindByKeyAsync("currency.base", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SystemSetting { Key = "currency.base", Value = "EUR" });
+        _db.Currencies.Add(new Currency { Code = "EUR", Name = "Euro", Symbol = "\u20ac", DecimalPlaces = 2 });
+        var quote = await SeedQuoteAsync(QuoteStatus.Draft);
+        EmailMessage? sent = null;
+        _outbox.Setup(o => o.EnqueueEmailAsync(
+                It.IsAny<string>(), It.IsAny<EmailMessage>(), It.IsAny<string?>(),
+                It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, EmailMessage, string?, int?, CancellationToken>((_, m, _, _, _) => sent = m)
+            .ReturnsAsync(new IntegrationOutboxEntry());
+
+        await _handler.Handle(
+            new SendQuoteEmailCommand(quote.Id, "buyer@acme.test", null, "https://forge.example.com"),
+            CancellationToken.None);
+
+        sent!.HtmlBody.Should().Contain("\u20ac50.00");
+    }
+
+    [Fact]
     public async Task Handle_AlreadySentQuote_Resends_WithoutSendQuoteCommand_AndRefreshesSentDate()
     {
         var quote = await SeedQuoteAsync(QuoteStatus.Sent);

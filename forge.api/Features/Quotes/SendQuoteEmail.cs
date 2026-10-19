@@ -114,7 +114,8 @@ public class SendQuoteEmailHandler(
         var message = new EmailMessage(
             To: request.RecipientEmail,
             Subject: $"Quote {quoteNumber} from {companyName}",
-            HtmlBody: BuildHtmlBody(quote, companyName, quoteNumber, request.Message, compiled.Sections, termsUrl),
+            HtmlBody: BuildHtmlBody(quote, companyName, quoteNumber, request.Message, compiled.Sections, termsUrl,
+                await MoneyFormat.ForBaseCurrencyAsync(db, settings, ct)),
             Attachments:
             [
                 new EmailAttachment(
@@ -161,7 +162,8 @@ public class SendQuoteEmailHandler(
         string quoteNumber,
         string? personalMessage,
         IReadOnlyList<CompiledTermsSection> sections,
-        string termsUrl)
+        string termsUrl,
+        IFormatProvider money)
     {
         var customerName = WebUtility.HtmlEncode(quote.Customer.CompanyName ?? quote.Customer.Name);
         var sb = new StringBuilder();
@@ -183,11 +185,11 @@ public class SendQuoteEmailHandler(
             sb.Append("<tr style=\"border-bottom:1px solid #e0e0e0;\">")
               .Append($"<td>{WebUtility.HtmlEncode(line.Description)}</td>")
               .Append($"<td style=\"text-align:right;\">{line.Quantity:0.####}</td>")
-              .Append($"<td style=\"text-align:right;\">{line.UnitPrice:C}</td>")
-              .Append($"<td style=\"text-align:right;\">{line.LineTotal:C}</td></tr>");
+              .Append($"<td style=\"text-align:right;\">{line.UnitPrice.ToString("C", money)}</td>")
+              .Append($"<td style=\"text-align:right;\">{line.LineTotal.ToString("C", money)}</td></tr>");
         }
         sb.Append($"<tr><td colspan=\"3\" style=\"text-align:right;\"><strong>Total:</strong></td>")
-          .Append($"<td style=\"text-align:right;\"><strong>{quote.Total:C}</strong></td></tr>");
+          .Append($"<td style=\"text-align:right;\"><strong>{quote.Total.ToString("C", money)}</strong></td></tr>");
         sb.Append("</table>");
 
         if (quote.ExpirationDate.HasValue)
