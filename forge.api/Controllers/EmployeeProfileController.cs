@@ -44,7 +44,7 @@ public class EmployeeProfileController(IMediator mediator) : ControllerBase
     [HttpPost("acknowledge/{formType}")]
     public async Task<IActionResult> AcknowledgeForm(string formType, CancellationToken ct)
     {
-        await mediator.Send(new AcknowledgeFormCommand(GetUserId(), formType), ct);
+        await mediator.Send(new AcknowledgeFormCommand(GetUserId(), formType, SelfService: true), ct);
         return NoContent();
     }
 }

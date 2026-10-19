@@ -1,3 +1,6 @@
+using FluentValidation;
+using FluentValidation.Results;
+
 using MediatR;
 
 using Microsoft.EntityFrameworkCore;
@@ -6,7 +9,7 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.EmployeeProfile;
 
-public record AcknowledgeFormCommand(int UserId, string FormType) : IRequest;
+public record AcknowledgeFormCommand(int UserId, string FormType, bool SelfService = false) : IRequest;
 
 public class AcknowledgeFormHandler(AppDbContext db) : IRequestHandler<AcknowledgeFormCommand>
 {
@@ -24,10 +27,20 @@ public class AcknowledgeFormHandler(AppDbContext db) : IRequestHandler<Acknowled
         ["workersComp"] = "workers_comp",
     };
 
+    private static readonly HashSet<string> SelfServiceKeys = ["handbook", "workers_comp"];
+
     public async Task Handle(AcknowledgeFormCommand request, CancellationToken ct)
     {
         if (!KeyAliases.TryGetValue(request.FormType, out var normalizedKey))
-            throw new ArgumentException($"Invalid form type: {request.FormType}");
+            throw new ValidationException([
+                new ValidationFailure(nameof(request.FormType), $"Unknown form type '{request.FormType}'."),
+            ]);
+
+        if (request.SelfService && !SelfServiceKeys.Contains(normalizedKey))
+            throw new ValidationException([
+                new ValidationFailure(nameof(request.FormType),
+                    $"Form '{request.FormType}' is completed by submitting the form, not by acknowledging it."),
+            ]);
 
         var profile = await db.EmployeeProfiles
             .FirstOrDefaultAsync(p => p.UserId == request.UserId, ct);
