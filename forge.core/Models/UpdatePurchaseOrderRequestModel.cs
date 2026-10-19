@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record UpdatePurchaseOrderRequestModel(
@@ -8,4 +10,9 @@ public record UpdatePurchaseOrderRequestModel(
     string? PONumber = null,
     int? VendorContactId = null,
     int? VendorAddressId = null,
-    int? ShipToLocationId = null);
+    int? ShipToLocationId = null,
+    Incoterm? Incoterm = null,
+    decimal? EstimatedFreight = null,
+    string? QuoteCurrency = null,
+    decimal? FxRate = null,
+    string? FxRateSource = null);

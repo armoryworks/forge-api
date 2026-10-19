@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Forge.Api.Features.Approvals;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -81,8 +82,8 @@ public class UpdateExpenseHandler(
 
         if (wasRevision)
         {
-            await approvalService.SubmitForApprovalAsync(
-                "Expense", expense.Id, userId, expense.Amount,
+            await approvalService.SubmitAndPublishAsync(
+                mediator, "Expense", expense.Id, userId, expense.Amount,
                 $"{expense.Category} — {expense.Description}", cancellationToken);
         }
 

@@ -18,6 +18,9 @@ public class VendorScorecardService(
     private const decimal PriceWeight = 0.20m;
     private const decimal QuantityWeight = 0.10m;
 
+    private static readonly PurchaseOrderStatus[] OpenForDelivery =
+        [PurchaseOrderStatus.Submitted, PurchaseOrderStatus.Acknowledged, PurchaseOrderStatus.PartiallyReceived];
+
     public async Task<VendorScorecard> CalculateScorecardAsync(
         int vendorId, DateOnly periodStart, DateOnly periodEnd, CancellationToken ct = default)
     {
@@ -25,6 +28,8 @@ public class VendorScorecardService(
         var periodEndDto = new DateTimeOffset(periodEnd.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero);
 
         // --- Delivery metrics ---
+        var asOf = clock.UtcNow < periodEndDto ? clock.UtcNow : periodEndDto;
+
         var purchaseOrders = await db.PurchaseOrders
             .AsNoTracking()
             .Where(po => po.VendorId == vendorId
@@ -35,26 +40,38 @@ public class VendorScorecardService(
                 po.Id,
                 po.ExpectedDeliveryDate,
                 po.ReceivedDate,
+                po.SubmittedDate,
+                po.CreatedAt,
                 po.Status,
+                po.IsBlanket,
                 LineCount = po.Lines.Count,
             })
             .ToListAsync(ct);
 
         var totalPurchaseOrders = purchaseOrders.Count;
 
-        var receivedPos = purchaseOrders
-            .Where(po => po.ReceivedDate.HasValue && po.ExpectedDeliveryDate.HasValue)
-            .ToList();
+        var deliveries = new List<(DateTimeOffset Due, DateTimeOffset? DeliveredAt)>();
 
-        var onTimeDeliveries = receivedPos.Count(po => po.ReceivedDate!.Value <= po.ExpectedDeliveryDate!.Value);
-        var lateDeliveries = receivedPos.Count(po => po.ReceivedDate!.Value > po.ExpectedDeliveryDate!.Value);
-        var earlyDeliveries = receivedPos.Count(po =>
-            po.ReceivedDate!.Value < po.ExpectedDeliveryDate!.Value.AddDays(-1));
+        var standardPos = purchaseOrders.Where(po => !po.IsBlanket && po.ExpectedDeliveryDate.HasValue).ToList();
+        foreach (var po in standardPos)
+        {
+            if (po.ReceivedDate.HasValue)
+                deliveries.Add((po.ExpectedDeliveryDate!.Value, po.ReceivedDate));
+            else if (OpenForDelivery.Contains(po.Status) && po.ExpectedDeliveryDate!.Value < asOf)
+                deliveries.Add((po.ExpectedDeliveryDate!.Value, null));
+        }
 
+        deliveries.AddRange(await LoadReleaseDeliveriesAsync(vendorId, periodStartDto, periodEndDto, asOf, ct));
+
+        var onTimeDeliveries = deliveries.Count(d => d.DeliveredAt.HasValue && d.DeliveredAt.Value <= d.Due);
+        var lateDeliveries = deliveries.Count(d => d.DeliveredAt is null || d.DeliveredAt.Value > d.Due);
+        var earlyDeliveries = deliveries.Count(d =>
+            d.DeliveredAt.HasValue && d.DeliveredAt.Value < d.Due.AddDays(-1));
+
+        var receivedPos = standardPos.Where(po => po.ReceivedDate.HasValue).ToList();
         var avgLeadTimeDays = receivedPos.Count > 0
             ? (decimal)receivedPos
-                .Where(po => po.ReceivedDate.HasValue)
-                .Average(po => (po.ReceivedDate!.Value - periodStartDto).TotalDays)
+                .Average(po => Math.Max(0d, (po.ReceivedDate!.Value - (po.SubmittedDate ?? po.CreatedAt)).TotalDays))
             : 0m;
 
         var totalDeliveries = onTimeDeliveries + lateDeliveries;
@@ -224,6 +241,76 @@ public class VendorScorecardService(
             vendorId, overallScore, grade);
 
         return scorecard;
+    }
+
+    private async Task<List<(DateTimeOffset Due, DateTimeOffset? DeliveredAt)>> LoadReleaseDeliveriesAsync(
+        int vendorId, DateTimeOffset periodStart, DateTimeOffset periodEnd, DateTimeOffset asOf, CancellationToken ct)
+    {
+        var releases = await db.PurchaseOrderReleases
+            .AsNoTracking()
+            .Where(r => r.PurchaseOrder.VendorId == vendorId
+                && r.PurchaseOrder.IsBlanket
+                && r.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
+                && r.PurchaseOrder.Status != PurchaseOrderStatus.Draft
+                && r.Status != PurchaseOrderReleaseStatus.Cancelled)
+            .Select(r => new
+            {
+                r.PurchaseOrderLineId,
+                r.ReleaseNumber,
+                r.Quantity,
+                r.RequestedDeliveryDate,
+                r.ActualDeliveryDate,
+            })
+            .ToListAsync(ct);
+
+        if (releases.Count == 0) return [];
+
+        var lineIds = releases.Select(r => r.PurchaseOrderLineId).Distinct().ToList();
+        var receipts = await db.ReceivingRecords
+            .AsNoTracking()
+            .Where(rr => lineIds.Contains(rr.PurchaseOrderLineId))
+            .Select(rr => new { rr.PurchaseOrderLineId, rr.QuantityReceived, rr.CreatedAt })
+            .ToListAsync(ct);
+
+        var result = new List<(DateTimeOffset Due, DateTimeOffset? DeliveredAt)>();
+        foreach (var line in releases.GroupBy(r => r.PurchaseOrderLineId))
+        {
+            var lineReceipts = receipts
+                .Where(rr => rr.PurchaseOrderLineId == line.Key)
+                .OrderBy(rr => rr.CreatedAt)
+                .ToList();
+
+            var cumulativeDue = 0m;
+            foreach (var release in line.OrderBy(r => r.RequestedDeliveryDate).ThenBy(r => r.ReleaseNumber))
+            {
+                cumulativeDue += release.Quantity;
+
+                var deliveredAt = release.ActualDeliveryDate;
+                if (deliveredAt is null)
+                {
+                    var cumulativeReceived = 0m;
+                    foreach (var receipt in lineReceipts)
+                    {
+                        cumulativeReceived += receipt.QuantityReceived;
+                        if (cumulativeReceived >= cumulativeDue)
+                        {
+                            deliveredAt = receipt.CreatedAt;
+                            break;
+                        }
+                    }
+                }
+
+                if (release.RequestedDeliveryDate < periodStart || release.RequestedDeliveryDate > periodEnd)
+                    continue;
+
+                if (deliveredAt.HasValue)
+                    result.Add((release.RequestedDeliveryDate, deliveredAt));
+                else if (release.RequestedDeliveryDate < asOf)
+                    result.Add((release.RequestedDeliveryDate, null));
+            }
+        }
+
+        return result;
     }
 
     public async Task RecalculateAllAsync(DateOnly periodStart, DateOnly periodEnd, CancellationToken ct = default)

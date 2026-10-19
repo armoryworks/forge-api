@@ -3,6 +3,7 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
+using Forge.Api.Features.Approvals;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -18,7 +19,8 @@ public class SubmitPurchaseOrderHandler(
     ICurrencyService currencyService,
     IHttpContextAccessor httpContext,
     IClock clock,
-    AppDbContext db)
+    AppDbContext db,
+    IPublisher publisher)
     : IRequestHandler<SubmitPurchaseOrderCommand>
 {
     public async Task Handle(SubmitPurchaseOrderCommand request, CancellationToken cancellationToken)
@@ -67,8 +69,8 @@ public class SubmitPurchaseOrderHandler(
         {
             var totalAmount = po.Lines.Sum(l => l.OrderedQuantity * l.UnitPrice);
             var summary = $"PO {po.PONumber} — {po.Lines.Count} line(s)";
-            await approvalService.SubmitForApprovalAsync(
-                "PurchaseOrder", po.Id, userId, totalAmount, summary, cancellationToken);
+            await approvalService.SubmitAndPublishAsync(
+                publisher, "PurchaseOrder", po.Id, userId, totalAmount, summary, cancellationToken);
         }
     }
 }

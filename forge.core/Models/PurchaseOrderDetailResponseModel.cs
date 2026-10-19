@@ -52,4 +52,5 @@ public record PurchaseOrderDetailResponseModel(
     string? VendorAddressText = null,
     int? ShipToLocationId = null,
     string? ShipToLocationName = null,
-    string? ShipToAddressText = null);
+    string? ShipToAddressText = null,
+    uint RowVersion = 0);

@@ -53,7 +53,7 @@ public class ConvertAutoPoSuggestionHandler(
         await poRepo.AddAsync(po, ct);
 
         suggestion.Status = AutoPoSuggestionStatus.Converted;
-        suggestion.ConvertedPurchaseOrderId = po.Id;
+        suggestion.ConvertedPurchaseOrder = po;
 
         await db.SaveChangesAsync(ct);
 

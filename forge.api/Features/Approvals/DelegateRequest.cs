@@ -21,6 +21,7 @@ public class DelegateRequestHandler(IApprovalService approvalService)
 {
     public async Task<Unit> Handle(DelegateRequestCommand request, CancellationToken ct)
     {
+        await approvalService.EnsureCanActAsync(request.RequestId, request.DecidedById, ct);
         await approvalService.DelegateAsync(
             request.RequestId, request.DecidedById,
             request.Data.DelegateToUserId, request.Data.Comments, ct);

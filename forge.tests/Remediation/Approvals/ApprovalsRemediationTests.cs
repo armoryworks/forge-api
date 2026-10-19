@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 
+using Forge.Core.Enums;
 using Forge.Data.Context;
 using Forge.Tests.Capabilities;
 
@@ -23,10 +24,10 @@ public class ApprovalsRemediationTests
     private readonly CapabilityTestWebApplicationFactory _factory;
     public ApprovalsRemediationTests(CapabilityTestWebApplicationFactory factory) => _factory = factory;
 
-    private HttpClient AuthClient(string role = "Admin")
+    private HttpClient AuthClient(string role = "Admin", int userId = 1)
     {
         var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Test-User", "1");
+        client.DefaultRequestHeaders.Add("X-Test-User", userId.ToString());
         client.DefaultRequestHeaders.Add("X-Test-Role", role);
         return client;
     }
@@ -55,5 +56,42 @@ public class ApprovalsRemediationTests
         // The retired workflow must no longer surface in the list (soft-delete query filter).
         var list = await (await admin.GetAsync("/api/v1/approvals/workflows")).Content.ReadAsStringAsync();
         list.Should().NotContain("APPR2-Stale", "a retired workflow must drop out of the active list");
+    }
+
+    [Fact]
+    public async Task A_user_who_is_not_the_step_approver_gets_403_on_approve()
+    {
+        var admin = AuthClient();
+        await admin.PutAsync("/api/v1/capabilities/CAP-P2P-APPROVALS/enabled", JsonContent.Create(new { enabled = true }));
+
+        int requestId;
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var workflow = new ApprovalWorkflow
+            {
+                Name = "APPR-403", EntityType = "PurchaseOrder", IsActive = true,
+                Steps = { new ApprovalStep { StepNumber = 1, Name = "Plant manager", ApproverType = ApproverType.Role, ApproverRole = "Manager" } },
+            };
+            db.ApprovalWorkflows.Add(workflow);
+            await db.SaveChangesAsync();
+            var request = new ApprovalRequest
+            {
+                WorkflowId = workflow.Id, EntityType = "PurchaseOrder", EntityId = 4031,
+                CurrentStepNumber = 1, Status = ApprovalRequestStatus.Pending,
+                RequestedById = 1, RequestedAt = DateTimeOffset.UtcNow, Amount = 6200m,
+            };
+            db.ApprovalRequests.Add(request);
+            await db.SaveChangesAsync();
+            requestId = request.Id;
+        }
+
+        var worker = AuthClient("ProductionWorker", userId: 4032);
+        var response = await worker.PostAsync($"/api/v1/approvals/{requestId}/approve", JsonContent.Create(new { comments = "ok" }));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        using var verify = NewScope();
+        var stored = await verify.ServiceProvider.GetRequiredService<AppDbContext>().ApprovalRequests.FindAsync(requestId);
+        stored!.Status.Should().Be(ApprovalRequestStatus.Pending);
     }
 }
