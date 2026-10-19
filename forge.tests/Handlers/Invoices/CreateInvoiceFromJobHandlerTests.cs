@@ -87,6 +87,7 @@ public class CreateInvoiceFromJobHandlerTests
         _sent.TaxRate.Should().Be(0.0725m);
         _sent.InvoiceDate.Should().Be(Now);
         _sent.DueDate.Should().Be(Now.AddDays(30));
+        _sent.CreditTerms.Should().Be("Net30");
         _sent.Lines.Should().ContainSingle().Which.Should().Be(
             new CreateInvoiceLineModel(part.Id, "J-13 — Mold T112: Tooling build", 1m, 6800m));
     }
@@ -145,6 +146,38 @@ public class CreateInvoiceFromJobHandlerTests
         _sent.CustomerId.Should().Be(customer.Id);
         _sent.TaxRate.Should().Be(0.0725m);
         _sent.Lines.Should().ContainSingle().Which.UnitPrice.Should().Be(1500m);
+    }
+
+    [Fact]
+    public async Task Order_terms_set_the_credit_terms_and_the_due_date()
+    {
+        var customer = await AddCustomerAsync();
+        customer.DefaultCreditTerms = CreditTerms.Net60;
+        await _db.SaveChangesAsync();
+        var line = await AddOrderLineAsync(customer.Id, null, 1m, 500m);
+        var order = await _db.SalesOrders.FindAsync(line.SalesOrderId);
+        order!.CreditTerms = CreditTerms.DueOnReceipt;
+        await _db.SaveChangesAsync();
+        var job = await AddJobAsync(customer.Id, j => j.SalesOrderLineId = line.Id);
+
+        await _handler.Handle(new CreateInvoiceFromJobCommand(job.Id), CancellationToken.None);
+
+        _sent!.CreditTerms.Should().Be("DueOnReceipt");
+        _sent.DueDate.Should().Be(Now);
+    }
+
+    [Fact]
+    public async Task Customer_default_terms_apply_when_the_order_has_none()
+    {
+        var customer = await AddCustomerAsync();
+        customer.DefaultCreditTerms = CreditTerms.Net45;
+        await _db.SaveChangesAsync();
+        var job = await AddJobAsync(customer.Id, j => j.QuotedPrice = 1500m);
+
+        await _handler.Handle(new CreateInvoiceFromJobCommand(job.Id), CancellationToken.None);
+
+        _sent!.CreditTerms.Should().Be("Net45");
+        _sent.DueDate.Should().Be(Now.AddDays(45));
     }
 
     [Fact]

@@ -60,6 +60,26 @@ public class UpdateCustomerCommercialTermsRoleTests
     }
 
     [Fact]
+    public async Task Pm_cannot_change_default_credit_terms()
+    {
+        var result = await ControllerFor("PM").UpdateCustomer(1,
+            new UpdateCustomerRequestModel(null, null, null, null, null, DefaultCreditTerms: "Net30"));
+
+        result.Should().BeOfType<ForbidResult>();
+    }
+
+    [Fact]
+    public async Task Office_manager_changes_default_credit_terms()
+    {
+        var result = await ControllerFor("OfficeManager").UpdateCustomer(1,
+            new UpdateCustomerRequestModel(null, null, null, null, null, DefaultCreditTerms: "Net30"));
+
+        result.Should().BeOfType<NoContentResult>();
+        _mediator.Verify(m => m.Send(
+            It.Is<UpdateCustomerCommand>(c => c.DefaultCreditTerms == "Net30"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Pm_can_still_edit_identity_fields()
     {
         var result = await ControllerFor("PM").UpdateCustomer(1,

@@ -31,7 +31,9 @@ public record UpdateCustomerCommand(
     string? CustomerNumber = null,
     string? Fax = null,
     decimal? CreditLimit = null,
-    bool? ClearCreditLimit = null) : IRequest;
+    bool? ClearCreditLimit = null,
+    string? DefaultCreditTerms = null,
+    bool? ClearDefaultCreditTerms = null) : IRequest;
 
 public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
 {
@@ -52,6 +54,14 @@ public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
             .When(x => x.ClearCreditLimit == true)
             .WithMessage("Send either a credit limit or ClearCreditLimit, not both.");
         RuleFor(x => x.CustomerNumber).NotEmpty().MaximumLength(50).When(x => x.CustomerNumber is not null);
+        RuleFor(x => x.DefaultCreditTerms)
+            .Must(t => CreditTermsExtensions.TryParseLenient(t, out _))
+            .When(x => x.DefaultCreditTerms is not null)
+            .WithMessage(CreditTermsExtensions.AllowedValuesMessage);
+        RuleFor(x => x.DefaultCreditTerms)
+            .Null()
+            .When(x => x.ClearDefaultCreditTerms == true)
+            .WithMessage("Send either default credit terms or ClearDefaultCreditTerms, not both.");
     }
 }
 
@@ -173,6 +183,18 @@ public class UpdateCustomerHandler(
         {
             customer.CreditLimit = creditLimit;
             changedFields.Add("creditLimit");
+        }
+
+        if (request.ClearDefaultCreditTerms == true && customer.DefaultCreditTerms is not null)
+        {
+            customer.DefaultCreditTerms = null;
+            changedFields.Add("defaultCreditTerms");
+        }
+        else if (CreditTermsExtensions.TryParseLenient(request.DefaultCreditTerms, out var terms)
+            && terms != customer.DefaultCreditTerms)
+        {
+            customer.DefaultCreditTerms = terms;
+            changedFields.Add("defaultCreditTerms");
         }
 
         // Phase 1r / Batch 15 — regulated-industry flags. Each is independent

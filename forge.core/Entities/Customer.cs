@@ -1,3 +1,4 @@
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 
 namespace Forge.Core.Entities;
@@ -61,6 +62,11 @@ public class Customer : BaseAuditableEntity, IActiveAware
     public SalesTaxRate? DefaultTaxCode { get; set; }
     /// <summary>ISO 4217 3-letter currency code (e.g. "USD"). Null = use tenant default.</summary>
     public string? DefaultCurrency { get; set; }
+    /// <summary>
+    /// Credit terms a new sales order or invoice for this customer starts from when the
+    /// document does not name its own. Null = no default (the document's own terms rule).
+    /// </summary>
+    public CreditTerms? DefaultCreditTerms { get; set; }
 
     // Accounting integration
     public string? ExternalId { get; set; }

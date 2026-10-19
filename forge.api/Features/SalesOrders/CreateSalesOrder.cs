@@ -30,6 +30,10 @@ public class CreateSalesOrderValidator : AbstractValidator<CreateSalesOrderComma
         RuleFor(x => x.CustomerId).GreaterThan(0);
         RuleFor(x => x.Lines).NotEmpty().WithMessage("At least one line item is required");
         RuleFor(x => x.TaxRate).GreaterThanOrEqualTo(0).LessThan(1);
+        RuleFor(x => x.CreditTerms)
+            .Must(t => CreditTermsExtensions.TryParseLenient(t, out _))
+            .When(x => !string.IsNullOrWhiteSpace(x.CreditTerms))
+            .WithMessage(CreditTermsExtensions.AllowedValuesMessage);
         // Matches the sales_orders.order_number column (varchar(20)). Uniqueness is
         // checked in the handler since it needs a DB lookup.
         RuleFor(x => x.OrderNumber).MaximumLength(20).When(x => !string.IsNullOrWhiteSpace(x.OrderNumber));
@@ -79,9 +83,13 @@ public class CreateSalesOrderHandler(
         var billingAddressId = await ResolveAddressIdAsync(
             request.CustomerId, request.BillingAddressId, AddressType.Billing, "billingAddressId", cancellationToken);
 
-        CreditTerms? creditTerms = request.CreditTerms != null
-            ? Enum.Parse<CreditTerms>(request.CreditTerms, true)
-            : null;
+        CreditTerms? creditTerms = customer.DefaultCreditTerms;
+        if (!string.IsNullOrWhiteSpace(request.CreditTerms))
+        {
+            if (!CreditTermsExtensions.TryParseLenient(request.CreditTerms, out var requestedTerms))
+                throw new ValidationException(CreditTermsExtensions.AllowedValuesMessage);
+            creditTerms = requestedTerms;
+        }
 
         var order = new SalesOrder
         {

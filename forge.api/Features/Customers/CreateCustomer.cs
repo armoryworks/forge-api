@@ -30,7 +30,8 @@ public record CreateCustomerCommand(
     AddressInput? ShippingAddress = null,
     // Optional caller-supplied customer number — see CreateCustomerRequestModel.CustomerNumber.
     string? CustomerNumber = null,
-    string? Fax = null) : IRequest<CustomerListItemModel>;
+    string? Fax = null,
+    string? DefaultCreditTerms = null) : IRequest<CustomerListItemModel>;
 
 public class CreateCustomerValidator : AbstractValidator<CreateCustomerCommand>
 {
@@ -75,6 +76,10 @@ public class CreateCustomerValidator : AbstractValidator<CreateCustomerCommand>
             .Matches(@"^[A-Z]{3}$")
             .When(x => !string.IsNullOrEmpty(x.DefaultCurrency))
             .WithMessage("Currency must be a 3-letter ISO 4217 code (e.g. USD).");
+        RuleFor(x => x.DefaultCreditTerms)
+            .Must(t => CreditTermsExtensions.TryParseLenient(t, out _))
+            .When(x => !string.IsNullOrWhiteSpace(x.DefaultCreditTerms))
+            .WithMessage(CreditTermsExtensions.AllowedValuesMessage);
 
         // Address validation — only enforce required fields if the caller
         // included an address object at all. Either skip the block entirely
@@ -146,6 +151,9 @@ public class CreateCustomerHandler(
             CreditLimit = request.CreditLimit,
             DefaultTaxCodeId = request.DefaultTaxCodeId,
             DefaultCurrency = request.DefaultCurrency,
+            DefaultCreditTerms = CreditTermsExtensions.TryParseLenient(request.DefaultCreditTerms, out var terms)
+                ? terms
+                : null,
         };
 
         if (request.BillingAddress is not null)

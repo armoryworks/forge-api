@@ -24,4 +24,5 @@ public record CreateCustomerRequestModel(
     // Optional caller-supplied customer number. Honoured only when
     // customers.allow_manual_numbers is on; otherwise auto-generated (CUST-#####).
     string? CustomerNumber = null,
-    string? Fax = null);
+    string? Fax = null,
+    string? DefaultCreditTerms = null);

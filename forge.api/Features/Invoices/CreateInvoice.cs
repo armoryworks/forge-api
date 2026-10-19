@@ -40,6 +40,17 @@ public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
         RuleFor(x => x.Lines).NotEmpty().WithMessage("At least one line item is required");
         RuleFor(x => x.TaxRate).GreaterThanOrEqualTo(0).LessThan(1);
         RuleFor(x => x.DueDate).GreaterThanOrEqualTo(x => x.InvoiceDate);
+        RuleFor(x => x.CreditTerms)
+            .Must(t => CreditTermsExtensions.TryParseLenient(t, out _))
+            .When(x => !string.IsNullOrWhiteSpace(x.CreditTerms))
+            .WithMessage(CreditTermsExtensions.AllowedValuesMessage);
+        RuleFor(x => x.DueDate)
+            .Must((x, due) => !CreditTermsExtensions.TryParseLenient(x.CreditTerms, out var terms)
+                || terms.MatchesDueDate(x.InvoiceDate, due))
+            .When(x => !string.IsNullOrWhiteSpace(x.CreditTerms))
+            .WithMessage(x => CreditTermsExtensions.TryParseLenient(x.CreditTerms, out var terms)
+                ? $"Due date must be {terms.NetDays()} days after the invoice date for {terms} terms."
+                : CreditTermsExtensions.AllowedValuesMessage);
         RuleFor(x => x.CustomerPO).MaximumLength(50);
         RuleFor(x => x.InvoiceNumber).MaximumLength(20).When(x => !string.IsNullOrWhiteSpace(x.InvoiceNumber));
         // FX booking rate must be positive (a 0 or negative rate would zero/invert the functional amount).
@@ -81,11 +92,12 @@ public class CreateInvoiceHandler(
             ?? throw new KeyNotFoundException($"Customer {request.CustomerId} not found");
 
         string? salesOrderCustomerPo = null;
+        CreditTerms? salesOrderTerms = null;
         if (request.SalesOrderId is int linkedSoId)
         {
             var salesOrder = await db.SalesOrders.AsNoTracking()
                 .Where(so => so.Id == linkedSoId)
-                .Select(so => new { so.OrderNumber, so.CustomerId, so.CustomerPO })
+                .Select(so => new { so.OrderNumber, so.CustomerId, so.CustomerPO, so.CreditTerms })
                 .FirstOrDefaultAsync(cancellationToken)
                 ?? throw new KeyNotFoundException($"Sales order {linkedSoId} not found");
 
@@ -94,6 +106,7 @@ public class CreateInvoiceHandler(
                     $"Sales order {salesOrder.OrderNumber} belongs to a different customer than {customer.Name}.");
 
             salesOrderCustomerPo = salesOrder.CustomerPO;
+            salesOrderTerms = salesOrder.CreditTerms;
         }
 
         if (request.ShipmentId is int shipmentId)
@@ -185,9 +198,20 @@ public class CreateInvoiceHandler(
 
         var invoiceNumber = await ResolveInvoiceNumberAsync(request, cancellationToken);
 
-        CreditTerms? creditTerms = request.CreditTerms != null
-            ? Enum.Parse<CreditTerms>(request.CreditTerms, true)
-            : null;
+        CreditTerms? creditTerms;
+        if (!string.IsNullOrWhiteSpace(request.CreditTerms))
+        {
+            if (!CreditTermsExtensions.TryParseLenient(request.CreditTerms, out var requestedTerms))
+                throw new ValidationException(CreditTermsExtensions.AllowedValuesMessage);
+            creditTerms = requestedTerms;
+        }
+        else
+        {
+            var inherited = salesOrderTerms ?? customer.DefaultCreditTerms;
+            creditTerms = inherited is { } terms && terms.MatchesDueDate(request.InvoiceDate, request.DueDate)
+                ? terms
+                : null;
+        }
 
         // Propagate CustomerPO from the sourcing SO when the caller didn't
         // override. B2B customers reject invoices that don't echo their PO #.

@@ -113,4 +113,35 @@ public class GetTaxRateForCustomerHandlerTests
 
         result!.Code.Should().Be("UT-STATE");
     }
+
+    [Fact]
+    public async Task Exempt_customer_with_a_taxable_default_code_still_gets_the_exemption_marker()
+    {
+        using var db = TestDbContextFactory.Create();
+        var (_, county, _) = await SeedUtahAsync(db);
+        var customer = await AddUtahCustomerAsync(db, c =>
+        {
+            c.IsTaxExempt = true;
+            c.DefaultTaxCodeId = county.Id;
+        });
+
+        var result = await Handler(db).Handle(new GetTaxRateForCustomerQuery(customer.Id), CancellationToken.None);
+
+        result!.Code.Should().Be("EXEMPT-RESALE");
+        result.Rate.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task Exempt_customer_never_gets_a_taxable_rate_when_no_exempt_rate_exists()
+    {
+        using var db = TestDbContextFactory.Create();
+        var (_, _, exempt) = await SeedUtahAsync(db);
+        exempt.IsActive = false;
+        await db.SaveChangesAsync();
+        var customer = await AddUtahCustomerAsync(db, c => c.IsTaxExempt = true);
+
+        var result = await Handler(db).Handle(new GetTaxRateForCustomerQuery(customer.Id), CancellationToken.None);
+
+        result.Should().BeNull();
+    }
 }

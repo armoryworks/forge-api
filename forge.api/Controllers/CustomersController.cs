@@ -90,7 +90,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<CustomerListItemModel>> CreateCustomer(CreateCustomerRequestModel request)
     {
         var setsCommercialTerms = request.IsTaxExempt || !string.IsNullOrWhiteSpace(request.TaxExemptionId)
-            || request.CreditLimit.HasValue;
+            || request.CreditLimit.HasValue || !string.IsNullOrWhiteSpace(request.DefaultCreditTerms);
         if (setsCommercialTerms && !CommercialTermsRoles.Any(User.IsInRole))
             return Forbid();
 
@@ -107,7 +107,8 @@ public class CustomersController(IMediator mediator) : ControllerBase
             BillingAddress: request.BillingAddress,
             ShippingAddress: request.ShippingAddress,
             CustomerNumber: request.CustomerNumber,
-            Fax: request.Fax));
+            Fax: request.Fax,
+            DefaultCreditTerms: request.DefaultCreditTerms));
         return CreatedAtAction(nameof(GetCustomer), new { id = result.Id }, result);
     }
 
@@ -131,7 +132,8 @@ public class CustomersController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> UpdateCustomer(int id, UpdateCustomerRequestModel request)
     {
         var changesCommercialTerms = request.IsTaxExempt.HasValue || request.TaxExemptionId is not null
-            || request.CreditLimit.HasValue || request.ClearCreditLimit == true;
+            || request.CreditLimit.HasValue || request.ClearCreditLimit == true
+            || request.DefaultCreditTerms is not null || request.ClearDefaultCreditTerms == true;
         if (changesCommercialTerms && !CommercialTermsRoles.Any(User.IsInRole))
             return Forbid();
 
@@ -148,7 +150,9 @@ public class CustomersController(IMediator mediator) : ControllerBase
             IsTaxExempt: request.IsTaxExempt,
             TaxExemptionId: request.TaxExemptionId,
             CreditLimit: request.CreditLimit,
-            ClearCreditLimit: request.ClearCreditLimit));
+            ClearCreditLimit: request.ClearCreditLimit,
+            DefaultCreditTerms: request.DefaultCreditTerms,
+            ClearDefaultCreditTerms: request.ClearDefaultCreditTerms));
         return NoContent();
     }
 
