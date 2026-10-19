@@ -9,6 +9,7 @@ using Moq;
 
 using Forge.Api.Features.Auth;
 using Forge.Api.Services;
+using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 using Forge.Tests.Helpers;
@@ -172,6 +173,96 @@ public class KioskLockoutIntegrationTests : IDisposable
         (await _userManager.GetAccessFailedCountAsync(freshUser!)).Should().Be(0,
             "KioskLoginHandler must call ResetAccessFailedCountAsync on successful login (F-051)");
         (await _userManager.IsLockedOutAsync(freshUser!)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ScanLogin_FiveWrongPins_LocksAccount_SixthCorrectPinStillRejected()
+    {
+        const string correctPin = "2468";
+        var user = await CreateKioskUserAsync("LOCK-PROBE-SCAN", correctPin);
+        _db.UserScanIdentifiers.Add(new UserScanIdentifier
+        {
+            UserId = user.Id, IdentifierType = "rfid", IdentifierValue = "RFID-LOCK-SCAN",
+        });
+        await _db.SaveChangesAsync();
+
+        for (var i = 1; i <= 5; i++)
+        {
+            var attempt = () => _mediator.Send(new ScanLoginCommand("RFID-LOCK-SCAN", "1111"), CancellationToken.None);
+            await attempt.Should().ThrowAsync<InvalidOperationException>()
+                .WithMessage("Invalid scan identifier or PIN.");
+        }
+
+        _db.ChangeTracker.Clear();
+        var locked = await _userManager.FindByIdAsync(user.Id.ToString());
+        (await _userManager.IsLockedOutAsync(locked!)).Should().BeTrue();
+
+        var sixth = () => _mediator.Send(new ScanLoginCommand("RFID-LOCK-SCAN", correctPin), CancellationToken.None);
+        await sixth.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Invalid scan identifier or PIN.");
+    }
+
+    [Fact]
+    public async Task ScanLogin_PartialFailures_ThenSuccess_ResetsAccessFailedCount()
+    {
+        const string correctPin = "1357";
+        await CreateKioskUserAsync("LOCK-PROBE-SCAN-B", correctPin);
+
+        var wrong = () => _mediator.Send(new ScanLoginCommand("LOCK-PROBE-SCAN-B", "0000"), CancellationToken.None);
+        await wrong.Should().ThrowAsync<InvalidOperationException>();
+
+        var result = await _mediator.Send(new ScanLoginCommand("LOCK-PROBE-SCAN-B", correctPin), CancellationToken.None);
+        result.Token.Should().Be("live-test-token");
+
+        _db.ChangeTracker.Clear();
+        var fresh = await _userManager.FindByEmailAsync("LOCK-PROBE-SCAN-B@kiosk.lockout.test");
+        (await _userManager.GetAccessFailedCountAsync(fresh!)).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ScanLogin_BadgeWithoutPin_GetsTheGenericMessage()
+    {
+        var user = new ApplicationUser
+        {
+            UserName = "nopin@kiosk.lockout.test",
+            Email = "nopin@kiosk.lockout.test",
+            FirstName = "No",
+            LastName = "Pin",
+            EmployeeBarcode = "LOCK-PROBE-NOPIN",
+            IsActive = true,
+        };
+        (await _userManager.CreateAsync(user)).Succeeded.Should().BeTrue();
+
+        var attempt = () => _mediator.Send(new ScanLoginCommand("LOCK-PROBE-NOPIN", "1234"), CancellationToken.None);
+        await attempt.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Invalid scan identifier or PIN.");
+    }
+
+    [Fact]
+    public async Task NfcLogin_FiveWrongPins_LocksAccount_SixthCorrectPinStillRejected()
+    {
+        const string correctPin = "8642";
+        var user = await CreateKioskUserAsync("LOCK-PROBE-NFC", correctPin);
+        _db.UserScanIdentifiers.Add(new UserScanIdentifier
+        {
+            UserId = user.Id, IdentifierType = "nfc", IdentifierValue = "NFC-LOCK-PROBE",
+        });
+        await _db.SaveChangesAsync();
+
+        for (var i = 1; i <= 5; i++)
+        {
+            var attempt = () => _mediator.Send(new NfcKioskLoginCommand("NFC-LOCK-PROBE", "9999"), CancellationToken.None);
+            await attempt.Should().ThrowAsync<InvalidOperationException>()
+                .WithMessage("Invalid scan identifier or PIN");
+        }
+
+        _db.ChangeTracker.Clear();
+        var locked = await _userManager.FindByIdAsync(user.Id.ToString());
+        (await _userManager.IsLockedOutAsync(locked!)).Should().BeTrue();
+
+        var sixth = () => _mediator.Send(new NfcKioskLoginCommand("NFC-LOCK-PROBE", correctPin), CancellationToken.None);
+        await sixth.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Invalid scan identifier or PIN");
     }
 
     public void Dispose()
