@@ -51,6 +51,19 @@ public class SequenceInstanceHandlerTests
     }
 
     [Fact]
+    public async Task Instances_filter_by_subject_type_ignoring_case()
+    {
+        await using var f = new SequenceHandlerFixture();
+        var defId = await PublishedSerial(f);
+        var started = await Start(f, defId);
+
+        var found = await new GetSequenceInstancesHandler(f.Db)
+            .Handle(new GetSequenceInstancesQuery("job", 42, null, null), default);
+
+        found.Should().ContainSingle(i => i.Id == started.Id);
+    }
+
+    [Fact]
     public async Task Complete_every_step_completes_the_instance_and_the_event_log_tells_the_story()
     {
         await using var f = new SequenceHandlerFixture();

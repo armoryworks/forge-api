@@ -47,6 +47,7 @@ public class CreateJobCommandValidator : AbstractValidator<CreateJobCommand>
         RuleFor(x => x.Quantity)
             .GreaterThan(0).When(x => x.Quantity.HasValue)
             .WithMessage("Quantity must be greater than zero.");
+        RuleFor(x => x.Quantity).JobQuantityLimits();
 
         RuleFor(x => x.PartId)
             .NotNull().When(x => x.Quantity.HasValue && x.SalesOrderLineId is null)

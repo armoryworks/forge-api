@@ -28,6 +28,7 @@ public class UpdateJobPartValidator : AbstractValidator<UpdateJobPartCommand>
         RuleFor(x => x.JobId).GreaterThan(0);
         RuleFor(x => x.JobPartId).GreaterThan(0);
         RuleFor(x => x.Quantity).GreaterThan(0);
+        RuleFor(x => x.Quantity).JobQuantityLimits();
         RuleFor(x => x.Notes).MaximumLength(2000).When(x => x.Notes is not null);
     }
 }

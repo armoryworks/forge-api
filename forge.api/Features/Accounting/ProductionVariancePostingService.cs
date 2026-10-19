@@ -227,6 +227,7 @@ public sealed class ProductionVariancePostingService(
         if (await db.JournalEntries.IgnoreQueryFilters().AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == runKey, ct))
             return 0m;
 
+        await jobCost.PriceUnpricedTimeEntriesAsync(jobId, ct);
         var laborActual = Math.Round(await jobCost.GetActualLaborCostAtActualRateAsync(jobId, ct), 2);
         var burden = Math.Round(await jobCost.GetActualBurdenCostAsync(jobId, ct), 2);
         var subcontract = Math.Round(await jobCost.GetActualSubcontractCostAsync(jobId, ct), 2);
@@ -388,6 +389,7 @@ public sealed class ProductionVariancePostingService(
     {
         // Labor at the STANDARD rate (efficiency basis) and at the ACTUAL rate (what's absorbed into WIP); the
         // difference is the labor RATE variance.
+        await jobCost.PriceUnpricedTimeEntriesAsync(jobId, ct);
         var laborStd = Math.Round(await jobCost.GetActualLaborCostAsync(jobId, ct), 2);
         var laborRateVar = Math.Round(await jobCost.GetLaborRateVarianceAsync(jobId, ct), 2);
         var laborActual = Math.Round(await jobCost.GetActualLaborCostAtActualRateAsync(jobId, ct), 2);

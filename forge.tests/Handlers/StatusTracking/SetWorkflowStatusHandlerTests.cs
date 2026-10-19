@@ -255,6 +255,29 @@ public class SetWorkflowStatusHandlerTests
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
+    [Fact]
+    public async Task Handle_StampsTheCallerAsSetBy()
+    {
+        _statusRepo.Setup(r => r.GetHistoryAsync("job", 9, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([BuildStatusEntryResponse(1, "job", 9, "in_production")]);
+        var handler = new SetWorkflowStatusHandler(
+            _dbContext,
+            _statusRepo.Object,
+            Mock.Of<IActivityLogRepository>(),
+            Mock.Of<IWorkCenterContext>(),
+            TestCaller.As(31, "Manager"),
+            Mock.Of<IHubContext<BoardHub>>(),
+            Mock.Of<ICapabilitySnapshotProvider>(),
+            Mock.Of<ISystemAuditWriter>(),
+            new SystemClock());
+
+        await handler.Handle(
+            new SetWorkflowStatusCommand("job", 9, new SetStatusRequestModel("in_production", null)),
+            CancellationToken.None);
+
+        _dbContext.StatusEntries.Single().SetById.Should().Be(31);
+    }
+
     private static StatusEntryResponseModel BuildStatusEntryResponse(
         int id,
         string entityType,

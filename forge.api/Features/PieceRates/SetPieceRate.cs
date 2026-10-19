@@ -32,7 +32,8 @@ public class SetPieceRateValidator : AbstractValidator<SetPieceRateCommand>
     public SetPieceRateValidator()
     {
         RuleFor(x => x.PartId).GreaterThan(0);
-        RuleFor(x => x.RatePerPiece).GreaterThan(0);
+        RuleFor(x => x.RatePerPiece).GreaterThan(0).PrecisionScale(18, 4, ignoreTrailingZeros: true)
+            .WithMessage("Rate per piece can have at most 4 decimal places.");
         RuleFor(x => x.Notes).MaximumLength(512);
     }
 }

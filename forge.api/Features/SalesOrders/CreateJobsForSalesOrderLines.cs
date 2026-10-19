@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Jobs;
 using Forge.Api.Features.SalesOrders.Acceptance;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
@@ -120,7 +121,7 @@ public class CreateJobsForSalesOrderLinesHandler(
         foreach (var line in toCreate)
         {
             var partId = line.PartId!.Value;
-            var quantity = line.RemainingQuantity;
+            var quantity = JobQuantityRules.Fit(line.RemainingQuantity);
             var jobNumber = await jobRepo.GenerateNextJobNumberAsync(cancellationToken);
 
             var job = new Job

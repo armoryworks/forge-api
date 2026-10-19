@@ -116,7 +116,8 @@ public sealed class TimerTestHarness
             userManager.Object,
             Jobs,
             Mock.Of<ICustomerRepository>(),
-            Mock.Of<ILogger<TimerStopService>>());
+            Mock.Of<ILogger<TimerStopService>>(),
+            new JobCostService(Db));
     }
 
     public async Task<ApplicationUser> AddUserAsync()

@@ -79,6 +79,21 @@ public class ReceiveBackSubcontractOperationTests
     }
 
     [Fact]
+    public async Task ReceiveBack_MoreThanWasSent_IsRefusedAndChangesNothing()
+    {
+        var (_, _, order) = await SeedAsync(withOperationRow: true);
+
+        var act = () => ReceiveAsync(order.Id, good: 9m, scrap: 2m);
+
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Single().ErrorMessage.Should().Contain("10");
+        var after = await _h.Timers.Db.SubcontractOrders.AsNoTracking().SingleAsync();
+        after.ReceivedAt.Should().BeNull();
+        after.ReceivedQuantity.Should().BeNull();
+        after.Status.Should().Be(SubcontractStatus.Sent);
+    }
+
+    [Fact]
     public async Task FullReceiveBack_CompletesTheStep()
     {
         var (_, _, order) = await SeedAsync(withOperationRow: true);

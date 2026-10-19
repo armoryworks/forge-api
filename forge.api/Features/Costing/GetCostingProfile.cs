@@ -31,7 +31,7 @@ public class GetCostingProfileHandler(AppDbContext db, IClock clock)
         if (profile is null)
             return new CostingProfileResponseModel("flat", []);
 
-        var rates = StandardCostRollupService.ParseDepartmentalRates(profile.DepartmentalRates)
+        var rates = CostingConversionPolicy.ParseDepartmentalRates(profile.DepartmentalRates)
             .Select(kv => new DepartmentalRateModel(kv.Key, kv.Value))
             .OrderBy(r => r.WorkCenterId)
             .ToList();

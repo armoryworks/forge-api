@@ -10,13 +10,13 @@ public record JobCostSummaryModel
     public decimal MaterialEstimated { get; init; }
     public decimal MaterialActual { get; init; }
     public decimal MaterialVariance => MaterialActual - MaterialEstimated;
-    public decimal MaterialVariancePercent => MaterialEstimated != 0 ? MaterialVariance / MaterialEstimated * 100 : 0;
+    public decimal? MaterialVariancePercent => MaterialEstimated != 0 ? MaterialVariance / MaterialEstimated * 100 : null;
 
     // Labor
     public decimal LaborEstimated { get; init; }
     public decimal LaborActual { get; init; }
     public decimal LaborVariance => LaborActual - LaborEstimated;
-    public decimal LaborVariancePercent => LaborEstimated != 0 ? LaborVariance / LaborEstimated * 100 : 0;
+    public decimal? LaborVariancePercent => LaborEstimated != 0 ? LaborVariance / LaborEstimated * 100 : null;
 
     // Burden
     public decimal BurdenEstimated { get; init; }
@@ -32,7 +32,7 @@ public record JobCostSummaryModel
     public decimal TotalEstimated => MaterialEstimated + LaborEstimated + BurdenEstimated + SubcontractEstimated;
     public decimal TotalActual => MaterialActual + LaborActual + BurdenActual + SubcontractActual;
     public decimal TotalVariance => TotalActual - TotalEstimated;
-    public decimal TotalVariancePercent => TotalEstimated != 0 ? TotalVariance / TotalEstimated * 100 : 0;
+    public decimal? TotalVariancePercent => TotalEstimated != 0 ? TotalVariance / TotalEstimated * 100 : null;
     public decimal ActualMargin => QuotedPrice - TotalActual;
-    public decimal ActualMarginPercent => QuotedPrice != 0 ? ActualMargin / QuotedPrice * 100 : 0;
+    public decimal? ActualMarginPercent => QuotedPrice != 0 ? ActualMargin / QuotedPrice * 100 : null;
 }

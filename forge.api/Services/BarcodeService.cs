@@ -50,11 +50,7 @@ public class BarcodeService(AppDbContext db, IHttpContextAccessor httpContextAcc
         // Internal codes get a uniqueness suffix on collision; a licensed GTIN stays exact — its
         // global uniqueness is guaranteed upstream by the parts.gtin unique index.
         if (identityType == BarcodeIdentityType.Internal)
-        {
-            var exists = await db.Barcodes.AnyAsync(b => b.Value == value, cancellationToken);
-            if (exists)
-                value = $"{value}-{entityId}";
-        }
+            value = await FreeValueAsync(value, entityId, cancellationToken);
 
         var barcode = new Barcode
         {
@@ -132,6 +128,14 @@ public class BarcodeService(AppDbContext db, IHttpContextAccessor httpContextAcc
         return barcode;
     }
 
+    private async Task<string> FreeValueAsync(string value, int entityId, CancellationToken cancellationToken)
+    {
+        var candidate = value;
+        for (var attempt = 1; await db.Barcodes.IgnoreQueryFilters().AnyAsync(b => b.Value == candidate, cancellationToken); attempt++)
+            candidate = attempt == 1 ? $"{value}-{entityId}" : $"{value}-{entityId}-{attempt}";
+        return candidate;
+    }
+
     public async Task<Barcode?> FindByValueAsync(string value, CancellationToken cancellationToken = default)
     {
         return await db.Barcodes
@@ -165,9 +169,8 @@ public class BarcodeService(AppDbContext db, IHttpContextAccessor httpContextAcc
             b => b.PartId == partId && b.IsActive && b.Source == BarcodeSource.System, cancellationToken);
         if (barcode is null)
         {
-            if (identity == BarcodeIdentityType.Internal
-                && await db.Barcodes.AnyAsync(b => b.Value == value, cancellationToken))
-                value = $"{value}-{partId}";
+            if (identity == BarcodeIdentityType.Internal)
+                value = await FreeValueAsync(value, partId, cancellationToken);
             db.Barcodes.Add(new Barcode
             {
                 Value = value,

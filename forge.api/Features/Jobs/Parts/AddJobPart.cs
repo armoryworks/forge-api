@@ -19,6 +19,7 @@ public class AddJobPartValidator : AbstractValidator<AddJobPartCommand>
     public AddJobPartValidator()
     {
         RuleFor(x => x.Quantity).GreaterThan(0).When(x => x.Quantity is not null);
+        RuleFor(x => x.Quantity).JobQuantityLimits();
     }
 }
 

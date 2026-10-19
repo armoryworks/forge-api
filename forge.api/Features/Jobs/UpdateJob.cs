@@ -45,6 +45,7 @@ public class UpdateJobCommandValidator : AbstractValidator<UpdateJobCommand>
             .Must((cmd, start) => !UpdateJobHandler.StartsAfterDue(start, cmd.DueDate))
             .WithMessage(UpdateJobHandler.StartAfterDueMessage);
         RuleFor(x => x.Quantity).GreaterThan(0).When(x => x.Quantity is not null);
+        RuleFor(x => x.Quantity).JobQuantityLimits();
     }
 }
 

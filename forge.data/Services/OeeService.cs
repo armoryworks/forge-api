@@ -74,6 +74,7 @@ public class OeeService(AppDbContext db) : IOeeService
             Availability = Math.Round(availability, 4),
             Performance = Math.Round(performance, 4),
             Quality = Math.Round(quality, 4),
+            HasProduction = runs.Count > 0,
         };
     }
 

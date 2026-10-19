@@ -88,7 +88,7 @@ public class ApproveBulkSuggestionsHandler(
                         Priority: JobPriority.Normal,
                         DueDate: now.AddDays(leadTimeDays),
                         PartId: s.PartId,
-                        Quantity: s.SuggestedQuantity), cancellationToken);
+                        Quantity: JobQuantityRules.Fit(s.SuggestedQuantity)), cancellationToken);
 
                     createdJobIds.Add(job.Id);
                     createdJobNumbers.Add(job.JobNumber);

@@ -1,4 +1,7 @@
+using System.Globalization;
+
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -41,6 +44,8 @@ public class ReceiveBackSubcontractHandler(
     IBackflushService? backflush = null)
     : IRequestHandler<ReceiveBackSubcontractCommand, SubcontractOrderResponseModel>
 {
+    public const string OverReceiveMessage = "Good plus scrap can't be more than the {0:0.####} sent to the vendor.";
+
     public async Task<SubcontractOrderResponseModel> Handle(ReceiveBackSubcontractCommand request, CancellationToken ct)
     {
         var order = await db.SubcontractOrders
@@ -52,6 +57,13 @@ public class ReceiveBackSubcontractHandler(
 
         if (order.ReceivedAt.HasValue || order.Status is SubcontractStatus.Complete or SubcontractStatus.Rejected)
             throw new InvalidOperationException("This subcontract order has already been received back.");
+
+        if (request.Data.ReceivedQuantity + request.Data.ScrapQuantity > order.Quantity)
+            throw new ValidationException(
+            [
+                new ValidationFailure(nameof(ReceiveBackRequestModel.ReceivedQuantity),
+                    string.Format(CultureInfo.InvariantCulture, OverReceiveMessage, order.Quantity)),
+            ]);
 
         var row = request.Data.PassedInspection
             ? await FindOrCreateOperationRowAsync(order, ct)
