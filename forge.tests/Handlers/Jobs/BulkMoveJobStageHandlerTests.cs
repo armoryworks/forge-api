@@ -48,9 +48,9 @@ public class BulkMoveJobStageHandlerTests
     private static List<JobStage> ProductionTailStages(int trackTypeId) =>
     [
         new JobStage { Id = 7, TrackTypeId = trackTypeId, Name = "QC/Review", SortOrder = 7 },
-        new JobStage { Id = 8, TrackTypeId = trackTypeId, Name = "Shipped", SortOrder = 8, IsMandatory = true },
-        new JobStage { Id = 9, TrackTypeId = trackTypeId, Name = "Invoiced/Sent", SortOrder = 9, IsMandatory = true, IsIrreversible = true },
-        new JobStage { Id = 10, TrackTypeId = trackTypeId, Name = "Payment Received", SortOrder = 10, IsIrreversible = true },
+        new JobStage { Id = 8, TrackTypeId = trackTypeId, Name = "Shipped", SortOrder = 8, IsMandatory = true, AccountingDocumentType = AccountingDocumentType.Invoice },
+        new JobStage { Id = 9, TrackTypeId = trackTypeId, Name = "Invoiced/Sent", SortOrder = 9, IsMandatory = true, IsIrreversible = true, AccountingDocumentType = AccountingDocumentType.Invoice },
+        new JobStage { Id = 10, TrackTypeId = trackTypeId, Name = "Payment Received", SortOrder = 10, IsIrreversible = true, AccountingDocumentType = AccountingDocumentType.Payment },
     ];
 
     private static Job JobAt(int id, List<JobStage> stages, int stageId, int trackTypeId = 1) => new()
@@ -152,6 +152,42 @@ public class BulkMoveJobStageHandlerTests
 
         result.SuccessCount.Should().Be(0);
         result.Errors.Single().Message.Should().Contain("non-conformance");
+        job.CurrentStageId.Should().Be(9);
+    }
+
+    [Fact]
+    public async Task Handle_MoveToShippedWithOpenNcr_ReportsPerJobError()
+    {
+        var stages = ProductionTailStages(1);
+        var blocked = JobAt(1, stages, stageId: 7);
+        var clean = JobAt(2, stages, stageId: 7);
+        Setup(stages, 8, blocked, clean);
+
+        _db.NonConformances.Add(new NonConformance { JobId = 1, PartId = 1, DetectedById = 1, Status = NcrStatus.Open });
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new BulkMoveJobStageCommand([1, 2], 8), CancellationToken.None);
+
+        result.SuccessCount.Should().Be(1);
+        result.Errors.Single().JobId.Should().Be(1);
+        result.Errors.Single().Message.Should().Contain("non-conformance");
+        blocked.CurrentStageId.Should().Be(7);
+        clean.CurrentStageId.Should().Be(8);
+    }
+
+    [Fact]
+    public async Task Handle_MoveFromShippedToInvoicedWithOpenNcr_MovesJob()
+    {
+        var stages = ProductionTailStages(1);
+        var job = JobAt(1, stages, stageId: 8);
+        Setup(stages, 9, job);
+
+        _db.NonConformances.Add(new NonConformance { JobId = 1, PartId = 1, DetectedById = 1, Status = NcrStatus.Open });
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new BulkMoveJobStageCommand([1], 9), CancellationToken.None);
+
+        result.SuccessCount.Should().Be(1);
         job.CurrentStageId.Should().Be(9);
     }
 

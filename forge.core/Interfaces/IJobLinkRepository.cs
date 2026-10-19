@@ -10,6 +10,7 @@ public interface IJobLinkRepository
     Task<JobLink?> FindAsync(int linkId, CancellationToken ct);
     Task<bool> JobExistsAsync(int jobId, CancellationToken ct);
     Task<bool> LinkExistsAsync(int sourceJobId, int targetJobId, JobLinkType linkType, CancellationToken ct);
+    Task<JobLink?> FindTwinAsync(JobLink link, CancellationToken ct);
     Task AddAsync(JobLink link, CancellationToken ct);
     Task RemoveAsync(JobLink link, CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);

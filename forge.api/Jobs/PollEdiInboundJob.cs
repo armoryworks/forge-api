@@ -39,6 +39,19 @@ public class PollEdiInboundJob(
                     }
 
                     await db.SaveChangesAsync(ct);
+
+                    foreach (var transaction in transactions.Where(t => t.TransactionSet == "850"))
+                    {
+                        try
+                        {
+                            await ediService.ProcessTransactionAsync(transaction.Id, ct);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(ex, "EDI processing failed for transaction {TransactionId} from partner {Partner}",
+                                transaction.Id, partner.Name);
+                        }
+                    }
                 }
             }
             catch (Exception ex)

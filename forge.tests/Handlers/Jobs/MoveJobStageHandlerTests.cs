@@ -107,9 +107,9 @@ public class MoveJobStageHandlerTests
     private static List<JobStage> ProductionTailStages(int trackTypeId) =>
     [
         new JobStage { Id = 7, TrackTypeId = trackTypeId, Name = "QC/Review", SortOrder = 7 },
-        new JobStage { Id = 8, TrackTypeId = trackTypeId, Name = "Shipped", SortOrder = 8, IsMandatory = true },
-        new JobStage { Id = 9, TrackTypeId = trackTypeId, Name = "Invoiced/Sent", SortOrder = 9, IsMandatory = true, IsIrreversible = true },
-        new JobStage { Id = 10, TrackTypeId = trackTypeId, Name = "Payment Received", SortOrder = 10, IsIrreversible = true },
+        new JobStage { Id = 8, TrackTypeId = trackTypeId, Name = "Shipped", SortOrder = 8, IsMandatory = true, AccountingDocumentType = AccountingDocumentType.Invoice },
+        new JobStage { Id = 9, TrackTypeId = trackTypeId, Name = "Invoiced/Sent", SortOrder = 9, IsMandatory = true, IsIrreversible = true, AccountingDocumentType = AccountingDocumentType.Invoice },
+        new JobStage { Id = 10, TrackTypeId = trackTypeId, Name = "Payment Received", SortOrder = 10, IsIrreversible = true, AccountingDocumentType = AccountingDocumentType.Payment },
     ];
 
     private void SetupStages(int trackTypeId, List<JobStage> stages)
@@ -210,6 +210,40 @@ public class MoveJobStageHandlerTests
         var ex = await act.Should().ThrowAsync<InvalidOperationException>();
         ex.Which.Message.Should().Contain("non-conformance");
         job.CurrentStageId.Should().Be(9);
+    }
+
+    [Fact]
+    public async Task Handle_MoveToShippedWithOpenNcr_Throws()
+    {
+        var job = new Job { Id = 1, JobNumber = "JOB-0001", TrackTypeId = 1, CurrentStageId = 7 };
+        _jobRepo.Setup(r => r.FindAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(job);
+        SetupStages(1, ProductionTailStages(1));
+
+        _db.NonConformances.Add(new NonConformance { JobId = 1, PartId = 1, DetectedById = 1, Status = NcrStatus.Open });
+        await _db.SaveChangesAsync();
+
+        var act = () => _handler.Handle(new MoveJobStageCommand(1, 8), CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.Which.Message.Should().Contain("non-conformance");
+        job.CurrentStageId.Should().Be(7);
+    }
+
+    [Fact]
+    public async Task Handle_MoveFromShippedToInvoicedWithOpenNcr_Succeeds()
+    {
+        var job = new Job { Id = 1, JobNumber = "JOB-0001", TrackTypeId = 1, CurrentStageId = 8 };
+        _jobRepo.Setup(r => r.FindAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(job);
+        SetupStages(1, ProductionTailStages(1));
+        _jobRepo.Setup(r => r.GetMaxBoardPositionAsync(9, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        SetupJobResult(1);
+
+        _db.NonConformances.Add(new NonConformance { JobId = 1, PartId = 1, DetectedById = 1, Status = NcrStatus.Open });
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(new MoveJobStageCommand(1, 9), CancellationToken.None);
+
+        job.CurrentStageId.Should().Be(9, "an NCR raised after the goods shipped must not stop the invoice");
     }
 
     [Fact]

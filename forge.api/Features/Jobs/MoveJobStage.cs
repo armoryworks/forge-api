@@ -93,7 +93,7 @@ public class MoveJobStageHandler(
                     "Move the job through each mandatory stage in order.");
         }
 
-        if (movingToCompletion)
+        if (JobQualityGate.Applies(targetStage, previousStage, allStages))
         {
             var blockers = await JobQualityGate.FindBlockersAsync(db, [job.Id], cancellationToken);
             if (blockers.TryGetValue(job.Id, out var blocking))

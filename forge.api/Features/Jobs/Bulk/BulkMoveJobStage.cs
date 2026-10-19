@@ -37,10 +37,7 @@ public class BulkMoveJobStageHandler(
         // Guard context, loaded once for the batch (parity with MoveJobStageHandler,
         // per-job — no per-iteration queries).
         var allStages = await trackRepo.GetStagesByTrackTypeAsync(targetStage.TrackTypeId, ct);
-        var lastStage = allStages.OrderByDescending(s => s.SortOrder).FirstOrDefault();
-        var movingToCompletion = lastStage is not null && lastStage.Id == request.StageId;
-
-        var qualityBlockers = movingToCompletion
+        var qualityBlockers = jobs.Any(j => JobQualityGate.Applies(targetStage, j.CurrentStage, allStages))
             ? await JobQualityGate.FindBlockersAsync(db, jobs.Select(j => j.Id).ToList(), ct)
             : [];
 
@@ -49,7 +46,7 @@ public class BulkMoveJobStageHandler(
         foreach (var job in jobs)
         {
             var validationError = ValidateMove(
-                job, targetStage, allStages, movingToCompletion, qualityBlockers);
+                job, targetStage, allStages, qualityBlockers);
             if (validationError is not null)
             {
                 errors.Add(new BulkOperationError(job.Id, validationError));
@@ -101,14 +98,13 @@ public class BulkMoveJobStageHandler(
     /// <summary>
     /// Per-job move validation — full parity with MoveJobStageHandler: track
     /// type, hidden target status, irreversible backward guard, mandatory-skip guard, and the F-JQ1
-    /// NCR/QC gate on final-stage entry. Returns the error message for the
+    /// NCR/QC gate on entry into shipping or billing and on final-stage entry. Returns the error message for the
     /// per-item failure list, or null when the move is allowed.
     /// </summary>
     private static string? ValidateMove(
         Job job,
         JobStage targetStage,
         List<JobStage> allStages,
-        bool movingToCompletion,
         Dictionary<int, string> qualityBlockers)
     {
         if (job.TrackTypeId != targetStage.TrackTypeId)
@@ -146,7 +142,8 @@ public class BulkMoveJobStageHandler(
             }
         }
 
-        if (movingToCompletion && qualityBlockers.TryGetValue(job.Id, out var blocking))
+        if (JobQualityGate.Applies(targetStage, currentStage, allStages)
+            && qualityBlockers.TryGetValue(job.Id, out var blocking))
             return $"Job {job.JobNumber}: {JobQualityGate.BlockedMessage(blocking)}";
 
         return null;

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Quality;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -151,6 +152,8 @@ public class CreateShipmentHandler(
             }
         }
 
+        await EnsureJobsPassQualityAsync(shipment, cancellationToken);
+
         // Forge-issued, coverage-bound scan token for the printed label wrapper (master QR). Bound to
         // the exact line/qty coverage now that the lines are resolved, so the scan-to-ship gate can
         // verify the label belongs to this shipment's content. Always set — cheap, and useful on
@@ -178,6 +181,31 @@ public class CreateShipmentHandler(
             order.OrderNumber, order.Customer.Name, shipment.Status.ToString(),
             shipment.Carrier, shipment.TrackingNumber, shipment.ShippedDate,
             shipment.CreatedAt);
+    }
+
+    private async Task EnsureJobsPassQualityAsync(Shipment shipment, CancellationToken ct)
+    {
+        if (db is null) return;
+
+        var lineIds = shipment.Lines
+            .Where(l => l.SalesOrderLineId.HasValue)
+            .Select(l => l.SalesOrderLineId!.Value)
+            .Distinct()
+            .ToList();
+        if (lineIds.Count == 0) return;
+
+        var jobs = await db.Jobs
+            .AsNoTracking()
+            .Where(j => j.SalesOrderLineId != null && lineIds.Contains(j.SalesOrderLineId.Value) && !j.IsArchived)
+            .Select(j => new { j.Id, j.JobNumber })
+            .ToListAsync(ct);
+        if (jobs.Count == 0) return;
+
+        var blockers = await JobQualityGate.FindBlockersAsync(db, jobs.Select(j => j.Id).ToList(), ct);
+        var blocked = jobs.FirstOrDefault(j => blockers.ContainsKey(j.Id));
+        if (blocked is not null)
+            throw new InvalidOperationException(
+                $"Job {blocked.JobNumber}: {JobQualityGate.BlockedMessage(blockers[blocked.Id])}");
     }
 
     // Uses a caller-supplied shipment number when manual numbers are enabled and one

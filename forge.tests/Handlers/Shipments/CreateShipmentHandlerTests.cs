@@ -378,6 +378,38 @@ public class CreateShipmentHandlerTests
         saved!.ShippingAddressId.Should().BeNull();
     }
 
+    [Theory]
+    [InlineData(NcrStatus.Open, true)]
+    [InlineData(NcrStatus.Closed, false)]
+    public async Task Handle_LineWhoseJobHasAnUnresolvedNcr_IsNotShipped(NcrStatus ncrStatus, bool blocked)
+    {
+        await using var db = TestDbContextFactory.Create();
+        db.Jobs.Add(new Job { Id = 50, JobNumber = "JOB-0050", Title = "Widgets", TrackTypeId = 1, CurrentStageId = 7, SalesOrderLineId = 10 });
+        db.NonConformances.Add(new NonConformance { NcrNumber = "NCR-0050", JobId = 50, PartId = 1, DetectedById = 1, Status = ncrStatus });
+        await db.SaveChangesAsync();
+
+        var order = CreateConfirmedOrder(1, 10, 20);
+        _orderRepo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _shipmentRepo.Setup(r => r.GenerateNextShipmentNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("SHP-0001");
+        var handler = new CreateShipmentHandler(_shipmentRepo.Object, _orderRepo.Object, _mediator.Object, _httpContext.Object, db: db);
+
+        var act = () => handler.Handle(new CreateShipmentCommand(
+            1, null, null, null, null, null, null,
+            [new CreateShipmentLineModel(10, 5, null)]), CancellationToken.None);
+
+        if (blocked)
+        {
+            var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+            ex.Which.Message.Should().Contain("JOB-0050").And.Contain("NCR-0050");
+            _shipmentRepo.Verify(r => r.AddAsync(It.IsAny<Shipment>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+        else
+        {
+            await act.Should().NotThrowAsync();
+            _shipmentRepo.Verify(r => r.AddAsync(It.IsAny<Shipment>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+    }
+
     [Fact]
     public async Task Handle_RetailOrderAgainstHeldHouseAccount_StillShips()
     {

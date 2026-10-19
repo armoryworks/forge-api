@@ -251,6 +251,7 @@ public class JobsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("bulk/assign")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<BulkOperationResponseModel>> BulkAssign(BulkAssignJobCommand command)
     {
         var result = await mediator.Send(command);
@@ -258,6 +259,7 @@ public class JobsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("bulk/priority")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<BulkOperationResponseModel>> BulkSetPriority(BulkSetPriorityCommand command)
     {
         var result = await mediator.Send(command);
@@ -265,6 +267,7 @@ public class JobsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("bulk/archive")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<BulkOperationResponseModel>> BulkArchive(BulkArchiveJobsCommand command)
     {
         var result = await mediator.Send(command);
