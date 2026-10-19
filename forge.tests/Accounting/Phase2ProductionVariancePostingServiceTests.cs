@@ -368,4 +368,116 @@ public class Phase2ProductionVariancePostingServiceTests
             .CountAsync(e => e.IdempotencyKey == $"Inventory:Job:{JobId}:PRODVARIANCE")).Should().Be(1);
         (await WipByJobAsync(db)).Should().Be(0m);
     }
+
+    private static async Task AddTimeAsync(AppDbContext db, decimal labor, decimal burden)
+    {
+        db.Set<TimeEntry>().Add(new TimeEntry { JobId = JobId, UserId = 7, Date = EntryDate, DurationMinutes = 30, LaborCost = labor, BurdenCost = burden });
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task<int> AddReceivedRunAsync(AppDbContext db, decimal standardCost, int quantity)
+    {
+        var part = new Part { PartNumber = $"FG-{Guid.NewGuid():N}", Description = "x", InventoryClass = InventoryClass.FinishedGood, ProcurementSource = ProcurementSource.Make, ManualCostOverride = standardCost };
+        db.Set<Part>().Add(part);
+        await db.SaveChangesAsync();
+        var run = new ProductionRun
+        {
+            JobId = JobId, PartId = part.Id, RunNumber = $"RUN-{Guid.NewGuid():N}",
+            TargetQuantity = quantity, CompletedQuantity = quantity, ReceivedQuantity = quantity,
+            ReceivedToStockAt = DateTimeOffset.UtcNow, Status = ProductionRunStatus.Completed,
+        };
+        db.Set<ProductionRun>().Add(run);
+        await db.SaveChangesAsync();
+        return run.Id;
+    }
+
+    [Fact]
+    public async Task Receipt_AbsorbsConversionToDate_SoTheJobWipIsNotNegative()
+    {
+        using var db = await SeedAsync();
+        await PostMaterialToJobAsync(db, 30m);
+        await AddTimeAsync(db, labor: 50m, burden: 20m);
+        var runId = await AddReceivedRunAsync(db, standardCost: 100m, quantity: 1);
+        var receipt = new ProductionReceiptPostingService(db, Engine(db), new FakeCapabilities(true),
+            valuation: new InventoryValuationService(db), conversion: Service(db, fullGlOn: true));
+
+        await receipt.PostProductionReceiptAsync(runId, EntryDate, 7);
+
+        var absorb = await EntryByKeyAsync(db, $"Inventory:Job:{JobId}:WIPABSORB:Run:{runId}");
+        absorb!.Lines.Single(l => l.GlAccountId == WipId).Debit.Should().Be(70m);
+        absorb.Lines.Single(l => l.GlAccountId == LaborAppliedId).Credit.Should().Be(50m);
+        absorb.Lines.Single(l => l.GlAccountId == OhAppliedId).Credit.Should().Be(20m);
+        (await WipByJobAsync(db)).Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task Close_AfterReceiptAbsorption_AbsorbsOnlyTimeLoggedSince()
+    {
+        using var db = await SeedAsync();
+        await SeedJobAsync(db, materialIn: 30m, stdFgRelieved: 100m, labor: 50m, burden: 20m);
+        var service = Service(db, fullGlOn: true);
+        (await service.AbsorbConversionToDateAsync(JobId, productionRunId: 1, EntryDate, 7)).Should().Be(70m);
+        await AddTimeAsync(db, labor: 10m, burden: 5m);
+
+        var result = await service.CloseJobProductionCostAsync(JobId, EntryDate, 7);
+
+        var closeAbsorb = await EntryByKeyAsync(db, $"Inventory:Job:{JobId}:WIPABSORB");
+        closeAbsorb!.Lines.Single(l => l.GlAccountId == WipId).Debit.Should().Be(15m);
+        result.LaborAbsorbed.Should().Be(60m);
+        result.ProductionVariance.Should().Be(15m);
+        (await WipByJobAsync(db)).Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task ReceiptAbsorption_IsIdempotentPerRun_AndIncrementalAcrossRuns()
+    {
+        using var db = await SeedAsync();
+        await SeedJobAsync(db, materialIn: 30m, stdFgRelieved: 100m, labor: 50m, burden: 20m);
+        var service = Service(db, fullGlOn: true);
+
+        (await service.AbsorbConversionToDateAsync(JobId, productionRunId: 1, EntryDate, 7)).Should().Be(70m);
+        await AddTimeAsync(db, labor: 8m, burden: 2m);
+        (await service.AbsorbConversionToDateAsync(JobId, productionRunId: 1, EntryDate, 7)).Should().Be(0m);
+        (await service.AbsorbConversionToDateAsync(JobId, productionRunId: 2, EntryDate, 7)).Should().Be(10m);
+        (await service.AbsorbConversionToDateAsync(JobId, productionRunId: 3, EntryDate, 7)).Should().Be(0m);
+
+        (await EntryByKeyAsync(db, $"Inventory:Job:{JobId}:WIPABSORB:Run:3")).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ReceiptAfterAClose_AbsorbsOnlyTimeTheCloseDidNotCover()
+    {
+        using var db = await SeedAsync();
+        await SeedJobAsync(db, materialIn: 100m, stdFgRelieved: 130m, labor: 25m, burden: 15m);
+        var service = Service(db, fullGlOn: true);
+        await service.CloseJobProductionCostAsync(JobId, EntryDate, 7);
+        await AddTimeAsync(db, labor: 6m, burden: 4m);
+
+        var absorbed = await service.AbsorbConversionToDateAsync(JobId, productionRunId: 9, EntryDate, 7);
+
+        absorbed.Should().Be(10m);
+    }
+
+    [Fact]
+    public async Task ReceiptAbsorption_WhenFullGlOff_IsNoOp()
+    {
+        using var db = await SeedAsync();
+        await SeedJobAsync(db, materialIn: 30m, stdFgRelieved: 100m, labor: 50m, burden: 20m);
+
+        (await Service(db, fullGlOn: false).AbsorbConversionToDateAsync(JobId, 1, EntryDate, 7)).Should().Be(0m);
+
+        (await EntryByKeyAsync(db, $"Inventory:Job:{JobId}:WIPABSORB:Run:1")).Should().BeNull();
+    }
+
+    private static async Task PostMaterialToJobAsync(AppDbContext db, decimal amount)
+        => await Engine(db).PostAsync(new PostingRequest
+        {
+            BookId = BookId, EntryDate = EntryDate, Source = JournalSource.Inventory, CurrencyId = UsdId,
+            IdempotencyKey = $"mat-only:{JobId}",
+            Lines =
+            [
+                new PostingLine { AccountKey = "INVENTORY_WIP", Debit = amount, JobId = JobId },
+                new PostingLine { AccountKey = "INVENTORY_RAW", Credit = amount },
+            ],
+        }, 7);
 }

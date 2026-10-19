@@ -34,13 +34,15 @@ public sealed record JobProductionCostCloseResult(
 /// <summary>
 /// Phase-2 STAGE E — job-cost close / production-variance recognition (the labor-+-overhead-aware completion
 /// of the standard-costing loop). Material flows into GL WIP at issue and finished goods relieve WIP at
-/// standard, but labor + overhead are tracked operationally (time entries) and never hit GL WIP — so the
-/// standard FG relief over-relieves WIP by the conversion cost. This service closes a job's WIP in two steps,
-/// <b>both gated by CAP-ACCT-FULLGL and idempotent</b>:
+/// standard, but labor + overhead are tracked operationally (time entries) — so without absorption the standard
+/// FG relief over-relieves WIP by the conversion cost. Each production receipt first absorbs the conversion cost
+/// incurred so far (<see cref="IProductionVariancePostingService.AbsorbConversionToDateAsync"/>), so an open
+/// job's WIP does not go negative. This service closes a job's WIP in two steps, <b>both gated by
+/// CAP-ACCT-FULLGL and idempotent</b>:
 /// <list type="number">
-///   <item><b>Absorb</b> the job's actual labor + burden into WIP: Dr INVENTORY_WIP (Job dim) / Cr
-///         LABOR_APPLIED / Cr OVERHEAD_APPLIED. The applied accounts are contra-expense, netting against
-///         actual wages / overhead at period end (over/under-absorbed).</item>
+///   <item><b>Absorb</b> the job's actual labor + burden not yet absorbed by its receipts into WIP: Dr
+///         INVENTORY_WIP (Job dim) / Cr LABOR_APPLIED / Cr OVERHEAD_APPLIED. The applied accounts are
+///         contra-expense, netting against actual wages / overhead at period end (over/under-absorbed).</item>
 ///   <item><b>Sweep</b> the job's remaining GL WIP balance (read by the Job dimension on the WIP lines —
 ///         material in + labor/OH absorbed − standard FG relieved) to PRODUCTION_VARIANCE, zeroing the job's
 ///         WIP. A debit residual is unfavorable (actual &gt; standard, Dr variance); a credit residual is
@@ -60,6 +62,15 @@ public interface IProductionVariancePostingService
 {
     Task<JobProductionCostCloseResult> CloseJobProductionCostAsync(
         int jobId, DateOnly entryDate, int closedByUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Absorbs the job's labor, overhead and subcontract cost incurred so far, less what earlier receipts and
+    /// closes already absorbed, into WIP ahead of a production receipt (Dr INVENTORY_WIP / Cr *_APPLIED, posted
+    /// as the system principal). Returns the amount absorbed; zero while CAP-ACCT-FULLGL is off, when nothing
+    /// new has been incurred, or when the run was already absorbed.
+    /// </summary>
+    Task<decimal> AbsorbConversionToDateAsync(
+        int jobId, int productionRunId, DateOnly entryDate, int actingUserId, CancellationToken ct = default);
 }
 
 /// <inheritdoc />
@@ -108,34 +119,17 @@ public sealed class ProductionVariancePostingService(
         var subcontract = Math.Round(await jobCost.GetActualSubcontractCostAsync(jobId, ct), 2);
 
         // ── 1) Absorb labor (at ACTUAL cost) + overhead + subcontract into WIP (idempotent on the absorb key). ─
-        var absorbKey = $"{JournalSource.Inventory}:Job:{jobId}:WIPABSORB";
+        var absorbKey = AbsorbKey(jobId);
         var alreadyAbsorbed = await db.JournalEntries.IgnoreQueryFilters()
             .AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == absorbKey, ct);
-        if (!alreadyAbsorbed && laborActual + burden + subcontract > 0m)
+        if (!alreadyAbsorbed)
         {
-            var absorbLines = new List<PostingLine>
-            {
-                new() { AccountKey = KeyInventoryWip, Debit = laborActual + burden + subcontract, JobId = jobId, Description = $"WIP — absorb labor + overhead + subcontract (job {jobId})" },
-            };
-            if (laborActual > 0m)
-                absorbLines.Add(new PostingLine { AccountKey = KeyLaborApplied, Credit = laborActual, Description = $"Labor absorbed — job {jobId}" });
-            if (burden > 0m)
-                absorbLines.Add(new PostingLine { AccountKey = KeyOverheadApplied, Credit = burden, Description = $"Overhead absorbed — job {jobId}" });
-            if (subcontract > 0m)
-                absorbLines.Add(new PostingLine { AccountKey = KeySubcontractApplied, Credit = subcontract, Description = $"Subcontract absorbed — job {jobId}" });
-
-            await postingEngine.PostAsync(new PostingRequest
-            {
-                BookId = book.Id,
-                EntryDate = entryDate,
-                Source = JournalSource.Inventory,
-                SourceType = "Job",
-                SourceId = jobId,
-                CurrencyId = book.FunctionalCurrencyId,
-                Memo = $"WIP absorption — labor + overhead + subcontract, job {jobId}",
-                IdempotencyKey = absorbKey,
-                Lines = absorbLines,
-            }, closedByUserId, ct);
+            var absorbed = await AbsorbedToDateAsync(book.Id, jobId, ct);
+            var request = AbsorptionRequest(
+                book, jobId, absorbKey, entryDate,
+                Delta(laborActual, absorbed.Labor), Delta(burden, absorbed.Overhead), Delta(subcontract, absorbed.Subcontract));
+            if (request is not null)
+                await postingEngine.PostAsync(request, closedByUserId, ct);
         }
 
         // ── 2) Sweep the job's remaining GL WIP balance to PRODUCTION_VARIANCE (idempotent on the var key). ──
@@ -238,6 +232,121 @@ public sealed class ProductionVariancePostingService(
             LaborEfficiencyVariance = laborEff,
             OverheadEfficiencyVariance = ohEff,
             ProductionVarianceResidual = catchall,
+        };
+    }
+
+    public async Task<decimal> AbsorbConversionToDateAsync(
+        int jobId, int productionRunId, DateOnly entryDate, int actingUserId, CancellationToken ct = default)
+    {
+        if (!capabilities.IsEnabled(FullGlCapability))
+            return 0m;
+
+        var book = await db.Books.AsNoTracking()
+            .Where(b => b.IsActive).OrderBy(b => b.Id).FirstOrDefaultAsync(ct);
+        if (book is null)
+            return 0m;
+
+        var runKey = $"{AbsorbKey(jobId)}:Run:{productionRunId}";
+        if (await db.JournalEntries.IgnoreQueryFilters().AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == runKey, ct))
+            return 0m;
+
+        var laborActual = Math.Round(await jobCost.GetActualLaborCostAtActualRateAsync(jobId, ct), 2);
+        var burden = Math.Round(await jobCost.GetActualBurdenCostAsync(jobId, ct), 2);
+        var subcontract = Math.Round(await jobCost.GetActualSubcontractCostAsync(jobId, ct), 2);
+        var absorbed = await AbsorbedToDateAsync(book.Id, jobId, ct);
+        var labor = Delta(laborActual, absorbed.Labor);
+        var overhead = Delta(burden, absorbed.Overhead);
+        var sub = Delta(subcontract, absorbed.Subcontract);
+
+        var request = AbsorptionRequest(book, jobId, runKey, entryDate, labor, overhead, sub);
+        if (request is null)
+            return 0m;
+
+        var neededKeys = request.Lines.Select(l => l.AccountKey).Distinct().ToList();
+        var mappedKeys = await db.Set<AccountDeterminationRule>().AsNoTracking()
+            .Where(r => r.BookId == book.Id && neededKeys.Contains(r.Key))
+            .Select(r => r.Key)
+            .Distinct()
+            .CountAsync(ct);
+        if (mappedKeys < neededKeys.Count)
+        {
+            Log.Warning(
+                "Receipt-time WIP absorption skipped for job {JobId} run {RunId}: book {BookId} is missing a determination rule for {Keys}.",
+                jobId, productionRunId, book.Id, string.Join(", ", neededKeys));
+            return 0m;
+        }
+
+        await postingEngine.PostAsSystemAsync(request, actingUserId, ct);
+        return labor + overhead + sub;
+    }
+
+    private static string AbsorbKey(int jobId) => $"{JournalSource.Inventory}:Job:{jobId}:WIPABSORB";
+
+    private static decimal Delta(decimal toDate, decimal absorbed) => Math.Max(0m, Math.Round(toDate - absorbed, 2));
+
+    /// <summary>What the job's receipts and close have already absorbed into WIP, per applied account: the
+    /// posted credits on LABOR_APPLIED / OVERHEAD_APPLIED / SUBCONTRACT_APPLIED under the job's absorb key and its
+    /// per-run keys.</summary>
+    private async Task<(decimal Labor, decimal Overhead, decimal Subcontract)> AbsorbedToDateAsync(
+        int bookId, int jobId, CancellationToken ct)
+    {
+        var key = AbsorbKey(jobId);
+        var runPrefix = $"{key}:";
+        var accounts = await db.Set<AccountDeterminationRule>().AsNoTracking()
+            .Where(r => r.BookId == bookId
+                && (r.Key == KeyLaborApplied || r.Key == KeyOverheadApplied || r.Key == KeySubcontractApplied))
+            .Select(r => new { r.Key, r.GlAccountId })
+            .ToListAsync(ct);
+        var accountIds = accounts.Select(a => a.GlAccountId).ToList();
+
+        var credits = await
+            (from line in db.JournalLines.IgnoreQueryFilters()
+             join je in db.JournalEntries.IgnoreQueryFilters() on line.JournalEntryId equals je.Id
+             where je.BookId == bookId
+                 && je.Status == JournalEntryStatus.Posted
+                 && je.IdempotencyKey != null
+                 && (je.IdempotencyKey == key || je.IdempotencyKey.StartsWith(runPrefix))
+                 && accountIds.Contains(line.GlAccountId)
+             group line by line.GlAccountId into g
+             select new { GlAccountId = g.Key, Amount = g.Sum(l => l.Credit - l.Debit) })
+            .ToListAsync(ct);
+
+        decimal SumFor(string accountKey) => credits
+            .Where(c => accounts.Any(a => a.Key == accountKey && a.GlAccountId == c.GlAccountId))
+            .Sum(c => c.Amount);
+
+        return (SumFor(KeyLaborApplied), SumFor(KeyOverheadApplied), SumFor(KeySubcontractApplied));
+    }
+
+    private static PostingRequest? AbsorptionRequest(
+        Book book, int jobId, string idempotencyKey, DateOnly entryDate, decimal labor, decimal overhead, decimal subcontract)
+    {
+        var total = labor + overhead + subcontract;
+        if (total <= 0m)
+            return null;
+
+        var lines = new List<PostingLine>
+        {
+            new() { AccountKey = KeyInventoryWip, Debit = total, JobId = jobId, Description = $"WIP — absorb labor + overhead + subcontract (job {jobId})" },
+        };
+        if (labor > 0m)
+            lines.Add(new PostingLine { AccountKey = KeyLaborApplied, Credit = labor, Description = $"Labor absorbed — job {jobId}" });
+        if (overhead > 0m)
+            lines.Add(new PostingLine { AccountKey = KeyOverheadApplied, Credit = overhead, Description = $"Overhead absorbed — job {jobId}" });
+        if (subcontract > 0m)
+            lines.Add(new PostingLine { AccountKey = KeySubcontractApplied, Credit = subcontract, Description = $"Subcontract absorbed — job {jobId}" });
+
+        return new PostingRequest
+        {
+            BookId = book.Id,
+            EntryDate = entryDate,
+            Source = JournalSource.Inventory,
+            SourceType = "Job",
+            SourceId = jobId,
+            CurrencyId = book.FunctionalCurrencyId,
+            Memo = $"WIP absorption — labor + overhead + subcontract, job {jobId}",
+            IdempotencyKey = idempotencyKey,
+            Lines = lines,
         };
     }
 
