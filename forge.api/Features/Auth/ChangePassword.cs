@@ -1,4 +1,5 @@
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 
@@ -22,7 +23,11 @@ public class ChangePasswordValidator : AbstractValidator<ChangePasswordCommand>
 
         RuleFor(x => x.NewPassword)
             .NotEmpty().WithMessage("New password is required.")
-            .MinimumLength(8).WithMessage("New password must be at least 8 characters.");
+            .MinimumLength(8).WithMessage("New password must be at least 8 characters.")
+            .Matches("[A-Z]").WithMessage("New password must contain an uppercase letter.")
+            .Matches("[a-z]").WithMessage("New password must contain a lowercase letter.")
+            .Matches("[0-9]").WithMessage("New password must contain a digit.")
+            .NotEqual(x => x.CurrentPassword).WithMessage("New password must be different from the current password.");
     }
 }
 
@@ -40,15 +45,15 @@ public class ChangePasswordHandler(
         var isCurrentValid = await userManager.CheckPasswordAsync(user, request.CurrentPassword);
 
         if (!isCurrentValid)
-            throw new UnauthorizedAccessException("Current password is incorrect");
+            throw new ValidationException([
+                new ValidationFailure(nameof(request.CurrentPassword), "Current password is incorrect."),
+            ]);
 
         var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
 
         if (!result.Succeeded)
-        {
-            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"Password change failed: {errors}");
-        }
+            throw new ValidationException(result.Errors
+                .Select(e => new ValidationFailure(nameof(request.NewPassword), e.Description)));
 
         user.UpdatedAt = DateTimeOffset.UtcNow;
         await userManager.UpdateAsync(user);
