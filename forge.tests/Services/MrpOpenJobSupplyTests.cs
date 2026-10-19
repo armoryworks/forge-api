@@ -813,4 +813,35 @@ public class MrpOpenJobSupplyTests
         supply.PartId.Should().Be(subassembly.Id);
         supply.Quantity.Should().Be(20);
     }
+
+    [Fact]
+    public async Task ReworkJobForACustomerReturn_IsNotSupply_AndDrawsNoComponents()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        var component = await SeedComponentAsync(db, part.Id, perUnit: 2m);
+        var customer = new Customer { Name = "Returning customer" };
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        var original = NewJob(part.Id, "J-ORIG", jobPartQuantity: 40m);
+        original.CompletedDate = Now.AddDays(-20);
+        var rework = NewJob(part.Id, "J-REWORK", jobPartQuantity: 5m);
+        rework.DueDate = Now.AddDays(10);
+        db.Jobs.AddRange(original, rework);
+        await db.SaveChangesAsync();
+        db.CustomerReturns.Add(new CustomerReturn
+        {
+            ReturnNumber = "RMA-00001", CustomerId = customer.Id, OriginalJobId = original.Id,
+            ReworkJobId = rework.Id, Reason = "Cracked", ReturnDate = Now, Quantity = 5m,
+            Status = CustomerReturnStatus.ReworkOrdered,
+        });
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().BeEmpty();
+        (await db.MrpDemands.Where(d => d.MrpRunId == run.Id && d.PartId == component.Id).ToListAsync())
+            .Should().BeEmpty();
+    }
 }

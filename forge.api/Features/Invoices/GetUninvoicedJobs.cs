@@ -28,6 +28,7 @@ public class GetUninvoicedJobsHandler(AppDbContext db)
                 .ThenInclude(sol => sol!.SalesOrder)
                     .ThenInclude(so => so.Invoices)
             .Where(j => j.CompletedDate != null && !j.IsArchived)
+            .Where(j => !db.CustomerReturns.Any(r => r.ReworkJobId == j.Id))
             .Where(j =>
                 // No sales order line at all (direct job, never linked)
                 j.SalesOrderLineId == null ||
