@@ -52,7 +52,10 @@ public class CustomerPortalSessionTests
 
         (await portal.GetAsync("/api/v1/portal/me")).StatusCode.Should().Be(HttpStatusCode.OK);
         (await portal.GetAsync("/api/v1/portal/me/dashboard")).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await portal.GetAsync("/api/v1/portal/me/quotes")).StatusCode.Should().Be(HttpStatusCode.OK);
+        var quotes = await portal.GetAsync("/api/v1/portal/me/quotes");
+        quotes.StatusCode.Should().Be(HttpStatusCode.OK);
+        quotes.Headers.GetValues("X-Total-Count").Should().Equal("1");
+        (await quotes.Content.ReadFromJsonAsync<JsonElement>()).GetArrayLength().Should().Be(1);
 
         var respond = await portal.PostAsJsonAsync(
             $"/api/v1/portal/me/quotes/{seeded.QuoteId}/respond", new { accepted = true });

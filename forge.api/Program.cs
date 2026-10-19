@@ -32,6 +32,7 @@ using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
 using Forge.Api.Features.Admin;
 using Forge.Api.Features.AutoPo;
+using Forge.Api.Features.CustomerPortal;
 using Forge.Api.Features.Terminology;
 using Forge.Api.Jobs;
 using QuestPDF.Infrastructure;
@@ -1329,7 +1330,8 @@ try
             policy.WithOrigins(corsOrigins.ToArray())
                 .AllowAnyHeader()
                 .AllowAnyMethod()
-                .AllowCredentials();
+                .AllowCredentials()
+                .WithExposedHeaders(PortalReadRules.TotalCountHeader);
         });
     });
 
@@ -1416,6 +1418,8 @@ try
                     QueueLimit = 0,
                 });
         });
+        options.AddPolicy(PortalAuthRateLimit.PolicyName, ctx =>
+            PortalAuthRateLimit.Partition(ctx, builder.Environment.IsDevelopment()));
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     });
 

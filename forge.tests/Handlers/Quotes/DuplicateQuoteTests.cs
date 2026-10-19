@@ -235,7 +235,7 @@ public class DuplicateQuoteTests
 
         var whileDraft = await portalHandler
             .Handle(new Forge.Api.Features.CustomerPortal.GetPortalQuotesQuery(2), CancellationToken.None);
-        whileDraft.Should().BeEmpty();
+        whileDraft.Items.Should().BeEmpty();
 
         var stored = await _db.Quotes.FindAsync(revision.Id);
         stored!.Status = QuoteStatus.Sent;
@@ -244,6 +244,6 @@ public class DuplicateQuoteTests
         var portal = await portalHandler
             .Handle(new Forge.Api.Features.CustomerPortal.GetPortalQuotesQuery(2), CancellationToken.None);
 
-        portal.Select(q => q.Id).Should().Equal(revision.Id);
+        portal.Items.Select(q => q.Id).Should().Equal(revision.Id);
     }
 }

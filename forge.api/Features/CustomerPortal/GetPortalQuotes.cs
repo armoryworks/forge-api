@@ -8,24 +8,26 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.CustomerPortal;
 
-public record GetPortalQuotesQuery(int CustomerId) : IRequest<List<PortalQuoteListItem>>;
+public record GetPortalQuotesQuery(int CustomerId) : IRequest<PortalList<PortalQuoteListItem>>;
 
 public class GetPortalQuotesHandler(AppDbContext db, IClock clock)
-    : IRequestHandler<GetPortalQuotesQuery, List<PortalQuoteListItem>>
+    : IRequestHandler<GetPortalQuotesQuery, PortalList<PortalQuoteListItem>>
 {
-    public async Task<List<PortalQuoteListItem>> Handle(GetPortalQuotesQuery request, CancellationToken ct)
+    public async Task<PortalList<PortalQuoteListItem>> Handle(GetPortalQuotesQuery request, CancellationToken ct)
     {
-        var quotes = await db.Quotes.AsNoTracking()
-            .Include(q => q.Lines)
+        var scope = db.Quotes.AsNoTracking()
             .Where(q => q.CustomerId == request.CustomerId && q.Status != QuoteStatus.Superseded
-                && q.Status != QuoteStatus.Draft)
+                && q.Status != QuoteStatus.Draft);
+        var quotes = await scope
+            .Include(q => q.Lines)
             .OrderByDescending(q => q.CreatedAt)
-            .Take(200)
+            .Take(PortalReadRules.ListCap)
             .ToListAsync(ct);
+        var totalCount = await PortalReadRules.TotalCountAsync(scope, quotes.Count, ct);
         var validFrom = await PortalReadRules.QuoteValidFromAsync(db, clock, ct);
-        var currencyCode = await PortalReadRules.FunctionalCurrencyCodeAsync(db, ct);
+        var currencyCode = await PortalReadRules.CustomerCurrencyCodeAsync(db, request.CustomerId, ct);
 
-        return quotes.Select(q => new PortalQuoteListItem(
+        return new(quotes.Select(q => new PortalQuoteListItem(
             Id: q.Id,
             QuoteNumber: q.QuoteNumber ?? $"#{q.Id}",
             QuoteType: q.Type.ToString(),
@@ -35,6 +37,6 @@ public class GetPortalQuotesHandler(AppDbContext db, IClock clock)
             QuoteDate: q.SentDate ?? q.CreatedAt,
             ExpiresAt: q.ExpirationDate,
             Total: q.EstimatedAmount ?? q.Total,
-            CurrencyCode: currencyCode)).ToList();
+            CurrencyCode: currencyCode)).ToList(), totalCount);
     }
 }

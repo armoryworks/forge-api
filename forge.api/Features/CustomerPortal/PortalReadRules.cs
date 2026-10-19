@@ -12,11 +12,19 @@ namespace Forge.Api.Features.CustomerPortal;
 /// expires; otherwise it stays valid through the whole of its expiration
 /// day in the shop's time zone (the same date rule as
 /// <see cref="ClockStateRules.IsOverdue"/>). Orders and quotes carry no
-/// currency of their own, so they are labelled with the active book's
-/// functional currency — the currency CreateInvoice gives a new invoice.
+/// currency of their own, so they are labelled with the customer's
+/// DefaultCurrency, else the active book's functional currency — the
+/// currency CreateInvoice gives a new invoice.
 /// </summary>
 public static class PortalReadRules
 {
+    public const int ListCap = 200;
+
+    public const string TotalCountHeader = "X-Total-Count";
+
+    public static async Task<int> TotalCountAsync<T>(IQueryable<T> scope, int fetched, CancellationToken ct)
+        => fetched < ListCap ? fetched : await scope.CountAsync(ct);
+
     public static async Task<DateTimeOffset> QuoteValidFromAsync(AppDbContext db, IClock clock, CancellationToken ct)
     {
         var shopZone = await ClockStateRules.ShopTimeZoneAsync(db, ct);
@@ -25,6 +33,18 @@ public static class PortalReadRules
 
     public static bool IsExpired(DateTimeOffset? expirationDate, DateTimeOffset validFrom)
         => expirationDate.HasValue && expirationDate.Value < validFrom;
+
+    public static async Task<string?> CustomerCurrencyCodeAsync(AppDbContext db, int customerId, CancellationToken ct)
+    {
+        var customerDefault = await db.Customers.AsNoTracking()
+            .Where(c => c.Id == customerId)
+            .Select(c => c.DefaultCurrency)
+            .FirstOrDefaultAsync(ct);
+
+        return string.IsNullOrWhiteSpace(customerDefault)
+            ? await FunctionalCurrencyCodeAsync(db, ct)
+            : customerDefault.Trim().ToUpperInvariant();
+    }
 
     public static async Task<string?> FunctionalCurrencyCodeAsync(AppDbContext db, CancellationToken ct)
     {
@@ -40,3 +60,5 @@ public static class PortalReadRules
             .FirstOrDefaultAsync(ct);
     }
 }
+
+public record PortalList<T>(List<T> Items, int TotalCount);

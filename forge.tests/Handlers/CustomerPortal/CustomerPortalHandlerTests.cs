@@ -195,8 +195,8 @@ public class CustomerPortalHandlerTests
             NewInvoice(customerId, "INV-VOID", InvoiceStatus.Voided, 1, 40m));
         await _db.SaveChangesAsync();
 
-        var rows = await new GetPortalInvoicesHandler(_db, _accounting.Object)
-            .Handle(new GetPortalInvoicesQuery(customerId), CancellationToken.None);
+        var rows = (await new GetPortalInvoicesHandler(_db, _accounting.Object)
+            .Handle(new GetPortalInvoicesQuery(customerId), CancellationToken.None)).Items;
 
         rows.Select(r => r.InvoiceNumber).Should().BeEquivalentTo(["INV-SENT", "INV-VOID"]);
         rows.Single(r => r.InvoiceNumber == "INV-VOID").Balance.Should().Be(0m);
@@ -214,7 +214,58 @@ public class CustomerPortalHandlerTests
         var rows = await new GetPortalSalesOrdersHandler(_db)
             .Handle(new GetPortalSalesOrdersQuery(customerId), CancellationToken.None);
 
-        rows.Should().ContainSingle().Which.CurrencyCode.Should().Be("CAD");
+        rows.Items.Should().ContainSingle().Which.CurrencyCode.Should().Be("CAD");
+        rows.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Portal_orders_and_quotes_use_the_customer_default_currency_when_set()
+    {
+        var (customerId, _) = await SeedCustomerWithBookAsync();
+        (await _db.Customers.SingleAsync(c => c.Id == customerId)).DefaultCurrency = "usd";
+        _db.SalesOrders.Add(new SalesOrder { CustomerId = customerId, OrderNumber = "SO-1", Status = SalesOrderStatus.Confirmed });
+        await _db.SaveChangesAsync();
+        await SeedQuoteAsync(customerId, "Q-OPEN", QuoteStatus.Sent, null);
+
+        var orders = await new GetPortalSalesOrdersHandler(_db)
+            .Handle(new GetPortalSalesOrdersQuery(customerId), CancellationToken.None);
+        var quotes = await new GetPortalQuotesHandler(_db, _clock.Object)
+            .Handle(new GetPortalQuotesQuery(customerId), CancellationToken.None);
+
+        orders.Items.Should().ContainSingle().Which.CurrencyCode.Should().Be("USD");
+        quotes.Items.Should().ContainSingle().Which.CurrencyCode.Should().Be("USD");
+    }
+
+    [Fact]
+    public async Task Portal_invoices_read_the_canonical_paid_amount_and_balance()
+    {
+        var (customerId, _) = await SeedCustomerWithBookAsync();
+        var invoice = NewInvoice(customerId, "INV-PART", InvoiceStatus.PartiallyPaid, 1, 100m);
+        _db.Invoices.Add(invoice);
+        await _db.SaveChangesAsync();
+        _db.PaymentApplications.Add(new PaymentApplication { InvoiceId = invoice.Id, PaymentId = 1, Amount = 30m });
+        await _db.SaveChangesAsync();
+
+        var row = (await new GetPortalInvoicesHandler(_db, _accounting.Object)
+            .Handle(new GetPortalInvoicesQuery(customerId), CancellationToken.None)).Items.Single();
+
+        row.AmountPaid.Should().Be(30m);
+        row.Balance.Should().Be(70m);
+    }
+
+    [Fact]
+    public async Task A_full_list_reports_the_total_beyond_the_cap()
+    {
+        var (customerId, _) = await SeedCustomerWithBookAsync();
+        for (var n = 0; n < PortalReadRules.ListCap + 5; n++)
+            _db.SalesOrders.Add(new SalesOrder { CustomerId = customerId, OrderNumber = $"SO-{n}", Status = SalesOrderStatus.Confirmed });
+        await _db.SaveChangesAsync();
+
+        var rows = await new GetPortalSalesOrdersHandler(_db)
+            .Handle(new GetPortalSalesOrdersQuery(customerId), CancellationToken.None);
+
+        rows.Items.Should().HaveCount(PortalReadRules.ListCap);
+        rows.TotalCount.Should().Be(PortalReadRules.ListCap + 5);
     }
 
     private async Task<int> SeedQuoteAsync(int customerId, string number, QuoteStatus status, DateTimeOffset? expires)
@@ -241,8 +292,8 @@ public class CustomerPortalHandlerTests
         await SeedQuoteAsync(customerId, "Q-TODAY", QuoteStatus.Sent, new DateTimeOffset(2026, 10, 19, 0, 0, 0, TimeSpan.Zero));
         await SeedQuoteAsync(customerId, "Q-PAST", QuoteStatus.Sent, new DateTimeOffset(2026, 10, 18, 0, 0, 0, TimeSpan.Zero));
 
-        var rows = await new GetPortalQuotesHandler(_db, _clock.Object)
-            .Handle(new GetPortalQuotesQuery(customerId), CancellationToken.None);
+        var rows = (await new GetPortalQuotesHandler(_db, _clock.Object)
+            .Handle(new GetPortalQuotesQuery(customerId), CancellationToken.None)).Items;
 
         rows.Select(r => r.QuoteNumber).Should().BeEquivalentTo(["Q-OPEN", "Q-TODAY", "Q-PAST"]);
         rows.Single(r => r.QuoteNumber == "Q-OPEN").Status.Should().Be("Sent");
@@ -263,6 +314,36 @@ public class CustomerPortalHandlerTests
 
         (await act.Should().ThrowAsync<InvalidOperationException>()).WithMessage("*Q-PAST*");
         (await _db.Quotes.AsNoTracking().SingleAsync(q => q.Id == id)).Status.Should().Be(QuoteStatus.Sent);
+    }
+
+    [Fact]
+    public async Task An_expired_quote_can_still_be_declined_and_the_response_is_logged_on_the_quote()
+    {
+        var (customerId, _) = await SeedCustomerWithBookAsync();
+        await UseShopTimeZoneAsync("America/Denver");
+        var contact = new Contact { CustomerId = customerId, FirstName = "Pat", LastName = "Buyer" };
+        _db.Contacts.Add(contact);
+        await _db.SaveChangesAsync();
+        var id = await SeedQuoteAsync(customerId, "Q-PAST", QuoteStatus.Sent, new DateTimeOffset(2026, 10, 18, 0, 0, 0, TimeSpan.Zero));
+
+        await new RespondToQuoteHandler(_db, _clock.Object)
+            .Handle(new RespondToQuoteCommand(id, customerId, contact.Id, Accepted: false), CancellationToken.None);
+
+        (await _db.Quotes.AsNoTracking().SingleAsync(q => q.Id == id)).Status.Should().Be(QuoteStatus.Declined);
+        var log = await _db.ActivityLogs.AsNoTracking()
+            .SingleAsync(a => a.EntityType == "Quote" && a.EntityId == id && a.Action == "portal_declined");
+        log.Description.Should().Contain("Q-PAST").And.Contain("Pat Buyer");
+        log.CreatedAt.Should().Be(Now);
+    }
+
+    [Fact]
+    public void The_exchange_validator_rejects_an_empty_or_overlong_token()
+    {
+        var validator = new ExchangeMagicLinkCommandValidator();
+
+        validator.Validate(new ExchangeMagicLinkCommand("")).IsValid.Should().BeFalse();
+        validator.Validate(new ExchangeMagicLinkCommand(new string('a', 201))).IsValid.Should().BeFalse();
+        validator.Validate(new ExchangeMagicLinkCommand("abc123")).IsValid.Should().BeTrue();
     }
 
     [Fact]

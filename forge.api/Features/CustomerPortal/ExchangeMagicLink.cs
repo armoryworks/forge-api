@@ -1,3 +1,4 @@
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,6 +18,16 @@ namespace Forge.Api.Features.CustomerPortal;
 /// token + stamp LastLoginAt so the link is consumed (replays return 404).
 /// </summary>
 public record ExchangeMagicLinkCommand(string Token) : IRequest<PortalSessionResponseModel>;
+
+public class ExchangeMagicLinkCommandValidator : AbstractValidator<ExchangeMagicLinkCommand>
+{
+    public ExchangeMagicLinkCommandValidator()
+    {
+        RuleFor(x => x.Token)
+            .NotEmpty()
+            .MaximumLength(200);
+    }
+}
 
 public class ExchangeMagicLinkHandler(
     AppDbContext db,

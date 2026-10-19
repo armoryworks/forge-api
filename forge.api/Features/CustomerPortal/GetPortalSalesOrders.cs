@@ -6,30 +6,32 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.CustomerPortal;
 
-public record GetPortalSalesOrdersQuery(int CustomerId) : IRequest<List<PortalSalesOrderListItem>>;
+public record GetPortalSalesOrdersQuery(int CustomerId) : IRequest<PortalList<PortalSalesOrderListItem>>;
 
 public class GetPortalSalesOrdersHandler(AppDbContext db)
-    : IRequestHandler<GetPortalSalesOrdersQuery, List<PortalSalesOrderListItem>>
+    : IRequestHandler<GetPortalSalesOrdersQuery, PortalList<PortalSalesOrderListItem>>
 {
-    public async Task<List<PortalSalesOrderListItem>> Handle(GetPortalSalesOrdersQuery request, CancellationToken ct)
+    public async Task<PortalList<PortalSalesOrderListItem>> Handle(GetPortalSalesOrdersQuery request, CancellationToken ct)
     {
         // Project after pulling lines so the computed Total getter resolves
         // server-side won't translate to SQL — sum lines in memory.
-        var orders = await db.SalesOrders.AsNoTracking()
+        var scope = db.SalesOrders.AsNoTracking()
+            .Where(o => o.CustomerId == request.CustomerId);
+        var orders = await scope
             .Include(o => o.Lines)
-            .Where(o => o.CustomerId == request.CustomerId)
             .OrderByDescending(o => o.CreatedAt)
-            .Take(200)
+            .Take(PortalReadRules.ListCap)
             .ToListAsync(ct);
-        var currencyCode = await PortalReadRules.FunctionalCurrencyCodeAsync(db, ct);
+        var totalCount = await PortalReadRules.TotalCountAsync(scope, orders.Count, ct);
+        var currencyCode = await PortalReadRules.CustomerCurrencyCodeAsync(db, request.CustomerId, ct);
 
-        return orders.Select(o => new PortalSalesOrderListItem(
+        return new(orders.Select(o => new PortalSalesOrderListItem(
             Id: o.Id,
             OrderNumber: o.OrderNumber,
             Status: o.Status.ToString(),
             OrderDate: o.ConfirmedDate ?? o.CreatedAt,
             RequestedDate: o.RequestedDeliveryDate,
             Total: o.Total,
-            CurrencyCode: currencyCode)).ToList();
+            CurrencyCode: currencyCode)).ToList(), totalCount);
     }
 }
