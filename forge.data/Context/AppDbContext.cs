@@ -1056,14 +1056,17 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     /// (the default when constructing a DateTime from local components
     /// or when JSON-deserializing a date-only string) to UTC and
     /// converts <c>Kind=Local</c> values via <see cref="DateTime.ToUniversalTime"/>.
+    /// <see cref="DateTimeOffset"/> / <see cref="Nullable{DateTimeOffset}"/> values with a
+    /// non-zero offset (which Npgsql also rejects for <c>timestamptz</c>) are converted to
+    /// the same instant at offset zero via <see cref="DateTimeOffset.ToUniversalTime"/>.
     /// Effectively the project's "always UTC at the boundary" rule
     /// becomes a real invariant rather than an aspiration.
     ///
     /// <para>Reflection-based — runs over every property typed
-    /// <see cref="DateTime"/> or <see cref="Nullable{DateTime}"/> on
-    /// every Added/Modified entity. Cost is proportional to the change
-    /// set size, which in practice is small (single entity per request
-    /// in most paths). Caches per-CLR-type property lists in
+    /// <see cref="DateTime"/>, <see cref="Nullable{DateTime}"/>, <see cref="DateTimeOffset"/>
+    /// or <see cref="Nullable{DateTimeOffset}"/> on every Added/Modified
+    /// entity. Cost is proportional to the change set size, which in
+    /// practice is small (single entity per request in most paths). Caches per-CLR-type property lists in
     /// <see cref="_dateTimePropertyCache"/> so subsequent saves on the
     /// same type don't re-reflect.</para>
     /// </summary>
@@ -1076,9 +1079,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
             foreach (var prop in props)
             {
                 var raw = prop.GetValue(entry.Entity);
-                if (raw == null) continue;
-                var dt = (DateTime)raw;
-                if (dt.Kind == DateTimeKind.Utc) continue;
+                if (raw is DateTimeOffset dto)
+                {
+                    if (dto.Offset != TimeSpan.Zero)
+                        prop.SetValue(entry.Entity, dto.ToUniversalTime());
+                    continue;
+                }
+                if (raw is not DateTime dt || dt.Kind == DateTimeKind.Utc) continue;
                 var utc = dt.Kind == DateTimeKind.Local
                     ? dt.ToUniversalTime()
                     : DateTime.SpecifyKind(dt, DateTimeKind.Utc);
@@ -1095,7 +1102,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
             t.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
                 .Where(p =>
                     p.CanRead && p.CanWrite &&
-                    (p.PropertyType == typeof(DateTime) || p.PropertyType == typeof(DateTime?)))
+                    (p.PropertyType == typeof(DateTime) || p.PropertyType == typeof(DateTime?)
+                     || p.PropertyType == typeof(DateTimeOffset) || p.PropertyType == typeof(DateTimeOffset?)))
                 .ToArray());
     }
 

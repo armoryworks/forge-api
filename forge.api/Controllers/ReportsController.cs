@@ -32,7 +32,7 @@ public class ReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<TimeByUserReportItem>>> GetTimeByUser(
         [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
     {
-        var result = await mediator.Send(new GetTimeByUserReportQuery(start, end));
+        var result = await mediator.Send(new GetTimeByUserReportQuery(start, InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -40,7 +40,7 @@ public class ReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<ExpenseSummaryReportItem>>> GetExpenseSummary(
         [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
     {
-        var result = await mediator.Send(new GetExpenseSummaryReportQuery(start, end));
+        var result = await mediator.Send(new GetExpenseSummaryReportQuery(start, InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -62,7 +62,7 @@ public class ReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<OnTimeDeliveryReportItem>> GetOnTimeDelivery(
         [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
     {
-        var result = await mediator.Send(new GetOnTimeDeliveryReportQuery(start, end));
+        var result = await mediator.Send(new GetOnTimeDeliveryReportQuery(start, InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -98,7 +98,7 @@ public class ReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<MyTimeLogReportItem>>> GetMyTimeLog(
         [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
     {
-        var result = await mediator.Send(new GetMyTimeLogQuery(start, end));
+        var result = await mediator.Send(new GetMyTimeLogQuery(start, InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -116,7 +116,7 @@ public class ReportsController(IMediator mediator) : ControllerBase
         [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end,
         [FromQuery] string groupBy = "period")
     {
-        var result = await mediator.Send(new GetRevenueReportQuery(start, end, groupBy));
+        var result = await mediator.Send(new GetRevenueReportQuery(start, InclusiveEnd(end), groupBy));
         return Ok(result);
     }
 
@@ -124,7 +124,7 @@ public class ReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<SimplePnlReportItem>>> GetSimplePnl(
         [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
     {
-        var result = await mediator.Send(new GetSimplePnlReportQuery(start, end));
+        var result = await mediator.Send(new GetSimplePnlReportQuery(start, InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -134,7 +134,7 @@ public class ReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<MyExpenseHistoryReportItem>>> GetMyExpenseHistory(
         [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
     {
-        var result = await mediator.Send(new GetMyExpenseHistoryQuery(start, end));
+        var result = await mediator.Send(new GetMyExpenseHistoryQuery(start, InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -161,7 +161,7 @@ public class ReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<WinLossByClassReportItem>>> GetWinLossByClass(
         [FromQuery] DateTimeOffset? start, [FromQuery] DateTimeOffset? end)
     {
-        var result = await mediator.Send(new GetWinLossByClassReportQuery(start, end));
+        var result = await mediator.Send(new GetWinLossByClassReportQuery(start, InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -169,7 +169,7 @@ public class ReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<ShippingSummaryReportItem>>> GetShippingSummary(
         [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
     {
-        var result = await mediator.Send(new GetShippingSummaryReportQuery(start, end));
+        var result = await mediator.Send(new GetShippingSummaryReportQuery(start, InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -207,7 +207,7 @@ public class ReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<MaintenanceReportItem>>> GetMaintenance(
         [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
     {
-        var result = await mediator.Send(new GetMaintenanceReportQuery(start, end));
+        var result = await mediator.Send(new GetMaintenanceReportQuery(start, InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -215,7 +215,7 @@ public class ReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<QualityScrapReportItem>>> GetQualityScrap(
         [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
     {
-        var result = await mediator.Send(new GetQualityScrapReportQuery(start, end));
+        var result = await mediator.Send(new GetQualityScrapReportQuery(start, InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -230,7 +230,7 @@ public class ReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<JobMarginReportItem>>> GetJobMargin(
         [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
     {
-        var result = await mediator.Send(new GetJobMarginReportQuery(start, end));
+        var result = await mediator.Send(new GetJobMarginReportQuery(start, InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -247,7 +247,7 @@ public class ReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<LeadSalesReportItem>> GetLeadSales(
         [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
     {
-        var result = await mediator.Send(new GetLeadSalesReportQuery(start, end));
+        var result = await mediator.Send(new GetLeadSalesReportQuery(start, InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -255,7 +255,7 @@ public class ReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<RdReportItem>>> GetRdReport(
         [FromQuery] DateTimeOffset? start, [FromQuery] DateTimeOffset? end)
     {
-        var result = await mediator.Send(new GetRdReportQuery(start, end));
+        var result = await mediator.Send(new GetRdReportQuery(start, InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -325,6 +325,16 @@ public class ReportsController(IMediator mediator) : ControllerBase
     {
         var resolvedEnd = end ?? DateTimeOffset.UtcNow;
         var resolvedStart = start ?? resolvedEnd.AddMonths(-12);
-        return (resolvedStart, resolvedEnd);
+        return (resolvedStart, InclusiveEnd(resolvedEnd));
+    }
+
+    private static DateTimeOffset? InclusiveEnd(DateTimeOffset? end)
+        => end.HasValue ? InclusiveEnd(end.Value) : null;
+
+    private static DateTimeOffset InclusiveEnd(DateTimeOffset end)
+    {
+        if (end == DateTimeOffset.MinValue) return end;
+        var utc = end.ToUniversalTime();
+        return utc.TimeOfDay == TimeSpan.Zero ? utc.AddDays(1).AddTicks(-10) : end;
     }
 }
