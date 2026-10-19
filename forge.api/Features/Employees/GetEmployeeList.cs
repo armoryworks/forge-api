@@ -44,6 +44,7 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
             users = users.Where(u => !serviceUserIds.Contains(u.Id));
 
         // Manager restriction: only see users in same team
+        var restrictedToTeam = false;
         if (!request.CallerIsAdmin && request.CallerUserId.HasValue)
         {
             var callerTeamId = await db.Users
@@ -52,7 +53,10 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (callerTeamId.HasValue)
+            {
                 users = users.Where(u => u.TeamId == callerTeamId);
+                restrictedToTeam = true;
+            }
         }
 
         // — Filters (DB-side) —
@@ -107,6 +111,10 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
         // Stable secondary sort by Id
         var fullyOrdered = orderedUsers.ThenBy(u => u.Id);
 
+        var userless = await UserlessProfilesAsync(qry, restrictedToTeam, cancellationToken);
+        if (userless.Count > 0)
+            return await MergedPageAsync(qry, fullyOrdered, userless, cancellationToken);
+
         // Role filter is post-fetch (UserManager.GetRolesAsync is per-user).
         // When no role filter applies, we can paginate at DB level. When a
         // role filter applies, we must materialize all matching candidates,
@@ -140,6 +148,115 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
             usersList = filtered.Skip(qry.Skip).Take(qry.EffectivePageSize).ToList();
         }
 
+        var items = await ProjectUsersAsync(usersList, cancellationToken);
+
+        return new PagedResponse<EmployeeListItemResponseModel>(
+            items,
+            totalCount,
+            qry.EffectivePage,
+            qry.EffectivePageSize);
+    }
+
+    private async Task<List<Core.Entities.EmployeeProfile>> UserlessProfilesAsync(
+        EmployeeListQuery qry, bool restrictedToTeam, CancellationToken cancellationToken)
+    {
+        if (restrictedToTeam || qry.IsActive == false || qry.TeamId.HasValue || !string.IsNullOrWhiteSpace(qry.Role))
+            return [];
+
+        var profiles = db.EmployeeProfiles
+            .AsNoTracking()
+            .Where(p => p.UserId == null && p.DeletedAt == null);
+
+        if (!string.IsNullOrWhiteSpace(qry.Q))
+        {
+            var term = qry.Q.Trim().ToLower();
+            profiles = profiles.Where(p =>
+                (p.FirstName != null && p.FirstName.ToLower().Contains(term)) ||
+                (p.LastName != null && p.LastName.ToLower().Contains(term)) ||
+                (p.WorkEmail != null && p.WorkEmail.ToLower().Contains(term)));
+        }
+
+        if (qry.DateFrom.HasValue)
+            profiles = profiles.Where(p => p.CreatedAt >= qry.DateFrom.Value);
+
+        if (qry.DateTo.HasValue)
+            profiles = profiles.Where(p => p.CreatedAt <= qry.DateTo.Value);
+
+        if (!string.IsNullOrWhiteSpace(qry.Department))
+        {
+            var dept = qry.Department.Trim();
+            profiles = profiles.Where(p => p.Department == dept);
+        }
+
+        return await profiles.ToListAsync(cancellationToken);
+    }
+
+    private async Task<PagedResponse<EmployeeListItemResponseModel>> MergedPageAsync(
+        EmployeeListQuery qry,
+        IQueryable<ApplicationUser> orderedUsers,
+        List<Core.Entities.EmployeeProfile> userless,
+        CancellationToken cancellationToken)
+    {
+        var users = await orderedUsers.ToListAsync(cancellationToken);
+        var userItems = await ProjectUsersAsync(users, cancellationToken);
+        var updatedAt = users.ToDictionary(u => u.Id, u => u.UpdatedAt);
+
+        var rows = userItems
+            .Select(i => (Item: i, UpdatedAt: updatedAt[i.Id]))
+            .Concat(userless.Select(p => (Item: ProjectUserless(p), UpdatedAt: p.UpdatedAt)))
+            .ToList();
+
+        var text = StringComparer.CurrentCultureIgnoreCase;
+        var desc = qry.OrderDescending;
+        var ordered = (qry.Sort ?? "").Trim().ToLowerInvariant() switch
+        {
+            "firstname" => desc ? rows.OrderByDescending(r => r.Item.FirstName, text) : rows.OrderBy(r => r.Item.FirstName, text),
+            "lastname"  => desc ? rows.OrderByDescending(r => r.Item.LastName, text)  : rows.OrderBy(r => r.Item.LastName, text),
+            "email"     => desc ? rows.OrderByDescending(r => r.Item.Email, text)     : rows.OrderBy(r => r.Item.Email, text),
+            "isactive"  => desc ? rows.OrderByDescending(r => r.Item.IsActive)        : rows.OrderBy(r => r.Item.IsActive),
+            "createdat" => desc ? rows.OrderByDescending(r => r.Item.CreatedAt)       : rows.OrderBy(r => r.Item.CreatedAt),
+            "updatedat" => desc ? rows.OrderByDescending(r => r.UpdatedAt)            : rows.OrderBy(r => r.UpdatedAt),
+            "id"        => desc ? rows.OrderByDescending(r => r.Item.Id)              : rows.OrderBy(r => r.Item.Id),
+            _           => rows.OrderBy(r => r.Item.LastName, text).ThenBy(r => r.Item.FirstName, text),
+        };
+
+        var page = ordered
+            .ThenBy(r => r.Item.Id)
+            .ThenBy(r => r.Item.HasLogin)
+            .Skip(qry.Skip)
+            .Take(qry.EffectivePageSize)
+            .Select(r => r.Item)
+            .ToList();
+
+        return new PagedResponse<EmployeeListItemResponseModel>(
+            page,
+            rows.Count,
+            qry.EffectivePage,
+            qry.EffectivePageSize);
+    }
+
+    private static EmployeeListItemResponseModel ProjectUserless(Core.Entities.EmployeeProfile profile)
+        => new(
+            profile.Id,
+            profile.FirstName ?? string.Empty,
+            profile.LastName ?? string.Empty,
+            null,
+            null,
+            profile.WorkEmail ?? string.Empty,
+            profile.PhoneNumber,
+            string.Empty,
+            null,
+            null,
+            true,
+            profile.JobTitle,
+            profile.Department,
+            profile.StartDate,
+            profile.CreatedAt,
+            HasLogin: false);
+
+    private async Task<List<EmployeeListItemResponseModel>> ProjectUsersAsync(
+        List<ApplicationUser> usersList, CancellationToken cancellationToken)
+    {
         // Batch-load profiles for the page slice. Phase 3 / WU-19:
         // EmployeeProfile.UserId is nullable; filter to linked profiles only.
         var pageUserIds = usersList.Select(u => u.Id).ToList();
@@ -188,10 +305,6 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
                 user.CreatedAt));
         }
 
-        return new PagedResponse<EmployeeListItemResponseModel>(
-            items,
-            totalCount,
-            qry.EffectivePage,
-            qry.EffectivePageSize);
+        return items;
     }
 }

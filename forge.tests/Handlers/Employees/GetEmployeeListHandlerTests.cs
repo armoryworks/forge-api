@@ -133,4 +133,90 @@ public class GetEmployeeListHandlerTests
         result.Items.First().LastName.Should().Be("Hokanson");
         result.TotalCount.Should().Be(1);
     }
+
+    private static AppDbContext SeedMixed()
+    {
+        var db = TestDbContextFactory.Create();
+        db.Users.AddRange(
+            new ApplicationUser { Id = 1, FirstName = "Ann", LastName = "Baker", Email = "ann@test.com", UserName = "ann", IsActive = true },
+            new ApplicationUser { Id = 2, FirstName = "Cal", LastName = "Dunn", Email = "cal@test.com", UserName = "cal", IsActive = true, TeamId = 7 });
+        db.EmployeeProfiles.AddRange(
+            new EmployeeProfile { Id = 1, UserId = null, FirstName = "Bea", LastName = "Carter", WorkEmail = "bea@test.com", Department = "Shipping" },
+            new EmployeeProfile { Id = 2, UserId = null, FirstName = "Gone", LastName = "Away", DeletedAt = DateTimeOffset.UtcNow },
+            new EmployeeProfile { Id = 3, UserId = 1, FirstName = "Ann", LastName = "Baker", Department = "Office" });
+        db.SaveChanges();
+        return db;
+    }
+
+    private GetEmployeeListHandler MixedHandler(AppDbContext db)
+    {
+        _userManager.Setup(u => u.GetRolesAsync(It.IsAny<ApplicationUser>())).ReturnsAsync(["Engineer"]);
+        return new GetEmployeeListHandler(db, _userManager.Object);
+    }
+
+    [Fact]
+    public async Task Handle_UserlessProfile_IsListedOnceInNameOrderWithoutLogin()
+    {
+        using var db = SeedMixed();
+
+        var result = await MixedHandler(db).Handle(new GetEmployeeListQuery(new EmployeeListQuery(), null, true), CancellationToken.None);
+
+        result.TotalCount.Should().Be(3);
+        result.Items.Select(i => i.LastName).Should().Equal("Baker", "Carter", "Dunn");
+        var bea = result.Items.Single(i => i.LastName == "Carter");
+        bea.HasLogin.Should().BeFalse();
+        bea.Id.Should().Be(1);
+        bea.Department.Should().Be("Shipping");
+        result.Items.Where(i => i.LastName != "Carter").Should().OnlyContain(i => i.HasLogin);
+    }
+
+    [Fact]
+    public async Task Handle_UserlessProfile_MatchesSearchAndDepartment()
+    {
+        using var db = SeedMixed();
+        var handler = MixedHandler(db);
+
+        var bySearch = await handler.Handle(new GetEmployeeListQuery(new EmployeeListQuery { Q = "bea@" }, null, true), CancellationToken.None);
+        var byDept = await handler.Handle(new GetEmployeeListQuery(new EmployeeListQuery { Department = "Shipping" }, null, true), CancellationToken.None);
+
+        bySearch.Items.Should().ContainSingle().Which.HasLogin.Should().BeFalse();
+        byDept.Items.Should().ContainSingle().Which.LastName.Should().Be("Carter");
+    }
+
+    [Fact]
+    public async Task Handle_RoleTeamOrInactiveFilter_ExcludesUserless()
+    {
+        using var db = SeedMixed();
+        var handler = MixedHandler(db);
+
+        var byRole = await handler.Handle(new GetEmployeeListQuery(new EmployeeListQuery { Role = "Engineer" }, null, true), CancellationToken.None);
+        var byTeam = await handler.Handle(new GetEmployeeListQuery(new EmployeeListQuery { TeamId = 7 }, null, true), CancellationToken.None);
+        var inactive = await handler.Handle(new GetEmployeeListQuery(new EmployeeListQuery { IsActive = false }, null, true), CancellationToken.None);
+
+        byRole.Items.Should().OnlyContain(i => i.HasLogin);
+        byTeam.Items.Should().OnlyContain(i => i.HasLogin);
+        inactive.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_TeamRestrictedManager_DoesNotSeeUserless()
+    {
+        using var db = SeedMixed();
+
+        var result = await MixedHandler(db).Handle(new GetEmployeeListQuery(new EmployeeListQuery(), 2, false), CancellationToken.None);
+
+        result.Items.Should().ContainSingle().Which.Id.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Handle_MergedList_PagesAcrossBothKinds()
+    {
+        using var db = SeedMixed();
+
+        var page2 = await MixedHandler(db).Handle(
+            new GetEmployeeListQuery(new EmployeeListQuery { Page = 2, PageSize = 2 }, null, true), CancellationToken.None);
+
+        page2.TotalCount.Should().Be(3);
+        page2.Items.Should().ContainSingle().Which.LastName.Should().Be("Dunn");
+    }
 }

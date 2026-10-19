@@ -35,4 +35,5 @@ public record EmployeeDetailResponseModel(
     string? EmergencyContactPhone,
     string? EmergencyContactRelationship,
     int ComplianceCompletedItems,
-    int ComplianceTotalItems);
+    int ComplianceTotalItems,
+    bool HasLogin = true);

@@ -52,9 +52,9 @@ public class EmployeesController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<EmployeeDetailResponseModel>> GetEmployee(int id)
+    public async Task<ActionResult<EmployeeDetailResponseModel>> GetEmployee(int id, [FromQuery] string? kind)
     {
-        var result = await mediator.Send(new GetEmployeeDetailQuery(id));
+        var result = await mediator.Send(new GetEmployeeDetailQuery(id, kind));
         if (result == null) return NotFound();
         return Ok(result);
     }
