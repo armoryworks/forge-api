@@ -25,7 +25,7 @@ public class GetConversationsHandler(AppDbContext db)
 
         var users = await db.Users
             .Where(u => userIds.Contains(u.Id) && u.IsActive)
-            .Select(u => new { u.Id, Name = (u.FirstName + " " + u.LastName).Trim(), u.Initials, u.AvatarColor })
+            .Select(u => new { u.Id, Name = $"{u.LastName}, {u.FirstName}".Trim(',', ' '), u.Initials, u.AvatarColor })
             .ToListAsync(ct);
 
         return users.Select(u =>

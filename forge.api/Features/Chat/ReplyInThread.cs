@@ -61,7 +61,7 @@ public class ReplyInThreadHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
             await db.SaveChangesAsync(ct);
         }
 
-        var senderName = (sender.FirstName + " " + sender.LastName).Trim();
+        var senderName = $"{sender.LastName}, {sender.FirstName}".Trim(',', ' ');
         var mentionModels = mentions.Select(m =>
             new ChatMessageMentionResponseModel(m.EntityType, m.EntityId, m.DisplayText)).ToList();
 

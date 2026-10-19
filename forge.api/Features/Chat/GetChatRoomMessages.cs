@@ -28,7 +28,7 @@ public class GetChatRoomMessagesHandler(AppDbContext db) : IRequestHandler<GetCh
             .Select(x => new ChatMessageResponseModel(
                 x.m.Id,
                 x.m.SenderId,
-                (x.u.FirstName + " " + x.u.LastName).Trim(),
+                $"{x.u.LastName}, {x.u.FirstName}".Trim(',', ' '),
                 x.u.Initials ?? "??",
                 x.u.AvatarColor ?? "#94a3b8",
                 x.m.RecipientId ?? 0,

@@ -153,7 +153,7 @@ public class OnSalesOrderConfirmed_CheckBomMaterials(
                         Severity = "warning",
                         Source = "sales_orders",
                         Title = "Material Shortfall Detected",
-                        Message = $"Insufficient inventory for {partDesc}: need {requiredQty}, available {availableQty} (shortfall {shortfall}). {so.OrderNumber}.",
+                        Message = $"Insufficient inventory for {partDesc}: need {requiredQty:0.####}, available {availableQty:0.####} (shortfall {shortfall:0.####}). {so.OrderNumber}.",
                         EntityType = "SalesOrder",
                         EntityId = so.Id,
                         SenderId = notification.UserId,

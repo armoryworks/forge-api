@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Auth;
@@ -64,6 +65,21 @@ public class ScanCountPostingTests
         lines.Single(l => l.GlAccountId == WritedownId).Debit.Should().Be(1.00m);
         lines.Single(l => l.GlAccountId == RawId).Credit.Should().Be(1.00m);
         (await db.InventoryValuations.SingleAsync()).OnHandQuantity.Should().Be(90m);
+    }
+
+    [Fact]
+    public async Task Count_WithALargeVariance_NotifiesWithoutPaddedDecimals()
+    {
+        var (db, partId, binId) = await SeedAsync();
+        using var _ = db;
+        db.Roles.Add(new IdentityRole<int> { Id = 9, Name = "Manager", NormalizedName = "MANAGER" });
+        db.UserRoles.Add(new IdentityUserRole<int> { UserId = UserId, RoleId = 9 });
+        await db.SaveChangesAsync();
+
+        await CountAsync(db, partId, binId, 50.5000m);
+
+        (await db.Notifications.SingleAsync()).Message.Should()
+            .StartWith("Part ORING-018: expected 100, counted 50.5 (variance");
     }
 
     [Fact]
