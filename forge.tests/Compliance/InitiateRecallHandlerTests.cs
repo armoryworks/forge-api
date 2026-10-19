@@ -110,6 +110,19 @@ public sealed class InitiateRecallHandlerTests(PostgresFixture fixture)
         return movement;
     }
 
+    private static async Task<BinMovement> ShipPartKeyedAsync(
+        AppDbContext db, ShipmentLine line, int partId, string? lotNumber, decimal qty)
+    {
+        var movement = new BinMovement
+        {
+            EntityType = "part", EntityId = partId, Quantity = qty, LotNumber = lotNumber, ShipmentLineId = line.Id,
+            Reason = BinMovementReason.Ship, MovedBy = 1, MovedAt = DateTimeOffset.UtcNow,
+        };
+        db.BinMovements.Add(movement);
+        await db.SaveChangesAsync();
+        return movement;
+    }
+
     private static async Task<Job> SeedJobAsync(AppDbContext db, int? soLineId)
     {
         var suffix = Guid.NewGuid().ToString("N")[..8];
@@ -323,6 +336,73 @@ public sealed class InitiateRecallHandlerTests(PostgresFixture fixture)
         result.AffectedShipments.Should().ContainSingle();
         result.AffectedShipments.Single().CustomerName.Should().Be("Partly Returned");
         result.AffectedShipments.Single().AffectedQuantity.Should().Be(6);
+    }
+
+    [Fact]
+    public async Task Resolves_affected_shipments_from_part_keyed_ship_movements()
+    {
+        await using var db = fixture.CreateContext();
+        var part = await SeedPartAsync(db);
+        var shipped = await SeedShipmentAsync(db, "Part Keyed Buyer", 10);
+        var job = await SeedJobAsync(db, shipped.SoLine.Id);
+        var produced = await SeedLotAsync(db, part.Id, 10, jobId: job.Id);
+        await ShipPartKeyedAsync(db, shipped.Line, part.Id, produced.LotNumber, 10);
+
+        var result = await new InitiateRecallHandler(db, Http()).Handle(Recall(produced.Id), CancellationToken.None);
+
+        var shp = result.AffectedShipments.Should().ContainSingle().Subject;
+        shp.CustomerId.Should().Be(shipped.Customer.Id);
+        shp.ShipmentNumber.Should().Be(shipped.Shipment.ShipmentNumber);
+        shp.AffectedQuantity.Should().Be(10);
+        shp.IsApproximate.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Legacy_and_part_keyed_ship_movements_of_one_lot_both_count_net_of_reversals()
+    {
+        await using var db = fixture.CreateContext();
+        var part = await SeedPartAsync(db);
+        var lot = await SeedLotAsync(db, part.Id, 20);
+        var legacy = await SeedShipmentAsync(db, "Legacy Shape Buyer", 10);
+        var partKeyed = await SeedShipmentAsync(db, "Part Keyed Shape Buyer", 5);
+        var legacyMove = await ShipAsync(db, legacy.Line, lot.LotNumber, 10);
+        var partKeyedMove = await ShipPartKeyedAsync(db, partKeyed.Line, part.Id, lot.LotNumber, 5);
+        db.BinMovements.AddRange(
+            new BinMovement
+            {
+                EntityType = "part", EntityId = part.Id, Quantity = 4, Reason = BinMovementReason.Reversal,
+                ReversedMovementId = legacyMove.Id, MovedBy = 1, MovedAt = DateTimeOffset.UtcNow,
+            },
+            new BinMovement
+            {
+                EntityType = "part", EntityId = part.Id, Quantity = 2, Reason = BinMovementReason.Reversal,
+                ReversedMovementId = partKeyedMove.Id, MovedBy = 1, MovedAt = DateTimeOffset.UtcNow,
+            });
+        await db.SaveChangesAsync();
+
+        var result = await new InitiateRecallHandler(db, Http()).Handle(Recall(lot.Id), CancellationToken.None);
+
+        result.AffectedShipments.Select(s => (s.CustomerName, s.AffectedQuantity))
+            .Should().BeEquivalentTo([("Legacy Shape Buyer", 6m), ("Part Keyed Shape Buyer", 3m)]);
+    }
+
+    [Fact]
+    public async Task Make_to_order_line_relieved_part_keyed_from_an_older_lot_is_listed_once_as_approximate()
+    {
+        await using var db = fixture.CreateContext();
+        var part = await SeedPartAsync(db);
+        var stockLot = await SeedLotAsync(db, part.Id, 10);
+        var orderLine = await SeedShipmentAsync(db, "Part Keyed Make To Order", 10);
+        var job = await SeedJobAsync(db, orderLine.SoLine.Id);
+        var madeToOrder = await SeedLotAsync(db, part.Id, 10, jobId: job.Id);
+        await ShipPartKeyedAsync(db, orderLine.Line, part.Id, stockLot.LotNumber, 10);
+
+        var result = await new InitiateRecallHandler(db, Http()).Handle(Recall(madeToOrder.Id), CancellationToken.None);
+
+        var shp = result.AffectedShipments.Should().ContainSingle().Subject;
+        shp.ShipmentNumber.Should().Be(orderLine.Shipment.ShipmentNumber);
+        shp.AffectedQuantity.Should().Be(10);
+        shp.IsApproximate.Should().BeTrue();
     }
 
     [Fact]

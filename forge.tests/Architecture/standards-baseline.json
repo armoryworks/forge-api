@@ -155,7 +155,7 @@
     "forge.api/Services/DatabaseTransferService.cs": 1,
     "forge.api/Services/ExternalIdentityStore.cs": 2,
     "forge.api/Services/FolderPathResolver.cs": 2,
-    "forge.api/Services/InventoryReliefService.cs": 3,
+    "forge.api/Services/InventoryReliefService.cs": 1,
     "forge.api/Services/JwtTokenService.cs": 1,
     "forge.api/Services/MfaPreAuthTokenService.cs": 1,
     "forge.api/Services/PartPricingResolver.cs": 2,

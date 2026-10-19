@@ -9,7 +9,9 @@ namespace Forge.Api.Services;
 
 /// <summary>
 /// BE-1 / F-030: relieves inventory for a confirmed shipment, idempotently, one BinMovement per
-/// bin-content touched per shipment line. Each line carries an InventoryRelievedAt timestamp;
+/// bin-content touched per shipment line. Each movement is part-keyed with a positive quantity out of
+/// the bin's location (the house convention) and carries the shipment line in <c>ShipmentLineId</c>;
+/// a bin drawn to zero is marked removed. Each line carries an InventoryRelievedAt timestamp;
 /// re-entry on an already-relieved line is a no-op (idempotency guard).
 ///
 /// Caller is responsible for loading the shipment with Lines + each line's SalesOrderLine
@@ -33,6 +35,7 @@ public class InventoryReliefService(AppDbContext db, ILogger<InventoryReliefServ
     /// <param name="userId">Stamped on every BinMovement as <c>MovedBy</c>.</param>
     public async Task RelieveShipmentAsync(Shipment shipment, int userId, CancellationToken ct)
     {
+        var now = DateTimeOffset.UtcNow;
         foreach (var line in shipment.Lines)
         {
             if (line.InventoryRelievedAt is not null)
@@ -52,13 +55,14 @@ public class InventoryReliefService(AppDbContext db, ILogger<InventoryReliefServ
                 continue;
             }
 
-            await RelieveLineAsync(line, partId.Value, userId, ct);
+            await RelieveLineAsync(line, partId.Value, userId, now, ct);
         }
 
         await db.SaveChangesAsync(ct);
     }
 
-    private async Task RelieveLineAsync(ShipmentLine line, int partId, int userId, CancellationToken ct)
+    private async Task RelieveLineAsync(
+        ShipmentLine line, int partId, int userId, DateTimeOffset now, CancellationToken ct)
     {
         var remaining = line.Quantity;
 
@@ -92,6 +96,7 @@ public class InventoryReliefService(AppDbContext db, ILogger<InventoryReliefServ
                 $"Insufficient stock for part {partId} on ShipmentLine {line.Id}. " +
                 $"Required: {remaining}, Available: {totalAvailable} (INV-INV1a — never-negative guard).");
 
+        var drawn = new List<BinContent>();
         foreach (var bin in bins)
         {
             if (remaining <= 0) break;
@@ -99,17 +104,19 @@ public class InventoryReliefService(AppDbContext db, ILogger<InventoryReliefServ
             var take = Math.Min(bin.Quantity, remaining);
             bin.Quantity -= take;
             remaining -= take;
+            drawn.Add(bin);
 
             db.BinMovements.Add(new BinMovement
             {
-                EntityType = "ShipmentLine",
-                EntityId = line.Id,
-                Quantity = -take,
+                EntityType = "part",
+                EntityId = partId,
+                Quantity = take,
                 FromLocationId = bin.LocationId,
                 Reason = BinMovementReason.Ship,
                 MovedBy = userId,
-                MovedAt = DateTimeOffset.UtcNow,
+                MovedAt = now,
                 LotNumber = bin.LotNumber,
+                ShipmentLineId = line.Id,
             });
 
             logger.LogInformation(
@@ -129,11 +136,17 @@ public class InventoryReliefService(AppDbContext db, ILogger<InventoryReliefServ
                 .ToListAsync(ct);
             foreach (var res in reservations)
             {
-                res.DeletedAt = DateTimeOffset.UtcNow;
+                res.DeletedAt = now;
                 res.BinContent.ReservedQuantity = Math.Max(0, res.BinContent.ReservedQuantity - res.Quantity);
             }
         }
 
-        line.InventoryRelievedAt = DateTimeOffset.UtcNow;
+        foreach (var bin in drawn.Where(b => b.Quantity == 0 && b.ReservedQuantity == 0))
+        {
+            bin.RemovedAt = now;
+            bin.RemovedBy = userId;
+        }
+
+        line.InventoryRelievedAt = now;
     }
 }

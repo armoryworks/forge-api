@@ -203,7 +203,10 @@ public class ShipShipmentInventoryReliefTests : IDisposable
 
         shipMovements.Should().HaveCount(1,
             "INV-SH2: ShipShipmentHandler writes exactly one BinMovement (reason=Ship) per shipped line.");
-        shipMovements[0].Quantity.Should().Be(-10m, "the movement records the relief as a negative delta");
+        shipMovements[0].Quantity.Should().Be(10m, "the movement records the relief as a positive quantity out of the bin");
+        shipMovements[0].EntityType.Should().Be("part");
+        shipMovements[0].FromLocationId.Should().NotBeNull();
+        shipMovements[0].ShipmentLineId.Should().NotBeNull();
     }
 
     public void Dispose() => _db.Dispose();

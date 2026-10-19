@@ -124,11 +124,15 @@ public class InventoryReliefServiceTests : IDisposable
         binAfter!.Quantity.Should().Be(15m, "bin must decrease by exactly the shipped quantity");
 
         // Assert — BinMovement with reason=Ship created
+        var shipmentLineId = loaded.Lines.First().Id;
         var movements = await _db.BinMovements
-            .Where(bm => bm.Reason == BinMovementReason.Ship && bm.EntityType == "ShipmentLine")
+            .Where(bm => bm.Reason == BinMovementReason.Ship
+                && bm.EntityType == "part" && bm.EntityId == part.Id && bm.ShipmentLineId == shipmentLineId)
             .ToListAsync();
         movements.Should().HaveCount(1, "exactly one Ship movement per shipment line");
-        movements[0].Quantity.Should().Be(-5m, "movement quantity is negative (outbound)");
+        movements[0].Quantity.Should().Be(5m, "movement quantity is positive, out of the bin's location");
+        movements[0].FromLocationId.Should().Be(bin.LocationId);
+        movements[0].ToLocationId.Should().BeNull();
 
         // Assert — idempotency stamp set
         var lineAfter = await _db.Set<ShipmentLine>().FindAsync(loaded.Lines.First().Id);
@@ -295,6 +299,71 @@ public class InventoryReliefServiceTests : IDisposable
         // Assert — nothing created
         var movements = await _db.BinMovements.ToListAsync();
         movements.Should().BeEmpty("no bin movement for a part-less line");
+    }
+
+    [Fact]
+    public async Task RelieveShipment_BinDrawnToZero_IsMarkedRemoved_PartialBinStaysLive()
+    {
+        var (_, so, part) = await SeedSpineAsync("P-REMOVED-001", 30m);
+        var soLine = so.Lines.First();
+
+        var emptied = MakeBin(part.Id, 4m, DateTimeOffset.UtcNow.AddDays(-2));
+        var partial = MakeBin(part.Id, 10m, DateTimeOffset.UtcNow.AddDays(-1));
+        _db.BinContents.AddRange(emptied, partial);
+        await _db.SaveChangesAsync();
+
+        var shipment = MakeShipment(so.Id, soLine.Id, 7m);
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+
+        var loaded = await _db.Shipments
+            .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
+            .FirstAsync(s => s.Id == shipment.Id);
+
+        await _svc.RelieveShipmentAsync(loaded, userId: 7, CancellationToken.None);
+
+        _db.ChangeTracker.Clear();
+        var emptiedAfter = await _db.BinContents.FindAsync(emptied.Id);
+        var partialAfter = await _db.BinContents.FindAsync(partial.Id);
+        emptiedAfter!.RemovedAt.Should().NotBeNull("a bin drawn to zero is marked removed");
+        emptiedAfter.RemovedBy.Should().Be(7);
+        partialAfter!.RemovedAt.Should().BeNull("a partially drawn bin stays live");
+        partialAfter.Quantity.Should().Be(7m);
+    }
+
+    [Fact]
+    public async Task RelieveShipment_BinHoldingTheLineReservation_IsMarkedRemovedOnceReleased()
+    {
+        var (_, so, part) = await SeedSpineAsync("P-RESERVED-001", 5m);
+        var soLine = so.Lines.First();
+
+        var bin = MakeBin(part.Id, 5m);
+        bin.ReservedQuantity = 5m;
+        _db.BinContents.Add(bin);
+        await _db.SaveChangesAsync();
+
+        _db.Reservations.Add(new Reservation
+        {
+            PartId = part.Id,
+            BinContentId = bin.Id,
+            SalesOrderLineId = soLine.Id,
+            Quantity = 5m,
+        });
+        var shipment = MakeShipment(so.Id, soLine.Id, 5m);
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+
+        var loaded = await _db.Shipments
+            .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
+            .FirstAsync(s => s.Id == shipment.Id);
+
+        await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
+
+        _db.ChangeTracker.Clear();
+        var binAfter = await _db.BinContents.FindAsync(bin.Id);
+        binAfter!.Quantity.Should().Be(0m);
+        binAfter.ReservedQuantity.Should().Be(0m);
+        binAfter.RemovedAt.Should().NotBeNull("the reservation is released before the empty bin is judged");
     }
 
     public void Dispose() => _db.Dispose();
