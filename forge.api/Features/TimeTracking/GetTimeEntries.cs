@@ -11,12 +11,21 @@ public record GetTimeEntriesQuery(int? UserId, int? JobId, DateOnly? From, DateO
 
 public class GetTimeEntriesHandler(ITimeTrackingRepository repo, IHttpContextAccessor http) : IRequestHandler<GetTimeEntriesQuery, List<TimeEntryResponseModel>>
 {
-    public Task<List<TimeEntryResponseModel>> Handle(GetTimeEntriesQuery request, CancellationToken cancellationToken)
+    public async Task<List<TimeEntryResponseModel>> Handle(GetTimeEntriesQuery request, CancellationToken cancellationToken)
     {
         var user = http.HttpContext?.User;
-        var userId = request.JobId.HasValue && request.UserId is null
+        var jobWide = request.JobId.HasValue && request.UserId is null;
+        var userId = jobWide
             ? null
             : CallerAccess.ScopeToSelf(user, request.UserId, "You can only view your own time entries.");
-        return repo.GetTimeEntriesAsync(userId, request.JobId, request.From, request.To, cancellationToken);
+        var entries = await repo.GetTimeEntriesAsync(userId, request.JobId, request.From, request.To, cancellationToken);
+
+        if (!jobWide || CallerAccess.IsSupervisor(user))
+            return entries;
+
+        var callerId = CallerAccess.UserId(user);
+        return entries
+            .Select(e => e.UserId == callerId ? e : e with { LaborCost = 0m, BurdenCost = 0m })
+            .ToList();
     }
 }

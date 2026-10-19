@@ -63,6 +63,25 @@ public class TimeEntryAccessTests
     }
 
     [Fact]
+    public async Task A_worker_reading_a_jobs_labour_does_not_see_coworkers_costs()
+    {
+        var (ben, rosa, entry) = await SeedAsync();
+        foreach (var e in _h.Db.TimeEntries.Where(e => e.JobId == entry.JobId))
+        {
+            e.LaborCost = 50m;
+            e.BurdenCost = 10m;
+        }
+        await _h.Db.SaveChangesAsync();
+
+        var asWorker = await EntriesAs(ben, [], jobId: entry.JobId);
+        asWorker.Single(e => e.UserId == rosa).Should().Match<TimeEntryResponseModel>(e => e.LaborCost == 0m && e.BurdenCost == 0m);
+        asWorker.Single(e => e.UserId == ben).LaborCost.Should().Be(50m);
+
+        var asManager = await EntriesAs(ben, ["Manager"], jobId: entry.JobId);
+        asManager.Single(e => e.UserId == rosa).LaborCost.Should().Be(50m);
+    }
+
+    [Fact]
     public async Task Clock_events_are_scoped_to_the_caller_unless_supervisor()
     {
         var (ben, rosa, _) = await SeedAsync();
