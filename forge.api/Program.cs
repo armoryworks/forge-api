@@ -1324,6 +1324,7 @@ try
     builder.Services.AddScoped<ComputeLeadIcpScoresJob>();
     builder.Services.AddScoped<RecomputeLeadSourceQualityJob>();
     builder.Services.AddScoped<MarkStaleSamplesJob>();
+    builder.Services.AddScoped<FiscalCalendarRolloverJob>();
     builder.Services.AddScoped<I18nPendingTranslationJob>();
 
     // Health checks
@@ -2041,6 +2042,10 @@ try
         "mark-stale-samples",
         job => job.RunAsync(CancellationToken.None),
         Cron.Daily(2, 45)); // 2:45 AM UTC daily
+    RecurringJob.AddOrUpdate<FiscalCalendarRolloverJob>(
+        "fiscal-calendar-rollover",
+        job => job.RunAsync(CancellationToken.None),
+        Cron.Daily(1, 15));
 
     // i18n label overrides — retry machine translations queued while the AI container was down
     RecurringJob.AddOrUpdate<I18nPendingTranslationJob>(

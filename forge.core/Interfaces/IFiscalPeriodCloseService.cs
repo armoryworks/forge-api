@@ -14,7 +14,8 @@ public interface IFiscalPeriodCloseService
 {
     /// <summary>
     /// Transitions a period to <paramref name="target"/>; throws on an illegal transition. Stamps the
-    /// close/reopen audit (<paramref name="actorUserId"/> + timestamp).
+    /// close/reopen audit (<paramref name="actorUserId"/> + timestamp) and writes an audit-log entry for the
+    /// transition in the same save.
     /// </summary>
     Task<FiscalPeriodModel> TransitionAsync(
         int periodId, FiscalPeriodStatus target, int actorUserId, CancellationToken ct = default);

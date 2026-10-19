@@ -13,7 +13,8 @@ namespace Forge.Api.Features.Accounting;
 
 /// <summary>
 /// Phase-3 — year-end close / Retained-Earnings roll-forward. Posts the closing entry (P&amp;L → RE), hard-
-/// closes every period, marks the year Closed — all in one transaction.
+/// closes every period, marks the year Closed — all in one transaction. Refused unless the pre-close checklist
+/// passes as of the year end (see <see cref="IYearEndCloseService"/>).
 /// <para><b>Gated</b> on <c>CAP-ACCT-FULLGL</c>; OFF by default (unreachable), Controller-role per §5.7.</para>
 /// </summary>
 [RequiresCapability("CAP-ACCT-FULLGL")]
