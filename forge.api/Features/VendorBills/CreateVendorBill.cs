@@ -77,6 +77,8 @@ public class CreateVendorBillHandler(
     AppDbContext db)
     : IRequestHandler<CreateVendorBillCommand, VendorBillListItemModel>
 {
+    private const string GrniKey = "GRNI";
+
     public async Task<VendorBillListItemModel> Handle(CreateVendorBillCommand request, CancellationToken cancellationToken)
     {
         var vendor = await vendorRepo.FindAsync(request.VendorId, cancellationToken)
@@ -127,9 +129,11 @@ public class CreateVendorBillHandler(
                 Quantity = line.Quantity,
                 UnitPrice = line.UnitPrice,
                 LineNumber = lineNumber++,
-                AccountDeterminationKey = string.IsNullOrWhiteSpace(line.AccountDeterminationKey)
-                    ? "OPERATING_EXPENSE"
-                    : line.AccountDeterminationKey!,
+                AccountDeterminationKey = line.PurchaseOrderLineId is not null
+                    ? GrniKey
+                    : string.IsNullOrWhiteSpace(line.AccountDeterminationKey)
+                        ? "OPERATING_EXPENSE"
+                        : line.AccountDeterminationKey!,
                 GlAccountId = line.GlAccountId,
             });
         }
