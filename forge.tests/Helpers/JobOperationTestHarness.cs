@@ -23,6 +23,7 @@ public sealed class JobOperationTestHarness
     public Mock<ISettingsService> Settings { get; } = new();
     public Mock<IHubContext<BoardHub>> BoardHub { get; } = new();
     public Mock<IClientProxy> BoardGroup { get; } = new();
+    public Mock<IBackflushService> Backflush { get; } = new();
     public bool TrackingEnabled { get; set; } = true;
     public JobOperationService Operations { get; }
 
@@ -51,7 +52,7 @@ public sealed class JobOperationTestHarness
 
     public UpdateJobOperationProgressHandler ProgressHandler(int userId) => new(
         Operations, Timers.TimerStopService(), Timers.Db, Timers.SignedIn(userId), BoardHub.Object,
-        Timers.Mediator.Object, Timers.Clock.Object);
+        Timers.Mediator.Object, Timers.Clock.Object, Backflush.Object);
 
     public async Task<(Job Job, List<Operation> Routing)> AddJobWithRoutingAsync(decimal quantity, string jobNumber = "JOB-0500")
     {

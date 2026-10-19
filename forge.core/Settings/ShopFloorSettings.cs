@@ -10,6 +10,7 @@ public static class ShopFloorSettings
     private static readonly string Group = "Shop Floor";
 
     public const string OperationTrackingKey = "shop-floor.operation-tracking";
+    public const string BackflushDefaultKey = "shop-floor.backflush-default";
 
     public static IReadOnlyList<SettingDescriptor> Descriptors =>
     [
@@ -20,5 +21,12 @@ public static class ShopFloorSettings
                 + "operation progress and estimated time left. Off = job-level timers only.",
             DefaultValue: "true",
             SortOrder: 100),
+        new(BackflushDefaultKey, Group, "Backflush default for BOM components", SettingDataType.Enum,
+            Description: "Applies to parts whose backflush setting is Default, while Backflush completion is on. "
+                + "Auto takes the components out of stock when a production run is received or the job's last "
+                + "operation is completed; Manual and None leave them for the operator to issue.",
+            DefaultValue: "Manual",
+            SortOrder: 110,
+            Choices: [new("Auto", "Auto"), new("Manual", "Manual"), new("None", "None")]),
     ];
 }

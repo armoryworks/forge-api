@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Jobs.Operations;
 using Forge.Api.Hubs;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -36,7 +37,8 @@ public class ReceiveBackSubcontractHandler(
     ITimerStopService timerStop,
     IHubContext<BoardHub> boardHub,
     IMediator mediator,
-    IClock clock)
+    IClock clock,
+    IBackflushService? backflush = null)
     : IRequestHandler<ReceiveBackSubcontractCommand, SubcontractOrderResponseModel>
 {
     public async Task<SubcontractOrderResponseModel> Handle(ReceiveBackSubcontractCommand request, CancellationToken ct)
@@ -50,6 +52,10 @@ public class ReceiveBackSubcontractHandler(
 
         if (order.ReceivedAt.HasValue || order.Status is SubcontractStatus.Complete or SubcontractStatus.Rejected)
             throw new InvalidOperationException("This subcontract order has already been received back.");
+
+        var row = request.Data.PassedInspection
+            ? await FindOrCreateOperationRowAsync(order, ct)
+            : null;
 
         var now = clock.UtcNow;
         var previousStatus = order.Status;
@@ -75,8 +81,14 @@ public class ReceiveBackSubcontractHandler(
             Description = $"Received back {request.Data.ReceivedQuantity:0.####} good, {request.Data.ScrapQuantity:0.####} scrap from {order.Vendor.CompanyName} for Op {order.Operation.StepNumber} {order.Operation.Title}",
         });
 
-        var advance = request.Data.PassedInspection
-            ? await AdvanceOperationAsync(order, request.Data, now, ct)
+        var advance = row is not null
+            ? await AdvanceOperationAsync(order, row, request.Data, now, ct)
+            : null;
+
+        var runBackflush = backflush is not null && row?.Status == JobOperationStatus.Complete
+            && db.CurrentUserId.HasValue;
+        await using var tx = runBackflush && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(ct)
             : null;
 
         try
@@ -87,6 +99,11 @@ public class ReceiveBackSubcontractHandler(
         {
             throw new InvalidOperationException(JobOperationRules.StaleMessage);
         }
+
+        if (runBackflush)
+            await backflush!.BackflushJobAsync(order.JobId, db.CurrentUserId!.Value, now, ct);
+        if (tx is not null)
+            await tx.CommitAsync(ct);
 
         if (advance is not null)
         {
@@ -111,8 +128,7 @@ public class ReceiveBackSubcontractHandler(
             order.CreatedAt);
     }
 
-    private async Task<List<TimeEntry>?> AdvanceOperationAsync(
-        SubcontractOrder order, ReceiveBackRequestModel data, DateTimeOffset now, CancellationToken ct)
+    private async Task<JobOperation?> FindOrCreateOperationRowAsync(SubcontractOrder order, CancellationToken ct)
     {
         var job = order.Job;
         if (job.CompletedDate.HasValue || job.IsArchived || job.Disposition.HasValue)
@@ -120,11 +136,14 @@ public class ReceiveBackSubcontractHandler(
         if (!await operations.IsTrackingEnabledAsync(ct))
             return null;
 
-        var row = await db.JobOperations
-            .FirstOrDefaultAsync(r => r.JobId == order.JobId && r.OperationId == order.OperationId, ct);
-        if (row is null || JobOperationRules.IsClosed(row.Status))
-            return null;
+        var row = await operations.EnsureRowAsync(job, order.Operation, ct);
+        return JobOperationRules.IsClosed(row.Status) ? null : row;
+    }
 
+    private async Task<List<TimeEntry>> AdvanceOperationAsync(
+        SubcontractOrder order, JobOperation row, ReceiveBackRequestModel data, DateTimeOffset now, CancellationToken ct)
+    {
+        var job = order.Job;
         var jobQuantity = await operations.GetJobQuantityAsync(job, ct);
         var before = JobOperationRules.Describe(row, jobQuantity);
 

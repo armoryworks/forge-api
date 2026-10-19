@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Jobs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -165,15 +166,20 @@ public class GetScanContextHandler(AppDbContext db, IHttpContextAccessor httpCon
             shipDisabledReason,
             openShipmentLines.Count > 0 ? new ScanShipContext(openShipmentLines) : null));
 
-        var bomUses = await db.BOMLines
-            .AsNoTracking()
-            .Where(bom => bom.ChildPartId == part.Id)
-            .Join(
-                db.Jobs.Where(j => !j.IsArchived && j.CompletedDate == null),
-                bom => bom.ParentPartId,
-                j => j.PartId,
-                (bom, j) => new { j.Id, j.JobNumber, j.Title, j.PartId, PerUnit = bom.Quantity })
-            .ToListAsync(cancellationToken);
+        var components = await JobMaterialRules.ForIssuedPartAsync(db, part.Id, cancellationToken);
+        var parentPartIds = components.Select(c => c.ParentPartId).Distinct().ToList();
+        var activeJobsForParents = parentPartIds.Count == 0
+            ? []
+            : await db.Jobs
+                .AsNoTracking()
+                .Where(j => !j.IsArchived && j.CompletedDate == null
+                    && j.PartId != null && parentPartIds.Contains(j.PartId.Value))
+                .Select(j => new { j.Id, j.JobNumber, j.Title, PartId = j.PartId!.Value })
+                .ToListAsync(cancellationToken);
+        var bomUses = components
+            .Join(activeJobsForParents, c => c.ParentPartId, j => j.PartId,
+                (c, j) => new { j.Id, j.JobNumber, j.Title, j.PartId, c.PerUnit })
+            .ToList();
 
         var jobIds = bomUses.Select(u => u.Id).Distinct().ToList();
 

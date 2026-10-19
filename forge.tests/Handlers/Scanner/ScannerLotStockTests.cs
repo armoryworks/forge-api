@@ -7,6 +7,7 @@ using Moq;
 
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Auth;
+using Forge.Api.Features.Jobs;
 using Forge.Api.Features.Scanner;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -327,6 +328,67 @@ public class ScannerLotStockTests : IDisposable
         _db.ChangeTracker.Clear();
         (await ActiveAsync(partId, binId)).Sum(r => r.Quantity).Should().Be(12m);
         (await _db.ScanActionLogs.AsNoTracking().SingleAsync(l => l.Id == logId)).IsReversed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CostTabReturnOfAScannerIssue_PutsTheStockBackOnItsLots()
+    {
+        var (partId, binId, _) = await SeedAsync(unlotted: 5m, lotted: 10m);
+        var jobId = await SeedJobAsync();
+        await new ExecuteScanIssueHandler(_db, _clock, _accessor, MaterialIssueMediator.For(_db)).Handle(
+            new ExecuteScanIssueCommand(new ScanIssueRequestModel(partId, jobId, 12m, binId)), CancellationToken.None);
+        _db.ChangeTracker.Clear();
+        var issueIds = await _db.MaterialIssues.AsNoTracking().Select(mi => mi.Id).ToListAsync();
+
+        foreach (var issueId in issueIds)
+            await new ReturnMaterialIssueHandler(_db).Handle(
+                new ReturnMaterialIssueCommand(jobId, issueId, UserId), CancellationToken.None);
+
+        _db.ChangeTracker.Clear();
+        var rows = await ActiveAsync(partId, binId);
+        rows.Single(r => r.LotNumber == null).Quantity.Should().Be(5m);
+        rows.Single(r => r.LotNumber == "HEAT-A").Quantity.Should().Be(10m);
+    }
+
+    [Fact]
+    public async Task ReverseIssue_AfterTheCostTabReturnedIt_IsRefusedAndRestoresNothingTwice()
+    {
+        var (partId, binId, _) = await SeedAsync(unlotted: 5m, lotted: 10m);
+        var jobId = await SeedJobAsync();
+        var logId = await new ExecuteScanIssueHandler(_db, _clock, _accessor, MaterialIssueMediator.For(_db)).Handle(
+            new ExecuteScanIssueCommand(new ScanIssueRequestModel(partId, jobId, 3m, binId)), CancellationToken.None);
+        _db.ChangeTracker.Clear();
+        var issueId = await _db.MaterialIssues.AsNoTracking().Select(mi => mi.Id).SingleAsync();
+        await new ReturnMaterialIssueHandler(_db).Handle(new ReturnMaterialIssueCommand(jobId, issueId, UserId), CancellationToken.None);
+        _db.ChangeTracker.Clear();
+
+        var act = () => ReverseAsync(logId);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already returned*");
+        _db.ChangeTracker.Clear();
+        (await ActiveAsync(partId, binId)).Sum(r => r.Quantity).Should().Be(15m);
+        (await _db.ScanActionLogs.AsNoTracking().SingleAsync(l => l.Id == logId)).IsReversed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CostTabReturn_AfterTheScanWasReversed_IsRefused()
+    {
+        var (partId, binId, _) = await SeedAsync(unlotted: 5m, lotted: 10m);
+        var jobId = await SeedJobAsync();
+        var logId = await new ExecuteScanIssueHandler(_db, _clock, _accessor, MaterialIssueMediator.For(_db)).Handle(
+            new ExecuteScanIssueCommand(new ScanIssueRequestModel(partId, jobId, 3m, binId)), CancellationToken.None);
+        _db.ChangeTracker.Clear();
+        await ReverseAsync(logId);
+        _db.ChangeTracker.Clear();
+        var issueId = await _db.MaterialIssues.AsNoTracking()
+            .Where(mi => mi.IssueType == MaterialIssueType.Issue).Select(mi => mi.Id).SingleAsync();
+
+        var act = () => new ReturnMaterialIssueHandler(_db).Handle(
+            new ReturnMaterialIssueCommand(jobId, issueId, UserId), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already been returned*");
+        _db.ChangeTracker.Clear();
+        (await ActiveAsync(partId, binId)).Sum(r => r.Quantity).Should().Be(15m);
     }
 
     public void Dispose() => _db.Dispose();

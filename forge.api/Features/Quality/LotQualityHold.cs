@@ -32,6 +32,11 @@ public static class LotQualityHold
         AppDbContext db, int partId, string? lotNumber, CancellationToken ct)
         => new(Message(lotNumber, await db.FindQualityHoldNcrNumberAsync(partId, lotNumber, ct)));
 
+    public static async Task<bool> IsHeldAsync(AppDbContext db, int partId, string? lotNumber, CancellationToken ct)
+        => lotNumber is not null
+            && (await db.NcrsHoldingLot(partId, lotNumber).AnyAsync(ct)
+                || await db.IsLotUnderActiveRecallAsync(lotNumber, ct));
+
     public static async Task<bool> PlaceAsync(AppDbContext db, NonConformance ncr, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(ncr.LotNumber))

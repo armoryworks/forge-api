@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Inventory;
 using Forge.Api.Features.Quality;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -13,7 +14,7 @@ namespace Forge.Api.Features.Scanner;
 /// from un-lotted content first, then the oldest lots, and stock put back lands on the row for its lot.
 /// A reversal's removal starts with the row for the lot it undoes and does not protect reserved units,
 /// because it takes back stock that an earlier scan put there. Issues and moves draw only stock that is not on
-/// quality hold.
+/// quality hold, and issues to a job also skip expired lots.
 /// </summary>
 public static class ScanBinStock
 {
@@ -44,6 +45,24 @@ public static class ScanBinStock
         if (held.Count > 0 && free < quantity && free + held.Sum(bc => bc.Quantity) >= quantity)
             throw await LotQualityHold.RefusalAsync(db, partId, held[0].LotNumber, ct);
         return drawable;
+    }
+
+    public static async Task<List<BinContent>> IssuableRowsAsync(
+        AppDbContext db, int partId, int locationId, decimal quantity, DateOnly shopToday, CancellationToken ct)
+    {
+        var drawable = await DrawableRowsAsync(db, partId, locationId, quantity, ct);
+        var expiredLots = await LotExpiry.ExpiredLotsAsync(db, partId, shopToday, ct);
+        if (expiredLots.Count == 0)
+            return drawable;
+
+        bool IsExpired(BinContent bc) => bc.LotNumber is not null && expiredLots.ContainsKey(bc.LotNumber);
+        var issuable = drawable.Where(bc => !IsExpired(bc)).ToList();
+        var expired = drawable.Where(bc => IsExpired(bc) && bc.Quantity - bc.ReservedQuantity > 0).ToList();
+        var free = issuable.Sum(bc => bc.Quantity - bc.ReservedQuantity);
+        if (expired.Count > 0 && free < quantity
+            && free + expired.Sum(bc => bc.Quantity - bc.ReservedQuantity) >= quantity)
+            throw LotExpiry.Refusal(expired[0].LotNumber!, expiredLots[expired[0].LotNumber!]);
+        return issuable;
     }
 
     public static async Task<BinContent> AddAsync(

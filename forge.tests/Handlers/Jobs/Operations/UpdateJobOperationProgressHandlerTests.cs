@@ -266,4 +266,27 @@ public class UpdateJobOperationProgressHandlerTests
         _h.BoardGroup.Verify(g => g.SendCoreAsync(
             "jobUpdated", It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
+
+    [Fact]
+    public async Task CompletingAStep_BackflushesTheJob()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        var user = await _h.Timers.AddUserAsync();
+
+        await PatchAsync(user.Id, job.Id, routing[2].Id, new(null, null, JobOperationStatus.Complete));
+
+        _h.Backflush.Verify(b => b.BackflushJobAsync(job.Id, user.Id, _h.Timers.Now, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProgressThatDoesNotCompleteTheStep_DoesNotBackflush()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        var user = await _h.Timers.AddUserAsync();
+
+        await PatchAsync(user.Id, job.Id, routing[2].Id, new(20m, null, null));
+
+        _h.Backflush.Verify(b => b.BackflushJobAsync(
+            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

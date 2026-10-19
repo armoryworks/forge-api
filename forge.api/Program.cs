@@ -352,6 +352,7 @@ try
     builder.Services.AddScoped<ITimerStopService, TimerStopService>();
     builder.Services.AddScoped<UserDeactivation>();
     builder.Services.AddScoped<IJobOperationService, JobOperationService>();
+    builder.Services.AddScoped<IBackflushService, BackflushService>();
     builder.Services.AddScoped<IUserPreferenceRepository, UserPreferenceRepository>();
     builder.Services.AddScoped<IFileRepository, FileRepository>();
     builder.Services.AddScoped<IEntityAccessResolver, EntityAccessResolver>();
