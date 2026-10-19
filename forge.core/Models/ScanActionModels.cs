@@ -7,7 +7,8 @@ public record ScanContextResponseModel(
     decimal CurrentStock,
     string? CurrentLocationName,
     int? CurrentLocationId,
-    List<ScanAvailableAction> AvailableActions);
+    List<ScanAvailableAction> AvailableActions,
+    string? StockUomCode = null);
 
 public record ScanAvailableAction(
     string Action,

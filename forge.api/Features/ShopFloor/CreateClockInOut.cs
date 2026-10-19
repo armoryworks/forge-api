@@ -39,6 +39,9 @@ public class ClockInOutHandler(
             ?? throw new KeyNotFoundException($"Clock event type {request.EventType} not found");
 
         var timestamp = clock.UtcNow;
+        await ClockStateRules.EnsureTransitionAllowedAsync(
+            db, clockEventTypeService, request.UserId, definition, timestamp, ct);
+
         var clockEvent = new ClockEvent
         {
             UserId = request.UserId,

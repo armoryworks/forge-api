@@ -126,6 +126,65 @@ public static class ClockStateRules
         ClockEvent? evt, IClockEventTypeService clockEventTypeService, CancellationToken ct = default)
         => ResolveStatus(evt, await clockEventTypeService.GetAllAsync(ct));
 
+    public static async Task<bool> IsClockedInAsync(
+        AppDbContext db,
+        IClockEventTypeService clockEventTypeService,
+        int userId,
+        DateTimeOffset now,
+        CancellationToken ct = default)
+    {
+        var latest = await LatestEventAsync(db, userId, ct);
+        if (latest is null || now - latest.Timestamp >= TimeSpan.FromHours(DefaultLookbackHours))
+            return false;
+
+        var code = string.IsNullOrEmpty(latest.EventTypeCode) ? latest.EventType.ToString() : latest.EventTypeCode;
+        var definition = await clockEventTypeService.GetByCodeAsync(code, ct);
+        return definition?.StatusMapping == StatusIn;
+    }
+
+    public static async Task EnsureTransitionAllowedAsync(
+        AppDbContext db,
+        IClockEventTypeService clockEventTypeService,
+        int userId,
+        ClockEventTypeDefinition requested,
+        DateTimeOffset now,
+        CancellationToken ct = default)
+    {
+        var latest = await LatestEventAsync(db, userId, ct);
+        var latestDefinition = latest is null
+            ? null
+            : await clockEventTypeService.GetByCodeAsync(
+                string.IsNullOrEmpty(latest.EventTypeCode) ? latest.EventType.ToString() : latest.EventTypeCode, ct);
+        var status = latestDefinition?.StatusMapping ?? StatusOut;
+
+        if (await IsTransitionAllowedAsync(clockEventTypeService, status, requested, ct))
+            return;
+
+        var isStale = latest is not null && now - latest.Timestamp >= TimeSpan.FromHours(DefaultLookbackHours);
+        if (isStale && await IsTransitionAllowedAsync(clockEventTypeService, StatusOut, requested, ct))
+            return;
+
+        throw new InvalidOperationException(latestDefinition is null
+            ? $"{requested.Label} isn't available while clocked out. Refresh to see the current clock status."
+            : $"{requested.Label} isn't available after {latestDefinition.Label}. Refresh to see the current clock status.");
+    }
+
+    private static async Task<bool> IsTransitionAllowedAsync(
+        IClockEventTypeService clockEventTypeService,
+        string status,
+        ClockEventTypeDefinition requested,
+        CancellationToken ct)
+    {
+        if (requested.StatusMapping == StatusOut)
+            return status != StatusOut;
+
+        if (string.IsNullOrEmpty(requested.OppositeCode))
+            return false;
+
+        var opposite = await clockEventTypeService.GetByCodeAsync(requested.OppositeCode, ct);
+        return opposite is not null && opposite.StatusMapping == status;
+    }
+
     public static string ToPhoneState(string status, bool countsAsActive)
         => status == StatusIn ? "in"
             : status != StatusOut && countsAsActive ? "break"

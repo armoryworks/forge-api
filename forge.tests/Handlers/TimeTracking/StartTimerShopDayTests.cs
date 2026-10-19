@@ -17,7 +17,7 @@ public class StartTimerShopDayTests
         _h.Now = now;
         var user = await _h.AddUserAsync();
         var handler = new StartTimerHandler(
-            _h.Repo, _h.Jobs, _h.Db, _h.SignedIn(user.Id), _h.TimerHub.Object, _h.Mediator.Object, _h.Clock.Object);
+            _h.Repo, _h.Jobs, _h.Db, _h.SignedIn(user.Id), _h.TimerHub.Object, _h.Mediator.Object, _h.Clock.Object, _h.ClockEventTypes.Object);
 
         await handler.Handle(new StartTimerCommand(new StartTimerRequestModel(null, null, null)), CancellationToken.None);
 

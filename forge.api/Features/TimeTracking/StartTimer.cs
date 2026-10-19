@@ -21,7 +21,8 @@ public class StartTimerHandler(
     IHttpContextAccessor httpContext,
     IHubContext<TimerHub> timerHub,
     IMediator mediator,
-    IClock clock) : IRequestHandler<StartTimerCommand, TimeEntryResponseModel>
+    IClock clock,
+    IClockEventTypeService clockEventTypeService) : IRequestHandler<StartTimerCommand, TimeEntryResponseModel>
 {
     public async Task<TimeEntryResponseModel> Handle(StartTimerCommand request, CancellationToken cancellationToken)
     {
@@ -36,6 +37,10 @@ public class StartTimerHandler(
         }
 
         var now = clock.UtcNow;
+
+        if (request.Data.RequireClockedIn
+            && !await ClockStateRules.IsClockedInAsync(db, clockEventTypeService, userId, now, cancellationToken))
+            throw new InvalidOperationException("Clock in before starting a timer.");
 
         var active = await repo.GetActiveTimerAsync(userId, cancellationToken);
         if (active is not null)

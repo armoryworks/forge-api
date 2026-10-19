@@ -219,4 +219,99 @@ public class IdentifyScanHandlerTests
         result.ScanType.Should().Be("asset");
         result.EntityId.Should().Be(7);
     }
+
+    private async Task<ScanIdentificationResult> ScanAsync(Barcode barcode)
+    {
+        barcode.IsActive = true;
+        _db.Barcodes.Add(barcode);
+        await _db.SaveChangesAsync();
+        return await _handler.Handle(new IdentifyScanQuery(barcode.Value), CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Handle_SalesOrderBarcode_ReturnsTheOrderNumberOnly()
+    {
+        var order = new SalesOrder { OrderNumber = "SO-0042", CustomerId = 1 };
+        _db.SalesOrders.Add(order);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-SO-42", EntityType = BarcodeEntityType.SalesOrder, SalesOrderId = order.Id });
+
+        result.Should().Be(new ScanIdentificationResult("sales-order", order.Id, "SO-0042"));
+    }
+
+    [Fact]
+    public async Task Handle_PurchaseOrderBarcode_ReturnsThePoNumberOnly()
+    {
+        var po = new PurchaseOrder { PONumber = "PO-0007", VendorId = 1 };
+        _db.PurchaseOrders.Add(po);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-PO-7", EntityType = BarcodeEntityType.PurchaseOrder, PurchaseOrderId = po.Id });
+
+        result.Should().Be(new ScanIdentificationResult("purchase-order", po.Id, "PO-0007"));
+    }
+
+    [Fact]
+    public async Task Handle_PartBarcode_ReturnsThePartNumber()
+    {
+        var part = new Part { PartNumber = "BRK-100", Name = "Bracket" };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-BRK-100", EntityType = BarcodeEntityType.Part, PartId = part.Id });
+
+        result.Should().Be(new ScanIdentificationResult("part", part.Id, "BRK-100"));
+    }
+
+    [Fact]
+    public async Task Handle_LotBarcode_ReturnsTheLotNumber()
+    {
+        var lot = new LotRecord { LotNumber = "LOT-2026-001", PartId = 1 };
+        _db.LotRecords.Add(lot);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-LOT-1", EntityType = BarcodeEntityType.Lot, LotRecordId = lot.Id });
+
+        result.Should().Be(new ScanIdentificationResult("lot", lot.Id, "LOT-2026-001"));
+    }
+
+    [Fact]
+    public async Task Handle_LocationBarcode_ReturnsTheLocationPath()
+    {
+        var area = new StorageLocation { Name = "Warehouse", LocationType = LocationType.Area };
+        _db.StorageLocations.Add(area);
+        await _db.SaveChangesAsync();
+        var bin = new StorageLocation { Name = "Bin A1", LocationType = LocationType.Bin, ParentId = area.Id };
+        _db.StorageLocations.Add(bin);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-BIN-A1", EntityType = BarcodeEntityType.StorageLocation, StorageLocationId = bin.Id });
+
+        result.Should().Be(new ScanIdentificationResult("storage-location", bin.Id, null, "Warehouse / Bin A1"));
+    }
+
+    [Fact]
+    public async Task Handle_CustomerOwnedAssetBarcode_ReturnsNoName()
+    {
+        var asset = new Asset { Name = "Customer mold", IsCustomerOwned = true };
+        _db.Assets.Add(asset);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-MOLD-1", EntityType = BarcodeEntityType.Asset, AssetId = asset.Id });
+
+        result.Should().Be(new ScanIdentificationResult("asset", asset.Id));
+    }
+
+    [Fact]
+    public async Task Handle_ShopAssetBarcode_ReturnsTheAssetName()
+    {
+        var asset = new Asset { Name = "Press 3" };
+        _db.Assets.Add(asset);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-PRESS-3", EntityType = BarcodeEntityType.Asset, AssetId = asset.Id });
+
+        result.Should().Be(new ScanIdentificationResult("asset", asset.Id, "Press 3"));
+    }
 }

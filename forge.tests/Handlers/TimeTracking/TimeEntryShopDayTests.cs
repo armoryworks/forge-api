@@ -26,7 +26,7 @@ public class TimeEntryShopDayTests
         _h.Now = at;
         var user = await _h.AddUserAsync();
         await new StartTimerHandler(
-                _h.Repo, _h.Jobs, _h.Db, _h.SignedIn(user.Id), _h.TimerHub.Object, _h.Mediator.Object, _h.Clock.Object)
+                _h.Repo, _h.Jobs, _h.Db, _h.SignedIn(user.Id), _h.TimerHub.Object, _h.Mediator.Object, _h.Clock.Object, _h.ClockEventTypes.Object)
             .Handle(new StartTimerCommand(new StartTimerRequestModel(null, null, null)), CancellationToken.None);
         return (user, await _h.Db.TimeEntries.SingleAsync(t => t.UserId == user.Id));
     }

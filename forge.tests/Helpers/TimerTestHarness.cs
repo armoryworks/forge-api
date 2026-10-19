@@ -70,10 +70,12 @@ public sealed class TimerTestHarness
             new("ClockIn", "Clock In", "In", "ClockOut", "work", true, true, "login", "#22c55e"),
             new("ClockOut", "Clock Out", "Out", "ClockIn", "work", false, false, "logout", "#ef4444"),
             new("BreakStart", "Start Break", "OnBreak", "BreakEnd", "break", true, true, "free_breakfast", "#f59e0b"),
+            new("BreakEnd", "End Break", "In", "BreakStart", "break", true, false, "play_arrow", "#22c55e"),
             new("LunchStart", "Start Lunch", "OnLunch", "LunchEnd", "lunch", true, true, "restaurant", "#f97316"),
+            new("LunchEnd", "End Lunch", "In", "LunchStart", "lunch", true, false, "play_arrow", "#22c55e"),
             new("shift_end", "End Shift", "Out", "ClockIn", "work", false, false, "logout", "#ef4444"),
             new("smoke_break", "Smoke Break", "OnBreak", "ClockIn", "break", true, true, "pause", "#f59e0b"),
-            new("return_from_errand", "Back", "In", null, "work", true, false, "login", "#22c55e"),
+            new("return_from_errand", "Back", "In", "smoke_break", "work", true, false, "login", "#22c55e"),
         };
         ClockEventTypes.Setup(t => t.GetByCodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string code, CancellationToken _) => definitions.FirstOrDefault(d => d.Code == code));
@@ -133,6 +135,23 @@ public sealed class TimerTestHarness
         Db.Users.Add(user);
         await Db.SaveChangesAsync();
         return user;
+    }
+
+    public async Task<ClockEvent> AddClockEventAsync(int userId, string code, DateTimeOffset at)
+    {
+        var definition = await ClockEventTypes.Object.GetByCodeAsync(code)
+            ?? throw new ArgumentException($"Unknown clock event type {code}", nameof(code));
+        var clockEvent = new ClockEvent
+        {
+            UserId = userId,
+            EventType = LegacyClockEventType.From(definition),
+            EventTypeCode = code,
+            Timestamp = at,
+            Source = "kiosk",
+        };
+        Db.ClockEvents.Add(clockEvent);
+        await Db.SaveChangesAsync();
+        return clockEvent;
     }
 
     public async Task<Job> AddJobAsync(string jobNumber, bool isArchived = false, JobDisposition? disposition = null)

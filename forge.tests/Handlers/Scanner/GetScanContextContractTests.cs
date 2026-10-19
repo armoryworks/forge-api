@@ -193,6 +193,38 @@ public class GetScanContextContractTests : IDisposable
     }
 
     [Fact]
+    public async Task IssueContext_LeavesOutAJobThatAlreadyHasEverythingIssued()
+    {
+        await SeedAsync();
+        var log = await _db.ScanActionLogs.SingleAsync();
+        log.Quantity = 10;
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var issue = Action(await ContextJsonAsync(Caller("ProductionWorker")), "Issue");
+
+        issue.GetProperty("enabled").GetBoolean().Should().BeFalse();
+        issue.GetProperty("context").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task Context_CarriesThePartStockUnit()
+    {
+        await SeedAsync();
+        var uom = new UnitOfMeasure { Code = "lb", Name = "Pound" };
+        _db.UnitsOfMeasure.Add(uom);
+        await _db.SaveChangesAsync();
+        var raw = await _db.Parts.SingleAsync(p => p.PartNumber == "RM-100");
+        raw.StockUomId = uom.Id;
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var context = await ContextJsonAsync(Caller("ProductionWorker"));
+
+        context.GetProperty("stockUomCode").GetString().Should().Be("lb");
+    }
+
+    [Fact]
     public async Task ShipContext_ListsOnlyUnshippedLinesWithTheirShipment()
     {
         await SeedAsync();
