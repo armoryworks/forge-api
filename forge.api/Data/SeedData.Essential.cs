@@ -313,6 +313,20 @@ public static partial class SeedData
             Log.Information("Seeded operation reason reference data (9 entries)");
         }
 
+        if (!await db.ReferenceData.IgnoreQueryFilters().AnyAsync(r => r.GroupCode == "deliverable_type"))
+        {
+            db.ReferenceData.AddRange(
+                new ReferenceData { IsSeedData = true, GroupCode = "deliverable_type", Code = "report", Label = "Report", SortOrder = 1 },
+                new ReferenceData { IsSeedData = true, GroupCode = "deliverable_type", Code = "code", Label = "Code", SortOrder = 2 },
+                new ReferenceData { IsSeedData = true, GroupCode = "deliverable_type", Code = "design", Label = "Design", SortOrder = 3 },
+                new ReferenceData { IsSeedData = true, GroupCode = "deliverable_type", Code = "documentation", Label = "Documentation", SortOrder = 4 },
+                new ReferenceData { IsSeedData = true, GroupCode = "deliverable_type", Code = "training", Label = "Training", SortOrder = 5 },
+                new ReferenceData { IsSeedData = true, GroupCode = "deliverable_type", Code = "other", Label = "Other", SortOrder = 6 }
+            );
+            await db.SaveChangesAsync();
+            Log.Information("Seeded deliverable type reference data (6 entries)");
+        }
+
         if (!await db.ReferenceData.IgnoreQueryFilters().AnyAsync(r => r.GroupCode == "mobile_note_presets"))
         {
             db.ReferenceData.AddRange(

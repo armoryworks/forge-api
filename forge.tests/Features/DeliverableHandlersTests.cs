@@ -147,10 +147,69 @@ public class DeliverableHandlersTests
     [Fact]
     public async Task Update_Validator_Rejects_Unknown_Status()
     {
-        var validator = new UpdateDeliverableValidator();
-        var result = validator.Validate(new UpdateDeliverableCommand(1, new UpdateDeliverableRequestModel(
+        using var db = TestDbContextFactory.Create();
+        var validator = new UpdateDeliverableValidator(db);
+        var result = await validator.ValidateAsync(new UpdateDeliverableCommand(1, new UpdateDeliverableRequestModel(
             "Doc", null, 1, null, null, 1, "Bogus", null, null, null)));
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.PropertyName.Contains("Status"));
+    }
+
+    private static async Task<int> SeedDeliverableTypeAsync(AppDbContext db, string groupCode = "deliverable_type", bool isActive = true)
+    {
+        var type = new ReferenceData { GroupCode = groupCode, Code = "report", Label = "Report", IsActive = isActive };
+        db.ReferenceData.Add(type);
+        await db.SaveChangesAsync();
+        return type.Id;
+    }
+
+    private static CreateDeliverableCommand CreateWithType(int typeId) =>
+        new(new CreateDeliverableRequestModel("FAI report", null, 4, null, null, typeId, null, null, null));
+
+    [Fact]
+    public async Task Create_Validator_Accepts_A_Seeded_Deliverable_Type()
+    {
+        using var db = TestDbContextFactory.Create();
+        var typeId = await SeedDeliverableTypeAsync(db);
+
+        var result = await new CreateDeliverableValidator(db).ValidateAsync(CreateWithType(typeId));
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public async Task Create_Validator_Rejects_An_Unknown_Deliverable_Type()
+    {
+        using var db = TestDbContextFactory.Create();
+        await SeedDeliverableTypeAsync(db);
+
+        var result = await new CreateDeliverableValidator(db).ValidateAsync(CreateWithType(999_999));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName.Contains("DeliverableTypeId"));
+    }
+
+    [Fact]
+    public async Task Create_Validator_Rejects_A_Reference_Value_From_Another_Group()
+    {
+        using var db = TestDbContextFactory.Create();
+        var otherId = await SeedDeliverableTypeAsync(db, groupCode: "job_priority");
+
+        var result = await new CreateDeliverableValidator(db).ValidateAsync(CreateWithType(otherId));
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public async Task Update_Validator_Rejects_An_Inactive_Deliverable_Type()
+    {
+        using var db = TestDbContextFactory.Create();
+        var inactiveId = await SeedDeliverableTypeAsync(db, isActive: false);
+
+        var result = await new UpdateDeliverableValidator(db).ValidateAsync(new UpdateDeliverableCommand(1, new UpdateDeliverableRequestModel(
+            "Doc", null, 1, null, null, inactiveId, "Draft", null, null, null)));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName.Contains("DeliverableTypeId"));
     }
 }
