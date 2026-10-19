@@ -30,7 +30,8 @@ public class MoveStockValidator : AbstractValidator<MoveStockCommand>
 
 /// <summary>
 /// Scan part → scan from-bin → scan to-bin → quantity. Resolves the source
-/// bin content (lot required when the part is lot-tracked) and runs the
+/// bin content (lot required when the part is lot-tracked, unless the move
+/// takes stock that was put away without a lot) and runs the
 /// standard transfer, then hands back the exact reverse move for undo.
 /// </summary>
 public class MoveStockHandler(AppDbContext db, IMediator mediator)
@@ -43,15 +44,22 @@ public class MoveStockHandler(AppDbContext db, IMediator mediator)
             .Select(p => new { p.PartNumber, p.TraceabilityType })
             .FirstOrDefaultAsync(ct) ?? throw new KeyNotFoundException($"Part {request.PartId} not found");
 
-        if (part.TraceabilityType != TraceabilityType.None && string.IsNullOrWhiteSpace(request.LotNumber))
-            throw new InvalidOperationException("This part is lot-tracked — pick a lot.");
+        var lotTracked = part.TraceabilityType != TraceabilityType.None;
+        var noLot = string.IsNullOrWhiteSpace(request.LotNumber);
 
-        var candidates = db.BinContents
+        var stock = db.BinContents
             .Where(b => b.LocationId == request.FromLocationId
                 && b.EntityType == "part" && b.EntityId == request.PartId
-                && b.RemovedAt == null && b.Quantity >= request.Quantity);
-        if (!string.IsNullOrWhiteSpace(request.LotNumber))
-            candidates = candidates.Where(b => b.LotNumber == request.LotNumber);
+                && b.RemovedAt == null);
+        if (!noLot)
+            stock = stock.Where(b => b.LotNumber == request.LotNumber);
+        else if (lotTracked)
+            stock = stock.Where(b => b.LotNumber == null || b.LotNumber == "");
+
+        if (lotTracked && noLot && !await stock.AnyAsync(b => b.Quantity > 0, ct))
+            throw new InvalidOperationException("This part is lot-tracked — pick a lot.");
+
+        var candidates = stock.Where(b => b.Quantity >= request.Quantity);
 
         var source = await candidates.Where(b => b.Status != BinContentStatus.QcHold)
             .OrderByDescending(b => b.Quantity).FirstOrDefaultAsync(ct);

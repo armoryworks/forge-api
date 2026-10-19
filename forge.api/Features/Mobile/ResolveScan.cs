@@ -23,8 +23,10 @@ public class ResolveScanValidator : AbstractValidator<ResolveScanQuery>
 /// <summary>
 /// Turns a scanned value into an entity. Exact barcodes-table lookup first
 /// (internal, GS1, manual codes and the collision suffix all live there),
-/// then the natural-identifier fallback per docs labels.md. Unknown codes
-/// resolve to kind "unknown" — the app buzzes, never navigates.
+/// then the natural-identifier fallback per docs labels.md, then the number
+/// exactly as printed (work order, part, lot or badge) when only one record
+/// carries it. Unknown or ambiguous codes resolve to kind "unknown" — the app
+/// buzzes, never navigates.
 /// </summary>
 public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
     : IRequestHandler<ResolveScanQuery, ScanResolveResponseModel>
@@ -99,7 +101,54 @@ public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
         var purchaseOrderId = await FindPurchaseOrderAsync(code, upper, ct);
         if (purchaseOrderId is not null) return await PurchaseOrderAsync(purchaseOrderId.Value, code, ct);
 
-        return Unknown(code);
+        return await FindByPrintedNumberAsync(code, ct) ?? Unknown(code);
+    }
+
+    private async Task<ScanResolveResponseModel?> FindByPrintedNumberAsync(string code, CancellationToken ct)
+    {
+        var pattern = EscapeLike(code);
+
+        var jobs = await db.Jobs.AsNoTracking()
+            .Where(j => EF.Functions.ILike(j.JobNumber, pattern, LikeEscape))
+            .Select(j => new { j.Id, Value = j.JobNumber })
+            .Take(10)
+            .ToListAsync(ct);
+        var parts = await db.Parts.AsNoTracking()
+            .Where(p => EF.Functions.ILike(p.PartNumber, pattern, LikeEscape))
+            .Select(p => new { p.Id, Value = p.PartNumber })
+            .Take(10)
+            .ToListAsync(ct);
+        var lots = await db.LotRecords.AsNoTracking()
+            .Where(l => EF.Functions.ILike(l.LotNumber, pattern, LikeEscape))
+            .Select(l => new { l.Id, Value = l.LotNumber })
+            .Take(10)
+            .ToListAsync(ct);
+        var badges = await db.Users.AsNoTracking()
+            .Where(u => u.EmployeeBarcode != null && EF.Functions.ILike(u.EmployeeBarcode, pattern, LikeEscape))
+            .Select(u => new { u.Id, Value = u.EmployeeBarcode! })
+            .Take(10)
+            .ToListAsync(ct);
+
+        var hits = new[]
+            {
+                ("job", jobs.Select(j => (j.Id, j.Value)).ToList()),
+                ("part", parts.Select(p => (p.Id, p.Value)).ToList()),
+                ("lot", lots.Select(l => (l.Id, l.Value)).ToList()),
+                ("badge", badges.Select(b => (b.Id, b.Value)).ToList()),
+            }
+            .Where(h => h.Item2.Count > 0)
+            .Select(h => (Kind: h.Item1, Id: PickOne(h.Item2, code)))
+            .ToList();
+
+        if (hits.Count != 1 || hits[0].Id is not { } entityId) return null;
+        var kind = hits[0].Kind;
+        return kind switch
+        {
+            "job" => await JobAsync(entityId, code, ct),
+            "part" => await PartAsync(entityId, code, ct),
+            "lot" => await LotAsync(entityId, code, ct),
+            _ => await BadgeAsync(entityId, code, ct),
+        };
     }
 
     private async Task<int?> FindPurchaseOrderAsync(string code, string upper, CancellationToken ct)

@@ -141,4 +141,95 @@ public class GetPurchaseOrderByIdHandlerTests
         byDescription["service"].PartNumber.Should().BeNull();
         byDescription["service"].PartDefaultBinId.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Detail_NamesTheBinAReceiptFallsBackTo_DefaultBinFirst()
+    {
+        var db = TestDbContextFactory.Create();
+        db.Set<StorageLocation>().AddRange(
+            new StorageLocation { Name = "A1", LocationType = LocationType.Bin, SortOrder = 1 },
+            new StorageLocation { Name = "Dock", LocationType = LocationType.Bin, SortOrder = 2, IsDefault = true },
+            new StorageLocation { Name = "Old", LocationType = LocationType.Bin, SortOrder = 0, IsDefault = true, IsActive = false });
+        await db.SaveChangesAsync();
+        var part = await AddPartAsync(db, "P-FALLBACK", null);
+        var vendor = new Vendor { CompanyName = "Vendor" };
+        db.Set<Vendor>().Add(vendor);
+        await db.SaveChangesAsync();
+        var po = new PurchaseOrder { PONumber = "PO-FB", VendorId = vendor.Id, Status = PurchaseOrderStatus.Submitted };
+        db.Set<PurchaseOrder>().Add(po);
+        await db.SaveChangesAsync();
+        db.Set<PurchaseOrderLine>().Add(new PurchaseOrderLine
+        {
+            PurchaseOrderId = po.Id, PartId = part.Id, Description = "stocked", OrderedQuantity = 1m, UnitPrice = 1m,
+        });
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var result = await new GetPurchaseOrderByIdHandler(new PurchaseOrderRepository(db), db)
+            .Handle(new GetPurchaseOrderByIdQuery(po.Id), CancellationToken.None);
+
+        result.ReceivingFallbackBinPath.Should().Be("Dock");
+        result.ReceivingFallbackBinId.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Detail_WithNoActiveBin_HasNoFallbackBin()
+    {
+        var db = TestDbContextFactory.Create();
+        var part = await AddPartAsync(db, "P-NOBINS", null);
+        var vendor = new Vendor { CompanyName = "Vendor" };
+        db.Set<Vendor>().Add(vendor);
+        await db.SaveChangesAsync();
+        var po = new PurchaseOrder { PONumber = "PO-NB", VendorId = vendor.Id, Status = PurchaseOrderStatus.Submitted };
+        db.Set<PurchaseOrder>().Add(po);
+        await db.SaveChangesAsync();
+        db.Set<PurchaseOrderLine>().Add(new PurchaseOrderLine
+        {
+            PurchaseOrderId = po.Id, PartId = part.Id, Description = "stocked", OrderedQuantity = 1m, UnitPrice = 1m,
+        });
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var result = await new GetPurchaseOrderByIdHandler(new PurchaseOrderRepository(db), db)
+            .Handle(new GetPurchaseOrderByIdQuery(po.Id), CancellationToken.None);
+
+        result.ReceivingFallbackBinId.Should().BeNull();
+        result.ReceivingFallbackBinPath.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Lines_CarryTheirUnitAndItsPrecision()
+    {
+        var db = TestDbContextFactory.Create();
+        var each = new UnitOfMeasure { Code = "ea", Name = "Each", Symbol = "ea", Category = UomCategory.Count, DecimalPlaces = 0 };
+        var kilo = new UnitOfMeasure { Code = "kg", Name = "Kilogram", Category = UomCategory.Weight, DecimalPlaces = 3 };
+        db.Set<UnitOfMeasure>().AddRange(each, kilo);
+        await db.SaveChangesAsync();
+        var bracket = new Part { PartNumber = "P-EA", Description = "bracket", StockUomId = each.Id };
+        var resin = new Part { PartNumber = "P-KG", Description = "resin", StockUomId = each.Id };
+        db.Set<Part>().AddRange(bracket, resin);
+        var vendor = new Vendor { CompanyName = "Vendor" };
+        db.Set<Vendor>().Add(vendor);
+        await db.SaveChangesAsync();
+        var po = new PurchaseOrder { PONumber = "PO-UOM", VendorId = vendor.Id, Status = PurchaseOrderStatus.Submitted };
+        db.Set<PurchaseOrder>().Add(po);
+        await db.SaveChangesAsync();
+        db.Set<PurchaseOrderLine>().AddRange(
+            new PurchaseOrderLine { PurchaseOrderId = po.Id, PartId = bracket.Id, Description = "bracket", OrderedQuantity = 4m, UnitPrice = 1m },
+            new PurchaseOrderLine { PurchaseOrderId = po.Id, PartId = resin.Id, Description = "resin", OrderedQuantity = 2.5m, UnitPrice = 1m, UomId = kilo.Id },
+            new PurchaseOrderLine { PurchaseOrderId = po.Id, Description = "service", OrderedQuantity = 1m, UnitPrice = 1m });
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var result = await new GetPurchaseOrderByIdHandler(new PurchaseOrderRepository(db), db)
+            .Handle(new GetPurchaseOrderByIdQuery(po.Id), CancellationToken.None);
+
+        var byDescription = result.Lines.ToDictionary(l => l.Description);
+        byDescription["bracket"].UnitSymbol.Should().Be("ea");
+        byDescription["bracket"].QuantityDecimalPlaces.Should().Be(0);
+        byDescription["resin"].UnitSymbol.Should().Be("kg");
+        byDescription["resin"].QuantityDecimalPlaces.Should().Be(3);
+        byDescription["service"].UnitSymbol.Should().BeNull();
+        byDescription["service"].QuantityDecimalPlaces.Should().BeNull();
+    }
 }

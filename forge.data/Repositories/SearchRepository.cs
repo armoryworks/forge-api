@@ -21,7 +21,7 @@ public class SearchRepository(AppDbContext db) : ISearchRepository
                AND (job_number ILIKE @pattern OR title ILIKE @pattern)
              ORDER BY updated_at DESC LIMIT @per)
             UNION ALL
-            (SELECT 'Customer', id, name, company_name, 'people', '/customers'
+            (SELECT 'Customer', id, name, NULLIF(company_name, name), 'people', '/customers'
              FROM customers
              WHERE deleted_at IS NULL
                AND (name ILIKE @pattern OR company_name ILIKE @pattern)

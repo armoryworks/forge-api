@@ -218,4 +218,85 @@ public sealed class ResolveScanFallbackTests(PostgresFixture fixture)
         result.Id.Should().Be(userId);
         result.Label.Should().Be("Scanner, Ada");
     }
+
+    private async Task<int> SeedPartAsync(string number)
+    {
+        await using var db = fixture.CreateContext();
+        var part = new Part { PartNumber = number, Name = "Printed part" };
+        db.Parts.Add(part);
+        await db.SaveChangesAsync();
+        return part.Id;
+    }
+
+    [Fact]
+    public async Task Work_order_number_typed_as_printed_resolves_without_a_prefix()
+    {
+        var n = UniqueNumber();
+        var ids = await SeedJobsAsync($"J-{n}");
+
+        var result = await ResolveAsync($"j-{n}");
+
+        result.Kind.Should().Be("job");
+        result.Id.Should().Be(ids[0]);
+    }
+
+    [Fact]
+    public async Task Part_number_typed_as_printed_resolves_without_a_prefix()
+    {
+        var number = $"SA-{UniqueNumber()}";
+        var partId = await SeedPartAsync(number);
+
+        var result = await ResolveAsync(number);
+
+        result.Kind.Should().Be("part");
+        result.Id.Should().Be(partId);
+    }
+
+    [Fact]
+    public async Task Badge_typed_as_printed_resolves_without_a_prefix()
+    {
+        var badge = $"QF-BADGE-{UniqueNumber()}";
+        int userId;
+        await using (var db = fixture.CreateContext())
+        {
+            var user = new ApplicationUser
+            {
+                UserName = $"scan-{Guid.NewGuid():N}",
+                Email = $"scan-{Guid.NewGuid():N}@example.test",
+                FirstName = "Bo",
+                LastName = "Badge",
+                EmployeeBarcode = badge,
+            };
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+            userId = user.Id;
+        }
+
+        var result = await ResolveAsync(badge);
+
+        result.Kind.Should().Be("badge");
+        result.Id.Should().Be(userId);
+    }
+
+    [Fact]
+    public async Task Bare_digits_do_not_loosely_match_a_work_order()
+    {
+        var n = UniqueNumber();
+        await SeedJobsAsync($"J-{n}", $"{n}");
+
+        (await ResolveAsync($"0{n}")).Kind.Should().Be("unknown");
+        (await ResolveAsync($"J-0{n}")).Kind.Should().Be("unknown");
+    }
+
+    [Fact]
+    public async Task Bare_number_shared_by_a_work_order_and_a_part_resolves_unknown()
+    {
+        var number = $"DUP-{UniqueNumber()}";
+        await SeedJobsAsync(number);
+        await SeedPartAsync(number);
+
+        var result = await ResolveAsync(number);
+
+        result.Kind.Should().Be("unknown");
+    }
 }

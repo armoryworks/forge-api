@@ -9,7 +9,8 @@ public record OnHandResponseModel(
     string LocationName,
     decimal Quantity,
     bool LotTracked,
-    List<OnHandLotModel> Lots);
+    List<OnHandLotModel> Lots,
+    decimal UnlottedQuantity);
 
 /// <summary>The reverse move the undo toast issues.</summary>
 public record StockMoveUndoModel(

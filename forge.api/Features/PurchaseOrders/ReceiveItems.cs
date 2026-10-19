@@ -380,11 +380,19 @@ public class ReceiveItemsHandler(
     /// lands where Use stock and Set on-hand look; a "Receiving" bin is created only when the existing
     /// default location cannot hold stock.
     /// </summary>
+    /// <summary>
+    /// The existing bin a receipt falls back to, from locations in display order: the active default bin,
+    /// else the first active bin. Null when the warehouse has no active bin yet.
+    /// </summary>
+    internal static StorageLocation? PickFallbackBin(IEnumerable<StorageLocation> orderedLocations)
+    {
+        var activeBins = orderedLocations.Where(l => l.IsActive && l.LocationType == LocationType.Bin).ToList();
+        return activeBins.FirstOrDefault(l => l.IsDefault) ?? activeBins.FirstOrDefault();
+    }
+
     private static async Task<int> ResolveFallbackBinAsync(IInventoryRepository inventory, CancellationToken ct)
     {
-        var activeLocations = (await inventory.GetStorageLocationsAsync(ct)).Where(l => l.IsActive).ToList();
-        var activeBins = activeLocations.Where(l => l.LocationType == LocationType.Bin).ToList();
-        var fallback = activeBins.FirstOrDefault(l => l.IsDefault) ?? activeBins.FirstOrDefault();
+        var fallback = PickFallbackBin(await inventory.GetStorageLocationsAsync(ct));
         if (fallback is not null)
             return fallback.Id;
 

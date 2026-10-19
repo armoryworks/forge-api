@@ -24,4 +24,6 @@ public record PurchaseOrderLineResponseModel(
     // Reason captured when the unit price was manually overridden (null otherwise).
     string? ManualOverrideReason,
     int? PartDefaultBinId = null,
-    string? PartDefaultBinPath = null);
+    string? PartDefaultBinPath = null,
+    string? UnitSymbol = null,
+    int? QuantityDecimalPlaces = null);
