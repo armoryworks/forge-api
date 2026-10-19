@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -27,7 +28,7 @@ public class CreateSpcCharacteristicCommandValidator : AbstractValidator<CreateS
     }
 }
 
-public class CreateSpcCharacteristicHandler(AppDbContext db)
+public class CreateSpcCharacteristicHandler(AppDbContext db, IClock clock)
     : IRequestHandler<CreateSpcCharacteristicCommand, SpcCharacteristicResponseModel>
 {
     public async Task<SpcCharacteristicResponseModel> Handle(
@@ -50,6 +51,10 @@ public class CreateSpcCharacteristicHandler(AppDbContext db)
                 .FirstOrDefaultAsync(cancellationToken)
                 ?? throw new KeyNotFoundException($"Operation {data.OperationId} not found.");
         }
+
+        if (data.GageId is int gageId)
+            await GageUsability.EnsureUsableAsync(
+                db, gageId, DateOnly.FromDateTime(clock.UtcNow.UtcDateTime), cancellationToken);
 
         var characteristic = new SpcCharacteristic
         {

@@ -27,7 +27,7 @@ public class UpdateSpcCharacteristicCommandValidator : AbstractValidator<UpdateS
     }
 }
 
-public class UpdateSpcCharacteristicHandler(AppDbContext db, ISpcService spcService)
+public class UpdateSpcCharacteristicHandler(AppDbContext db, ISpcService spcService, IClock clock)
     : IRequestHandler<UpdateSpcCharacteristicCommand, SpcCharacteristicResponseModel>
 {
     public async Task<SpcCharacteristicResponseModel> Handle(
@@ -43,6 +43,10 @@ public class UpdateSpcCharacteristicHandler(AppDbContext db, ISpcService spcServ
         var specLimitsChanged = characteristic.UpperSpecLimit != data.UpperSpecLimit
             || characteristic.LowerSpecLimit != data.LowerSpecLimit
             || characteristic.NominalValue != data.NominalValue;
+
+        if (data.GageId is int gageId && gageId != characteristic.GageId)
+            await GageUsability.EnsureUsableAsync(
+                db, gageId, DateOnly.FromDateTime(clock.UtcNow.UtcDateTime), cancellationToken);
 
         characteristic.Name = data.Name.Trim();
         characteristic.Description = data.Description?.Trim();
