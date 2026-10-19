@@ -5,4 +5,5 @@ public record UpdateTimeEntryRequestModel(
     DateOnly? Date,
     int? DurationMinutes,
     string? Category,
-    string? Notes);
+    string? Notes,
+    bool? IsBillable = null);

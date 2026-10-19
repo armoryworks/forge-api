@@ -15,6 +15,7 @@ public record TimeEntryResponseModel
     public DateTimeOffset? TimerStop { get; init; }
     public bool IsManual { get; init; }
     public bool IsLocked { get; init; }
+    public bool IsBillable { get; init; } = true;
     public DateTimeOffset CreatedAt { get; init; }
     public int? OperationId { get; init; }
     public int? JobOperationId { get; init; }

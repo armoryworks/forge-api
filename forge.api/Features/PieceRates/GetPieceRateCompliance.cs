@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Core.Interfaces;
 using Forge.Core.Models.PieceRates;
 using Forge.Data.Context;
 
@@ -21,7 +22,7 @@ namespace Forge.Api.Features.PieceRates;
 [RequiresCapability("CAP-HR-PIECE-RATES")]
 public record GetPieceRateComplianceQuery(DateOnly WeekStart) : IRequest<PieceRateComplianceModel>;
 
-public class GetPieceRateComplianceHandler(AppDbContext db)
+public class GetPieceRateComplianceHandler(AppDbContext db, IWorkedHoursService workedHours)
     : IRequestHandler<GetPieceRateComplianceQuery, PieceRateComplianceModel>
 {
     public async Task<PieceRateComplianceModel> Handle(GetPieceRateComplianceQuery request, CancellationToken ct)
@@ -40,11 +41,8 @@ public class GetPieceRateComplianceHandler(AppDbContext db)
 
         var userIds = earningsByUser.Keys.ToList();
 
-        var minutesByUser = await db.TimeEntries.AsNoTracking()
-            .Where(t => userIds.Contains(t.UserId) && t.Date >= weekStart && t.Date <= weekEnd)
-            .GroupBy(t => t.UserId)
-            .Select(g => new { UserId = g.Key, Minutes = g.Sum(t => t.DurationMinutes) })
-            .ToDictionaryAsync(x => x.UserId, x => x.Minutes, ct);
+        var hoursByUser = (await workedHours.DailyHoursAsync(userIds, weekStart, weekEnd, ct))
+            .ToDictionary(x => x.Key, x => x.Value.Values.Sum());
 
         var users = await db.Users.AsNoTracking()
             .Where(u => userIds.Contains(u.Id))
@@ -81,7 +79,7 @@ public class GetPieceRateComplianceHandler(AppDbContext db)
             state = string.IsNullOrWhiteSpace(state) ? null : state;
 
             var wage = WageFor(state);
-            var hours = Math.Round(minutesByUser.GetValueOrDefault(user.Id) / 60m, 2);
+            var hours = Math.Round(hoursByUser.GetValueOrDefault(user.Id), 2);
             var earnings = earningsByUser[user.Id];
             var required = Math.Round(hours * wage, 2);
             var makeup = Math.Max(0m, required - earnings);

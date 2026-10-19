@@ -126,7 +126,7 @@ public class PieceRateTests
         }
         await db.SaveChangesAsync();
 
-        var report = await new GetPieceRateComplianceHandler(db)
+        var report = await new GetPieceRateComplianceHandler(db, TestCaller.WorkedHours(db, new FixedClock().UtcNow))
             .Handle(new GetPieceRateComplianceQuery(week), CancellationToken.None);
 
         report.Rows.Should().HaveCount(2);
@@ -142,5 +142,30 @@ public class PieceRateTests
         fastRow.MakeupOwed.Should().Be(0m, "500 earned beats 40 × 7.25 = 290");
 
         report.TotalMakeupOwed.Should().Be(360m);
+    }
+
+    [Fact]
+    public async Task Compliance_CountsClockedHours_ForAWorkerWithNoTimeEntries()
+    {
+        var (db, part) = await SeedAsync();
+        db.MinimumWageRates.Add(new MinimumWageRate { StateCode = null, RatePerHour = 7.25m, EffectiveFrom = new DateOnly(2009, 7, 24) });
+        var worker = await AddUserAsync(db, "Clocker");
+        var week = new DateOnly(2026, 8, 17);
+        await new SetPieceRateHandler(db, new FixedClock())
+            .Handle(new SetPieceRateCommand(part.Id, null, 0.10m, new DateOnly(2026, 1, 1), null), CancellationToken.None);
+        await new LogPieceWorkHandler(db)
+            .Handle(new LogPieceWorkCommand(worker.Id, part.Id, null, week, 100m, null), CancellationToken.None);
+        db.ClockEvents.AddRange(
+            new ClockEvent { UserId = worker.Id, EventTypeCode = "ClockIn", Timestamp = new DateTimeOffset(2026, 8, 17, 14, 0, 0, TimeSpan.Zero) },
+            new ClockEvent { UserId = worker.Id, EventTypeCode = "ClockOut", Timestamp = new DateTimeOffset(2026, 8, 17, 20, 0, 0, TimeSpan.Zero) });
+        await db.SaveChangesAsync();
+
+        var report = await new GetPieceRateComplianceHandler(db, TestCaller.WorkedHours(db, new FixedClock().UtcNow))
+            .Handle(new GetPieceRateComplianceQuery(week), CancellationToken.None);
+
+        var row = report.Rows.Single();
+        row.HoursWorked.Should().Be(6m, "six clocked hours count even without a time entry");
+        row.RequiredFloor.Should().Be(43.50m);
+        row.MakeupOwed.Should().Be(33.50m, "100 pieces x 0.10 = 10 earned against a 43.50 floor");
     }
 }

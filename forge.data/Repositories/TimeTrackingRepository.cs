@@ -173,6 +173,7 @@ public class TimeTrackingRepository(AppDbContext db) : ITimeTrackingRepository
             TimerStop = t.TimerStop,
             IsManual = t.IsManual,
             IsLocked = t.IsLocked,
+            IsBillable = t.IsBillable,
             CreatedAt = t.CreatedAt,
             OperationId = t.OperationId,
             JobOperationId = t.JobOperationId,

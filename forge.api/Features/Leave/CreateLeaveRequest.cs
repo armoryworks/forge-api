@@ -34,6 +34,9 @@ public class CreateLeaveRequestHandler(AppDbContext db) : IRequestHandler<Create
         var user = await db.Users.FindAsync([request.UserId], cancellationToken)
             ?? throw new KeyNotFoundException($"User {request.UserId} not found");
 
+        await LeaveBalanceRules.EnsureCoveredAsync(
+            db, policy, request.UserId, request.Request.Hours, null, countPending: true, cancellationToken);
+
         var leaveRequest = new LeaveRequest
         {
             UserId = request.UserId,

@@ -9,4 +9,5 @@ public record CreateTimeEntryRequestModel(
     string? Category,
     string? Notes,
     int? OperationId = null,
-    TimeEntryType EntryType = TimeEntryType.Run);
+    TimeEntryType EntryType = TimeEntryType.Run,
+    bool IsBillable = true);
