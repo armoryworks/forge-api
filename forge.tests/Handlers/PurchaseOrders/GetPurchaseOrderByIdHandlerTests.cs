@@ -62,6 +62,24 @@ public class GetPurchaseOrderByIdHandlerTests
         service.LineTotal.Should().Be(250m);
     }
 
+    [Fact]
+    public async Task Handle_ReturnsTheOptimisticLockVersionAsRowVersion()
+    {
+        var po = new PurchaseOrder
+        {
+            Id = 9,
+            PONumber = "PO-0009",
+            VendorId = 3,
+            Vendor = new Vendor { Id = 3, CompanyName = "Vendor" },
+            Version = 4,
+        };
+        _repo.Setup(r => r.FindWithDetailsAsync(9, It.IsAny<CancellationToken>())).ReturnsAsync(po);
+
+        var result = await _handler.Handle(new GetPurchaseOrderByIdQuery(9), CancellationToken.None);
+
+        result.RowVersion.Should().Be(4u, "the UI caches it as the If-Match for the next header edit");
+    }
+
     private static async Task<Part> AddPartAsync(AppDbContext db, string partNumber, StorageLocation? defaultBin)
     {
         if (defaultBin is not null)

@@ -106,6 +106,11 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
         await mediator.Send(new UpdatePurchaseOrderCommand(
             id, request.Notes, request.ExpectedDeliveryDate,
             PONumber: request.PONumber,
+            Incoterm: request.Incoterm,
+            EstimatedFreight: request.EstimatedFreight,
+            QuoteCurrency: request.QuoteCurrency,
+            FxRate: request.FxRate,
+            FxRateSource: request.FxRateSource,
             VendorContactId: request.VendorContactId,
             VendorAddressId: request.VendorAddressId,
             ShipToLocationId: request.ShipToLocationId));

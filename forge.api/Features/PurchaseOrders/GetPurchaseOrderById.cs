@@ -118,7 +118,8 @@ public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo, AppDbCon
             VendorAddressText: address is null ? null : PurchaseOrderParties.OneLine(address),
             ShipToLocationId: shipTo?.Id,
             ShipToLocationName: shipTo?.Name,
-            ShipToAddressText: shipTo is null ? null : PurchaseOrderParties.OneLine(shipTo));
+            ShipToAddressText: shipTo is null ? null : PurchaseOrderParties.OneLine(shipTo),
+            RowVersion: po.Version);
     }
 
     private async Task<Dictionary<int, string>> ResolveReceivableBinPathsAsync(

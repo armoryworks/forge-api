@@ -53,7 +53,8 @@ public class PurchaseOrderStatusActivityTests
         var currency = new Mock<ICurrencyService>();
         currency.Setup(c => c.GetBaseCurrencyAsync(It.IsAny<CancellationToken>())).ReturnsAsync("USD");
         var handler = new SubmitPurchaseOrderHandler(
-            _repo.Object, new Mock<IApprovalService>().Object, currency.Object, _httpContext.Object, _clock.Object, _db);
+            _repo.Object, new Mock<IApprovalService>().Object, currency.Object, _httpContext.Object, _clock.Object, _db,
+            Mock.Of<IPublisher>());
 
         await handler.Handle(new SubmitPurchaseOrderCommand(9), CancellationToken.None);
 
@@ -71,7 +72,7 @@ public class PurchaseOrderStatusActivityTests
         GivenPo(PurchaseOrderStatus.Submitted, (10m, 0m));
         var handler = new SubmitPurchaseOrderHandler(
             _repo.Object, new Mock<IApprovalService>().Object, new Mock<ICurrencyService>().Object,
-            _httpContext.Object, _clock.Object, _db);
+            _httpContext.Object, _clock.Object, _db, Mock.Of<IPublisher>());
 
         var act = () => handler.Handle(new SubmitPurchaseOrderCommand(9), CancellationToken.None);
 

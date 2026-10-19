@@ -21,6 +21,7 @@ public class ApproveRequestHandler(IApprovalService approvalService, AppDbContex
         // therefore already persisted by the time it returns — so a downstream re-query in
         // any ApprovalCompletedEvent handler sees the request as terminal (the guard in
         // UpdateExpenseStatus relies on this ordering: publish AFTER persist).
+        await approvalService.EnsureCanActAsync(request.RequestId, request.DecidedById, ct);
         var result = await approvalService.ApproveAsync(request.RequestId, request.DecidedById, request.Comments, ct);
 
         // F-26B-05 — fire the completion event ONLY on a terminal approval (final step done),

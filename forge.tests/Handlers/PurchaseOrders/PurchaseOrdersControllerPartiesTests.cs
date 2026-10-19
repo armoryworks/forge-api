@@ -109,4 +109,37 @@ public class PurchaseOrdersControllerPartiesTests
         po.VendorAddressId.Should().Be(31);
         po.ShipToLocationId.Should().Be(50);
     }
+
+    [Fact]
+    public async Task Update_of_a_draft_carries_the_landed_cost_fields_so_a_foreign_currency_po_can_be_submitted()
+    {
+        await SeedAsync();
+        _db.PurchaseOrders.Add(new PurchaseOrder
+        {
+            Id = 8, PONumber = "PO-00008", VendorId = 1, Status = PurchaseOrderStatus.Draft, QuoteCurrency = "CAD",
+        });
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var result = await _controller.UpdatePurchaseOrder(8, new UpdatePurchaseOrderRequestModel(
+            null, null, Incoterm: Incoterm.DAP, EstimatedFreight: 120m,
+            QuoteCurrency: "CAD", FxRate: 0.7312m, FxRateSource: "Bank of Canada 10/14"));
+
+        result.Should().BeOfType<NoContentResult>();
+        var po = await ReloadAsync(8);
+        po.Incoterm.Should().Be(Incoterm.DAP);
+        po.EstimatedFreight.Should().Be(120m);
+        po.FxRate.Should().Be(0.7312m);
+        po.FxRateSource.Should().Be("Bank of Canada 10/14");
+
+        var currency = new Mock<ICurrencyService>();
+        currency.Setup(c => c.GetBaseCurrencyAsync(It.IsAny<CancellationToken>())).ReturnsAsync("USD");
+        var submit = new SubmitPurchaseOrderHandler(
+            new PurchaseOrderRepository(_db), Mock.Of<IApprovalService>(), currency.Object,
+            Mock.Of<IHttpContextAccessor>(), Mock.Of<IClock>(), _db, Mock.Of<IPublisher>());
+
+        await submit.Handle(new SubmitPurchaseOrderCommand(8), CancellationToken.None);
+
+        (await ReloadAsync(8)).Status.Should().Be(PurchaseOrderStatus.Submitted);
+    }
 }

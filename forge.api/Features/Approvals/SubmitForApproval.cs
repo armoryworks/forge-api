@@ -19,13 +19,13 @@ public class SubmitForApprovalValidator : AbstractValidator<SubmitForApprovalCom
     }
 }
 
-public class SubmitForApprovalHandler(IApprovalService approvalService)
+public class SubmitForApprovalHandler(IApprovalService approvalService, IPublisher publisher)
     : IRequestHandler<SubmitForApprovalCommand, ApprovalRequestResponseModel?>
 {
     public async Task<ApprovalRequestResponseModel?> Handle(SubmitForApprovalCommand request, CancellationToken ct)
     {
-        var result = await approvalService.SubmitForApprovalAsync(
-            request.Data.EntityType, request.Data.EntityId,
+        var result = await approvalService.SubmitAndPublishAsync(
+            publisher, request.Data.EntityType, request.Data.EntityId,
             request.RequestedById, request.Data.Amount,
             request.Data.EntitySummary, ct);
 

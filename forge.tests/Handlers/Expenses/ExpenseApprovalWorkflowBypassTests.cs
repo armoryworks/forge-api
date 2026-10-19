@@ -2,6 +2,7 @@ using System.Security.Claims;
 
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
 using MediatR;
 using Moq;
@@ -60,9 +61,21 @@ public class ExpenseApprovalWorkflowBypassTests
         return expense;
     }
 
+    /// <summary>Seeds the approver (user 7) as a member of the Manager role the workflow steps name.</summary>
+    private static async Task SeedManagerApproverAsync(AppDbContext db)
+    {
+        var role = new IdentityRole<int> { Name = "Manager", NormalizedName = "MANAGER" };
+        db.Roles.Add(role);
+        db.Users.Add(new ApplicationUser { Id = ApproverUserId, UserName = "approver", FirstName = "Avery", LastName = "Approver" });
+        await db.SaveChangesAsync();
+        db.UserRoles.Add(new IdentityUserRole<int> { UserId = ApproverUserId, RoleId = role.Id });
+        await db.SaveChangesAsync();
+    }
+
     /// <summary>Seeds a single-step (manager) workflow + a Pending request governing the expense.</summary>
     private static async Task<ApprovalRequest> SeedPendingRequestAsync(AppDbContext db, int expenseId, decimal amount)
     {
+        await SeedManagerApproverAsync(db);
         var workflow = new ApprovalWorkflow
         {
             Name = "Expense approval", EntityType = "Expense", IsActive = true,
@@ -246,6 +259,8 @@ public class ExpenseApprovalWorkflowBypassTests
         using var db = TestDbContextFactory.Create();
         var expense = await SeedExpenseAsync(db);
 
+        await SeedManagerApproverAsync(db);
+
         // Two-step workflow: approving step 1 only advances to step 2 — not terminal.
         var workflow = new ApprovalWorkflow
         {
@@ -281,6 +296,39 @@ public class ExpenseApprovalWorkflowBypassTests
         published.Should().Be(0, "approving an intermediate step advances the workflow — it is not a terminal completion");
         (await db.ApprovalRequests.FindAsync(request.Id))!.Status.Should().Be(ApprovalRequestStatus.Pending);
         (await db.Expenses.FindAsync(expense.Id))!.Status.Should().Be(ExpenseStatus.Pending);
+    }
+
+    [Fact]
+    public async Task AutoApprovedSubmission_setsExpenseApproved_andEnqueuesSync()
+    {
+        using var db = TestDbContextFactory.Create();
+        var expense = await SeedExpenseAsync(db);
+        expense.Amount = 18.75m;
+        await db.SaveChangesAsync();
+        db.ApprovalWorkflows.Add(new ApprovalWorkflow
+        {
+            Name = "Expense review", EntityType = "Expense", IsActive = true,
+            Steps =
+            {
+                new ApprovalStep { StepNumber = 1, Name = "Manager", ApproverType = ApproverType.Role, ApproverRole = "Manager", AutoApproveBelow = 100m },
+            },
+        });
+        await db.SaveChangesAsync();
+
+        var enqueued = new List<int>();
+        var reactionHandler = new OnApprovalCompleted_UpdateExpenseStatus(
+            ForwardingMediator(RealStatusHandler(db, enqueued)), NullLogger<OnApprovalCompleted_UpdateExpenseStatus>.Instance);
+        var publisher = new Mock<IPublisher>();
+        publisher.Setup(p => p.Publish(It.IsAny<ApprovalCompletedEvent>(), It.IsAny<CancellationToken>()))
+            .Returns<ApprovalCompletedEvent, CancellationToken>((evt, ct) => reactionHandler.Handle(evt, ct));
+
+        var request = await new ApprovalService(db, NullLogger<ApprovalService>.Instance).SubmitAndPublishAsync(
+            publisher.Object, "Expense", expense.Id, OwnerUserId, expense.Amount, "Label tape", CancellationToken.None);
+
+        request!.Status.Should().Be(ApprovalRequestStatus.AutoApproved);
+        var updated = (await db.Expenses.FindAsync(expense.Id))!;
+        updated.Status.Should().Be(ExpenseStatus.Approved, "an auto-approval is a terminal approval and must reach the expense");
+        enqueued.Should().Contain(expense.Id);
     }
 
     // ───────────────────────────── (d) reject through the workflow ─────────────────────────────

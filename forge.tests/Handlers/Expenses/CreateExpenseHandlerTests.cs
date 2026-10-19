@@ -7,6 +7,7 @@ using Moq;
 
 using MediatR;
 
+using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.Expenses;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -200,5 +201,31 @@ public class CreateExpenseHandlerTests
         _expenseRepo.Verify(r => r.AddAsync(It.Is<Expense>(e =>
             e.JobId == null
         ), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(ApprovalRequestStatus.AutoApproved, 1)]
+    [InlineData(ApprovalRequestStatus.Pending, 0)]
+    public async Task Handle_PublishesCompletionOnlyWhenTheWorkflowAutoApproves(
+        ApprovalRequestStatus requestStatus, int expectedPublishes)
+    {
+        _expenseRepo.Setup(r => r.AddAsync(It.IsAny<Expense>(), It.IsAny<CancellationToken>()))
+            .Callback<Expense, CancellationToken>((e, _) => e.Id = 55);
+        _expenseRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ExpenseResponseModel(
+                55, _userId, "John Doe", null, null,
+                18.75m, "Office Supplies", "Label tape", null,
+                ExpenseStatus.Pending, null, null, null, DateTime.UtcNow, DateTime.UtcNow));
+        _approvalService.Setup(a => a.SubmitForApprovalAsync(
+                "Expense", 55, _userId, 18.75m, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ApprovalRequest { Id = 3, EntityType = "Expense", EntityId = 55, Status = requestStatus });
+
+        await _handler.Handle(new CreateExpenseCommand(new CreateExpenseRequestModel(
+            18.75m, "Office Supplies", "Label tape", null, null, DateTime.UtcNow)), CancellationToken.None);
+
+        _mediator.Verify(m => m.Publish(
+            It.Is<ApprovalCompletedEvent>(e => e.EntityType == "Expense" && e.EntityId == 55
+                && e.Approved && e.DecidedById == _userId),
+            It.IsAny<CancellationToken>()), Times.Exactly(expectedPublishes));
     }
 }

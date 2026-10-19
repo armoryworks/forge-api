@@ -27,6 +27,7 @@ public class RejectRequestHandler(IApprovalService approvalService, AppDbContext
         // RejectAsync sets the terminal Status=Rejected + CompletedAt and SaveChanges; the
         // terminal status is persisted before this returns. F-26B-05 — publish the completion
         // event (Approved=false) AFTER that persist so a downstream re-query sees it terminal.
+        await approvalService.EnsureCanActAsync(request.RequestId, request.DecidedById, ct);
         var result = await approvalService.RejectAsync(request.RequestId, request.DecidedById, request.Comments, ct);
 
         await mediator.Publish(

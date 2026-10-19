@@ -12,6 +12,8 @@ namespace Forge.Data.Services;
 
 public class ApprovalService(AppDbContext db, ILogger<ApprovalService> logger) : IApprovalService
 {
+    private const string ExpenseSelfApprovalKey = "expense_self_approval";
+
     public async Task<ApprovalRequest?> SubmitForApprovalAsync(
         string entityType, int entityId, int requestedById,
         decimal? amount, string? entitySummary, CancellationToken ct)
@@ -179,10 +181,8 @@ public class ApprovalService(AppDbContext db, ILogger<ApprovalService> logger) :
 
         if (user == null) return [];
 
-        var userRoles = await db.UserRoles.AsNoTracking()
-            .Where(ur => ur.UserId == userId)
-            .Join(db.Roles, ur => ur.RoleId, r => r.Id, (_, r) => r.Name!)
-            .ToListAsync(ct);
+        var userRoles = await GetUserRolesAsync(userId, ct);
+        var expenseSelfApproval = await IsExpenseSelfApprovalAllowedAsync(ct);
 
         var pendingRequests = await db.ApprovalRequests
             .AsNoTracking()
@@ -193,34 +193,78 @@ public class ApprovalService(AppDbContext db, ILogger<ApprovalService> logger) :
             .OrderBy(r => r.RequestedAt)
             .ToListAsync(ct);
 
-        return pendingRequests.Where(r =>
-        {
-            var currentStep = r.Workflow.Steps.FirstOrDefault(s => s.StepNumber == r.CurrentStepNumber);
-            if (currentStep == null) return false;
-
-            var delegatedToMe = r.Decisions
-                .Any(d => d.Decision == ApprovalDecisionType.Delegate
-                       && d.DelegatedToUserId == userId
-                       && d.StepNumber == r.CurrentStepNumber);
-            if (delegatedToMe) return true;
-
-            return currentStep.ApproverType switch
-            {
-                ApproverType.SpecificUser => currentStep.ApproverUserId == userId,
-                ApproverType.Role => currentStep.ApproverRole != null && userRoles.Contains(currentStep.ApproverRole),
-                ApproverType.Manager => false, // Would need org hierarchy
-                _ => false,
-            };
-        }).ToList();
+        return pendingRequests
+            .Where(r => ResolveActorStatus(r, userId, userRoles, expenseSelfApproval) == ApprovalActorStatus.Allowed)
+            .ToList();
     }
 
-    public async Task CheckEscalationsAsync(CancellationToken ct)
+    public async Task<ApprovalActorStatus> GetActorStatusAsync(int requestId, int userId, CancellationToken ct)
+    {
+        var request = await db.ApprovalRequests
+            .AsNoTracking()
+            .Include(r => r.Workflow).ThenInclude(w => w.Steps)
+            .Include(r => r.Decisions)
+            .FirstOrDefaultAsync(r => r.Id == requestId, ct)
+            ?? throw new KeyNotFoundException($"Approval request {requestId} not found.");
+
+        var userRoles = await GetUserRolesAsync(userId, ct);
+        var expenseSelfApproval = await IsExpenseSelfApprovalAllowedAsync(ct);
+        return ResolveActorStatus(request, userId, userRoles, expenseSelfApproval);
+    }
+
+    public async Task<IReadOnlyList<int>> GetCurrentApproverIdsAsync(int requestId, CancellationToken ct)
+    {
+        var request = await db.ApprovalRequests
+            .AsNoTracking()
+            .Include(r => r.Workflow).ThenInclude(w => w.Steps)
+            .Include(r => r.Decisions)
+            .FirstOrDefaultAsync(r => r.Id == requestId, ct)
+            ?? throw new KeyNotFoundException($"Approval request {requestId} not found.");
+
+        var currentStep = request.Workflow.Steps.FirstOrDefault(s => s.StepNumber == request.CurrentStepNumber);
+        if (currentStep == null) return [];
+
+        var candidateIds = new HashSet<int>(request.Decisions
+            .Where(d => d.Decision == ApprovalDecisionType.Delegate
+                     && d.StepNumber == request.CurrentStepNumber
+                     && d.DelegatedToUserId.HasValue)
+            .Select(d => d.DelegatedToUserId!.Value));
+
+        if (currentStep.ApproverType == ApproverType.SpecificUser && currentStep.ApproverUserId.HasValue)
+            candidateIds.Add(currentStep.ApproverUserId.Value);
+
+        if (currentStep.ApproverType == ApproverType.Role && currentStep.ApproverRole != null)
+        {
+            var roleMembers = await db.UserRoles.AsNoTracking()
+                .Join(db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, r.Name })
+                .Where(x => x.Name == currentStep.ApproverRole)
+                .Select(x => x.UserId)
+                .ToListAsync(ct);
+            candidateIds.UnionWith(roleMembers);
+        }
+
+        var activeIds = await db.Users.AsNoTracking()
+            .Where(u => candidateIds.Contains(u.Id) && u.IsActive)
+            .Select(u => u.Id)
+            .ToListAsync(ct);
+
+        var expenseSelfApproval = await IsExpenseSelfApprovalAllowedAsync(ct);
+        return activeIds
+            .Where(id => id != request.RequestedById || SelfApprovalAllowed(request, expenseSelfApproval))
+            .OrderBy(id => id)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<ApprovalRequest>> CheckEscalationsAsync(CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
         var pendingRequests = await db.ApprovalRequests
             .Include(r => r.Workflow).ThenInclude(w => w.Steps)
-            .Where(r => r.Status == ApprovalRequestStatus.Pending)
+            .Where(r => r.Status == ApprovalRequestStatus.Pending
+                     || r.Status == ApprovalRequestStatus.Escalated)
             .ToListAsync(ct);
+
+        var escalated = new List<ApprovalRequest>();
 
         foreach (var request in pendingRequests)
         {
@@ -253,6 +297,7 @@ public class ApprovalService(AppDbContext db, ILogger<ApprovalService> logger) :
                 request.CurrentStepNumber = nextStep.StepNumber;
                 request.Status = ApprovalRequestStatus.Escalated;
                 request.EscalatedAt = now;
+                escalated.Add(request);
 
                 logger.LogInformation("Escalated approval request {RequestId} from step {FromStep} to {ToStep}",
                     request.Id, currentStep.StepNumber, nextStep.StepNumber);
@@ -260,6 +305,59 @@ public class ApprovalService(AppDbContext db, ILogger<ApprovalService> logger) :
         }
 
         await db.SaveChangesAsync(ct);
+        return escalated;
+    }
+
+    private async Task<List<string>> GetUserRolesAsync(int userId, CancellationToken ct)
+    {
+        return await db.UserRoles.AsNoTracking()
+            .Where(ur => ur.UserId == userId)
+            .Join(db.Roles, ur => ur.RoleId, r => r.Id, (_, r) => r.Name!)
+            .ToListAsync(ct);
+    }
+
+    private async Task<bool> IsExpenseSelfApprovalAllowedAsync(CancellationToken ct)
+    {
+        var value = await db.SystemSettings.AsNoTracking()
+            .Where(s => s.Key == ExpenseSelfApprovalKey)
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+        return value == "true";
+    }
+
+    private static bool SelfApprovalAllowed(ApprovalRequest request, bool expenseSelfApproval) =>
+        expenseSelfApproval && string.Equals(request.EntityType, "Expense", StringComparison.Ordinal);
+
+    private static ApprovalActorStatus ResolveActorStatus(
+        ApprovalRequest request, int userId, IReadOnlyCollection<string> userRoles, bool expenseSelfApproval)
+    {
+        if (!IsCurrentApprover(request, userId, userRoles))
+            return ApprovalActorStatus.NotCurrentApprover;
+
+        if (request.RequestedById == userId && !SelfApprovalAllowed(request, expenseSelfApproval))
+            return ApprovalActorStatus.OwnRequest;
+
+        return ApprovalActorStatus.Allowed;
+    }
+
+    private static bool IsCurrentApprover(ApprovalRequest request, int userId, IReadOnlyCollection<string> userRoles)
+    {
+        var currentStep = request.Workflow.Steps.FirstOrDefault(s => s.StepNumber == request.CurrentStepNumber);
+        if (currentStep == null) return false;
+
+        var delegatedToMe = request.Decisions
+            .Any(d => d.Decision == ApprovalDecisionType.Delegate
+                   && d.DelegatedToUserId == userId
+                   && d.StepNumber == request.CurrentStepNumber);
+        if (delegatedToMe) return true;
+
+        return currentStep.ApproverType switch
+        {
+            ApproverType.SpecificUser => currentStep.ApproverUserId == userId,
+            ApproverType.Role => currentStep.ApproverRole != null && userRoles.Contains(currentStep.ApproverRole),
+            ApproverType.Manager => false, // Would need org hierarchy
+            _ => false,
+        };
     }
 
     private async Task<ApprovalWorkflow?> FindMatchingWorkflowAsync(string entityType, decimal? amount, CancellationToken ct)

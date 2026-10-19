@@ -60,9 +60,21 @@ public class MockApprovalService(ILogger<MockApprovalService> logger) : IApprova
         return Task.FromResult<IReadOnlyList<ApprovalRequest>>(Array.Empty<ApprovalRequest>());
     }
 
-    public Task CheckEscalationsAsync(CancellationToken ct)
+    public Task<ApprovalActorStatus> GetActorStatusAsync(int requestId, int userId, CancellationToken ct)
+    {
+        logger.LogInformation("MockApprovalService: GetActorStatus request {RequestId} for user {UserId}", requestId, userId);
+        return Task.FromResult(ApprovalActorStatus.Allowed);
+    }
+
+    public Task<IReadOnlyList<int>> GetCurrentApproverIdsAsync(int requestId, CancellationToken ct)
+    {
+        logger.LogInformation("MockApprovalService: GetCurrentApproverIds for request {RequestId}", requestId);
+        return Task.FromResult<IReadOnlyList<int>>(Array.Empty<int>());
+    }
+
+    public Task<IReadOnlyList<ApprovalRequest>> CheckEscalationsAsync(CancellationToken ct)
     {
         logger.LogInformation("MockApprovalService: CheckEscalations — no-op in mock mode");
-        return Task.CompletedTask;
+        return Task.FromResult<IReadOnlyList<ApprovalRequest>>(Array.Empty<ApprovalRequest>());
     }
 }
