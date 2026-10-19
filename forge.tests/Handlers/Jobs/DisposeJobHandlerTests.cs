@@ -8,6 +8,7 @@ using Moq;
 using Forge.Api.Capabilities;
 using Forge.Api.Hubs;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Jobs;
 using Forge.Api.Features.Jobs.ProductionRuns;
 using Forge.Core.Entities;
@@ -29,6 +30,7 @@ public class DisposeJobHandlerTests
     private readonly Mock<IHubContext<BoardHub>> _boardHub = new();
     private readonly Mock<IClock> _clock = new();
     private readonly Mock<ICapabilitySnapshotProvider> _capabilities = new();
+    private readonly Mock<IProductionVariancePostingService> _jobCostPosting = new();
     private readonly AppDbContext _dbContext;
     private readonly DisposeJobHandler _handler;
 
@@ -44,6 +46,10 @@ public class DisposeJobHandlerTests
         _boardHub.Setup(h => h.Clients).Returns(mockClients.Object);
         _clock.Setup(c => c.UtcNow).Returns(new DateTimeOffset(2026, 10, 6, 12, 0, 0, TimeSpan.Zero));
         _capabilities.Setup(c => c.IsEnabled(DisposeJobHandler.StockingCapability)).Returns(true);
+        _jobCostPosting
+            .Setup(p => p.CapitalizeJobCostAsync(It.IsAny<int>(), It.IsAny<int?>(), It.IsAny<DateOnly>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int jobId, int? _, DateOnly _, int _, CancellationToken _) =>
+                new JobCapitalizationResult(jobId, 0m, 0m, 0m, 0m, null, Posted: false));
 
         _handler = new DisposeJobHandler(
             _jobRepo.Object,
@@ -52,7 +58,8 @@ public class DisposeJobHandlerTests
             _boardHub.Object,
             _clock.Object,
             _capabilities.Object,
-            _dbContext);
+            _dbContext,
+            _jobCostPosting.Object);
     }
 
     [Fact]

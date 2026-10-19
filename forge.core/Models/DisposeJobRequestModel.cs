@@ -6,4 +6,5 @@ public record DisposeJobRequestModel(
     JobDisposition Disposition,
     string? Notes,
     decimal? GoodQuantity = null,
-    int? LocationId = null);
+    int? LocationId = null,
+    int? AssetGlAccountId = null);

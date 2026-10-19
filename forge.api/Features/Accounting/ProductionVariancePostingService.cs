@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Text.Json;
 
+using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
@@ -60,6 +62,17 @@ public interface IProductionVariancePostingService
 {
     Task<JobProductionCostCloseResult> CloseJobProductionCostAsync(
         int jobId, DateOnly entryDate, int closedByUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Capitalizes a job built as a company asset: absorbs its labor + overhead + subcontract into WIP (the same
+    /// absorb entry the close posts, so the two never double-absorb), then moves the job's whole GL WIP balance to
+    /// a fixed-asset account (Dr <paramref name="assetGlAccountId"/>, else the book's FIXED_ASSETS account / Cr
+    /// INVENTORY_WIP), leaving nothing for a later close to sweep to variance. It is the job-disposition business
+    /// action, so both entries post on the sub-ledger path (<see cref="SubledgerPosting"/>). No-op while
+    /// CAP-ACCT-FULLGL is off; a validation error when the job carries WIP and no asset account resolves.
+    /// </summary>
+    Task<JobCapitalizationResult> CapitalizeJobCostAsync(
+        int jobId, int? assetGlAccountId, DateOnly entryDate, int capitalizedByUserId, CancellationToken ct = default);
 }
 
 /// <inheritdoc />
@@ -83,6 +96,9 @@ public sealed class ProductionVariancePostingService(
     private const string KeyLaborRateVariance = "LABOR_RATE_VARIANCE";
     private const string KeyLaborEfficiencyVariance = "LABOR_EFFICIENCY_VARIANCE";
     private const string KeyOverheadEfficiencyVariance = "OVERHEAD_EFFICIENCY_VARIANCE";
+    public const string KeyFixedAssets = "FIXED_ASSETS";
+
+    private static readonly AccountType[] CapitalAccountTypes = [AccountType.Asset];
 
     public async Task<JobProductionCostCloseResult> CloseJobProductionCostAsync(
         int jobId, DateOnly entryDate, int closedByUserId, CancellationToken ct = default)
@@ -90,53 +106,8 @@ public sealed class ProductionVariancePostingService(
         if (!capabilities.IsEnabled(FullGlCapability))
             return new JobProductionCostCloseResult(jobId, 0m, 0m, 0m, Posted: false);
 
-        var book = await db.Books.AsNoTracking()
-            .Where(b => b.IsActive).OrderBy(b => b.Id).FirstOrDefaultAsync(ct);
-        if (book is null)
-            throw new PostingException(
-                "NO_POSTING_BOOK",
-                "CAP-ACCT-FULLGL is enabled but no active accounting Book is seeded to close job production cost into.");
-
-        // Labor at the STANDARD rate (efficiency basis) and at the ACTUAL rate (what's absorbed into WIP); the
-        // difference is the labor RATE variance.
-        var laborStd = Math.Round(await jobCost.GetActualLaborCostAsync(jobId, ct), 2);
-        var laborRateVar = Math.Round(await jobCost.GetLaborRateVarianceAsync(jobId, ct), 2);
-        var laborActual = Math.Round(await jobCost.GetActualLaborCostAtActualRateAsync(jobId, ct), 2);
-        var burden = Math.Round(await jobCost.GetActualBurdenCostAsync(jobId, ct), 2);
-        // Subcontract conversion (outside-vendor operation steps) is tracked operationally and — like labor and
-        // overhead — never hits GL WIP, so the standard FG relief over-relieves by it too. Absorb it the same way.
-        var subcontract = Math.Round(await jobCost.GetActualSubcontractCostAsync(jobId, ct), 2);
-
-        // ── 1) Absorb labor (at ACTUAL cost) + overhead + subcontract into WIP (idempotent on the absorb key). ─
-        var absorbKey = $"{JournalSource.Inventory}:Job:{jobId}:WIPABSORB";
-        var alreadyAbsorbed = await db.JournalEntries.IgnoreQueryFilters()
-            .AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == absorbKey, ct);
-        if (!alreadyAbsorbed && laborActual + burden + subcontract > 0m)
-        {
-            var absorbLines = new List<PostingLine>
-            {
-                new() { AccountKey = KeyInventoryWip, Debit = laborActual + burden + subcontract, JobId = jobId, Description = $"WIP — absorb labor + overhead + subcontract (job {jobId})" },
-            };
-            if (laborActual > 0m)
-                absorbLines.Add(new PostingLine { AccountKey = KeyLaborApplied, Credit = laborActual, Description = $"Labor absorbed — job {jobId}" });
-            if (burden > 0m)
-                absorbLines.Add(new PostingLine { AccountKey = KeyOverheadApplied, Credit = burden, Description = $"Overhead absorbed — job {jobId}" });
-            if (subcontract > 0m)
-                absorbLines.Add(new PostingLine { AccountKey = KeySubcontractApplied, Credit = subcontract, Description = $"Subcontract absorbed — job {jobId}" });
-
-            await postingEngine.PostAsync(new PostingRequest
-            {
-                BookId = book.Id,
-                EntryDate = entryDate,
-                Source = JournalSource.Inventory,
-                SourceType = "Job",
-                SourceId = jobId,
-                CurrencyId = book.FunctionalCurrencyId,
-                Memo = $"WIP absorption — labor + overhead + subcontract, job {jobId}",
-                IdempotencyKey = absorbKey,
-                Lines = absorbLines,
-            }, closedByUserId, ct);
-        }
+        var book = await RequireBookAsync(ct);
+        var (laborStd, laborRateVar, laborActual, burden, subcontract) = await AbsorbAsync(book, jobId, entryDate, closedByUserId, asSystem: false, ct);
 
         // ── 2) Sweep the job's remaining GL WIP balance to PRODUCTION_VARIANCE (idempotent on the var key). ──
         var varKey = $"{JournalSource.Inventory}:Job:{jobId}:PRODVARIANCE";
@@ -152,18 +123,7 @@ public sealed class ProductionVariancePostingService(
         if (wipAccountId is null)
             return new JobProductionCostCloseResult(jobId, laborActual, burden, 0m, Posted: false) { SubcontractAbsorbed = subcontract };
 
-        // GL WIP balance for this job (debit-positive): material in + labor/OH absorbed − standard FG relieved.
-        var wipBalance = await
-            (from line in db.JournalLines.IgnoreQueryFilters()
-             join je in db.JournalEntries.IgnoreQueryFilters() on line.JournalEntryId equals je.Id
-             where je.BookId == book.Id
-                 && line.GlAccountId == wipAccountId.Value
-                 && line.JobId == jobId
-                 && (je.Status == JournalEntryStatus.Posted || je.Status == JournalEntryStatus.Reversed)
-             select line.Debit - line.Credit)
-            .SumAsync(ct);
-
-        var residual = Math.Round(wipBalance, 2);
+        var residual = await GetJobWipBalanceAsync(book.Id, wipAccountId.Value, jobId, ct);
         if (residual == 0m)
             return new JobProductionCostCloseResult(jobId, laborActual, burden, 0m, Posted: laborActual + burden + subcontract > 0m) { SubcontractAbsorbed = subcontract };
 
@@ -239,6 +199,129 @@ public sealed class ProductionVariancePostingService(
             OverheadEfficiencyVariance = ohEff,
             ProductionVarianceResidual = catchall,
         };
+    }
+
+    public async Task<JobCapitalizationResult> CapitalizeJobCostAsync(
+        int jobId, int? assetGlAccountId, DateOnly entryDate, int capitalizedByUserId, CancellationToken ct = default)
+    {
+        if (!capabilities.IsEnabled(FullGlCapability))
+            return new JobCapitalizationResult(jobId, 0m, 0m, 0m, 0m, null, Posted: false);
+
+        var book = await RequireBookAsync(ct);
+        var explicitAccount = await PostableGlAccountLookup.ResolveAsync(
+            db, book.Id, assetGlAccountId, null, "Data.AssetGlAccountId", CapitalAccountTypes, ct);
+
+        var capKey = $"{JournalSource.Inventory}:Job:{jobId}:CAPITALIZE";
+        if (await db.JournalEntries.IgnoreQueryFilters().AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == capKey, ct))
+            return new JobCapitalizationResult(jobId, 0m, 0m, 0m, 0m, null, Posted: false);
+
+        var (_, _, laborActual, burden, subcontract) = await AbsorbAsync(book, jobId, entryDate, capitalizedByUserId, asSystem: true, ct);
+        var absorbedAny = laborActual + burden + subcontract > 0m;
+
+        var wipAccountId = await db.Set<AccountDeterminationRule>()
+            .Where(r => r.BookId == book.Id && r.Key == KeyInventoryWip)
+            .Select(r => (int?)r.GlAccountId)
+            .FirstOrDefaultAsync(ct);
+        var balance = wipAccountId is null ? 0m : await GetJobWipBalanceAsync(book.Id, wipAccountId.Value, jobId, ct);
+        if (balance <= 0m)
+            return new JobCapitalizationResult(jobId, laborActual, burden, subcontract, 0m, null, Posted: absorbedAny);
+
+        var assetAccount = explicitAccount
+            ?? await PostableGlAccountLookup.ResolveAsync(db, book.Id, null, KeyFixedAssets, "Data.AssetGlAccountId", CapitalAccountTypes, ct)
+            ?? throw new ValidationException([new ValidationFailure("Data.AssetGlAccountId",
+                $"Job {jobId} carries {balance:N2} of work in process. Choose the fixed-asset GL account to capitalize it into.")]);
+
+        await postingEngine.PostAsSystemAsync(new PostingRequest
+        {
+            BookId = book.Id,
+            EntryDate = entryDate,
+            Source = JournalSource.Inventory,
+            SourceType = "Job",
+            SourceId = jobId,
+            CurrencyId = book.FunctionalCurrencyId,
+            Memo = $"Capitalize job {jobId} as a fixed asset",
+            IdempotencyKey = capKey,
+            Lines =
+            [
+                new PostingLine { GlAccountId = assetAccount.Id, Debit = balance, Description = $"Fixed asset — capitalized from job {jobId}" },
+                new PostingLine { AccountKey = KeyInventoryWip, Credit = balance, JobId = jobId, Description = $"WIP relieved — job {jobId} capitalized" },
+            ],
+        }, capitalizedByUserId, ct);
+
+        return new JobCapitalizationResult(jobId, laborActual, burden, subcontract, balance, assetAccount.Id, Posted: true);
+    }
+
+    private async Task<Book> RequireBookAsync(CancellationToken ct) =>
+        await db.Books.AsNoTracking().Where(b => b.IsActive).OrderBy(b => b.Id).FirstOrDefaultAsync(ct)
+        ?? throw new PostingException(
+            "NO_POSTING_BOOK",
+            "CAP-ACCT-FULLGL is enabled but no active accounting Book is seeded to close job production cost into.");
+
+    private async Task<(decimal LaborStd, decimal LaborRateVar, decimal LaborActual, decimal Burden, decimal Subcontract)> AbsorbAsync(
+        Book book, int jobId, DateOnly entryDate, int userId, bool asSystem, CancellationToken ct)
+    {
+        // Labor at the STANDARD rate (efficiency basis) and at the ACTUAL rate (what's absorbed into WIP); the
+        // difference is the labor RATE variance.
+        var laborStd = Math.Round(await jobCost.GetActualLaborCostAsync(jobId, ct), 2);
+        var laborRateVar = Math.Round(await jobCost.GetLaborRateVarianceAsync(jobId, ct), 2);
+        var laborActual = Math.Round(await jobCost.GetActualLaborCostAtActualRateAsync(jobId, ct), 2);
+        var burden = Math.Round(await jobCost.GetActualBurdenCostAsync(jobId, ct), 2);
+        // Subcontract conversion (outside-vendor operation steps) is tracked operationally and — like labor and
+        // overhead — never hits GL WIP, so the standard FG relief over-relieves by it too. Absorb it the same way.
+        var subcontract = Math.Round(await jobCost.GetActualSubcontractCostAsync(jobId, ct), 2);
+
+        // ── 1) Absorb labor (at ACTUAL cost) + overhead + subcontract into WIP (idempotent on the absorb key). ─
+        var absorbKey = $"{JournalSource.Inventory}:Job:{jobId}:WIPABSORB";
+        var alreadyAbsorbed = await db.JournalEntries.IgnoreQueryFilters()
+            .AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == absorbKey, ct);
+        if (!alreadyAbsorbed && laborActual + burden + subcontract > 0m)
+        {
+            var absorbLines = new List<PostingLine>
+            {
+                new() { AccountKey = KeyInventoryWip, Debit = laborActual + burden + subcontract, JobId = jobId, Description = $"WIP — absorb labor + overhead + subcontract (job {jobId})" },
+            };
+            if (laborActual > 0m)
+                absorbLines.Add(new PostingLine { AccountKey = KeyLaborApplied, Credit = laborActual, Description = $"Labor absorbed — job {jobId}" });
+            if (burden > 0m)
+                absorbLines.Add(new PostingLine { AccountKey = KeyOverheadApplied, Credit = burden, Description = $"Overhead absorbed — job {jobId}" });
+            if (subcontract > 0m)
+                absorbLines.Add(new PostingLine { AccountKey = KeySubcontractApplied, Credit = subcontract, Description = $"Subcontract absorbed — job {jobId}" });
+
+            var absorb = new PostingRequest
+            {
+                BookId = book.Id,
+                EntryDate = entryDate,
+                Source = JournalSource.Inventory,
+                SourceType = "Job",
+                SourceId = jobId,
+                CurrencyId = book.FunctionalCurrencyId,
+                Memo = $"WIP absorption — labor + overhead + subcontract, job {jobId}",
+                IdempotencyKey = absorbKey,
+                Lines = absorbLines,
+            };
+            if (asSystem)
+                await postingEngine.PostAsSystemAsync(absorb, userId, ct);
+            else
+                await postingEngine.PostAsync(absorb, userId, ct);
+        }
+
+        return (laborStd, laborRateVar, laborActual, burden, subcontract);
+    }
+
+    private async Task<decimal> GetJobWipBalanceAsync(int bookId, int wipAccountId, int jobId, CancellationToken ct)
+    {
+        // GL WIP balance for this job (debit-positive): material in + labor/OH absorbed − standard FG relieved.
+        var wipBalance = await
+            (from line in db.JournalLines.IgnoreQueryFilters()
+             join je in db.JournalEntries.IgnoreQueryFilters() on line.JournalEntryId equals je.Id
+             where je.BookId == bookId
+                 && line.GlAccountId == wipAccountId
+                 && line.JobId == jobId
+                 && (je.Status == JournalEntryStatus.Posted || je.Status == JournalEntryStatus.Reversed)
+             select line.Debit - line.Credit)
+            .SumAsync(ct);
+
+        return Math.Round(wipBalance, 2);
     }
 
     /// <summary>Adds a variance line for a signed amount: positive = unfavorable (debit), negative = favorable
