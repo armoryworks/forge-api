@@ -85,6 +85,22 @@ public class HandleDocuSealWebhookHandlerTests
     }
 
     [Fact]
+    public async Task I9_EmployeeFormCompletedRedelivered_DoesNotCompleteTheForm()
+    {
+        var submission = await SeedAsync(ComplianceFormType.I9, 501);
+        var handler = Handler();
+        var employeeEvent = new HandleDocuSealWebhookCommand(501, "completed", EmployeeSigned, IsSubmitterEvent: true, SubmitterId: 9001);
+
+        await handler.Handle(employeeEvent, CancellationToken.None);
+        await handler.Handle(employeeEvent, CancellationToken.None);
+
+        submission.I9Section1SignedAt.Should().Be(EmployeeSigned);
+        submission.I9Section2SignedAt.Should().BeNull();
+        submission.Status.Should().Be(ComplianceSubmissionStatus.Opened);
+        _signing.Verify(s => s.GetSignedPdfAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task I9_EmployerFormCompleted_CompletesAndFetchesThePdfBySubmissionId()
     {
         var submission = await SeedAsync(ComplianceFormType.I9, 501);

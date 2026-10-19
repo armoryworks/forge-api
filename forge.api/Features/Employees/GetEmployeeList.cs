@@ -198,34 +198,39 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
         CancellationToken cancellationToken)
     {
         var users = await orderedUsers.ToListAsync(cancellationToken);
-        var userItems = await ProjectUsersAsync(users, cancellationToken);
-        var updatedAt = users.ToDictionary(u => u.Id, u => u.UpdatedAt);
 
-        var rows = userItems
-            .Select(i => (Item: i, UpdatedAt: updatedAt[i.Id]))
-            .Concat(userless.Select(p => (Item: ProjectUserless(p), UpdatedAt: p.UpdatedAt)))
+        var rows = users
+            .Select(u => new MergedRow(u.Id, u.FirstName, u.LastName, u.Email ?? string.Empty, u.IsActive,
+                u.CreatedAt, u.UpdatedAt, u, null))
+            .Concat(userless.Select(p => new MergedRow(p.Id, p.FirstName ?? string.Empty, p.LastName ?? string.Empty,
+                p.WorkEmail ?? string.Empty, true, p.CreatedAt, p.UpdatedAt, null, p)))
             .ToList();
 
         var text = StringComparer.CurrentCultureIgnoreCase;
         var desc = qry.OrderDescending;
         var ordered = (qry.Sort ?? "").Trim().ToLowerInvariant() switch
         {
-            "firstname" => desc ? rows.OrderByDescending(r => r.Item.FirstName, text) : rows.OrderBy(r => r.Item.FirstName, text),
-            "lastname"  => desc ? rows.OrderByDescending(r => r.Item.LastName, text)  : rows.OrderBy(r => r.Item.LastName, text),
-            "email"     => desc ? rows.OrderByDescending(r => r.Item.Email, text)     : rows.OrderBy(r => r.Item.Email, text),
-            "isactive"  => desc ? rows.OrderByDescending(r => r.Item.IsActive)        : rows.OrderBy(r => r.Item.IsActive),
-            "createdat" => desc ? rows.OrderByDescending(r => r.Item.CreatedAt)       : rows.OrderBy(r => r.Item.CreatedAt),
-            "updatedat" => desc ? rows.OrderByDescending(r => r.UpdatedAt)            : rows.OrderBy(r => r.UpdatedAt),
-            "id"        => desc ? rows.OrderByDescending(r => r.Item.Id)              : rows.OrderBy(r => r.Item.Id),
-            _           => rows.OrderBy(r => r.Item.LastName, text).ThenBy(r => r.Item.FirstName, text),
+            "firstname" => desc ? rows.OrderByDescending(r => r.FirstName, text) : rows.OrderBy(r => r.FirstName, text),
+            "lastname"  => desc ? rows.OrderByDescending(r => r.LastName, text)  : rows.OrderBy(r => r.LastName, text),
+            "email"     => desc ? rows.OrderByDescending(r => r.Email, text)     : rows.OrderBy(r => r.Email, text),
+            "isactive"  => desc ? rows.OrderByDescending(r => r.IsActive)        : rows.OrderBy(r => r.IsActive),
+            "createdat" => desc ? rows.OrderByDescending(r => r.CreatedAt)       : rows.OrderBy(r => r.CreatedAt),
+            "updatedat" => desc ? rows.OrderByDescending(r => r.UpdatedAt)       : rows.OrderBy(r => r.UpdatedAt),
+            "id"        => desc ? rows.OrderByDescending(r => r.Id)              : rows.OrderBy(r => r.Id),
+            _           => rows.OrderBy(r => r.LastName, text).ThenBy(r => r.FirstName, text),
         };
 
-        var page = ordered
-            .ThenBy(r => r.Item.Id)
-            .ThenBy(r => r.Item.HasLogin)
+        var pageRows = ordered
+            .ThenBy(r => r.Id)
+            .ThenBy(r => r.Profile is null)
             .Skip(qry.Skip)
             .Take(qry.EffectivePageSize)
-            .Select(r => r.Item)
+            .ToList();
+
+        var pageUsers = pageRows.Where(r => r.User is not null).Select(r => r.User!).ToList();
+        var userItems = (await ProjectUsersAsync(pageUsers, cancellationToken)).ToDictionary(i => i.Id);
+        var page = pageRows
+            .Select(r => r.User is not null ? userItems[r.User.Id] : ProjectUserless(r.Profile!))
             .ToList();
 
         return new PagedResponse<EmployeeListItemResponseModel>(
@@ -234,6 +239,17 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
             qry.EffectivePage,
             qry.EffectivePageSize);
     }
+
+    private sealed record MergedRow(
+        int Id,
+        string FirstName,
+        string LastName,
+        string Email,
+        bool IsActive,
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt,
+        ApplicationUser? User,
+        Core.Entities.EmployeeProfile? Profile);
 
     private static EmployeeListItemResponseModel ProjectUserless(Core.Entities.EmployeeProfile profile)
         => new(

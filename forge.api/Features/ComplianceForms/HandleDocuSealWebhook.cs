@@ -63,6 +63,16 @@ public class HandleDocuSealWebhookHandler(
         var finished = request.Status == "completed"
             && (request.AllSigned || !request.IsSubmitterEvent || !isI9 || submission.I9Section1SignedAt is not null);
 
+        var redeliveredSection1 = isI9
+            && request.Status == "completed"
+            && request.IsSubmitterEvent
+            && !request.AllSigned
+            && request.CompletedAt is not null
+            && submission.I9Section1SignedAt == request.CompletedAt
+            && submission.I9Section2SignedAt is null;
+        if (redeliveredSection1)
+            return;
+
         if (isI9 && request.Status == "completed" && submission.I9Section1SignedAt is null)
         {
             submission.I9Section1SignedAt = signedAt;
