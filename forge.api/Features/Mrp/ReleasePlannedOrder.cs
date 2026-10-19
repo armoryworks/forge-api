@@ -31,6 +31,9 @@ public class ReleasePlannedOrderHandler(
             .FirstOrDefaultAsync(po => po.Id == request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Planned order {request.Id} not found.");
 
+        if (await db.MrpRuns.AnyAsync(r => r.Id == order.MrpRunId && r.IsSimulation, cancellationToken))
+            throw new InvalidOperationException("A simulation's planned orders are for review only; run MRP for real to plan this order.");
+
         if (order.Status == MrpPlannedOrderStatus.Released)
             throw new InvalidOperationException("This planned order has already been released.");
 

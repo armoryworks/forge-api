@@ -134,4 +134,56 @@ public class MasterScheduleHandlerTests
         result.Should().HaveCount(1);
         result[0].Name.Should().Be("Draft One");
     }
+
+    [Theory]
+    [InlineData(MasterScheduleStatus.Active, true, MasterScheduleStatus.Completed)]
+    [InlineData(MasterScheduleStatus.Draft, false, MasterScheduleStatus.Cancelled)]
+    [InlineData(MasterScheduleStatus.Active, false, MasterScheduleStatus.Cancelled)]
+    public async Task CloseMasterSchedule_MovesItOutOfActivePlanning(MasterScheduleStatus from, bool complete, MasterScheduleStatus expected)
+    {
+        using var db = TestDbContextFactory.Create();
+        var schedule = await SeedScheduleAsync(db, from);
+
+        var result = complete
+            ? await new CompleteMasterScheduleHandler(db).Handle(new CompleteMasterScheduleCommand(schedule.Id), CancellationToken.None)
+            : await new CancelMasterScheduleHandler(db).Handle(new CancelMasterScheduleCommand(schedule.Id), CancellationToken.None);
+
+        result.Status.Should().Be(expected);
+        (await db.MasterSchedules.FindAsync(schedule.Id))!.Status.Should().Be(expected);
+        db.ActivityLogs.Should().ContainSingle(a => a.EntityType == "MasterSchedule" && a.EntityId == schedule.Id
+            && a.Action == (complete ? "master-schedule-completed" : "master-schedule-cancelled"));
+    }
+
+    [Theory]
+    [InlineData(MasterScheduleStatus.Draft, true)]
+    [InlineData(MasterScheduleStatus.Completed, true)]
+    [InlineData(MasterScheduleStatus.Completed, false)]
+    [InlineData(MasterScheduleStatus.Cancelled, false)]
+    public async Task CloseMasterSchedule_FromTheWrongStatus_Throws(MasterScheduleStatus from, bool complete)
+    {
+        using var db = TestDbContextFactory.Create();
+        var schedule = await SeedScheduleAsync(db, from);
+
+        Func<Task> act = complete
+            ? () => new CompleteMasterScheduleHandler(db).Handle(new CompleteMasterScheduleCommand(schedule.Id), CancellationToken.None)
+            : () => new CancelMasterScheduleHandler(db).Handle(new CancelMasterScheduleCommand(schedule.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    private static async Task<MasterSchedule> SeedScheduleAsync(Forge.Data.Context.AppDbContext db, MasterScheduleStatus status)
+    {
+        var schedule = new MasterSchedule
+        {
+            Name = $"MPS {status}",
+            Status = status,
+            PeriodStart = DateTimeOffset.UtcNow,
+            PeriodEnd = DateTimeOffset.UtcNow.AddMonths(3),
+            CreatedByUserId = 1,
+            Lines = [new MasterScheduleLine { PartId = 1, Quantity = 100m, DueDate = DateTimeOffset.UtcNow.AddMonths(1) }],
+        };
+        db.MasterSchedules.Add(schedule);
+        await db.SaveChangesAsync();
+        return schedule;
+    }
 }

@@ -38,17 +38,24 @@ public class ApplyForecastToMpsHandler(AppDbContext db)
         var buckets = JsonSerializer.Deserialize<List<ForecastBucketModel>>(forecast.ForecastDataJson);
         if (buckets == null) return;
 
-        // Add forecast buckets as MPS lines (only future periods with forecasted quantities)
-        foreach (var bucket in buckets.Where(b => b.ForecastedQuantity > 0))
+        var overrides = await db.ForecastOverrides
+            .AsNoTracking()
+            .Where(o => o.DemandForecastId == forecast.Id)
+            .OrderBy(o => o.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var bucket in buckets.Where(b => ForecastPeriod.IsForecast(b, forecast.ForecastStartDate)))
         {
-            // Use override quantity if available
-            var quantity = bucket.OverrideQuantity ?? bucket.ForecastedQuantity;
+            var overrideRow = overrides.LastOrDefault(o => ForecastPeriod.SameDate(o.PeriodStart, bucket.PeriodStart));
+            var quantity = overrideRow?.OverrideQuantity ?? bucket.OverrideQuantity ?? bucket.ForecastedQuantity;
+            if (quantity <= 0)
+                continue;
 
             schedule.Lines.Add(new MasterScheduleLine
             {
                 PartId = forecast.PartId,
                 Quantity = quantity,
-                DueDate = bucket.PeriodEnd.AddDays(-1), // Due by end of period
+                DueDate = bucket.PeriodEnd.AddDays(-1),
                 Notes = $"From forecast: {forecast.Name}",
             });
         }
