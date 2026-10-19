@@ -16,4 +16,5 @@ public record SpcOocEventResponseModel
     public DateTimeOffset? AcknowledgedAt { get; init; }
     public string? AcknowledgmentNotes { get; init; }
     public int? CapaId { get; init; }
+    public string? CapaNumber { get; init; }
 }

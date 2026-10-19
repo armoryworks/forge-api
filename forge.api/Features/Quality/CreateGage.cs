@@ -13,10 +13,17 @@ public record CreateGageCommand(CreateGageRequestModel Request) : IRequest<GageR
 
 public class CreateGageValidator : AbstractValidator<CreateGageCommand>
 {
-    public CreateGageValidator()
+    public const int MaxCalibrationIntervalDays = 3650;
+    public static readonly TimeSpan LocalDateSlack = TimeSpan.FromHours(14);
+
+    public CreateGageValidator(IClock clock)
     {
         RuleFor(x => x.Request.Description).NotEmpty().MaximumLength(500);
-        RuleFor(x => x.Request.CalibrationIntervalDays).GreaterThan(0);
+        RuleFor(x => x.Request.CalibrationIntervalDays).InclusiveBetween(1, MaxCalibrationIntervalDays);
+        RuleFor(x => x.Request.LastCalibratedAt)
+            .Must(at => at <= clock.UtcNow.Add(LocalDateSlack))
+            .When(x => x.Request.LastCalibratedAt.HasValue)
+            .WithMessage("Last calibration date cannot be in the future");
     }
 }
 
@@ -25,6 +32,7 @@ public class CreateGageHandler(AppDbContext db, IClock clock) : IRequestHandler<
     public async Task<GageResponseModel> Handle(CreateGageCommand request, CancellationToken cancellationToken)
     {
         var nextNumber = await GetNextGageNumberAsync(cancellationToken);
+        var certifiedAt = request.Request.LastCalibratedAt;
 
         var gage = new Gage
         {
@@ -35,14 +43,17 @@ public class CreateGageHandler(AppDbContext db, IClock clock) : IRequestHandler<
             Model = request.Request.Model?.Trim(),
             SerialNumber = request.Request.SerialNumber?.Trim(),
             CalibrationIntervalDays = request.Request.CalibrationIntervalDays,
-            Status = GageStatus.InService,
+            Status = certifiedAt.HasValue ? GageStatus.InService : GageStatus.DueForCalibration,
             LocationId = request.Request.LocationId,
             AssetId = request.Request.AssetId,
             AccuracySpec = request.Request.AccuracySpec?.Trim(),
             RangeSpec = request.Request.RangeSpec?.Trim(),
             Resolution = request.Request.Resolution?.Trim(),
             Notes = request.Request.Notes?.Trim(),
-            NextCalibrationDue = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddDays(request.Request.CalibrationIntervalDays)),
+            LastCalibratedAt = certifiedAt,
+            NextCalibrationDue = certifiedAt.HasValue
+                ? DateOnly.FromDateTime(certifiedAt.Value.UtcDateTime.AddDays(request.Request.CalibrationIntervalDays))
+                : DateOnly.FromDateTime(clock.UtcNow.UtcDateTime),
         };
 
         db.Gages.Add(gage);

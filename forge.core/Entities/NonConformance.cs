@@ -2,8 +2,11 @@ using Forge.Core.Enums;
 
 namespace Forge.Core.Entities;
 
-public class NonConformance : BaseAuditableEntity
+public class NonConformance : BaseAuditableEntity, IConcurrencyVersioned
 {
+    /// <summary>Optimistic-locking version. See IConcurrencyVersioned.</summary>
+    public uint Version { get; set; }
+
     public string NcrNumber { get; set; } = string.Empty;
     public NcrType Type { get; set; }
     public int PartId { get; set; }

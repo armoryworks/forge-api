@@ -53,7 +53,9 @@ public class DispositionNcrHandler(
 
         ncr.DispositionCode = command.Request.Code;
         ncr.DispositionNotes = command.Request.Notes;
-        ncr.ReworkInstructions = command.Request.ReworkInstructions;
+        ncr.ReworkInstructions = command.Request.Code == NcrDispositionCode.Rework
+            ? command.Request.ReworkInstructions
+            : null;
         ncr.DispositionById = userId;
         ncr.DispositionAt = clock.UtcNow;
         ncr.Status = NcrStatus.Dispositioned;

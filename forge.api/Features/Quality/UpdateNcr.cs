@@ -110,14 +110,16 @@ public class UpdateNcrHandler(
                 ncr.ContainmentAt = clock.UtcNow;
             }
         }
-        if (req.MaterialCost.HasValue && req.MaterialCost != ncr.MaterialCost)
+        var materialCost = req.MaterialCost.HasValue ? RoundCost(req.MaterialCost.Value) : (decimal?)null;
+        var laborCost = req.LaborCost.HasValue ? RoundCost(req.LaborCost.Value) : (decimal?)null;
+        if (materialCost.HasValue && materialCost != ncr.MaterialCost)
         {
-            ncr.MaterialCost = req.MaterialCost.Value;
+            ncr.MaterialCost = materialCost.Value;
             changedFields.Add("materialCost");
         }
-        if (req.LaborCost.HasValue && req.LaborCost != ncr.LaborCost)
+        if (laborCost.HasValue && laborCost != ncr.LaborCost)
         {
-            ncr.LaborCost = req.LaborCost.Value;
+            ncr.LaborCost = laborCost.Value;
             changedFields.Add("laborCost");
         }
 
@@ -134,4 +136,6 @@ public class UpdateNcrHandler(
 
         await db.SaveChangesAsync(cancellationToken);
     }
+
+    private static decimal RoundCost(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero);
 }

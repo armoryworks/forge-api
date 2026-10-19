@@ -56,7 +56,7 @@ public class QcTemplateEditTests(CapabilityTestWebApplicationFactory factory)
             User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "7")], "Test")),
         });
         return await new CreateQcInspectionHandler(_db, accessor.Object).Handle(
-            new CreateQcInspectionCommand(new CreateQcInspectionRequestModel(null, null, templateId, null, null)),
+            new CreateQcInspectionCommand(new CreateQcInspectionRequestModel(null, null, templateId, "LOT-T", null)),
             CancellationToken.None);
     }
 

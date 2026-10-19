@@ -10,6 +10,7 @@ public class NonConformanceConfiguration : IEntityTypeConfiguration<NonConforman
     public void Configure(EntityTypeBuilder<NonConformance> builder)
     {
         builder.Property(e => e.NcrNumber).HasMaxLength(20);
+        builder.Property(e => e.Version).HasDefaultValue(1u);
         builder.Property(e => e.Description).HasMaxLength(4000);
         builder.Property(e => e.PartRevision).HasMaxLength(10);
         builder.Property(e => e.LotNumber).HasMaxLength(100);

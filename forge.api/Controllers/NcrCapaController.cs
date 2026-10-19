@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Concurrency;
 using Forge.Api.Features.Quality;
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 
@@ -48,6 +50,7 @@ public class NcrCapaController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("ncrs/{id:int}")]
+    [IfMatch(typeof(NonConformance))]
     public async Task<IActionResult> UpdateNcr(int id, [FromBody] UpdateNcrRequestModel request)
     {
         await mediator.Send(new UpdateNcrCommand(id, request));

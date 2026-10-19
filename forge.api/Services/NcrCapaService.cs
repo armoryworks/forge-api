@@ -100,8 +100,10 @@ public class NcrCapaService(AppDbContext db, IClock clock) : INcrCapaService
             .FirstOrDefaultAsync(c => c.Id == capaId, ct)
             ?? throw new KeyNotFoundException($"CAPA {capaId} not found");
 
-        if (!CanAdvancePhase(capa))
-            throw new InvalidOperationException($"CAPA {capa.CapaNumber} cannot advance from {capa.Status}. Required fields are missing.");
+        var missing = GetAdvanceBlockers(capa);
+        if (missing.Count > 0)
+            throw new InvalidOperationException(
+                $"CAPA {capa.CapaNumber} cannot advance from {capa.Status}. Missing: {string.Join(", ", missing)}.");
 
         capa.Status = capa.Status switch
         {
@@ -121,7 +123,7 @@ public class NcrCapaService(AppDbContext db, IClock clock) : INcrCapaService
         return capa;
     }
 
-    public async Task<bool> CanAdvanceCapaAsync(int capaId, CancellationToken ct)
+    public async Task<IReadOnlyList<string>> GetCapaAdvanceBlockersAsync(int capaId, CancellationToken ct)
     {
         var capa = await db.CorrectiveActions
             .Include(c => c.Tasks)
@@ -129,7 +131,7 @@ public class NcrCapaService(AppDbContext db, IClock clock) : INcrCapaService
             .FirstOrDefaultAsync(c => c.Id == capaId, ct)
             ?? throw new KeyNotFoundException($"CAPA {capaId} not found");
 
-        return CanAdvancePhase(capa);
+        return GetAdvanceBlockers(capa);
     }
 
     public async Task ScheduleEffectivenessCheckAsync(int capaId, DateTimeOffset checkDate, CancellationToken ct)
@@ -165,18 +167,34 @@ public class NcrCapaService(AppDbContext db, IClock clock) : INcrCapaService
         };
     }
 
-    private static bool CanAdvancePhase(CorrectiveAction capa)
+    public static IReadOnlyList<string> GetAdvanceBlockers(CorrectiveAction capa)
     {
-        return capa.Status switch
+        var missing = new List<string>();
+        switch (capa.Status)
         {
-            CapaStatus.Open => true,
-            CapaStatus.RootCauseAnalysis => !string.IsNullOrWhiteSpace(capa.RootCauseAnalysis) && capa.RootCauseMethod.HasValue,
-            CapaStatus.ActionPlanning => !string.IsNullOrWhiteSpace(capa.CorrectiveActionDescription),
-            CapaStatus.Implementation => capa.Tasks.Count == 0 || capa.Tasks.All(t => t.Status is CapaTaskStatus.Completed or CapaTaskStatus.Cancelled),
-            CapaStatus.Verification => !string.IsNullOrWhiteSpace(capa.VerificationResult),
-            CapaStatus.EffectivenessCheck => capa.IsEffective.HasValue,
-            CapaStatus.Closed => false,
-            _ => false
-        };
+            case CapaStatus.Open:
+                break;
+            case CapaStatus.RootCauseAnalysis:
+                if (string.IsNullOrWhiteSpace(capa.RootCauseAnalysis)) missing.Add("root cause analysis");
+                if (!capa.RootCauseMethod.HasValue) missing.Add("root cause method");
+                break;
+            case CapaStatus.ActionPlanning:
+                if (string.IsNullOrWhiteSpace(capa.CorrectiveActionDescription)) missing.Add("corrective action description");
+                break;
+            case CapaStatus.Implementation:
+                var open = capa.Tasks.Count(t => t.Status is not (CapaTaskStatus.Completed or CapaTaskStatus.Cancelled));
+                if (open > 0) missing.Add($"{open} open task(s) to complete or cancel");
+                break;
+            case CapaStatus.Verification:
+                if (string.IsNullOrWhiteSpace(capa.VerificationResult)) missing.Add("verification result");
+                break;
+            case CapaStatus.EffectivenessCheck:
+                if (!capa.IsEffective.HasValue) missing.Add("effectiveness decision");
+                break;
+            default:
+                missing.Add("the CAPA is already closed");
+                break;
+        }
+        return missing;
     }
 }

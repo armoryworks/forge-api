@@ -8,6 +8,7 @@ public class CreateGageRequestModel
     public string? Model { get; set; }
     public string? SerialNumber { get; set; }
     public int CalibrationIntervalDays { get; set; } = 365;
+    public DateTimeOffset? LastCalibratedAt { get; set; }
     public int? LocationId { get; set; }
     public int? AssetId { get; set; }
     public string? AccuracySpec { get; set; }

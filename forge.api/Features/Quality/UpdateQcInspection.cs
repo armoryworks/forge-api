@@ -67,7 +67,10 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
         if (completing)
             EnsureRequiredItemsChecked(inspection);
         if (data.Status == "Passed")
+        {
+            EnsureSomethingChecked(inspection);
             EnsureRequiredItemsPassed(inspection);
+        }
 
         if (data.Status is not null && data.Status != inspection.Status)
         {
@@ -184,6 +187,13 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
         if (notChecked.Count > 0)
             throw new InvalidOperationException(
                 $"Inspection {inspection.Id} cannot be completed: required checklist items have not been checked ({string.Join(", ", notChecked)}).");
+    }
+
+    private static void EnsureSomethingChecked(QcInspection inspection)
+    {
+        if (!inspection.Results.Any(r => r.Passed is not null))
+            throw new InvalidOperationException(
+                $"Inspection {inspection.Id} cannot pass: record at least one check result first.");
     }
 
     private static void EnsureRequiredItemsPassed(QcInspection inspection)

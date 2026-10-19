@@ -77,6 +77,13 @@ public class CreateCapaFromOocHandler(
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
+        var capaNumber = oocEvent.CapaId.HasValue
+            ? await db.CorrectiveActions.AsNoTracking()
+                .Where(c => c.Id == oocEvent.CapaId.Value)
+                .Select(c => c.CapaNumber)
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
+
         return new SpcOocEventResponseModel
         {
             Id = oocEvent.Id,
@@ -93,6 +100,7 @@ public class CreateCapaFromOocHandler(
             AcknowledgedAt = oocEvent.AcknowledgedAt,
             AcknowledgmentNotes = oocEvent.AcknowledgmentNotes,
             CapaId = oocEvent.CapaId,
+            CapaNumber = capaNumber,
         };
     }
 }

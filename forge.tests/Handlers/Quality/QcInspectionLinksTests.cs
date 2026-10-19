@@ -171,7 +171,7 @@ public class QcInspectionLinksTests(CapabilityTestWebApplicationFactory factory)
     public async Task Passing_reads_required_from_the_snapshot_not_the_current_template()
     {
         var template = await SeedTemplateAsync();
-        var inspection = await Create(new CreateQcInspectionRequestModel(null, null, template.Id, null, null));
+        var inspection = await Create(new CreateQcInspectionRequestModel(null, null, template.Id, "LOT-T", null));
         foreach (var item in await _db.QcChecklistItems.ToListAsync())
             item.IsRequired = item.Description == "Cosmetic";
         await _db.SaveChangesAsync();
@@ -187,7 +187,7 @@ public class QcInspectionLinksTests(CapabilityTestWebApplicationFactory factory)
     public async Task A_required_result_cannot_be_dropped_to_dodge_the_pass_check()
     {
         var template = await SeedTemplateAsync();
-        var inspection = await Create(new CreateQcInspectionRequestModel(null, null, template.Id, null, null));
+        var inspection = await Create(new CreateQcInspectionRequestModel(null, null, template.Id, "LOT-T", null));
         var withoutBore = Results(inspection, false, true).Where(r => r.Description != "Bore").ToList();
 
         var act = () => Update(inspection.Id, "Passed", withoutBore);
@@ -199,7 +199,7 @@ public class QcInspectionLinksTests(CapabilityTestWebApplicationFactory factory)
     [Fact]
     public async Task An_ad_hoc_result_added_during_inspection_is_optional()
     {
-        var inspection = await Create(new CreateQcInspectionRequestModel(null, null, null, null, null));
+        var inspection = await Create(new CreateQcInspectionRequestModel(null, null, null, "LOT-T", null));
 
         var updated = await Update(inspection.Id, null,
             [new UpdateQcInspectionResultModel(null, null, "Burr check", false, null, null)]);
@@ -248,7 +248,7 @@ public class QcInspectionLinksTests(CapabilityTestWebApplicationFactory factory)
     public async Task Detail_keeps_the_template_name_after_the_template_is_deleted()
     {
         var template = await SeedTemplateAsync();
-        var created = await Create(new CreateQcInspectionRequestModel(null, null, template.Id, null, null));
+        var created = await Create(new CreateQcInspectionRequestModel(null, null, template.Id, "LOT-T", null));
         template.DeletedAt = Now;
         await _db.SaveChangesAsync();
 

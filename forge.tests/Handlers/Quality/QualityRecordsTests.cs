@@ -228,7 +228,7 @@ public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
             User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "7")], "Test")),
         });
         var created = await new CreateQcInspectionHandler(_db, accessor.Object).Handle(
-            new CreateQcInspectionCommand(new CreateQcInspectionRequestModel(null, null, template.Id, null, null)),
+            new CreateQcInspectionCommand(new CreateQcInspectionRequestModel(null, null, template.Id, "LOT-T", null)),
             CancellationToken.None);
 
         created.Results.Should().HaveCount(2).And.OnlyContain(r => r.Passed == null);
