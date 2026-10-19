@@ -84,11 +84,19 @@ public class ReverseScanActionHandler(
                 throw new InvalidOperationException("Invalid PIN");
         }
 
+        var issueIds = await ScannedIssueIdsAsync(original, cancellationToken);
+        if (issueIds.Count > 0
+            && await MaterialIssueReturn.AnyReturnedAsync(db, original.RelatedEntityId!.Value, issueIds, cancellationToken))
+            throw new InvalidOperationException(
+                "This material was already returned from the job, so the scan cannot be reversed.");
+
         // Create counter-movements based on action type
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
 
         await ReverseStockAsync(original, userId, now, cancellationToken);
-        await ReturnScannedIssuesAsync(original, userId, cancellationToken);
+        foreach (var issueId in issueIds)
+            await mediator.Send(new ReturnMaterialIssueCommand(
+                original.RelatedEntityId!.Value, issueId, userId, StockRestoredByCaller: true), cancellationToken);
 
         // Mark original as reversed
         original.IsReversed = true;
@@ -114,20 +122,17 @@ public class ReverseScanActionHandler(
         await tx.CommitAsync(cancellationToken);
     }
 
-    private async Task ReturnScannedIssuesAsync(ScanActionLog original, int userId, CancellationToken ct)
+    private async Task<List<int>> ScannedIssueIdsAsync(ScanActionLog original, CancellationToken ct)
     {
         if (original.ActionType != ScanActionType.Issue || original.RelatedEntityId is not int jobId)
-            return;
+            return [];
 
         var note = ScanIssueNote.For(original.Id);
-        var issueIds = await db.MaterialIssues.AsNoTracking()
+        return await db.MaterialIssues.AsNoTracking()
             .Where(mi => mi.JobId == jobId && mi.IssueType == MaterialIssueType.Issue && mi.Notes == note)
             .OrderBy(mi => mi.Id)
             .Select(mi => mi.Id)
             .ToListAsync(ct);
-
-        foreach (var issueId in issueIds)
-            await mediator.Send(new ReturnMaterialIssueCommand(jobId, issueId, userId), ct);
     }
 
     private async Task ReverseStockAsync(ScanActionLog original, int userId, DateTimeOffset now, CancellationToken ct)

@@ -323,6 +323,7 @@ try
     builder.Services.AddScoped<IWorkCenterContext, WorkCenterContext>();
     builder.Services.AddScoped<ITimerStopService, TimerStopService>();
     builder.Services.AddScoped<IJobOperationService, JobOperationService>();
+    builder.Services.AddScoped<IBackflushService, BackflushService>();
     builder.Services.AddScoped<IUserPreferenceRepository, UserPreferenceRepository>();
     builder.Services.AddScoped<IFileRepository, FileRepository>();
     builder.Services.AddScoped<IJobLinkRepository, JobLinkRepository>();

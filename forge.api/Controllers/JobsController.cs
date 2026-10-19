@@ -383,9 +383,15 @@ public class JobsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new CreateMaterialIssueCommand(
             id, req.PartId, req.OperationId, req.Quantity,
             req.BinContentId, req.StorageLocationId, req.LotNumber,
-            req.IssueType, req.Notes, userId), ct);
+            req.IssueType, req.Notes, userId,
+            AllowExpiredLot: req.AllowExpiredLot && (User.IsInRole("Admin") || User.IsInRole("Manager"))), ct);
         return Created($"/api/v1/jobs/{id}/material-issues/{result.Id}", result);
     }
+
+    [HttpGet("{id:int}/issuable-materials")]
+    [RequiresCapability("CAP-MFG-MATL-ISSUE")]
+    public async Task<ActionResult<List<JobIssuableMaterialResponseModel>>> GetIssuableMaterials(int id, CancellationToken ct)
+        => Ok(await mediator.Send(new GetJobIssuableMaterialsQuery(id), ct));
 
     [HttpPost("{id:int}/material-issues/{issueId:int}/return")]
     [RequiresCapability("CAP-MFG-MATL-ISSUE")]
@@ -433,4 +439,5 @@ public record MaterialIssueRequest(
     int? StorageLocationId,
     string? LotNumber,
     Core.Enums.MaterialIssueType IssueType = Core.Enums.MaterialIssueType.Issue,
-    string? Notes = null);
+    string? Notes = null,
+    bool AllowExpiredLot = false);

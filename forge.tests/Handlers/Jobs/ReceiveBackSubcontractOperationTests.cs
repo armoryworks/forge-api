@@ -17,7 +17,7 @@ public class ReceiveBackSubcontractOperationTests
 
     private ReceiveBackSubcontractHandler Handler()
         => new(_h.Timers.Db, _h.Operations, _h.Timers.TimerStopService(), _h.BoardHub.Object,
-            _h.Timers.Mediator.Object, _h.Timers.Clock.Object);
+            _h.Timers.Mediator.Object, _h.Timers.Clock.Object, _h.Backflush.Object);
 
     private async Task<(Job Job, Operation Operation, SubcontractOrder Order)> SeedAsync(bool withOperationRow)
     {
@@ -111,15 +111,67 @@ public class ReceiveBackSubcontractOperationTests
     }
 
     [Fact]
-    public async Task ReceiveBack_JobWithNoOperationRows_IsUnaffected()
+    public async Task ReceiveBack_WithNoOperationRow_CreatesAndAdvancesTheStep()
+    {
+        var (_, operation, order) = await SeedAsync(withOperationRow: false);
+
+        var result = await ReceiveAsync(order.Id, good: 10m);
+
+        result.Status.Should().Be(nameof(SubcontractStatus.Complete));
+        var row = await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync();
+        row.OperationId.Should().Be(operation.Id);
+        row.CompletedQuantity.Should().Be(10m);
+        row.Status.Should().Be(JobOperationStatus.Complete);
+        var log = await _h.Timers.Db.JobActivityLogs.AsNoTracking()
+            .SingleAsync(a => a.FieldName == "OperationStatus");
+        log.Action.Should().Be(ActivityAction.OperationCompleted);
+        log.OldValue.Should().Be("NotStarted 0/10");
+    }
+
+    [Fact]
+    public async Task FullReceiveBack_BackflushesTheJob()
+    {
+        var (job, _, order) = await SeedAsync(withOperationRow: false);
+        var user = await _h.Timers.AddUserAsync();
+        _h.Timers.Db.CurrentUserId = user.Id;
+
+        await ReceiveAsync(order.Id, good: 10m);
+
+        _h.Backflush.Verify(b => b.BackflushJobAsync(job.Id, user.Id, _h.Timers.Now, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task PartialReceiveBack_DoesNotBackflush()
     {
         var (_, _, order) = await SeedAsync(withOperationRow: false);
+        _h.Timers.Db.CurrentUserId = 1;
+
+        await ReceiveAsync(order.Id, good: 4m);
+
+        _h.Backflush.Verify(b => b.BackflushJobAsync(
+            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task TrackingOff_WithNoOperationRow_CreatesNoRow()
+    {
+        var (_, _, order) = await SeedAsync(withOperationRow: false);
+        _h.TrackingEnabled = false;
 
         var result = await ReceiveAsync(order.Id, good: 10m);
 
         result.Status.Should().Be(nameof(SubcontractStatus.Complete));
         (await _h.Timers.Db.JobOperations.AnyAsync()).Should().BeFalse();
-        (await _h.Timers.Db.JobActivityLogs.AnyAsync(a => a.FieldName == "OperationStatus")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task FailedInspection_WithNoOperationRow_CreatesNoRow()
+    {
+        var (_, _, order) = await SeedAsync(withOperationRow: false);
+
+        await ReceiveAsync(order.Id, good: 10m, passed: false);
+
+        (await _h.Timers.Db.JobOperations.AnyAsync()).Should().BeFalse();
     }
 
     [Fact]

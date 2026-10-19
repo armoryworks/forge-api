@@ -112,5 +112,117 @@ public class ReturnMaterialIssueHandlerTests : IDisposable
         await act.Should().ThrowAsync<KeyNotFoundException>();
     }
 
+    private async Task<(StorageLocation Bin, MaterialIssue Issue)> SeedScannerIssueAsync(string? lot, decimal leftOnTheLot)
+    {
+        var (job, part, issue) = await SeedAsync();
+        var bin = new StorageLocation { Name = "A1", LocationType = LocationType.Bin, IsActive = true };
+        _db.StorageLocations.Add(bin);
+        await _db.SaveChangesAsync();
+        if (leftOnTheLot > 0)
+        {
+            _db.BinContents.Add(new BinContent
+            {
+                LocationId = bin.Id, EntityType = "part", EntityId = part.Id, Quantity = leftOnTheLot, LotNumber = lot,
+                PlacedAt = DateTimeOffset.UtcNow.AddDays(-1),
+            });
+        }
+        issue.StorageLocationId = bin.Id;
+        issue.LotNumber = lot;
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+        return (bin, issue);
+    }
+
+    private Task<List<BinContent>> ActiveAsync(int locationId)
+        => _db.BinContents.AsNoTracking().Where(b => b.LocationId == locationId && b.RemovedAt == null).ToListAsync();
+
+    [Fact]
+    public async Task Handle_IssueWithoutABin_PutsTheStockBackOnItsLotAtItsLocation()
+    {
+        var (bin, issue) = await SeedScannerIssueAsync("HEAT-A", leftOnTheLot: 2m);
+
+        var result = await _handler.Handle(new ReturnMaterialIssueCommand(issue.JobId, issue.Id, ReturnedById: 1), CancellationToken.None);
+
+        _db.ChangeTracker.Clear();
+        var row = (await ActiveAsync(bin.Id)).Should().ContainSingle().Subject;
+        row.LotNumber.Should().Be("HEAT-A");
+        row.Quantity.Should().Be(7m);
+        var returned = await _db.MaterialIssues.AsNoTracking().SingleAsync(m => m.Id == result.Id);
+        returned.BinContentId.Should().Be(row.Id);
+        var movement = await _db.BinMovements.AsNoTracking().SingleAsync();
+        (movement.Quantity, movement.ToLocationId, movement.LotNumber).Should().Be((5m, (int?)bin.Id, "HEAT-A"));
+    }
+
+    [Fact]
+    public async Task Handle_IssueWhoseLotRowWasDrawnToZero_CreatesTheRowAgain()
+    {
+        var (bin, issue) = await SeedScannerIssueAsync("HEAT-A", leftOnTheLot: 0m);
+
+        await _handler.Handle(new ReturnMaterialIssueCommand(issue.JobId, issue.Id, ReturnedById: 1), CancellationToken.None);
+
+        _db.ChangeTracker.Clear();
+        var row = (await ActiveAsync(bin.Id)).Should().ContainSingle().Subject;
+        (row.LotNumber, row.Quantity, row.Status).Should().Be(("HEAT-A", 5m, BinContentStatus.Stored));
+    }
+
+    [Fact]
+    public async Task Handle_LotPutOnHoldAfterTheIssue_ComesBackOnHold()
+    {
+        var (bin, issue) = await SeedScannerIssueAsync("HEAT-A", leftOnTheLot: 0m);
+        _db.NonConformances.Add(new NonConformance
+        {
+            NcrNumber = "NCR-1", PartId = issue.PartId, LotNumber = "HEAT-A", Description = "Porosity",
+            Status = NcrStatus.Open,
+        });
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(new ReturnMaterialIssueCommand(issue.JobId, issue.Id, ReturnedById: 1), CancellationToken.None);
+
+        _db.ChangeTracker.Clear();
+        (await ActiveAsync(bin.Id)).Should().ContainSingle().Which.Status.Should().Be(BinContentStatus.QcHold);
+    }
+
+    [Fact]
+    public async Task Handle_StockRestoredByCaller_LeavesTheBinsAlone()
+    {
+        var (bin, issue) = await SeedScannerIssueAsync("HEAT-A", leftOnTheLot: 2m);
+
+        await _handler.Handle(
+            new ReturnMaterialIssueCommand(issue.JobId, issue.Id, ReturnedById: 1, StockRestoredByCaller: true),
+            CancellationToken.None);
+
+        _db.ChangeTracker.Clear();
+        (await ActiveAsync(bin.Id)).Single().Quantity.Should().Be(2m);
+        (await _db.BinMovements.AnyAsync()).Should().BeFalse();
+        (await _db.MaterialIssues.CountAsync(m => m.IssueType == MaterialIssueType.Return)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Handle_SecondReturnOfTheSameIssue_IsRefused()
+    {
+        var (bin, issue) = await SeedScannerIssueAsync("HEAT-A", leftOnTheLot: 2m);
+        await _handler.Handle(new ReturnMaterialIssueCommand(issue.JobId, issue.Id, ReturnedById: 1), CancellationToken.None);
+        _db.ChangeTracker.Clear();
+
+        var again = () => _handler.Handle(new ReturnMaterialIssueCommand(issue.JobId, issue.Id, ReturnedById: 1), CancellationToken.None);
+
+        await again.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already been returned*");
+        _db.ChangeTracker.Clear();
+        (await _db.MaterialIssues.CountAsync(m => m.IssueType == MaterialIssueType.Return)).Should().Be(1);
+        (await ActiveAsync(bin.Id)).Single().Quantity.Should().Be(7m);
+    }
+
+    [Fact]
+    public async Task MaterialIssueList_FlagsReturnedIssues()
+    {
+        var (_, issue) = await SeedScannerIssueAsync("HEAT-A", leftOnTheLot: 2m);
+        await _handler.Handle(new ReturnMaterialIssueCommand(issue.JobId, issue.Id, ReturnedById: 1), CancellationToken.None);
+
+        var list = await new GetJobMaterialIssuesHandler(_db).Handle(new GetJobMaterialIssuesQuery(issue.JobId), CancellationToken.None);
+
+        list.Single(m => m.Id == issue.Id).IsReturned.Should().BeTrue();
+        list.Single(m => m.Id != issue.Id).IsReturned.Should().BeFalse();
+    }
+
     public void Dispose() => _db.Dispose();
 }

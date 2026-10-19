@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Hubs;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -41,7 +42,8 @@ public class UpdateJobOperationProgressHandler(
     IHttpContextAccessor httpContext,
     IHubContext<BoardHub> boardHub,
     IMediator mediator,
-    IClock clock) : IRequestHandler<UpdateJobOperationProgressCommand, JobOperationProgressResponseModel>
+    IClock clock,
+    IBackflushService? backflush = null) : IRequestHandler<UpdateJobOperationProgressCommand, JobOperationProgressResponseModel>
 {
     public async Task<JobOperationProgressResponseModel> Handle(UpdateJobOperationProgressCommand request, CancellationToken cancellationToken)
     {
@@ -162,6 +164,11 @@ public class UpdateJobOperationProgressHandler(
             WorkCenterId = operation.WorkCenterId,
         });
 
+        var runBackflush = backflush is not null && row.Status == JobOperationStatus.Complete;
+        await using var tx = runBackflush && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         try
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -170,6 +177,11 @@ public class UpdateJobOperationProgressHandler(
         {
             throw new InvalidOperationException(JobOperationRules.StaleMessage);
         }
+
+        if (runBackflush)
+            await backflush!.BackflushJobAsync(job.Id, userId, now, cancellationToken);
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
         if (closed.Count > 0)
             await timerStop.PublishStoppedAsync(closed, cancellationToken);

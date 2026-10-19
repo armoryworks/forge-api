@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -29,7 +30,8 @@ public class ReceiveProductionRunToStockHandler(
     IInventoryRepository? inventory = null,
     // Phase-2 STAGE E — inline FG/WIP GL posting; null/default keeps the handler constructible without an
     // accounting context, and it no-ops while CAP-ACCT-FULLGL is off.
-    IProductionReceiptPostingService? posting = null)
+    IProductionReceiptPostingService? posting = null,
+    IBackflushService? backflush = null)
     : IRequestHandler<ReceiveProductionRunToStockCommand, ProductionRunResponseModel>
 {
     public const string MultiLocationCapability = "CAP-INV-MULTILOC";
@@ -62,7 +64,7 @@ public class ReceiveProductionRunToStockHandler(
             // One transaction: the stock-in, the received stamp AND the inline FG/WIP posting commit (or roll
             // back) together. Npgsql opens a real transaction; the in-memory test provider treats it as a no-op.
             // tx is opened only when posting is wired and no caller's transaction is already open.
-            await using var tx = posting is not null && db.Database.CurrentTransaction is null
+            await using var tx = (posting is not null || backflush is not null) && db.Database.CurrentTransaction is null
                 ? await db.Database.BeginTransactionAsync(cancellationToken)
                 : null;
 
@@ -130,6 +132,9 @@ public class ReceiveProductionRunToStockHandler(
                 await posting.PostProductionReceiptAsync(
                     run.Id, entryDate, request.ReceivedByUserId, cancellationToken);
             }
+
+            if (backflush is not null)
+                await backflush.BackflushJobAsync(run.JobId, request.ReceivedByUserId, receivedAt, cancellationToken);
 
             if (tx is not null)
                 await tx.CommitAsync(cancellationToken);

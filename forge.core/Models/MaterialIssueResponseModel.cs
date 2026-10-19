@@ -19,4 +19,5 @@ public record MaterialIssueResponseModel
     public string? LotNumber { get; init; }
     public MaterialIssueType IssueType { get; init; }
     public string? Notes { get; init; }
+    public bool IsReturned { get; init; }
 }

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -38,6 +39,9 @@ public class GetJobMaterialIssuesHandler(AppDbContext db)
                 LotNumber = m.LotNumber,
                 IssueType = m.IssueType,
                 Notes = m.Notes,
+                IsReturned = m.IssueType == MaterialIssueType.Issue && db.MaterialIssues.Any(r =>
+                    r.JobId == m.JobId && r.IssueType == MaterialIssueType.Return
+                    && r.Notes == MaterialIssueReturn.NotePrefix + m.Id.ToString()),
             })
             .ToListAsync(cancellationToken);
     }

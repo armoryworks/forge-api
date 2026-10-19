@@ -56,11 +56,10 @@ public class ExecuteScanIssueHandler(
             ?? throw new KeyNotFoundException($"Part {data.PartId} not found");
 
         // Validate part is in BOM for the job's part (or any related BOM)
-        if (job.PartId.HasValue)
+        if (job.PartId is int jobPartId)
         {
-            var isInBom = await db.BOMLines.AsNoTracking()
-                .AnyAsync(bom => bom.ParentPartId == job.PartId && bom.ChildPartId == data.PartId,
-                    cancellationToken);
+            var isInBom = (await JobMaterialRules.ForParentAsync(db, jobPartId, cancellationToken))
+                .Any(c => c.IssuedPartId == data.PartId);
 
             if (!isInBom)
                 throw new InvalidOperationException(
@@ -68,8 +67,9 @@ public class ExecuteScanIssueHandler(
         }
 
         // Validate source has sufficient stock
-        var sourceRows = await ScanBinStock.DrawableRowsAsync(
-            db, data.PartId, data.FromLocationId, data.Quantity, cancellationToken);
+        var sourceRows = await ScanBinStock.IssuableRowsAsync(
+            db, data.PartId, data.FromLocationId, data.Quantity,
+            await LotExpiry.ShopTodayAsync(db, now, cancellationToken), cancellationToken);
         if (!sourceRows.Any(r => r.Quantity > 0))
             throw new KeyNotFoundException(
                 $"No stock found for part {part.PartNumber} at source location");
