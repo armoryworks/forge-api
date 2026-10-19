@@ -29,6 +29,7 @@ public class ApproveBulkSuggestionsHandler(
     AppDbContext db,
     IPurchaseOrderRepository poRepo,
     IBarcodeService barcodeService,
+    IBusinessIdentifierService identifiers,
     IPartSourcingResolver sourcingResolver,
     IMediator mediator,
     IClock clock)
@@ -154,6 +155,7 @@ public class ApproveBulkSuggestionsHandler(
 
             await barcodeService.CreateBarcodeAsync(
                 BarcodeEntityType.PurchaseOrder, po.Id, po.PONumber, cancellationToken);
+            await identifiers.IssueAsync(BusinessEntityType.PurchaseOrder, po.Id, po.PONumber, cancellationToken);
 
             var vendorName = await db.Vendors
                 .Where(v => v.Id == po.VendorId)

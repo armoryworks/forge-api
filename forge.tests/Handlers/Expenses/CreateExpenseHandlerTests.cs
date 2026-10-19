@@ -9,6 +9,7 @@ using MediatR;
 
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.Expenses;
+using Forge.Api.Middleware;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -227,5 +228,37 @@ public class CreateExpenseHandlerTests
             It.Is<ApprovalCompletedEvent>(e => e.EntityType == "Expense" && e.EntityId == 55
                 && e.Approved && e.DecidedById == _userId),
             It.IsAny<CancellationToken>()), Times.Exactly(expectedPublishes));
+    }
+
+    [Fact]
+    public async Task Handle_RefusesToClaimAPendingReceiptUploadedBySomeoneElse()
+    {
+        _fileRepo.Setup(r => r.FindAsync(77, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FileAttachment { Id = 77, EntityType = "expenses", EntityId = 0, UploadedById = _userId + 1 });
+        var data = new CreateExpenseRequestModel(25m, "Travel", "Parking", null, "77", DateTime.UtcNow);
+
+        var act = () => _handler.Handle(new CreateExpenseCommand(data), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ForbiddenException>();
+        _expenseRepo.Verify(r => r.AddAsync(It.IsAny<Expense>(), It.IsAny<CancellationToken>()), Times.Never);
+        _fileRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_LinksTheCallersOwnPendingReceipt()
+    {
+        var receipt = new FileAttachment { Id = 78, EntityType = "expenses", EntityId = 0, UploadedById = _userId };
+        _fileRepo.Setup(r => r.FindAsync(78, It.IsAny<CancellationToken>())).ReturnsAsync(receipt);
+        _expenseRepo.Setup(r => r.AddAsync(It.IsAny<Expense>(), It.IsAny<CancellationToken>()))
+            .Callback<Expense, CancellationToken>((e, _) => e.Id = 501);
+        _expenseRepo.Setup(r => r.GetByIdAsync(501, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ExpenseResponseModel(
+                501, _userId, "John Doe", null, null, 25m, "Travel", "Parking", "78",
+                ExpenseStatus.Pending, null, null, null, DateTime.UtcNow, DateTime.UtcNow));
+        var data = new CreateExpenseRequestModel(25m, "Travel", "Parking", null, "78", DateTime.UtcNow);
+
+        await _handler.Handle(new CreateExpenseCommand(data), CancellationToken.None);
+
+        receipt.EntityId.Should().Be(501);
     }
 }

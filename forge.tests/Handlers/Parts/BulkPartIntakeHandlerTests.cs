@@ -32,7 +32,7 @@ public class BulkPartIntakeHandlerTests
             });
         _barcodes.Setup(b => b.CreateBarcodeAsync(It.IsAny<BarcodeEntityType>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Barcode());
-        _handler = new BulkPartIntakeHandler(_db, _repo.Object, _barcodes.Object);
+        _handler = new BulkPartIntakeHandler(_db, _repo.Object, _barcodes.Object, Mock.Of<IBusinessIdentifierService>());
     }
 
     private static BulkPartIntakeRow Row(string? name, string? proc = null, string? inv = null, string? ext = null, string? key = null)

@@ -64,6 +64,7 @@ public class ApproveDraftFromCommunicationHandler(
     AppDbContext db,
     ISalesOrderRepository orderRepo,
     IBarcodeService barcodeService,
+    IBusinessIdentifierService identifiers,
     IClock clock)
     : IRequestHandler<ApproveDraftFromCommunicationCommand, ApproveDraftResult>
 {
@@ -123,6 +124,7 @@ public class ApproveDraftFromCommunicationHandler(
 
         await orderRepo.AddAsync(order, ct);
         await orderRepo.SaveChangesAsync(ct);
+        await identifiers.IssueAsync(BusinessEntityType.SalesOrder, order.Id, order.OrderNumber, ct);
 
         var attestation = new Attestation
         {

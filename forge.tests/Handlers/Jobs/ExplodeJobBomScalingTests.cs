@@ -39,7 +39,7 @@ public class ExplodeJobBomScalingTests
         _jobRepo.Setup(r => r.GetMaxBoardPositionAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
 
-        _handler = new ExplodeJobBomHandler(_db, _jobRepo.Object, Mock.Of<IBarcodeService>(), hub.Object, new PartSourcingResolver(_db));
+        _handler = new ExplodeJobBomHandler(_db, _jobRepo.Object, Mock.Of<IBarcodeService>(), Mock.Of<IBusinessIdentifierService>(), hub.Object, new PartSourcingResolver(_db));
     }
 
     [Fact]

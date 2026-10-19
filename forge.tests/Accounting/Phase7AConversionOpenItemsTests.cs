@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Data;
 using Forge.Api.Features.Accounting;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums;
@@ -42,7 +43,8 @@ public class Phase7AConversionOpenItemsTests
     private static ForgeGlPostingEngine Engine(AppDbContext db)
         => new(db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock());
 
-    private static ConversionService Service(AppDbContext db) => new(db, Engine(db));
+    private static ConversionService Service(AppDbContext db)
+        => new(db, Engine(db), new BusinessIdentifierService(db, new SystemClock()));
 
     private static async Task<(AppDbContext Db, int Customer, int Vendor)> SeedAsync()
     {

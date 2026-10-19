@@ -8,6 +8,7 @@ namespace Forge.Api.Jobs;
 
 public class RecurringOrderJob(
     AppDbContext db,
+    IBusinessIdentifierService identifiers,
     IClock clock,
     ILogger<RecurringOrderJob> logger)
 {
@@ -25,6 +26,7 @@ public class RecurringOrderJob(
             return;
         }
 
+        var created = new List<Core.Entities.SalesOrder>(dueOrders.Count);
         foreach (var recurring in dueOrders)
         {
             var salesOrder = new Core.Entities.SalesOrder
@@ -45,6 +47,7 @@ public class RecurringOrderJob(
             };
 
             db.SalesOrders.Add(salesOrder);
+            created.Add(salesOrder);
 
             recurring.LastGeneratedDate = now;
             recurring.NextGenerationDate = now.AddDays(recurring.IntervalDays);
@@ -55,6 +58,8 @@ public class RecurringOrderJob(
         }
 
         await db.SaveChangesAsync(ct);
+        foreach (var salesOrder in created)
+            await identifiers.IssueAsync(BusinessEntityType.SalesOrder, salesOrder.Id, salesOrder.OrderNumber, ct);
         logger.LogInformation("Generated {Count} sales orders from recurring orders", dueOrders.Count);
     }
 }

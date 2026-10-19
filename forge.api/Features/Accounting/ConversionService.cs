@@ -8,7 +8,8 @@ using Forge.Data.Context;
 namespace Forge.Api.Features.Accounting;
 
 /// <inheritdoc />
-public sealed class ConversionService(AppDbContext db, IPostingEngine postingEngine) : IConversionService
+public sealed class ConversionService(
+    AppDbContext db, IPostingEngine postingEngine, IBusinessIdentifierService identifiers) : IConversionService
 {
     public async Task<OpeningBalanceResult> PostOpeningBalancesAsync(
         PostOpeningBalancesModel model, int postedByUserId, CancellationToken ct = default)
@@ -57,7 +58,7 @@ public sealed class ConversionService(AppDbContext db, IPostingEngine postingEng
 
         var details = model.Lines.Select((l, i) => (LineNumber: i + 1, Line: l))
             .ToDictionary(x => x.LineNumber, x => x.Line);
-        await ConversionOpenItems.EnsureForEntryAsync(db, entry.Id, alreadyPosted ? null : details, ct);
+        await ConversionOpenItems.EnsureForEntryAsync(db, identifiers, entry.Id, alreadyPosted ? null : details, ct);
 
         return new OpeningBalanceResult(entry.Id, entry.EntryNumber, entry.Lines.Sum(l => l.Debit));
     }

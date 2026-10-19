@@ -1,8 +1,10 @@
 using System.Security.Cryptography;
+using System.Text.Json;
 
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Data.Context;
 using Serilog;
@@ -135,6 +137,13 @@ public static partial class SeedData
 
         db.SystemApiKeys.Add(apiKey);
         await db.SaveChangesAsync();
+
+        await services.GetRequiredService<ISystemAuditWriter>().WriteAsync(
+            $"{nameof(SystemApiKey)}Created",
+            0,
+            nameof(SystemApiKey),
+            apiKey.Id,
+            JsonSerializer.Serialize(new { apiKey.KeyPrefix, apiKey.UserId }));
 
         // ── THE plaintext log line ───────────────────────────────────────
         // Printed ONCE. Never persisted. Operators MUST capture this on

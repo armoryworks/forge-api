@@ -18,7 +18,7 @@ public class PurchaseOrderGeneratorTests
     public PurchaseOrderGeneratorTests()
     {
         _generator = new PurchaseOrderGenerator(
-            _db, new PurchaseOrderRepository(_db), Mock.Of<IBarcodeService>());
+            _db, new PurchaseOrderRepository(_db), Mock.Of<IBarcodeService>(), Mock.Of<IBusinessIdentifierService>());
     }
 
     private static List<(int PartId, string Description, int Quantity, decimal UnitPrice, DateTimeOffset NeededBy)> OneLine()

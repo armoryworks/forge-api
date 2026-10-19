@@ -79,9 +79,12 @@ public class CreateIcpRubricHandler(AppDbContext db) : IRequestHandler<CreateIcp
             IsActive = true,
             IsDefault = false,
         };
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
         db.IcpRubrics.Add(rubric);
-        db.LogActivityAt("icp-rubric-created", $"Created ICP rubric '{rubric.Name}'.", ("IcpRubric", 0));
         await db.SaveChangesAsync(ct);
+        db.LogActivityAt("icp-rubric-created", $"Created ICP rubric '{rubric.Name}'.", ("IcpRubric", rubric.Id));
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         return new IcpRubricResponseModel(
             rubric.Id, rubric.Name, rubric.Description, rubric.IsActive, rubric.IsDefault, 0, rubric.CreatedAt);
     }

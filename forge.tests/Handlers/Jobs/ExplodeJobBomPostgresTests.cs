@@ -75,7 +75,7 @@ public sealed class ExplodeJobBomPostgresTests(PostgresFixture fixture)
         hub.SetupGet(h => h.Clients).Returns(clients.Object);
 
         var handler = new ExplodeJobBomHandler(
-            db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), hub.Object,
+            db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), Mock.Of<IBusinessIdentifierService>(), hub.Object,
                 new PartSourcingResolver(db));
 
         // Before the fix this threw DbUpdateException (FK violation on job_links).
@@ -156,7 +156,7 @@ public sealed class ExplodeJobBomPostgresTests(PostgresFixture fixture)
             var hub = new Mock<IHubContext<BoardHub>>();
             hub.SetupGet(h => h.Clients).Returns(clients.Object);
             var handler = new ExplodeJobBomHandler(
-                db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), hub.Object,
+                db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), Mock.Of<IBusinessIdentifierService>(), hub.Object,
                 new PartSourcingResolver(db));
             try
             {
@@ -248,7 +248,7 @@ public sealed class ExplodeJobBomPostgresTests(PostgresFixture fixture)
             var hub = new Mock<IHubContext<BoardHub>>();
             hub.SetupGet(h => h.Clients).Returns(clients.Object);
             var handler = new ExplodeJobBomHandler(
-                db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), hub.Object,
+                db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), Mock.Of<IBusinessIdentifierService>(), hub.Object,
                 new PartSourcingResolver(db));
             try
             {

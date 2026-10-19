@@ -13,7 +13,8 @@ public record BulkConvertAutoPoSuggestionsCommand(List<int> SuggestionIds, int U
 public class BulkConvertAutoPoSuggestionsHandler(
     AppDbContext db,
     IPurchaseOrderRepository poRepo,
-    IBarcodeService barcodeService) : IRequestHandler<BulkConvertAutoPoSuggestionsCommand, List<int>>
+    IBarcodeService barcodeService,
+    IBusinessIdentifierService identifiers) : IRequestHandler<BulkConvertAutoPoSuggestionsCommand, List<int>>
 {
     public async Task<List<int>> Handle(BulkConvertAutoPoSuggestionsCommand request, CancellationToken ct)
     {
@@ -72,6 +73,7 @@ public class BulkConvertAutoPoSuggestionsHandler(
 
             await barcodeService.CreateBarcodeAsync(
                 BarcodeEntityType.PurchaseOrder, po.Id, po.PONumber, ct);
+            await identifiers.IssueAsync(BusinessEntityType.PurchaseOrder, po.Id, po.PONumber, ct);
 
             createdPoIds.Add(po.Id);
 

@@ -13,7 +13,8 @@ public record ConvertAutoPoSuggestionCommand(int SuggestionId, int UserId) : IRe
 public class ConvertAutoPoSuggestionHandler(
     AppDbContext db,
     IPurchaseOrderRepository poRepo,
-    IBarcodeService barcodeService) : IRequestHandler<ConvertAutoPoSuggestionCommand, int>
+    IBarcodeService barcodeService,
+    IBusinessIdentifierService identifiers) : IRequestHandler<ConvertAutoPoSuggestionCommand, int>
 {
     public async Task<int> Handle(ConvertAutoPoSuggestionCommand request, CancellationToken ct)
     {
@@ -59,6 +60,7 @@ public class ConvertAutoPoSuggestionHandler(
 
         await barcodeService.CreateBarcodeAsync(
             BarcodeEntityType.PurchaseOrder, po.Id, po.PONumber, ct);
+        await identifiers.IssueAsync(BusinessEntityType.PurchaseOrder, po.Id, po.PONumber, ct);
 
         return po.Id;
     }

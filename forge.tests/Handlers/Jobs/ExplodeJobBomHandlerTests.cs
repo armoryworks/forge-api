@@ -32,7 +32,7 @@ public class ExplodeJobBomHandlerTests
         clients.Setup(c => c.Group(It.IsAny<string>())).Returns(_boardGroup.Object);
         _boardHub.SetupGet(h => h.Clients).Returns(clients.Object);
         _handler = new ExplodeJobBomHandler(
-            _dbContext, _jobRepo.Object, _barcodes.Object, _boardHub.Object, new PartSourcingResolver(_dbContext));
+            _dbContext, _jobRepo.Object, _barcodes.Object, Mock.Of<IBusinessIdentifierService>(), _boardHub.Object, new PartSourcingResolver(_dbContext));
     }
 
     [Fact]

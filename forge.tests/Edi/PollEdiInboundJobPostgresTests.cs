@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 
 using Forge.Api.Features.Edi;
 using Forge.Api.Jobs;
@@ -102,7 +103,7 @@ public sealed class PollEdiInboundJobPostgresTests(PostgresFixture fixture)
             var transport = new TokenTransport(token, [Order850(poNumber), Order850(poNumber), Inbound997]);
             var service = new X12EdiService(
                 db, new SalesOrderRepository(db), new TransportFactory(transport),
-                new EdiPartNumberMapService(db), new FakeClock());
+                new EdiPartNumberMapService(db), Mock.Of<IBusinessIdentifierService>(), new FakeClock());
             var job = new PollEdiInboundJob(db, service, NullLogger<PollEdiInboundJob>.Instance);
 
             await job.PollAllPartnersAsync(CancellationToken.None);

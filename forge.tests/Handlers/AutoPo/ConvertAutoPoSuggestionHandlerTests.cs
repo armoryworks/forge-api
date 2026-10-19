@@ -20,7 +20,7 @@ public class ConvertAutoPoSuggestionHandlerTests
         // Real repository over the InMemory context so the created PO gets a
         // key and the suggestion's ConvertedPurchaseOrderId link is real.
         _handler = new ConvertAutoPoSuggestionHandler(
-            _db, new PurchaseOrderRepository(_db), Mock.Of<IBarcodeService>());
+            _db, new PurchaseOrderRepository(_db), Mock.Of<IBarcodeService>(), Mock.Of<IBusinessIdentifierService>());
     }
 
     private async Task<AutoPoSuggestion> SeedSuggestionAsync()

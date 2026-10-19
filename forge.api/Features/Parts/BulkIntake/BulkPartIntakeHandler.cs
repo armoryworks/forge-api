@@ -25,7 +25,8 @@ namespace Forge.Api.Features.Parts.BulkIntake;
 public record BulkPartIntakeCommand(BulkPartIntakeRequest Request, bool Commit)
     : IRequest<BulkPartIntakeResponseModel>;
 
-public class BulkPartIntakeHandler(AppDbContext db, IPartRepository repo, IBarcodeService barcodeService)
+public class BulkPartIntakeHandler(
+    AppDbContext db, IPartRepository repo, IBarcodeService barcodeService, IBusinessIdentifierService identifiers)
     : IRequestHandler<BulkPartIntakeCommand, BulkPartIntakeResponseModel>
 {
     public async Task<BulkPartIntakeResponseModel> Handle(BulkPartIntakeCommand request, CancellationToken ct)
@@ -130,7 +131,10 @@ public class BulkPartIntakeHandler(AppDbContext db, IPartRepository repo, IBarco
             // Barcodes: CreateBarcodeAsync owns the uniqueness + GTIN-vs-internal decision and
             // saves per call, so it runs per created part (batch is capped at 1000).
             foreach (var part in toCreate)
+            {
                 await barcodeService.CreateBarcodeAsync(BarcodeEntityType.Part, part.Id, part.PartNumber, ct);
+                await identifiers.IssueAsync(BusinessEntityType.Part, part.Id, part.PartNumber, ct);
+            }
         }
 
         var createdCount = results.Count(r => r.Status == BulkPartIntakeRowStatus.Created);

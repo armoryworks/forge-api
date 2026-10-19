@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 
 using Forge.Api.Features.Edi;
 using Forge.Api.Features.Edi.X12;
@@ -55,7 +56,7 @@ public class X12EdiServiceTests
         var transport = new FakeTransport();
         var service = new X12EdiService(
             db, new SalesOrderRepository(db), new FakeTransportFactory(transport),
-            new EdiPartNumberMapService(db), new FakeClock());
+            new EdiPartNumberMapService(db), Mock.Of<IBusinessIdentifierService>(), new FakeClock());
         return (db, service, transport);
     }
 

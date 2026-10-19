@@ -47,11 +47,14 @@ public class CreateAssignmentRuleHandler(AppDbContext db)
             IsActive = true,
             Spec = r.Spec?.Trim(),
         };
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
         db.AssignmentRules.Add(rule);
+        await db.SaveChangesAsync(ct);
         db.LogActivityAt("assignment-rule-created",
             $"Created assignment rule '{rule.Name}' ({rule.Kind}, priority {rule.Priority}).",
-            ("AssignmentRule", 0));
+            ("AssignmentRule", rule.Id));
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         return new AssignmentRuleResponseModel(
             rule.Id, rule.Name, rule.Kind, rule.Priority, rule.IsActive, rule.Spec, rule.CreatedAt);
     }

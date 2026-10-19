@@ -135,7 +135,8 @@ public class AutoPurchaseOrderJobMigrationTests
         var poGen = new PurchaseOrderGenerator(
             db,
             Mock.Of<IPurchaseOrderRepository>(),
-            Mock.Of<IBarcodeService>());
+            Mock.Of<IBarcodeService>(),
+            Mock.Of<IBusinessIdentifierService>());
 
         return new AutoPurchaseOrderJob(
             db,

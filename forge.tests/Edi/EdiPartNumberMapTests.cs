@@ -1,9 +1,11 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 
 using Forge.Api.Features.Edi;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Data.Repositories;
@@ -158,7 +160,8 @@ public class EdiPartNumberMapTests
         + "IEA*1*000000042~\n";
 
     private static X12EdiService Service(AppDbContext db)
-        => new(db, new SalesOrderRepository(db), new NoopFactory(), new EdiPartNumberMapService(db), new FakeClock());
+        => new(db, new SalesOrderRepository(db), new NoopFactory(), new EdiPartNumberMapService(db), Mock.Of<IBusinessIdentifierService>(),
+            new FakeClock());
 
     [Fact]
     public async Task Process_TranslatesPartnerNumber_ToOurPart()

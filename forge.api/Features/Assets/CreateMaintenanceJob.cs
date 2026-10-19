@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
@@ -17,7 +18,8 @@ public class CreateMaintenanceJobValidator : AbstractValidator<CreateMaintenance
     }
 }
 
-public class CreateMaintenanceJobHandler(AppDbContext db, IJobRepository jobRepo) : IRequestHandler<CreateMaintenanceJobCommand, int>
+public class CreateMaintenanceJobHandler(AppDbContext db, IJobRepository jobRepo, IBusinessIdentifierService identifiers)
+    : IRequestHandler<CreateMaintenanceJobCommand, int>
 {
     public async Task<int> Handle(CreateMaintenanceJobCommand request, CancellationToken ct)
     {
@@ -36,6 +38,7 @@ public class CreateMaintenanceJobHandler(AppDbContext db, IJobRepository jobRepo
 
         schedule.MaintenanceJob = job;
         await db.SaveChangesAsync(ct);
+        await identifiers.IssueAsync(BusinessEntityType.Job, job.Id, job.JobNumber, ct);
 
         return job.Id;
     }

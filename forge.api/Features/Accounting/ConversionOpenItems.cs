@@ -5,6 +5,7 @@ using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
+using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
 using Forge.Data.Repositories;
@@ -47,6 +48,7 @@ public static class ConversionOpenItems
     /// </summary>
     public static async Task<int> EnsureForEntryAsync(
         AppDbContext db,
+        IBusinessIdentifierService? identifiers,
         long entryId,
         IReadOnlyDictionary<int, OpeningBalanceLineModel>? details,
         CancellationToken ct = default)
@@ -116,7 +118,7 @@ public static class ConversionOpenItems
                 OpeningBalanceLineModel? detail = null;
                 details?.TryGetValue(line.LineNumber, out detail);
                 if (line.PartyType == SubledgerPartyType.Customer)
-                    await AddInvoiceAsync(db, entry, line, detail, ct);
+                    await AddInvoiceAsync(db, identifiers, entry, line, detail, ct);
                 else
                     await AddVendorBillAsync(db, entry, line, detail, ct);
                 created++;
@@ -146,7 +148,7 @@ public static class ConversionOpenItems
             .ToListAsync(ct);
 
         foreach (var id in entryIds)
-            await EnsureForEntryAsync(db, id, null, ct);
+            await EnsureForEntryAsync(db, null, id, null, ct);
     }
 
     /// <summary>
@@ -242,7 +244,7 @@ public static class ConversionOpenItems
         => value is { Length: > 0 } v && v.Length > max ? v[..max] : value;
 
     private static async Task AddInvoiceAsync(
-        AppDbContext db, JournalEntry entry, OpeningLine line, OpeningBalanceLineModel? detail, CancellationToken ct)
+        AppDbContext db, IBusinessIdentifierService? identifiers, JournalEntry entry, OpeningLine line, OpeningBalanceLineModel? detail, CancellationToken ct)
     {
         var documentDate = AtNoonUtc(detail?.DocumentDate ?? entry.EntryDate);
         var dueDate = AtNoonUtc(detail?.DueDate ?? detail?.DocumentDate ?? entry.EntryDate);
@@ -279,6 +281,8 @@ public static class ConversionOpenItems
         };
         db.Invoices.Add(invoice);
         await db.SaveChangesAsync(ct);
+        if (identifiers is not null)
+            await identifiers.IssueAsync(BusinessEntityType.Invoice, invoice.Id, invoice.InvoiceNumber, ct);
 
         db.ArOpenItems.Add(new ArOpenItem
         {
