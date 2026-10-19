@@ -53,6 +53,7 @@ public class CustomerRepository(AppDbContext db) : ICustomerRepository
             var term = query.Q.Trim().ToLower();
             q = q.Where(c =>
                 c.Name.ToLower().Contains(term) ||
+                (c.CustomerNumber != null && c.CustomerNumber.ToLower().Contains(term)) ||
                 (c.CompanyName != null && c.CompanyName.ToLower().Contains(term)) ||
                 (c.Email != null && c.Email.ToLower().Contains(term)) ||
                 (c.Phone != null && c.Phone.ToLower().Contains(term)));
@@ -82,6 +83,7 @@ public class CustomerRepository(AppDbContext db) : ICustomerRepository
         IOrderedQueryable<Customer> ordered = sortKey switch
         {
             "name"        => desc ? q.OrderByDescending(c => c.Name)        : q.OrderBy(c => c.Name),
+            "customernumber" => desc ? q.OrderByDescending(c => c.CustomerNumber) : q.OrderBy(c => c.CustomerNumber),
             "companyname" => desc ? q.OrderByDescending(c => c.CompanyName) : q.OrderBy(c => c.CompanyName),
             "email"       => desc ? q.OrderByDescending(c => c.Email)       : q.OrderBy(c => c.Email),
             "phone"       => desc ? q.OrderByDescending(c => c.Phone)       : q.OrderBy(c => c.Phone),
@@ -129,13 +131,17 @@ public class CustomerRepository(AppDbContext db) : ICustomerRepository
         return await db.Customers.FirstOrDefaultAsync(c => c.Id == id, ct);
     }
 
-    public Task<string> GenerateNextCustomerNumberAsync(CancellationToken ct)
-        => DocumentNumberSequence.NextAsync(
+    public async Task<string> GenerateNextCustomerNumberAsync(CancellationToken ct)
+        => (await NextCustomerNumbersAsync(db, 1, ct))[0];
+
+    public static Task<IReadOnlyList<string>> NextCustomerNumbersAsync(AppDbContext db, int count, CancellationToken ct)
+        => DocumentNumberSequence.NextBlockAsync(
             db.Customers
                 .IgnoreQueryFilters()
                 .Where(c => c.CustomerNumber != null)
                 .Select(c => c.CustomerNumber!),
             "CUST",
+            count,
             ct);
 
     public Task<bool> CustomerNumberExistsAsync(string number, int? excludeId, CancellationToken ct)

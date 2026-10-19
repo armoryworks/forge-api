@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using FluentValidation;
 using MediatR;
 
@@ -15,6 +17,24 @@ public class CreateCustomerSegmentValidator : AbstractValidator<CreateCustomerSe
     {
         RuleFor(x => x.Data.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Data.Description).MaximumLength(1000).When(x => x.Data.Description is not null);
+        RuleFor(x => x.Data.FilterCriteria)
+            .Must(BeValidJson)
+            .When(x => !string.IsNullOrWhiteSpace(x.Data.FilterCriteria))
+            .WithMessage("Filter criteria must be valid JSON.");
+    }
+
+    internal static bool BeValidJson(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return true;
+        try
+        {
+            using var _ = JsonDocument.Parse(value);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 }
 
@@ -27,7 +47,7 @@ public class CreateCustomerSegmentHandler(AppDbContext db) : IRequestHandler<Cre
         {
             Name = data.Name.Trim(),
             Description = data.Description?.Trim(),
-            FilterCriteria = data.FilterCriteria,
+            FilterCriteria = string.IsNullOrWhiteSpace(data.FilterCriteria) ? null : data.FilterCriteria,
         };
         db.CustomerSegments.Add(segment);
         await db.SaveChangesAsync(ct);

@@ -43,6 +43,8 @@ public record BulkLeadIntakeCommand(BulkLeadIntakeRequest Request, bool Commit) 
 public class BulkLeadIntakeHandler(AppDbContext db, IClock clock)
     : IRequestHandler<BulkLeadIntakeCommand, BulkLeadIntakeResponseModel>
 {
+    private const int MinPhoneDigits = 7;
+
     public async Task<BulkLeadIntakeResponseModel> Handle(BulkLeadIntakeCommand request, CancellationToken ct)
     {
         var rows = request.Request.Rows ?? [];
@@ -127,6 +129,13 @@ public class BulkLeadIntakeHandler(AppDbContext db, IClock clock)
             {
                 results.Add(new BulkLeadIntakeRowResult(key, BulkLeadIntakeRowStatus.MissingRequiredField, null, null, null,
                     $"{strategy} requires {missing}"));
+                continue;
+            }
+
+            var formatProblem = CheckContactFormat(row);
+            if (formatProblem is not null)
+            {
+                results.Add(new BulkLeadIntakeRowResult(key, BulkLeadIntakeRowStatus.Invalid, null, null, null, formatProblem));
                 continue;
             }
 
@@ -249,6 +258,20 @@ public class BulkLeadIntakeHandler(AppDbContext db, IClock clock)
         var createdCount = results.Count(r => r.Status == BulkLeadIntakeRowStatus.Created);
         var skippedCount = results.Count - createdCount;
         return new BulkLeadIntakeResponseModel(rows.Count, createdCount, skippedCount, results);
+    }
+
+    private static string? CheckContactFormat(BulkLeadIntakeRow row)
+    {
+        if (!string.IsNullOrWhiteSpace(row.Email))
+        {
+            var email = row.Email.Trim();
+            var at = email.IndexOf('@');
+            if (at <= 0 || at == email.Length - 1 || at != email.LastIndexOf('@'))
+                return $"'{email}' is not a valid email address";
+        }
+        if (!string.IsNullOrWhiteSpace(row.Phone) && DigitsOnly(row.Phone).Length < MinPhoneDigits)
+            return $"'{row.Phone.Trim()}' is not a valid phone number (needs at least {MinPhoneDigits} digits)";
+        return null;
     }
 
     private static string? CheckRequiredFields(BulkLeadIntakeStrategy strategy, BulkLeadIntakeRow row)

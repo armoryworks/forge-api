@@ -281,7 +281,8 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
                 j.SalesOrderLine?.SalesOrder?.OrderNumber,
                 j.BoardPosition,
                 making?.PartNumber,
-                making?.Quantity);
+                making?.Quantity,
+                CreatedAt: j.CreatedAt);
         }).ToList();
     }
 

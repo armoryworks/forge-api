@@ -11,4 +11,5 @@ public record ScheduleMilestoneModel(
     DateTimeOffset? ProductionStartBy,
     DateTimeOffset? MaterialsNeededBy,
     DateTimeOffset? PoOrderBy,
-    bool IsAtRisk);
+    bool IsAtRisk,
+    bool IsShipped = false);

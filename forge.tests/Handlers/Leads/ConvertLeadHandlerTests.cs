@@ -66,6 +66,22 @@ public class ConvertLeadHandlerTests
     }
 
     [Fact]
+    public async Task Handle_Conversion_NumbersTheCustomerAndRecordsTheIdentifier()
+    {
+        _db.Customers.Add(new Customer { Name = "Earlier", CustomerNumber = "CUST-00009" });
+        await _db.SaveChangesAsync();
+        var lead = await SeedLead();
+        var identifiers = new Mock<IBusinessIdentifierService>();
+        var handler = new ConvertLeadHandler(_leadRepo.Object, _db, _mediator.Object, identifiers.Object);
+
+        var result = await handler.Handle(new ConvertLeadCommand(lead.Id, new ConvertLeadRequestModel(CreateJob: false)), CancellationToken.None);
+
+        var customer = await _db.Customers.FirstAsync(c => c.Id == result.CustomerId);
+        customer.CustomerNumber.Should().Be("CUST-00010");
+        identifiers.Verify(i => i.IssueAsync(BusinessEntityType.Customer, customer.Id, "CUST-00010", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Handle_IndividualLead_NamesCustomerAfterContactWithNullCompany()
     {
         // Individual (no company) — the workaround-free path: contact only.

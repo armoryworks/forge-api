@@ -25,8 +25,9 @@ public class CreateCustomerTaxDocumentValidator : AbstractValidator<CreateCustom
     {
         RuleFor(x => x.CustomerId).GreaterThan(0);
         RuleFor(x => x.FileAttachmentId).GreaterThan(0);
-        RuleFor(x => x.StateCode).NotEmpty().Length(2)
-            .WithMessage("State code must be a 2-character state abbreviation.");
+        RuleFor(x => x.StateCode).NotEmpty()
+            .Must(code => code is not null && System.Text.RegularExpressions.Regex.IsMatch(code.Trim(), "^[A-Za-z]{2}$"))
+            .WithMessage("State code must be a 2-letter state abbreviation.");
         RuleFor(x => x.CertificateType)
             .Must(t => CertificateTypes.Contains(t))
             .WithMessage("Certificate type must be one of: Resale, Exemption, DirectPay, Other.");

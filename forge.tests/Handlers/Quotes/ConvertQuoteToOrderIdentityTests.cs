@@ -125,4 +125,30 @@ public class ConvertQuoteToOrderIdentityTests
         var order = await _db.SalesOrders.SingleAsync(o => o.Id == result.Id);
         order.BillingAddressId.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Convert_DefaultsShippingAddress_WhenTheQuoteHasNone()
+    {
+        var shipping = Address(AddressType.Shipping, isDefault: true);
+        var quote = await SeedAcceptedQuoteAsync(Address(AddressType.Both, isDefault: true), shipping);
+
+        var result = await BuildHandler().Handle(new ConvertQuoteToOrderCommand(quote.Id), CancellationToken.None);
+
+        var order = await _db.SalesOrders.SingleAsync(o => o.Id == result.Id);
+        order.ShippingAddressId.Should().Be(shipping.Id);
+    }
+
+    [Fact]
+    public async Task Convert_KeepsTheQuoteShippingAddress_OverTheDefault()
+    {
+        var chosen = Address(AddressType.Shipping, isDefault: false);
+        var quote = await SeedAcceptedQuoteAsync(Address(AddressType.Shipping, isDefault: true), chosen);
+        quote.ShippingAddressId = chosen.Id;
+        await _db.SaveChangesAsync();
+
+        var result = await BuildHandler().Handle(new ConvertQuoteToOrderCommand(quote.Id), CancellationToken.None);
+
+        var order = await _db.SalesOrders.SingleAsync(o => o.Id == result.Id);
+        order.ShippingAddressId.Should().Be(chosen.Id);
+    }
 }

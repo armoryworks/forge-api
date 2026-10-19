@@ -63,7 +63,6 @@
     "forge.api/Features/CustomerPortal/RequestMagicLink.cs": 1,
     "forge.api/Features/CustomerPortal/RespondToQuote.cs": 1,
     "forge.api/Features/Customers/GetAllContactsFlat.cs": 1,
-    "forge.api/Features/Customers/GetCustomerSummary.cs": 1,
     "forge.api/Features/Customers/Segments/DeleteCustomerSegment.cs": 1,
     "forge.api/Features/Deliverables/DeliverableHandlers.cs": 2,
     "forge.api/Features/Edi/DeleteEdiMapping.cs": 1,

@@ -5,6 +5,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Services;
 
 namespace Forge.Api.Features.Customers;
 
@@ -19,37 +20,9 @@ public class GetCreditStatusHandler(AppDbContext db) : IRequestHandler<GetCredit
             .FirstOrDefaultAsync(c => c.Id == request.CustomerId, ct)
             ?? throw new KeyNotFoundException($"Customer {request.CustomerId} not found");
 
-        // Sum outstanding invoice balances: line totals * (1 + tax rate) minus payments applied
-        var openInvoices = await db.Invoices
-            .AsNoTracking()
-            .Where(i => i.CustomerId == request.CustomerId
-                && i.Status != InvoiceStatus.Paid
-                && i.Status != InvoiceStatus.Voided)
-            .Select(i => new
-            {
-                LineTotal = i.Lines.Sum(l => l.Quantity * l.UnitPrice),
-                TaxableLineTotal = i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice),
-                TaxRate = i.TaxRate,
-                Paid = i.PaymentApplications.Sum(pa => pa.Amount),
-            })
-            .ToListAsync(ct);
-
-        var openArBalance = openInvoices.Sum(i => i.LineTotal + i.TaxableLineTotal * i.TaxRate - i.Paid);
-
-        // Sum pending sales order totals
-        var pendingOrders = await db.SalesOrders
-            .AsNoTracking()
-            .Where(so => so.CustomerId == request.CustomerId
-                && so.Status != SalesOrderStatus.Cancelled
-                && so.Status != SalesOrderStatus.Completed)
-            .Select(so => new
-            {
-                LineTotal = so.Lines.Sum(l => l.Quantity * l.UnitPrice),
-                TaxRate = so.TaxRate,
-            })
-            .ToListAsync(ct);
-
-        var pendingOrdersTotal = pendingOrders.Sum(so => so.LineTotal * (1 + so.TaxRate));
+        var exposure = await CustomerCreditExposure.ForCustomerAsync(db, request.CustomerId, ct);
+        var openArBalance = exposure.OpenArBalance;
+        var pendingOrdersTotal = exposure.PendingOrdersTotal;
 
         var totalExposure = openArBalance + pendingOrdersTotal;
         var availableCredit = (customer.CreditLimit ?? 0) - totalExposure;

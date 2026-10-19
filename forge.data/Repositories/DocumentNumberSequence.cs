@@ -6,6 +6,10 @@ namespace Forge.Data.Repositories;
 public static class DocumentNumberSequence
 {
     public static async Task<string> NextAsync(IQueryable<string> numbers, string prefix, CancellationToken ct)
+        => (await NextBlockAsync(numbers, prefix, 1, ct))[0];
+
+    public static async Task<IReadOnlyList<string>> NextBlockAsync(
+        IQueryable<string> numbers, string prefix, int count, CancellationToken ct)
     {
         var token = $"{prefix}-";
         var pattern = $"^{Regex.Escape(token)}[0-9]{{1,18}}$";
@@ -16,6 +20,7 @@ public static class DocumentNumberSequence
             .Select(n => (long?)Convert.ToInt64(n.Substring(token.Length)))
             .MaxAsync(ct);
 
-        return $"{token}{(highest ?? 0) + 1:D5}";
+        var start = (highest ?? 0) + 1;
+        return Enumerable.Range(0, count).Select(i => $"{token}{start + i:D5}").ToList();
     }
 }

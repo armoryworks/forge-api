@@ -9,6 +9,7 @@ using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
+using Forge.Data.Repositories;
 
 namespace Forge.Api.Features.Leads;
 
@@ -60,7 +61,8 @@ public class ConvertLeadCommandValidator : AbstractValidator<ConvertLeadCommand>
 public class ConvertLeadHandler(
     ILeadRepository leadRepo,
     AppDbContext db,
-    IMediator mediator) : IRequestHandler<ConvertLeadCommand, ConvertLeadResponseModel>
+    IMediator mediator,
+    IBusinessIdentifierService? identifiers = null) : IRequestHandler<ConvertLeadCommand, ConvertLeadResponseModel>
 {
     public async Task<ConvertLeadResponseModel> Handle(ConvertLeadCommand request, CancellationToken cancellationToken)
     {
@@ -93,6 +95,7 @@ public class ConvertLeadHandler(
             // customer is never created nameless. CompanyName stays null for
             // an individual rather than echoing the person's name.
             Name = lead.DisplayName,
+            CustomerNumber = (await CustomerRepository.NextCustomerNumbersAsync(db, 1, cancellationToken))[0],
             CompanyName = string.IsNullOrWhiteSpace(lead.CompanyName) ? null : lead.CompanyName,
             Email = lead.Email,
             Phone = lead.Phone,
@@ -114,6 +117,9 @@ public class ConvertLeadHandler(
 
         db.Customers.Add(customer);
         await db.SaveChangesAsync(cancellationToken);
+
+        if (identifiers is not null)
+            await identifiers.IssueAsync(BusinessEntityType.Customer, customer.Id, customer.CustomerNumber!, cancellationToken);
 
         // Create contact if contact name is available. Defensive name parse:
         // handles "First Last", "First Middle Last" (last word = last name),

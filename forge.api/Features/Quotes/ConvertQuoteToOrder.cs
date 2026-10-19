@@ -44,14 +44,16 @@ public class ConvertQuoteToOrderHandler(
             throw new InvalidOperationException("Cannot convert a quote with no lines to an order");
 
         var orderNumber = await orderRepo.GenerateNextOrderNumberAsync(cancellationToken);
-        var billingAddressId = await FindDefaultBillingAddressIdAsync(quote.CustomerId, cancellationToken);
+        var billingAddressId = await FindDefaultAddressIdAsync(quote.CustomerId, AddressType.Billing, cancellationToken);
+        var shippingAddressId = quote.ShippingAddressId
+            ?? await FindDefaultAddressIdAsync(quote.CustomerId, AddressType.Shipping, cancellationToken);
 
         var order = new SalesOrder
         {
             OrderNumber = orderNumber,
             CustomerId = quote.CustomerId,
             QuoteId = quote.Id,
-            ShippingAddressId = quote.ShippingAddressId,
+            ShippingAddressId = shippingAddressId,
             BillingAddressId = billingAddressId,
             TaxRate = quote.TaxRate,
             // AUDIT-S3: preserve the quote's Notes onto the order (was dropped on convert).
@@ -146,7 +148,7 @@ public class ConvertQuoteToOrderHandler(
             SalesOrderId: order.Id, JobId: null);
     }
 
-    private async Task<int?> FindDefaultBillingAddressIdAsync(int customerId, CancellationToken ct)
+    private async Task<int?> FindDefaultAddressIdAsync(int customerId, AddressType addressType, CancellationToken ct)
     {
         if (db is null) return null;
 
@@ -154,8 +156,8 @@ public class ConvertQuoteToOrderHandler(
             .Where(a => a.CustomerId == customerId
                 && a.IsDefault
                 && a.IsActive
-                && (a.AddressType == AddressType.Billing || a.AddressType == AddressType.Both))
-            .OrderBy(a => a.AddressType == AddressType.Billing ? 0 : 1)
+                && (a.AddressType == addressType || a.AddressType == AddressType.Both))
+            .OrderBy(a => a.AddressType == addressType ? 0 : 1)
             .ThenBy(a => a.Id)
             .Select(a => (int?)a.Id)
             .FirstOrDefaultAsync(ct);

@@ -112,7 +112,7 @@ public class UpdateCustomerCommercialTermsTests
             c.TaxExemptionId = "UT-9";
         });
 
-        var summary = await new GetCustomerSummaryHandler(db)
+        var summary = await new GetCustomerSummaryHandler(db, Mock.Of<IClock>())
             .Handle(new GetCustomerSummaryQuery(customer.Id), CancellationToken.None);
 
         summary.CreditLimit.Should().Be(5_000m);
