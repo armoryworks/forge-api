@@ -10,6 +10,7 @@ using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Quality;
 
@@ -47,6 +48,11 @@ public class RecordSpcMeasurementsHandler(AppDbContext db, ISpcService spcServic
 
         if (characteristic.GageId is int gageId)
             await GageUsability.EnsureUsableAsync(db, gageId, DateOnly.FromDateTime(now.UtcDateTime), cancellationToken);
+
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        await db.AcquireAdvisoryLockAsync("spc-measurements.subgroup", data.CharacteristicId.ToString(), cancellationToken);
 
         // Get next subgroup number
         var lastSubgroup = await db.SpcMeasurements
@@ -96,6 +102,9 @@ public class RecordSpcMeasurementsHandler(AppDbContext db, ISpcService spcServic
 
         db.SpcMeasurements.AddRange(measurements);
         await db.SaveChangesAsync(cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
         // Evaluate OOC rules if control limits exist
         var activeLimit = await db.SpcControlLimits.AsNoTracking()
