@@ -12,6 +12,7 @@ using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Data.Repositories;
+using Forge.Integrations;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Invoices;
@@ -116,7 +117,7 @@ public class InvoiceCompanyNameTests : IDisposable
     {
         await SetCompanyNameAsync("  ");
         var invoice = await SeedInvoiceAsync();
-        var handler = new SendInvoiceEmailHandler(_db, _settings, _outbox.Object);
+        var handler = new SendInvoiceEmailHandler(_db, _settings, _outbox.Object, new SystemClock());
 
         var act = () => handler.Handle(
             new SendInvoiceEmailCommand(invoice.Id, "ap@buyer.test"), CancellationToken.None);
@@ -133,7 +134,7 @@ public class InvoiceCompanyNameTests : IDisposable
     {
         await SetCompanyNameAsync(CompanyName);
         var invoice = await SeedInvoiceAsync();
-        var handler = new SendInvoiceEmailHandler(_db, _settings, _outbox.Object);
+        var handler = new SendInvoiceEmailHandler(_db, _settings, _outbox.Object, new SystemClock());
 
         await handler.Handle(
             new SendInvoiceEmailCommand(invoice.Id, "ap@buyer.test"), CancellationToken.None);

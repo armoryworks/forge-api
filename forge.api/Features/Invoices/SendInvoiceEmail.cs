@@ -31,12 +31,13 @@ public class SendInvoiceEmailValidator : AbstractValidator<SendInvoiceEmailComma
 /// <summary>
 /// Emails the invoice PDF to the customer. A blank recipient falls back to
 /// <see cref="InvoiceRecipientResolver"/> (the Billing contact first). Only a finalized, non-void invoice
-/// can be emailed. The same invoice to the same address queues once (outbox idempotency).
+/// can be emailed. Each request sends; a retry of the same request within the same second queues once.
 /// </summary>
 public class SendInvoiceEmailHandler(
     AppDbContext db,
     ISystemSettingRepository settings,
-    IIntegrationOutboxService outbox) : IRequestHandler<SendInvoiceEmailCommand>
+    IIntegrationOutboxService outbox,
+    IClock clock) : IRequestHandler<SendInvoiceEmailCommand>
 {
     public async Task Handle(SendInvoiceEmailCommand request, CancellationToken ct)
     {
@@ -89,7 +90,7 @@ public class SendInvoiceEmailHandler(
                     pdfBytes)
             ]);
 
-        var operationKey = $"invoice-email:{invoice.Id}:{recipient}";
+        var operationKey = $"invoice-email:{invoice.Id}:{recipient}:{clock.UtcNow.ToUnixTimeSeconds()}";
         await outbox.EnqueueEmailAsync(
             operationKey,
             message,

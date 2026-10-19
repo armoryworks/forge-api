@@ -22,10 +22,12 @@ public class InvoiceEmailDeliveryTests : IDisposable
 {
     private readonly AppDbContext _db = TestDbContextFactory.Create();
     private readonly Mock<IIntegrationOutboxService> _outbox = new();
+    private readonly Mock<IClock> _clock = new();
 
     public InvoiceEmailDeliveryTests()
     {
         QuestPDF.Settings.License = LicenseType.Community;
+        _clock.SetupGet(c => c.UtcNow).Returns(new DateTimeOffset(2026, 10, 5, 9, 0, 0, TimeSpan.Zero));
         _outbox.Setup(o => o.EnqueueEmailAsync(
                 It.IsAny<string>(), It.IsAny<EmailMessage>(), It.IsAny<string?>(),
                 It.IsAny<int?>(), It.IsAny<CancellationToken>()))
@@ -64,7 +66,7 @@ public class InvoiceEmailDeliveryTests : IDisposable
     }
 
     private SendInvoiceEmailHandler Handler()
-        => new(_db, new SystemSettingRepository(_db), _outbox.Object);
+        => new(_db, new SystemSettingRepository(_db), _outbox.Object, _clock.Object);
 
     [Fact]
     public async Task Recipient_PrefersTheBillingContact_ByTheRoleLabel()
@@ -130,5 +132,22 @@ public class InvoiceEmailDeliveryTests : IDisposable
         var act = () => Handler().Handle(new SendInvoiceEmailCommand(invoice.Id, " "), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*no email address on file*");
+    }
+
+    [Fact]
+    public async Task Email_SentAgainLater_QueuesASecondEmail()
+    {
+        var invoice = await SeedAsync();
+        var keys = new List<string>();
+        _outbox.Setup(o => o.EnqueueEmailAsync(
+                Capture.In(keys), It.IsAny<EmailMessage>(), It.IsAny<string?>(),
+                It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IntegrationOutboxEntry());
+
+        await Handler().Handle(new SendInvoiceEmailCommand(invoice.Id, "elias@buyer.test"), CancellationToken.None);
+        _clock.SetupGet(c => c.UtcNow).Returns(new DateTimeOffset(2026, 10, 6, 9, 0, 0, TimeSpan.Zero));
+        await Handler().Handle(new SendInvoiceEmailCommand(invoice.Id, "elias@buyer.test"), CancellationToken.None);
+
+        keys.Should().HaveCount(2).And.OnlyHaveUniqueItems();
     }
 }
