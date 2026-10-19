@@ -162,32 +162,6 @@ public class BackflushServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task MaterialIssuedByHand_NetOfReturns_CountsTowardTheRequirement()
-    {
-        await SeedAsync();
-        var resin = await ComponentAsync("RS-PCABS-BLK", 0.18m, BackflushPolicy.Auto);
-        var stock = await StockAsync(resin, _bin, 550m, "R-26-117");
-        _db.MaterialIssues.AddRange(
-            new MaterialIssue { JobId = _job.Id, PartId = resin.Id, Quantity = 360m, LotNumber = "R-26-117", IssueType = MaterialIssueType.Issue, IssuedById = UserId, IssuedAt = Now },
-            new MaterialIssue { JobId = _job.Id, PartId = resin.Id, Quantity = 55m, LotNumber = "R-26-117", IssueType = MaterialIssueType.Issue, IssuedById = UserId, IssuedAt = Now },
-            new MaterialIssue { JobId = _job.Id, PartId = resin.Id, Quantity = 55m, LotNumber = "R-26-117", IssueType = MaterialIssueType.Return, IssuedById = UserId, IssuedAt = Now });
-        stock.Quantity = 190m;
-        await _db.SaveChangesAsync();
-        await ReceivedRunAsync(good: 1940, scrap: 60);
-
-        await BackflushAsync();
-
-        (await IssuesAsync(resin)).Should().HaveCount(3);
-        (await OnHandAsync(resin)).Should().Be(190m);
-
-        await ReceivedRunAsync(good: 100, scrap: 0);
-        await BackflushAsync();
-
-        (await IssuesAsync(resin)).Last().Quantity.Should().Be(18m);
-        (await OnHandAsync(resin)).Should().Be(172m);
-    }
-
-    [Fact]
     public async Task LastStepNotComplete_ConsumesNothing()
     {
         await SeedAsync();

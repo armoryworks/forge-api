@@ -80,8 +80,9 @@ public class BackflushService(
 
             var consumed = await db.MaterialIssues.AsNoTracking()
                 .Where(mi => mi.JobId == job.Id && mi.PartId == first.ChildPartId
-                    && mi.IssueType != MaterialIssueType.Scrap)
-                .SumAsync(mi => mi.IssueType == MaterialIssueType.Return ? -mi.Quantity : mi.Quantity, ct);
+                    && mi.IssueType == MaterialIssueType.Issue
+                    && mi.Notes != null && mi.Notes.StartsWith(NotePrefix))
+                .SumAsync(mi => mi.Quantity, ct);
             var due = perUnit * reported - consumed;
             if (due <= 0m)
                 continue;
