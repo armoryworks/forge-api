@@ -1,9 +1,13 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+
+using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Repositories;
 
 namespace Forge.Api.Features.Inventory;
 
@@ -11,6 +15,9 @@ public record CreateInterPlantTransferCommand(CreateInterPlantTransferRequestMod
 
 public class CreateInterPlantTransferHandler(AppDbContext db, IClock clock) : IRequestHandler<CreateInterPlantTransferCommand, InterPlantTransferResponseModel>
 {
+    private const string TransferNumberIndex = "ix_inter_plant_transfers_transfer_number";
+    private const int NumberAttempts = 3;
+
     public async Task<InterPlantTransferResponseModel> Handle(CreateInterPlantTransferCommand command, CancellationToken cancellationToken)
     {
         var request = command.Request;
@@ -24,12 +31,11 @@ public class CreateInterPlantTransferHandler(AppDbContext db, IClock clock) : IR
         var toPlant = await db.Plants.FindAsync(new object[] { request.ToPlantId }, cancellationToken)
             ?? throw new KeyNotFoundException($"Destination plant {request.ToPlantId} not found");
 
-        var now = clock.UtcNow;
-        var transferNumber = $"IPT-{now:yyyyMMdd}-{now:HHmmss}";
+        var shopToday = ClockStateRules.LocalToday(await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), clock.UtcNow);
+        var numberPrefix = $"IPT-{shopToday:yyyyMMdd}";
 
         var transfer = new InterPlantTransfer
         {
-            TransferNumber = transferNumber,
             FromPlantId = request.FromPlantId,
             ToPlantId = request.ToPlantId,
             Notes = request.Notes,
@@ -39,6 +45,8 @@ public class CreateInterPlantTransferHandler(AppDbContext db, IClock clock) : IR
         {
             var part = await db.Parts.FindAsync(new object[] { line.PartId }, cancellationToken)
                 ?? throw new KeyNotFoundException($"Part {line.PartId} not found");
+            if (line.Quantity <= 0)
+                throw new InvalidOperationException($"Enter a quantity above zero for {part.PartNumber}.");
 
             transfer.Lines.Add(new InterPlantTransferLine
             {
@@ -51,7 +59,20 @@ public class CreateInterPlantTransferHandler(AppDbContext db, IClock clock) : IR
         }
 
         db.InterPlantTransfers.Add(transfer);
-        await db.SaveChangesAsync(cancellationToken);
+        for (var attempt = 1; ; attempt++)
+        {
+            transfer.TransferNumber = await DocumentNumberSequence.NextAsync(
+                db.InterPlantTransfers.IgnoreQueryFilters().Select(t => t.TransferNumber), numberPrefix, cancellationToken);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                break;
+            }
+            catch (DbUpdateException ex) when (attempt < NumberAttempts && ex.InnerException is PostgresException
+                { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: TransferNumberIndex })
+            {
+            }
+        }
 
         // Reload with nav properties
         await db.Entry(transfer).Reference(t => t.FromPlant).LoadAsync(cancellationToken);
