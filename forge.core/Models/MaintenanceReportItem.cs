@@ -6,4 +6,9 @@ public record MaintenanceReportItem(
     int ScheduledCount,
     int CompletedCount,
     int OverdueCount,
-    decimal TotalCost);
+    decimal TotalCost,
+    int DowntimeEvents,
+    int FailureCount,
+    decimal DowntimeHours,
+    decimal UnplannedDowntimeHours,
+    decimal? MtbfHours);
