@@ -207,7 +207,7 @@ public class CreateInvoiceHandler(
             InvoiceDate = request.InvoiceDate,
             DueDate = request.DueDate,
             CreditTerms = creditTerms,
-            TaxRate = customer.IsTaxExempt ? 0m : request.TaxRate,
+            TaxRate = customer.IsTaxExemptOn(DateOnly.FromDateTime(request.InvoiceDate.UtcDateTime)) ? 0m : request.TaxRate,
             Notes = request.Notes,
             CustomerPO = customerPo,
         };

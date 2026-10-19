@@ -92,6 +92,25 @@ public class CreateInvoiceHandlerTests
     }
 
     [Fact]
+    public async Task Handle_LapsedExemptionCertificate_ChargesTheRequestedTax()
+    {
+        var invoiceDate = new DateTimeOffset(2026, 10, 17, 0, 0, 0, TimeSpan.Zero);
+        var customer = new Customer
+        {
+            Id = 43, Name = "Lapsed Reseller", IsTaxExempt = true, TaxExemptionId = "RS-2",
+            ExemptionExpiryDate = new DateOnly(2026, 10, 1),
+        };
+        _customerRepo.Setup(r => r.FindAsync(customer.Id, It.IsAny<CancellationToken>())).ReturnsAsync(customer);
+        _invoiceRepo.Setup(r => r.GenerateNextInvoiceNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("INV-0043");
+
+        var result = await _handler.Handle(new CreateInvoiceCommand(
+            customer.Id, null, null, invoiceDate, invoiceDate.AddDays(30), null, 0.0725m, null,
+            [new CreateInvoiceLineModel(null, "Bracket", 2, 100m)]), CancellationToken.None);
+
+        result.Total.Should().Be(214.5m);
+    }
+
+    [Fact]
     public async Task Handle_WritesCreatedActivityOnTheInvoice()
     {
         var (customer, _, _) = await SeedOrderAsync();
