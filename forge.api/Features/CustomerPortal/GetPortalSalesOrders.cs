@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -16,7 +17,7 @@ public class GetPortalSalesOrdersHandler(AppDbContext db)
         // Project after pulling lines so the computed Total getter resolves
         // server-side won't translate to SQL — sum lines in memory.
         var scope = db.SalesOrders.AsNoTracking()
-            .Where(o => o.CustomerId == request.CustomerId);
+            .Where(o => o.CustomerId == request.CustomerId && o.Status != SalesOrderStatus.Draft);
         var orders = await scope
             .Include(o => o.Lines)
             .OrderByDescending(o => o.CreatedAt)

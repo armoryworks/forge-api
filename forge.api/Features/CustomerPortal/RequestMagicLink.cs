@@ -10,7 +10,7 @@ namespace Forge.Api.Features.CustomerPortal;
 
 /// <summary>
 /// Phase 1q — request a magic-link login. Looks up an enabled
-/// CustomerPortalAccess row whose contact has this email (access is
+/// CustomerPortalAccess row of an active customer whose contact has this email (access is
 /// provisioned only by staff, see CreatePortalAccessHandler), generates a
 /// one-time token (15 min lifetime), stores its hash, and dispatches the
 /// link via <see cref="IEmailService"/>. A new link is not issued within
@@ -59,6 +59,7 @@ public class RequestMagicLinkHandler(
         var access = await db.CustomerPortalAccesses
             .Include(a => a.Contact)
             .Where(a => a.IsEnabled
+                && a.Customer.IsActive
                 && a.Contact.Email != null
                 && a.Contact.Email.ToLower() == normalizedEmail)
             .OrderBy(a => a.Id)

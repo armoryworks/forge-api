@@ -93,6 +93,20 @@ public class CustomerPortalHandlerTests
     }
 
     [Fact]
+    public async Task A_contact_of_an_inactive_customer_gets_no_link()
+    {
+        var contact = await SeedContactAsync("inactive@customer.test", access: true);
+        (await _db.Customers.SingleAsync(c => c.Id == contact.CustomerId)).IsActive = false;
+        await _db.SaveChangesAsync();
+
+        var result = await RequestLink("inactive@customer.test");
+
+        result.DevLink.Should().BeNull();
+        (await _db.CustomerPortalAccesses.AsNoTracking().SingleAsync()).OneTimeTokenHash.Should().BeNull();
+        _email.Verify(e => e.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task A_shared_email_finds_the_provisioned_contact_even_when_another_contact_comes_first()
     {
         await SeedContactAsync("shared@customer.test", access: null);
@@ -215,6 +229,21 @@ public class CustomerPortalHandlerTests
             .Handle(new GetPortalSalesOrdersQuery(customerId), CancellationToken.None);
 
         rows.Items.Should().ContainSingle().Which.CurrencyCode.Should().Be("CAD");
+        rows.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Portal_orders_hide_drafts()
+    {
+        var (customerId, _) = await SeedCustomerWithBookAsync();
+        _db.SalesOrders.Add(new SalesOrder { CustomerId = customerId, OrderNumber = "SO-DRAFT", Status = SalesOrderStatus.Draft });
+        _db.SalesOrders.Add(new SalesOrder { CustomerId = customerId, OrderNumber = "SO-OPEN", Status = SalesOrderStatus.Confirmed });
+        await _db.SaveChangesAsync();
+
+        var rows = await new GetPortalSalesOrdersHandler(_db)
+            .Handle(new GetPortalSalesOrdersQuery(customerId), CancellationToken.None);
+
+        rows.Items.Select(o => o.OrderNumber).Should().Equal("SO-OPEN");
         rows.TotalCount.Should().Be(1);
     }
 
