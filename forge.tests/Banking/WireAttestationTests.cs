@@ -15,7 +15,7 @@ using Forge.Tests.Helpers;
 namespace Forge.Tests.Banking;
 
 /// <summary>
-/// banking.wire.manual-attestation — wires sit Queued until a SECOND user attests the portal
+/// banking.wire.manual-attestation — wires sit AwaitingAttestation until a SECOND user attests the portal
 /// entry (no fake auto-success on money movement). Proves: SoD (creator can't self-attest),
 /// method/status guards, success flips to Succeeded with a MANUAL-WIRE reference and invokes
 /// the shared settlement poster.
@@ -56,7 +56,7 @@ public class WireAttestationTests
         var transmission = new PaymentTransmission
         {
             SourceType = "VendorPayment", SourceId = payment.Id,
-            Status = PaymentTransmissionStatus.Queued, Amount = payment.Amount,
+            Status = PaymentTransmissionStatus.AwaitingAttestation, Amount = payment.Amount,
             Method = "Wire", CreatedByUserId = creatorUserId,
         };
         db.PaymentTransmissions.Add(transmission);
@@ -88,7 +88,7 @@ public class WireAttestationTests
         var act = () => handler.Handle(new AttestWireTransmissionCommand(payment.Id, null), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Segregation of duties*");
-        (await db.PaymentTransmissions.SingleAsync()).Status.Should().Be(PaymentTransmissionStatus.Queued);
+        (await db.PaymentTransmissions.SingleAsync()).Status.Should().Be(PaymentTransmissionStatus.AwaitingAttestation);
     }
 
     [Fact]
@@ -112,6 +112,39 @@ public class WireAttestationTests
         var handler = new AttestWireTransmissionHandler(db, new CapturingSettlement(), UserContext(9));
 
         var act = () => handler.Handle(new AttestWireTransmissionCommand(payment.Id, null), CancellationToken.None);
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*only a Queued wire*");
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*only a wire awaiting attestation*");
+    }
+
+    [Fact]
+    public async Task Attest_LegacyQueuedWireAwaitingAttestation_Succeeds()
+    {
+        var (db, payment, transmission) = await SeedQueuedWireAsync(creatorUserId: 7);
+        transmission.Status = PaymentTransmissionStatus.Queued;
+        db.ActivityLogs.Add(new ActivityLog
+        {
+            EntityType = "VendorPayment", EntityId = payment.Id,
+            Action = WireAttestationState.AwaitingActivityAction, Description = "awaiting",
+        });
+        await db.SaveChangesAsync();
+        var settlement = new CapturingSettlement();
+
+        await new AttestWireTransmissionHandler(db, settlement, UserContext(9))
+            .Handle(new AttestWireTransmissionCommand(payment.Id, null), CancellationToken.None);
+
+        (await db.PaymentTransmissions.SingleAsync()).Status.Should().Be(PaymentTransmissionStatus.Succeeded);
+        settlement.SettledTransmissionIds.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Attest_QueuedWireOnTheChannel_Blocked()
+    {
+        var (db, payment, transmission) = await SeedQueuedWireAsync(creatorUserId: 7);
+        transmission.Status = PaymentTransmissionStatus.Queued;
+        await db.SaveChangesAsync();
+        var handler = new AttestWireTransmissionHandler(db, new CapturingSettlement(), UserContext(9));
+
+        var act = () => handler.Handle(new AttestWireTransmissionCommand(payment.Id, null), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*only a wire awaiting attestation*");
     }
 }

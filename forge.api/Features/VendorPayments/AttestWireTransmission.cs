@@ -13,7 +13,7 @@ namespace Forge.Api.Features.VendorPayments;
 
 /// <summary>
 /// banking.wire.manual-attestation — the SoD step for wires: someone keys the wire into the bank
-/// portal by hand, then a DIFFERENT user attests it here. Attestation flips the Queued
+/// portal by hand, then a DIFFERENT user attests it here. Attestation flips the waiting
 /// transmission to Succeeded (submission accepted — settlement is still confirmed by BANK-001
 /// statement matching) and posts the cash-in-transit settlement entry exactly as the automated
 /// channel does. The mirror of payment-batch release.
@@ -42,9 +42,9 @@ public class AttestWireTransmissionHandler(
 
         if (payment.Method != PaymentMethod.Wire)
             throw new InvalidOperationException("Only wire payments are attested manually.");
-        if (transmission.Status != PaymentTransmissionStatus.Queued)
+        if (!await WireAttestationState.IsAwaitingAttestationAsync(db, transmission, cancellationToken))
             throw new InvalidOperationException(
-                $"The transmission is {transmission.Status}; only a Queued wire awaits attestation.");
+                $"The transmission is {transmission.Status}; only a wire awaiting attestation can be attested.");
 
         // SoD: the wire's creator keys it at the portal; a DIFFERENT user attests (mirror of
         // batch release — one person can never both move and confirm money).
