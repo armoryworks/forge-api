@@ -85,7 +85,8 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
             var capacityLookup = await WorkCenterCapacityLookup.BuildAsync(db, workCenters, ct);
 
             // 3. Track capacity usage per work center per date
-            var capacityUsed = new Dictionary<(int WorkCenterId, DateOnly Date), decimal>();
+            var laneFill = new Dictionary<(int WorkCenterId, int Lane, DateOnly Date), decimal>();
+            int conflicts = 0;
 
             // Load existing locked operations (pinned — won't be moved)
             var lockedOps = await db.ScheduledOperations
@@ -99,7 +100,8 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
             foreach (var locked in lockedOps)
             {
-                SpreadAcrossDays(locked, capacityLookup.GetValueOrDefault(locked.WorkCenterId, WorkCenterCapacity.None), capacityUsed);
+                if (!BookLockedOperation(locked, capacityLookup.GetValueOrDefault(locked.WorkCenterId, WorkCenterCapacity.None), laneFill))
+                    conflicts++;
             }
 
             // 4. Remove non-locked scheduled operations (if not simulation)
@@ -114,7 +116,6 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
             // 5. Schedule each job's operations
             int scheduledCount = 0;
-            int conflicts = 0;
             var newOps = new List<ScheduledOperation>();
 
             foreach (var job in jobs)
@@ -182,9 +183,9 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                     var notBefore = cursor ?? capacity.MidnightUtc(parameters.ScheduleFrom);
                     var earliest = notBefore > run.RunDate ? notBefore : run.RunDate;
                     var slot = FindAvailableSlot(
-                        wcId, earliest, totalHours, capacity, capacityUsed, parameters.ScheduleTo);
+                        wcId, earliest, totalHours, capacity, laneFill, parameters.ScheduleTo);
 
-                    if (slot is not (var start, var end, var allocations))
+                    if (slot is not (var lane, var start, var end, var allocations))
                     {
                         conflicts++;
                         logger.LogWarning("No capacity found for Job {JobId} Op {OpId} at WorkCenter {WcId}",
@@ -211,10 +212,10 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                     scheduledCount++;
 
                     // Update capacity tracking
-                    foreach (var (allocatedDate, allocatedHours) in allocations)
+                    foreach (var (allocatedDate, filledTo) in allocations)
                     {
-                        var capKey = (wcId, allocatedDate);
-                        capacityUsed[capKey] = capacityUsed.GetValueOrDefault(capKey) + allocatedHours;
+                        var laneKey = (wcId, lane, allocatedDate);
+                        laneFill[laneKey] = Math.Max(laneFill.GetValueOrDefault(laneKey), filledTo);
                     }
 
                     previousEnd = end;
@@ -258,44 +259,84 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
         return capacity.MidnightUtc(scheduleTo);
     }
 
-    private static (DateTimeOffset Start, DateTimeOffset End, List<(DateOnly Date, decimal Hours)> Allocations)? FindAvailableSlot(
+    private static (int Lane, DateTimeOffset Start, DateTimeOffset End, List<(DateOnly Date, decimal FilledTo)> Allocations)? FindAvailableSlot(
         int workCenterId,
         DateTimeOffset earliest,
         decimal totalHours,
         WorkCenterCapacity capacity,
-        Dictionary<(int, DateOnly), decimal> capacityUsed,
+        Dictionary<(int, int, DateOnly), decimal> laneFill,
+        DateOnly scheduleTo)
+    {
+        (int Lane, DateTimeOffset Start, DateTimeOffset End, List<(DateOnly Date, decimal FilledTo)> Allocations)? best = null;
+
+        for (var lane = 0; lane < LaneCount(capacity); lane++)
+        {
+            if (FindSlotOnLane(workCenterId, lane, earliest, totalHours, capacity, laneFill, scheduleTo) is not { } candidate)
+                continue;
+
+            if (best is null || candidate.End < best.Value.End)
+                best = (lane, candidate.Start, candidate.End, candidate.Allocations);
+        }
+
+        return best;
+    }
+
+    private static (DateTimeOffset Start, DateTimeOffset End, List<(DateOnly Date, decimal FilledTo)> Allocations)? FindSlotOnLane(
+        int workCenterId,
+        int lane,
+        DateTimeOffset earliest,
+        decimal totalHours,
+        WorkCenterCapacity capacity,
+        Dictionary<(int, int, DateOnly), decimal> laneFill,
         DateOnly scheduleTo)
     {
         var date = capacity.LocalDate(earliest);
         var maxDate = scheduleTo.AddDays(30);
-        var allocations = new List<(DateOnly Date, decimal Hours)>();
+        var allocations = new List<(DateOnly Date, decimal FilledTo)>();
         var hoursLeft = totalHours;
         var start = DateTimeOffset.MinValue;
 
         while (date <= maxDate)
         {
-            decimal availableHours = capacity.MachineHoursOn(date);
-            decimal usedHours = capacityUsed.GetValueOrDefault((workCenterId, date));
+            decimal availableHours = capacity.HoursOn(date);
+            decimal filled = laneFill.GetValueOrDefault((workCenterId, lane, date));
             var dayStart = capacity.DayStartUtc(date);
 
-            decimal offsetHours = usedHours;
-            if (allocations.Count == 0)
+            if (allocations.Count > 0)
             {
-                var earliestOffset = (decimal)(earliest - dayStart).TotalHours;
-                if (earliestOffset > offsetHours)
-                    offsetHours = earliestOffset;
+                if (availableHours > 0 && filled > 0)
+                {
+                    allocations.Clear();
+                    hoursLeft = totalHours;
+                    earliest = dayStart;
+                    continue;
+                }
+
+                if (availableHours > 0)
+                {
+                    var continued = Math.Min(availableHours, hoursLeft);
+                    allocations.Add((date, continued));
+                    hoursLeft -= continued;
+
+                    if (hoursLeft <= 0)
+                        return (start, dayStart.AddHours((double)continued), allocations);
+                }
+
+                date = date.AddDays(1);
+                continue;
             }
+
+            var offsetHours = Math.Max(filled, (decimal)(earliest - dayStart).TotalHours);
+            if (offsetHours < 0)
+                offsetHours = 0;
 
             decimal remainingHours = availableHours - offsetHours;
 
-            if (remainingHours > 0 || (totalHours <= 0 && remainingHours >= 0))
+            if (remainingHours > 0 || (totalHours <= 0 && remainingHours >= 0 && availableHours > 0))
             {
                 var dayHours = Math.Min(remainingHours, hoursLeft);
-
-                if (allocations.Count == 0)
-                    start = dayStart.AddHours((double)offsetHours);
-
-                allocations.Add((date, offsetHours - usedHours + dayHours));
+                start = dayStart.AddHours((double)offsetHours);
+                allocations.Add((date, offsetHours + dayHours));
                 hoursLeft -= dayHours;
 
                 if (hoursLeft <= 0)
@@ -307,6 +348,43 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
         return null;
     }
+
+    private static bool BookLockedOperation(
+        ScheduledOperation op,
+        WorkCenterCapacity capacity,
+        Dictionary<(int, int, DateOnly), decimal> laneFill)
+    {
+        var segments = new List<(DateOnly Date, decimal From, decimal To)>();
+        var lastDate = capacity.LocalDate(op.ScheduledEnd);
+        for (var date = capacity.LocalDate(op.ScheduledStart).AddDays(-1); date <= lastDate; date = date.AddDays(1))
+        {
+            var dayStart = capacity.DayStartUtc(date);
+            var nextDayStart = capacity.DayStartUtc(date.AddDays(1));
+            var from = op.ScheduledStart > dayStart ? op.ScheduledStart : dayStart;
+            var to = op.ScheduledEnd < nextDayStart ? op.ScheduledEnd : nextDayStart;
+            if (to > from)
+                segments.Add((date, (decimal)(from - dayStart).TotalHours, (decimal)(to - dayStart).TotalHours));
+        }
+
+        var lanes = LaneCount(capacity);
+        var lane = Enumerable.Range(0, lanes)
+            .Cast<int?>()
+            .FirstOrDefault(l => segments.All(s => laneFill.GetValueOrDefault((op.WorkCenterId, l!.Value, s.Date)) <= s.From));
+        var isFree = lane is not null;
+        lane ??= Enumerable.Range(0, lanes)
+            .OrderBy(l => segments.Sum(s => laneFill.GetValueOrDefault((op.WorkCenterId, l, s.Date))))
+            .First();
+
+        foreach (var (date, _, to) in segments)
+        {
+            var key = (op.WorkCenterId, lane.Value, date);
+            laneFill[key] = Math.Max(laneFill.GetValueOrDefault(key), to);
+        }
+
+        return isFree;
+    }
+
+    private static int LaneCount(WorkCenterCapacity capacity) => Math.Max(1, capacity.Machines);
 
     private static void SpreadAcrossDays(
         ScheduledOperation op,
