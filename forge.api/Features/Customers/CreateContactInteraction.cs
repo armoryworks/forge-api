@@ -17,7 +17,8 @@ public record CreateContactInteractionCommand(
     string Subject,
     string? Body,
     DateTimeOffset OccurredAt,
-    int? DurationMinutes) : IRequest<ContactInteractionResponseModel>;
+    int? DurationMinutes,
+    DateTimeOffset? FollowUpDate = null) : IRequest<ContactInteractionResponseModel>;
 
 public class CreateContactInteractionValidator : AbstractValidator<CreateContactInteractionCommand>
 {
@@ -27,6 +28,10 @@ public class CreateContactInteractionValidator : AbstractValidator<CreateContact
         RuleFor(x => x.Body).MaximumLength(4000);
         RuleFor(x => x.Type).NotEmpty().Must(t => Enum.TryParse<InteractionType>(t, true, out _))
             .WithMessage("Invalid interaction type");
+        RuleFor(x => x.FollowUpDate)
+            .Must((cmd, followUp) => DateOnly.FromDateTime(followUp!.Value.DateTime) >= DateOnly.FromDateTime(cmd.OccurredAt.DateTime))
+            .When(x => x.FollowUpDate.HasValue)
+            .WithMessage("The follow-up date can't be before the interaction date");
     }
 }
 
@@ -85,6 +90,21 @@ public class CreateContactInteractionHandler(AppDbContext db)
             $"Logged {interaction.Type.ToString().ToLowerInvariant()}: {interaction.Subject}",
             ("Customer", request.CustomerId),
             ("Contact", contactId));
+
+        if (request.FollowUpDate is DateTimeOffset followUpDate)
+        {
+            db.FollowUpTasks.Add(new FollowUpTask
+            {
+                Title = $"Follow up: {interaction.Subject}",
+                Description = interaction.Body,
+                AssignedToUserId = userId,
+                DueDate = followUpDate,
+                SourceEntityType = "Customer",
+                SourceEntityId = request.CustomerId,
+                TriggerType = FollowUpTriggerType.InteractionFollowUp,
+                Status = FollowUpStatus.Open,
+            });
+        }
 
         await db.SaveChangesAsync(cancellationToken);
 

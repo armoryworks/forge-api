@@ -15,5 +15,6 @@ public enum FollowUpTriggerType
     ShipReady,
     MaterialsReady,
     ShipmentDelivered,
-    ReorderSuggested
+    ReorderSuggested,
+    InteractionFollowUp
 }

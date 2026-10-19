@@ -87,6 +87,9 @@ public class GetFollowUpTasksHandler(AppDbContext db) : IRequestHandler<GetFollo
         await AddAsync("CustomerReturn", ids => db.CustomerReturns
             .Where(e => ids.Contains(e.Id))
             .ToDictionaryAsync(e => e.Id, e => e.ReturnNumber, ct));
+        await AddAsync("Customer", ids => db.Customers
+            .Where(e => ids.Contains(e.Id))
+            .ToDictionaryAsync(e => e.Id, e => e.Name, ct));
         await AddAsync("ReorderSuggestion", ids => db.ReorderSuggestions
             .Where(e => ids.Contains(e.Id))
             .ToDictionaryAsync(e => e.Id, e => e.Part.PartNumber, ct));

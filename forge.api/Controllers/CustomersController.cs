@@ -272,7 +272,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new CreateContactInteractionCommand(
             id, request.ContactId, request.Type, request.Subject,
-            request.Body, request.InteractionDate, request.DurationMinutes));
+            request.Body, request.InteractionDate, request.DurationMinutes, request.FollowUpDate));
         return Created($"/api/v1/customers/{id}/interactions/{result.Id}", result);
     }
 
@@ -317,6 +317,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{id:int}/statement")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager")]
     public async Task<IActionResult> GetStatement(int id)
     {
         var pdf = await mediator.Send(new GenerateCustomerStatementQuery(id));

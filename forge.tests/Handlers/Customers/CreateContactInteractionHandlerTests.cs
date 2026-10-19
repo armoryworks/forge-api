@@ -124,4 +124,50 @@ public class CreateContactInteractionHandlerTests
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
     }
+
+    [Fact]
+    public async Task Handle_WithFollowUpDate_SchedulesAnOpenFollowUpForTheCaller()
+    {
+        var (user, customer, contact) = await SeedData();
+        var occurredAt = new DateTimeOffset(2026, 10, 19, 14, 0, 0, TimeSpan.Zero);
+        var followUp = new DateTimeOffset(2026, 10, 26, 0, 0, 0, TimeSpan.Zero);
+
+        await _handler.Handle(new CreateContactInteractionCommand(
+            customer.Id, contact.Id, "Call", "Past-due balance", "Promised a check Friday",
+            occurredAt, 10, followUp), CancellationToken.None);
+
+        var task = _db.FollowUpTasks.Should().ContainSingle().Subject;
+        task.Title.Should().Be("Follow up: Past-due balance");
+        task.AssignedToUserId.Should().Be(user.Id);
+        task.DueDate.Should().Be(followUp);
+        task.SourceEntityType.Should().Be("Customer");
+        task.SourceEntityId.Should().Be(customer.Id);
+        task.TriggerType.Should().Be(Forge.Core.Enums.FollowUpTriggerType.InteractionFollowUp);
+        task.Status.Should().Be(Forge.Core.Enums.FollowUpStatus.Open);
+    }
+
+    [Fact]
+    public async Task Handle_WithoutFollowUpDate_SchedulesNothing()
+    {
+        var (_, customer, contact) = await SeedData();
+
+        await _handler.Handle(new CreateContactInteractionCommand(
+            customer.Id, contact.Id, "Call", "Checked in", null, DateTimeOffset.UtcNow, null), CancellationToken.None);
+
+        _db.FollowUpTasks.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Validator_RejectsAFollowUpBeforeTheInteraction()
+    {
+        var occurredAt = new DateTimeOffset(2026, 10, 19, 14, 0, 0, TimeSpan.Zero);
+        var validator = new CreateContactInteractionValidator();
+
+        validator.Validate(new CreateContactInteractionCommand(
+            1, null, "Call", "Subject", null, occurredAt, null, occurredAt.AddDays(-1)))
+            .IsValid.Should().BeFalse();
+        validator.Validate(new CreateContactInteractionCommand(
+            1, null, "Call", "Subject", null, occurredAt, null, occurredAt.Date))
+            .IsValid.Should().BeTrue();
+    }
 }
