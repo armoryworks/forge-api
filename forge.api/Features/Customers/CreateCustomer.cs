@@ -47,7 +47,7 @@ public class CreateCustomerValidator : AbstractValidator<CreateCustomerCommand>
         RuleFor(x => x.Name)
             .Must(VisibleText.HasVisibleContent)
             .When(x => !string.IsNullOrEmpty(x.Name))
-            .WithMessage("'Name' must contain visible (non-whitespace) characters.");
+            .WithMessage("Name must contain visible characters.");
         RuleFor(x => x.CompanyName).MaximumLength(200);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Phone).MaximumLength(50);
@@ -120,9 +120,9 @@ public class CreateCustomerHandler(
 
         var customer = new Customer
         {
-            Name = request.Name,
+            Name = request.Name.Trim(),
             CustomerNumber = customerNumber,
-            CompanyName = request.CompanyName,
+            CompanyName = request.CompanyName?.Trim(),
             Email = request.Email,
             Phone = request.Phone,
             Fax = request.Fax,

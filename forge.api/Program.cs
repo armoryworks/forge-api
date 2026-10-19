@@ -1278,6 +1278,7 @@ try
         cfg.RegisterServicesFromAssemblyContaining<Program>();
         cfg.NotificationPublisherType = typeof(Forge.Api.Behaviors.ResilientNotificationPublisher);
     });
+    FluentValidationDefaults.Apply();
     builder.Services.AddValidatorsFromAssemblyContaining<Program>();
     builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
     builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Forge.Api.Behaviors.CapabilityGateBehavior<,>));

@@ -5,6 +5,7 @@ using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
+using Forge.Api.Validation;
 
 namespace Forge.Api.Features.LeadSources;
 
@@ -47,13 +48,13 @@ public class CreateLeadSourceHandler(AppDbContext db) : IRequestHandler<CreateLe
     {
         var r = request.Request;
         if (string.IsNullOrWhiteSpace(r.Name))
-            throw new InvalidOperationException("Source name is required.");
+            throw FieldValidation.Fail("name", "Source name is required.");
         if (string.IsNullOrWhiteSpace(r.Code))
-            throw new InvalidOperationException("Source code is required.");
+            throw FieldValidation.Fail("code", "Source code is required.");
 
         var code = r.Code.Trim();
         if (await db.LeadSources.AnyAsync(s => s.Code == code, ct))
-            throw new InvalidOperationException($"A lead source with code '{code}' already exists.");
+            throw FieldValidation.Fail("code", $"A lead source with code '{code}' already exists.");
 
         var s = new LeadSource
         {

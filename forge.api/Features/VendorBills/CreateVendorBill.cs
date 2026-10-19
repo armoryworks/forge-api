@@ -36,7 +36,8 @@ public class CreateVendorBillValidator : AbstractValidator<CreateVendorBillComma
         RuleFor(x => x.VendorId).GreaterThan(0);
         RuleFor(x => x.Lines).NotEmpty().WithMessage("At least one line item is required");
         RuleFor(x => x.TaxAmount).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.DueDate).GreaterThanOrEqualTo(x => x.BillDate);
+        RuleFor(x => x.DueDate).GreaterThanOrEqualTo(x => x.BillDate)
+            .WithMessage("Due date must be on or after the bill date.");
         // FX booking rate must be positive (a 0 or negative rate would zero/invert the functional amount).
         RuleFor(x => x.FxRate).GreaterThan(0m);
         // A zero-total bill would flip to Approved yet post no journal (the engine skips non-positive

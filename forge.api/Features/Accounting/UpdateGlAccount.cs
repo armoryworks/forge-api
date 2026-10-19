@@ -6,6 +6,7 @@ using Forge.Core.Enums.Accounting;
 using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
+using Forge.Api.Validation;
 
 namespace Forge.Api.Features.Accounting;
 
@@ -80,7 +81,7 @@ public class UpdateGlAccountHandler(AppDbContext db)
                 var trimmed = num.Trim();
                 if (trimmed != account.AccountNumber &&
                     await db.GlAccounts.AnyAsync(a => a.BookId == account.BookId && a.AccountNumber == trimmed && a.Id != account.Id, ct))
-                    throw new InvalidOperationException($"Account number '{trimmed}' already exists in this book.");
+                    throw FieldValidation.Fail("accountNumber", $"Account number '{trimmed}' already exists in this book.");
                 account.AccountNumber = trimmed;
             }
             account.AccountType = newType;

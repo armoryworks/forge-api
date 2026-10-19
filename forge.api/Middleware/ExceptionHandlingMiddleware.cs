@@ -29,7 +29,8 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             var errors = ex.Errors
                 .Select(e => new
                 {
-                    field = CustomInvalidModelStateResponseFactory.NormalizeFieldName(e.PropertyName),
+                    field = CustomInvalidModelStateResponseFactory.NormalizeFieldName(
+                        CustomInvalidModelStateResponseFactory.StripCommandWrapper(e.PropertyName)),
                     message = e.ErrorMessage,
                     rejectedValue = (string?)null,
                 })
