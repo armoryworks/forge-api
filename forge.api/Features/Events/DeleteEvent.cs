@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Data.Context;
 
@@ -26,6 +27,7 @@ public class DeleteEventHandler(AppDbContext db)
         // cancelled it, when known). Mirrors the events notification pattern used
         // by CreateEvent / EventReminderJob — direct db.Notifications.Add, no SignalR.
         var actorUserId = db.CurrentUserId;
+        var startText = EventTimeText.Start(evt, await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken));
         foreach (var attendee in evt.Attendees.Where(a => a.UserId != actorUserId))
         {
             db.Notifications.Add(new Notification
@@ -35,7 +37,7 @@ public class DeleteEventHandler(AppDbContext db)
                 Severity = "warning",
                 Source = "events",
                 Title = $"Cancelled: {evt.Title}",
-                Message = $"\"{evt.Title}\" on {evt.StartTime:MM/dd/yyyy hh:mm tt} has been cancelled.",
+                Message = $"\"{evt.Title}\" on {startText} has been cancelled.",
                 EntityType = "events",
                 EntityId = evt.Id,
             });

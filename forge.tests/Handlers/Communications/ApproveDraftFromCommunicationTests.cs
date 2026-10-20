@@ -154,6 +154,19 @@ public class ApproveDraftFromCommunicationTests
     }
 
     [Fact]
+    public async Task ActivityShowsWhenTheMessageArrivedInShopTime()
+    {
+        _db.WorkingCalendars.Add(new WorkingCalendar { Name = "Plant", TimeZone = "America/Denver", IsDefault = true });
+        var (customer, comm, artifact) = await SeedAsync();
+
+        await _handler.Handle(new ApproveDraftFromCommunicationCommand(
+            comm.Id, customer.Id, artifact.Id, null, null, 0m, Lines()), default);
+
+        _db.ActivityLogs.First(a => a.Action == "draft-approved-from-communication").Description
+            .Should().Contain("of 08/15/2026 03:12 AM — authorized by");
+    }
+
+    [Fact]
     public async Task MarksTheCommunicationTriagedSoItLeavesTheQueue()
     {
         var (customer, comm, artifact) = await SeedAsync();

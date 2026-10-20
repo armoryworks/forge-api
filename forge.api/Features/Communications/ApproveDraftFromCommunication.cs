@@ -1,7 +1,10 @@
+using System.Globalization;
+
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -166,10 +169,12 @@ public class ApproveDraftFromCommunicationHandler(
         communication.IsTriaged = true;
         communication.HandledByUserId ??= db.CurrentUserId;
 
+        var occurredText = TimeZoneInfo.ConvertTime(communication.OccurredAt, await ClockStateRules.ShopTimeZoneAsync(db, ct))
+            .ToString("MM/dd/yyyy hh:mm tt", CultureInfo.InvariantCulture);
         db.LogActivityAt(
             "draft-approved-from-communication",
             $"Draft order {orderNumber} approved from {communication.Channel} of "
-                + $"{communication.OccurredAt:yyyy-MM-dd HH:mm} — authorized by "
+                + $"{occurredText} — authorized by "
                 + $"{artifact.OriginalFilename ?? "artifact"} (sha256:{artifact.ShortHash})",
             ("SalesOrder", order.Id),
             ("Customer", request.CustomerId),

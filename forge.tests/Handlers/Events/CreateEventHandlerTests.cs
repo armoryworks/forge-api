@@ -140,4 +140,21 @@ public class CreateEventHandlerTests
         var notification = _db.Notifications.First(n => n.UserId == attendee.Id);
         notification.Severity.Should().Be("warning");
     }
+
+    [Fact]
+    public async Task Handle_InviteNotification_ShowsTheStartInShopTime()
+    {
+        _db.WorkingCalendars.Add(new WorkingCalendar { Name = "Plant", TimeZone = "America/Denver", IsDefault = true });
+        var creator = await SeedUser("Admin", "User");
+        SetupHttpContext(creator.Id);
+        var attendee = await SeedUser("Worker", "Three");
+
+        var start = new DateTimeOffset(2026, 10, 20, 15, 30, 0, TimeSpan.Zero);
+        await _handler.Handle(new CreateEventCommand(
+            "Kickoff", null, start, start.AddHours(1), null, "Meeting", false,
+            new List<int> { attendee.Id }), CancellationToken.None);
+
+        _db.Notifications.First(n => n.UserId == attendee.Id).Message
+            .Should().EndWith("on 10/20/2026 09:30 AM.");
+    }
 }
