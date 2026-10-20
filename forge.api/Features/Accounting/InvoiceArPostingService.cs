@@ -625,7 +625,7 @@ public sealed class InvoiceArPostingService(
         }
 
         if (totalCogs <= 0m)
-            return; // no stocked lines with a cost → nothing to relieve
+            return; // no stocked finished-goods lines with a cost → nothing to relieve
 
         // §12 (FG-not-yet-loaded edge) — when the valuation store carries a part, the relief above used its
         // weighted-average (STAGE E) and decremented it in lock-step. Parts NOT yet in the store fall back to
