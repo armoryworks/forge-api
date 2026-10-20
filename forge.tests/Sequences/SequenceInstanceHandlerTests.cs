@@ -22,8 +22,11 @@ public class SequenceInstanceHandlerTests
         return d.Id;
     }
 
-    private static Task<SequenceInstanceResponseModel> Start(SequenceHandlerFixture f, int defId, int? subjectId = 42) =>
-        new StartSequenceInstanceHandler(f.Db, f.Evaluation, f.Clock).Handle(new StartSequenceInstanceCommand(new StartSequenceRequestModel(defId, null, "Job", subjectId), U), default);
+    private static async Task<SequenceInstanceResponseModel> Start(SequenceHandlerFixture f, int defId, int? subjectId = 42)
+    {
+        await f.EnsureJobAsync(subjectId);
+        return await new StartSequenceInstanceHandler(f.Db, f.Evaluation, f.Clock).Handle(new StartSequenceInstanceCommand(new StartSequenceRequestModel(defId, null, "Job", subjectId), U), default);
+    }
 
     private static SequenceStepInstanceResponseModel Step(SequenceInstanceResponseModel i, string key) => i.Steps.First(s => s.StepKey == key);
 
@@ -174,6 +177,7 @@ public class SequenceInstanceHandlerTests
         var startDraft = () => Start(f, draft.Id);
         await startDraft.Should().ThrowAsync<InvalidOperationException>();
 
+        await f.EnsureJobAsync(1);
         var byCode = await new StartSequenceInstanceHandler(f.Db, f.Evaluation, f.Clock)
             .Handle(new StartSequenceInstanceCommand(new StartSequenceRequestModel(null, "job-basic", "Job", 1), U), default);
         byCode.DefinitionId.Should().Be(defId);

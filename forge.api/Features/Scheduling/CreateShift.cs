@@ -20,6 +20,9 @@ public class CreateShiftValidator : AbstractValidator<CreateShiftCommand>
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
         RuleFor(x => x.BreakMinutes).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.BreakMinutes)
+            .Must((x, breakMinutes) => ShiftHours.Net(x.StartTime, x.EndTime, breakMinutes) > 0)
+            .WithMessage("The break must be shorter than the shift.");
     }
 }
 
@@ -27,11 +30,7 @@ public class CreateShiftHandler(AppDbContext db) : IRequestHandler<CreateShiftCo
 {
     public async Task<ShiftResponseModel> Handle(CreateShiftCommand request, CancellationToken cancellationToken)
     {
-        var duration = request.EndTime > request.StartTime
-            ? request.EndTime.ToTimeSpan() - request.StartTime.ToTimeSpan()
-            : TimeSpan.FromHours(24) - request.StartTime.ToTimeSpan() + request.EndTime.ToTimeSpan();
-
-        var netHours = (decimal)duration.TotalHours - (request.BreakMinutes / 60m);
+        var netHours = ShiftHours.Net(request.StartTime, request.EndTime, request.BreakMinutes);
 
         var shift = new Shift
         {

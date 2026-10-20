@@ -11,4 +11,5 @@ public record ScheduleRunResponseModel(
     int ConflictsDetected,
     DateTimeOffset? CompletedAt,
     int RunByUserId,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    bool IsSimulation);

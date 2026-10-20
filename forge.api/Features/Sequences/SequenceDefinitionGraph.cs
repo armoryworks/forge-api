@@ -1,5 +1,6 @@
 using Forge.Core.Entities;
 using Forge.Core.Models;
+using Forge.Core.Sequences;
 
 namespace Forge.Api.Features.Sequences;
 

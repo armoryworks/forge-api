@@ -16,5 +16,6 @@ public record MrpRunResponseModel(
     int PlannedOrderCount,
     int ExceptionCount,
     string? ErrorMessage,
-    int? InitiatedByUserId
+    int? InitiatedByUserId,
+    int? UnplannedDemandPartCount = null
 );

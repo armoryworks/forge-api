@@ -411,6 +411,47 @@ public class SchedulingServiceTests
         ops[1].ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 5, 14, 0, 0, TimeSpan.Zero));
     }
 
+    [Theory]
+    [InlineData(50, 9, 30)]
+    [InlineData(250, 8, 0)]
+    public async Task Schedule_PredecessorOverlap_StartsTheSuccessorBeforeThePredecessorEnds(int overlapPercent, int startHour, int startMinute)
+    {
+        var mill = await SeedWorkCenterAsync();
+        var lathe = await SeedWorkCenterAsync();
+        var (part, first) = await SeedPartAsync(mill, estimatedMs: 60000);
+        first.OverlapPercent = overlapPercent;
+        _db.Operations.Add(new Operation { PartId = part.Id, StepNumber = 20, Title = "Turn", WorkCenterId = lathe.Id, EstimatedMs = 60000 });
+        await _db.SaveChangesAsync();
+        await SeedJobAsync(part, 180m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var ops = await _db.ScheduledOperations.OrderBy(so => so.SequenceNumber).ToListAsync();
+        ops[0].ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, 8, 0, 0, TimeSpan.Zero));
+        ops[0].ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 5, 11, 0, 0, TimeSpan.Zero));
+        ops[1].ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, startHour, startMinute, 0, TimeSpan.Zero));
+        ops[1].ScheduledStart.Should().BeOnOrAfter(ops[0].ScheduledStart);
+    }
+
+    [Fact]
+    public async Task Schedule_PredecessorOverlap_ShortSuccessorDoesNotFinishBeforeThePredecessor()
+    {
+        var mill = await SeedWorkCenterAsync();
+        var lathe = await SeedWorkCenterAsync();
+        var (part, first) = await SeedPartAsync(mill, estimatedMs: 60000);
+        first.OverlapPercent = 50;
+        _db.Operations.Add(new Operation { PartId = part.Id, StepNumber = 20, Title = "Deburr", WorkCenterId = lathe.Id, EstimatedMs = 10000 });
+        await _db.SaveChangesAsync();
+        await SeedJobAsync(part, 180m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var ops = await _db.ScheduledOperations.OrderBy(so => so.SequenceNumber).ToListAsync();
+        ops[0].ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 5, 11, 0, 0, TimeSpan.Zero));
+        ops[1].ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, 10, 30, 0, TimeSpan.Zero));
+        ops[1].ScheduledEnd.Should().Be(ops[0].ScheduledEnd);
+    }
+
     [Fact]
     public async Task Schedule_SuccessorPastTheEndOfTheShift_MovesToTheNextDay()
     {
@@ -519,6 +560,170 @@ public class SchedulingServiceTests
         (await _db.ScheduledOperations.SingleAsync(so => so.JobId == job.Id && !so.IsLocked)).ScheduledStart
             .Should().Be(new DateTimeOffset(2026, 10, 5, 10, 15, 0, TimeSpan.Zero));
     }
+
+    [Fact]
+    public async Task Schedule_OverloadedSingleMachine_SpillsEachJobOverInDueDateOrder()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        var jobs = new List<Job>();
+        for (var i = 0; i < 3; i++)
+            jobs.Add(await SeedJobAsync(part, 600m, j => j.DueDate = new DateTimeOffset(2026, 10, 20 + i, 0, 0, 0, TimeSpan.Zero)));
+
+        var result = await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        result.ConflictsDetected.Should().Be(0);
+        var ops = await _db.ScheduledOperations.ToListAsync();
+        var windows = jobs.Select(j => ops.Single(so => so.JobId == j.Id)).Select(so => (so.ScheduledStart, so.ScheduledEnd)).ToList();
+        windows.Should().Equal(
+            (new DateTimeOffset(2026, 10, 5, 8, 0, 0, TimeSpan.Zero), new DateTimeOffset(2026, 10, 6, 10, 0, 0, TimeSpan.Zero)),
+            (new DateTimeOffset(2026, 10, 6, 10, 0, 0, TimeSpan.Zero), new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero)),
+            (new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero), new DateTimeOffset(2026, 10, 8, 14, 0, 0, TimeSpan.Zero)));
+        MaxConcurrent(ops).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Schedule_SingleMachine_MultiDayOperationIsNotSplitAroundAnotherBooking()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var (part, op) = await SeedPartAsync(wc, estimatedMs: 60000);
+        var lockedJob = await SeedJobAsync(part, 120m, j => j.IsArchived = true);
+        _db.ScheduledOperations.Add(new ScheduledOperation
+        {
+            JobId = lockedJob.Id,
+            OperationId = op.Id,
+            WorkCenterId = wc.Id,
+            ScheduledStart = new DateTimeOffset(2026, 10, 6, 8, 0, 0, TimeSpan.Zero),
+            ScheduledEnd = new DateTimeOffset(2026, 10, 6, 10, 0, 0, TimeSpan.Zero),
+            RunHours = 2m,
+            TotalHours = 2m,
+            Status = ScheduledOperationStatus.Scheduled,
+            IsLocked = true,
+        });
+        await _db.SaveChangesAsync();
+        var shortJob = await SeedJobAsync(part, 360m, j => j.DueDate = new DateTimeOffset(2026, 10, 20, 0, 0, 0, TimeSpan.Zero));
+        var longJob = await SeedJobAsync(part, 600m, j => j.DueDate = new DateTimeOffset(2026, 10, 21, 0, 0, 0, TimeSpan.Zero));
+
+        var result = await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        result.ConflictsDetected.Should().Be(0);
+        var ops = await _db.ScheduledOperations.ToListAsync();
+        var shortOp = ops.Single(so => so.JobId == shortJob.Id);
+        shortOp.ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, 8, 0, 0, TimeSpan.Zero));
+        var longOp = ops.Single(so => so.JobId == longJob.Id);
+        longOp.ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 6, 10, 0, 0, TimeSpan.Zero));
+        longOp.ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero));
+        MaxConcurrent(ops).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Schedule_ThreeMachines_RunsAtMostThreeAtOnceInsideTheShift()
+    {
+        var wc = await SeedWorkCenterAsync();
+        wc.NumberOfMachines = 3;
+        await _db.SaveChangesAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        var dueDay = 20;
+        foreach (var minutes in new[] { 600m, 300m, 300m, 600m, 120m, 480m, 300m, 600m, 60m, 300m })
+            await SeedJobAsync(part, minutes, j => j.DueDate = new DateTimeOffset(2026, 10, dueDay++, 0, 0, 0, TimeSpan.Zero));
+
+        var result = await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        result.OperationsScheduled.Should().Be(10);
+        result.ConflictsDetected.Should().Be(0);
+        var ops = await _db.ScheduledOperations.ToListAsync();
+        ops.Where(so => so.ScheduledStart.TimeOfDay == TimeSpan.FromHours(8) && so.ScheduledStart.Day == 5).Should().HaveCount(3);
+        foreach (var so in ops)
+        {
+            so.ScheduledStart.Should().BeOnOrBefore(so.ScheduledEnd);
+            so.ScheduledStart.TimeOfDay.Should().BeGreaterThanOrEqualTo(TimeSpan.FromHours(8)).And.BeLessThan(TimeSpan.FromHours(16));
+            so.ScheduledEnd.TimeOfDay.Should().BeGreaterThan(TimeSpan.FromHours(8)).And.BeLessThanOrEqualTo(TimeSpan.FromHours(16));
+        }
+        MaxConcurrent(ops).Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Schedule_ThreeMachines_StartIsWallClockNotMachineHours()
+    {
+        var wc = await SeedWorkCenterAsync();
+        wc.NumberOfMachines = 3;
+        await _db.SaveChangesAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        for (var i = 0; i < 4; i++)
+            await SeedJobAsync(part, 420m, j => j.DueDate = new DateTimeOffset(2026, 10, 20 + i, 0, 0, 0, TimeSpan.Zero));
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var ops = await _db.ScheduledOperations.OrderBy(so => so.ScheduledStart).ToListAsync();
+        ops.Take(3).Should().AllSatisfy(so =>
+        {
+            so.ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, 8, 0, 0, TimeSpan.Zero));
+            so.ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 5, 15, 0, 0, TimeSpan.Zero));
+        });
+        ops[3].ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, 15, 0, 0, TimeSpan.Zero));
+        ops[3].ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 6, 14, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task Schedule_OverlappingLockedOperationsOnOneMachine_CountAConflictAndKeepBoth()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var (part, op) = await SeedPartAsync(wc, estimatedMs: 60000);
+        var first = await SeedJobAsync(part, 120m, j => j.IsArchived = true);
+        var second = await SeedJobAsync(part, 120m, j => j.IsArchived = true);
+        foreach (var job in new[] { first, second })
+        {
+            _db.ScheduledOperations.Add(new ScheduledOperation
+            {
+                JobId = job.Id,
+                OperationId = op.Id,
+                WorkCenterId = wc.Id,
+                ScheduledStart = new DateTimeOffset(2026, 10, 5, 8, 0, 0, TimeSpan.Zero),
+                ScheduledEnd = new DateTimeOffset(2026, 10, 5, 10, 0, 0, TimeSpan.Zero),
+                RunHours = 2m,
+                TotalHours = 2m,
+                Status = ScheduledOperationStatus.Scheduled,
+                IsLocked = true,
+            });
+        }
+        await _db.SaveChangesAsync();
+        var openJob = await SeedJobAsync(part, 60m);
+
+        var result = await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        result.ConflictsDetected.Should().Be(1);
+        (await _db.ScheduledOperations.CountAsync(so => so.IsLocked)).Should().Be(2);
+        (await _db.ScheduledOperations.SingleAsync(so => so.JobId == openJob.Id)).ScheduledStart
+            .Should().Be(new DateTimeOffset(2026, 10, 5, 10, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task ScheduleRuns_MarkSimulationsApartFromRealRuns()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        await SeedJobAsync(part, 60m);
+        _db.ScheduleRuns.Add(new ScheduleRun { RunDate = new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero), Status = ScheduleRunStatus.Completed });
+        await _db.SaveChangesAsync();
+
+        var simulated = await _service.SimulateAsync(Parameters(), CancellationToken.None);
+        var real = await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        simulated.IsSimulation.Should().BeTrue();
+        real.IsSimulation.Should().BeFalse();
+        var history = await new Forge.Api.Features.Scheduling.GetScheduleRunsHandler(_db)
+            .Handle(new Forge.Api.Features.Scheduling.GetScheduleRunsQuery(), CancellationToken.None);
+        history.Single(r => r.Id == simulated.Id).IsSimulation.Should().BeTrue();
+        history.Single(r => r.Id == real.Id).IsSimulation.Should().BeFalse();
+        history.Should().ContainSingle(r => !r.IsSimulation && r.Id != real.Id);
+    }
+
+    private static int MaxConcurrent(IEnumerable<ScheduledOperation> ops) =>
+        ops.Where(so => so.ScheduledEnd > so.ScheduledStart)
+            .SelectMany(so => new[] { (At: so.ScheduledStart, Delta: 1), (At: so.ScheduledEnd, Delta: -1) })
+            .OrderBy(e => e.At).ThenBy(e => e.Delta)
+            .Aggregate((Current: 0, Max: 0), (acc, e) => (acc.Current + e.Delta, Math.Max(acc.Max, acc.Current + e.Delta)))
+            .Max;
 
     private void SeedDenverCalendar()
     {

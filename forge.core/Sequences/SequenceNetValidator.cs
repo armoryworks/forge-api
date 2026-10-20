@@ -17,6 +17,7 @@ public static class SequenceNetValidator
         {
             if (string.IsNullOrWhiteSpace(s.Key)) errors.Add("A step has an empty key.");
             else if (!keys.Add(s.Key)) errors.Add($"Duplicate step key '{s.Key}'.");
+            if (s.MaxDwellMinutes is <= 0) errors.Add($"Step '{s.Key}' needs a max dwell of more than 0 minutes, or none.");
         }
         if (definition.Steps.Count == 0) errors.Add("A definition needs at least one step.");
 

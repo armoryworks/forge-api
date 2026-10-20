@@ -2,7 +2,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
-using Forge.Core.Enums;
+using Forge.Api.Services;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -14,14 +14,11 @@ public class GetScheduleRunsHandler(AppDbContext db) : IRequestHandler<GetSchedu
 {
     public async Task<List<ScheduleRunResponseModel>> Handle(GetScheduleRunsQuery request, CancellationToken cancellationToken)
     {
-        return await db.ScheduleRuns
+        var runs = await db.ScheduleRuns
             .AsNoTracking()
             .OrderByDescending(r => r.RunDate)
             .Take(50)
-            .Select(r => new ScheduleRunResponseModel(
-                r.Id, r.RunDate, r.Direction, r.Status,
-                r.OperationsScheduled, r.ConflictsDetected,
-                r.CompletedAt, r.RunByUserId, r.ErrorMessage))
             .ToListAsync(cancellationToken);
+        return runs.Select(SchedulingService.MapToResponse).ToList();
     }
 }

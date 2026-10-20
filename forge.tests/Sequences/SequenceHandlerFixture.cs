@@ -3,6 +3,7 @@ using Moq;
 
 using Forge.Api.Features.Sequences.GateSources;
 using Forge.Api.Services;
+using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Sequences;
 using Forge.Data.Context;
@@ -35,6 +36,13 @@ public sealed class SequenceHandlerFixture : IAsyncDisposable
     public List<INotification> Published { get; } = [];
     public List<IGateSource> Sources { get; } = [];
     public ISequenceEvaluationService Evaluation { get; }
+
+    public async Task EnsureJobAsync(int? jobId)
+    {
+        if (jobId is not { } id || await Db.Jobs.FindAsync(id) is not null) return;
+        Db.Jobs.Add(new Job { Id = id, JobNumber = $"J-{id}", Title = "Sequence subject", TrackTypeId = 1, CurrentStageId = 1 });
+        await Db.SaveChangesAsync();
+    }
 
     public ValueTask DisposeAsync() => Db.DisposeAsync();
 

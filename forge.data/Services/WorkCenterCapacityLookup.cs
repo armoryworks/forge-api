@@ -40,7 +40,7 @@ public static class WorkCenterCapacityLookup
                 : calendars.FirstOrDefault(c => c.Id == calendarId) ?? defaultCalendar;
 
             return new WorkCenterCapacity(
-                w.Shifts.Select(ws => new WorkCenterShiftInfo(EffectiveHours(ws.Shift), ws.DaysOfWeek)).ToList(),
+                w.Shifts.Select(ws => new WorkCenterShiftInfo(ShiftHours.EffectiveCapacity(ws.Shift), ws.DaysOfWeek)).ToList(),
                 w.CalendarOverrides.ToDictionary(c => c.Date, c => c.AvailableHours),
                 w.DailyCapacityHours,
                 calendar?.WorkingDaysMask ?? WorkCenterCapacity.MondayToFridayMask,
@@ -55,8 +55,6 @@ public static class WorkCenterCapacityLookup
             };
         });
     }
-
-    private static decimal EffectiveHours(Shift shift) => shift.CapacityHours > 0 ? shift.CapacityHours : shift.NetHours;
 
     private static TimeOnly? DayStartOf(IEnumerable<Shift> shifts) =>
         shifts

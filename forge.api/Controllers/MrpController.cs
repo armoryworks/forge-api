@@ -203,6 +203,13 @@ public class MrpController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("forecasts/{id:int}")]
+    public async Task<ActionResult<DemandForecastResponseModel>> GetForecast(int id)
+    {
+        var result = await mediator.Send(new GetDemandForecastQuery(id));
+        return Ok(result);
+    }
+
     [HttpPost("forecasts")]
     public async Task<ActionResult<DemandForecastResponseModel>> GenerateForecast([FromBody] GenerateForecastRequest request)
     {
@@ -216,7 +223,7 @@ public class MrpController(IMediator mediator) : ControllerBase
             request.SmoothingFactor,
             userId
         ));
-        return CreatedAtAction(nameof(GetForecasts), null, result);
+        return CreatedAtAction(nameof(GetForecast), new { id = result.Id }, result);
     }
 
     [HttpPost("forecasts/{id:int}/approve")]

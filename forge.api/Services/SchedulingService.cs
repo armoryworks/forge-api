@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -36,7 +38,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
             Direction = parameters.Direction,
             Status = ScheduleRunStatus.Running,
             RunByUserId = parameters.RunByUserId ?? 0,
-            ParametersJson = System.Text.Json.JsonSerializer.Serialize(parameters),
+            ParametersJson = SerializeParameters(parameters, isSimulation),
         };
         db.ScheduleRuns.Add(run);
         await db.SaveChangesAsync(ct);
@@ -85,7 +87,8 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
             var capacityLookup = await WorkCenterCapacityLookup.BuildAsync(db, workCenters, ct);
 
             // 3. Track capacity usage per work center per date
-            var capacityUsed = new Dictionary<(int WorkCenterId, DateOnly Date), decimal>();
+            var laneFill = new Dictionary<(int WorkCenterId, int Lane, DateOnly Date), decimal>();
+            int conflicts = 0;
 
             // Load existing locked operations (pinned — won't be moved)
             var lockedOps = await db.ScheduledOperations
@@ -95,11 +98,12 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
             var lockedByJobOperation = lockedOps
                 .GroupBy(so => (so.JobId, so.OperationId))
-                .ToDictionary(g => g.Key, g => g.Max(so => so.ScheduledEnd));
+                .ToDictionary(g => g.Key, g => (Start: g.Min(so => so.ScheduledStart), End: g.Max(so => so.ScheduledEnd)));
 
             foreach (var locked in lockedOps)
             {
-                SpreadAcrossDays(locked, capacityLookup.GetValueOrDefault(locked.WorkCenterId, WorkCenterCapacity.None), capacityUsed);
+                if (!BookLockedOperation(locked, capacityLookup.GetValueOrDefault(locked.WorkCenterId, WorkCenterCapacity.None), laneFill))
+                    conflicts++;
             }
 
             // 4. Remove non-locked scheduled operations (if not simulation)
@@ -114,7 +118,6 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
             // 5. Schedule each job's operations
             int scheduledCount = 0;
-            int conflicts = 0;
             var newOps = new List<ScheduledOperation>();
 
             foreach (var job in jobs)
@@ -127,6 +130,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                     ? null
                     : ScheduleToStart(parameters.ScheduleTo, capacityLookup, operations, workCenters[0].Id);
 
+                DateTimeOffset? previousStart = null;
                 DateTimeOffset? previousEnd = null;
                 var quantity = OperationTimeMath.JobBuildQuantity(job);
 
@@ -134,10 +138,11 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                 {
                     var op = operations[i];
 
-                    if (lockedByJobOperation.TryGetValue((job.Id, op.Id), out var lockedEnd))
+                    if (lockedByJobOperation.TryGetValue((job.Id, op.Id), out var locked))
                     {
-                        previousEnd = lockedEnd;
-                        cursor = cursor is { } c && c > lockedEnd ? c : lockedEnd;
+                        previousStart = locked.Start;
+                        previousEnd = locked.End;
+                        cursor = cursor is { } c && c > locked.End ? c : locked.End;
                         continue;
                     }
 
@@ -172,19 +177,34 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                     decimal totalHours = setupHours + runHours;
 
                     // Apply overlap from previous operation
-                    if (previousEnd.HasValue && cursor.HasValue && i > 0 && operations[i - 1].OverlapPercent > 0)
+                    DateTimeOffset? overlappedPredecessorEnd = null;
+                    if (previousStart is { } prevStart && previousEnd is { } prevEnd && cursor == prevEnd
+                        && i > 0 && operations[i - 1].OverlapPercent > 0)
                     {
-                        decimal overlapFraction = operations[i - 1].OverlapPercent / 100m;
-                        var prevDuration = previousEnd.Value - cursor.Value;
-                        cursor = cursor.Value.AddHours((double)(-(decimal)prevDuration.TotalHours * overlapFraction));
+                        var overlapFraction = Math.Min(operations[i - 1].OverlapPercent, 100m) / 100m;
+                        var overlapStart = prevEnd.AddHours(-(prevEnd - prevStart).TotalHours * (double)overlapFraction);
+                        cursor = overlapStart > prevStart ? overlapStart : prevStart;
+                        overlappedPredecessorEnd = prevEnd;
                     }
 
                     var notBefore = cursor ?? capacity.MidnightUtc(parameters.ScheduleFrom);
                     var earliest = notBefore > run.RunDate ? notBefore : run.RunDate;
                     var slot = FindAvailableSlot(
-                        wcId, earliest, totalHours, capacity, capacityUsed, parameters.ScheduleTo);
+                        wcId, earliest, totalHours, capacity, laneFill, parameters.ScheduleTo);
 
-                    if (slot is not (var start, var end, var allocations))
+                    if (overlappedPredecessorEnd is { } mustNotEndBefore && slot is { } early && early.End < mustNotEndBefore)
+                    {
+                        slot = FindAvailableSlot(
+                            wcId, earliest + (mustNotEndBefore - early.End), totalHours, capacity, laneFill, parameters.ScheduleTo);
+                        if (slot is { } shifted && shifted.End < mustNotEndBefore)
+                        {
+                            var afterPredecessor = mustNotEndBefore > run.RunDate ? mustNotEndBefore : run.RunDate;
+                            slot = FindAvailableSlot(
+                                wcId, afterPredecessor, totalHours, capacity, laneFill, parameters.ScheduleTo);
+                        }
+                    }
+
+                    if (slot is not (var lane, var start, var end, var allocations))
                     {
                         conflicts++;
                         logger.LogWarning("No capacity found for Job {JobId} Op {OpId} at WorkCenter {WcId}",
@@ -211,12 +231,13 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                     scheduledCount++;
 
                     // Update capacity tracking
-                    foreach (var (allocatedDate, allocatedHours) in allocations)
+                    foreach (var (allocatedDate, filledTo) in allocations)
                     {
-                        var capKey = (wcId, allocatedDate);
-                        capacityUsed[capKey] = capacityUsed.GetValueOrDefault(capKey) + allocatedHours;
+                        var laneKey = (wcId, lane, allocatedDate);
+                        laneFill[laneKey] = Math.Max(laneFill.GetValueOrDefault(laneKey), filledTo);
                     }
 
+                    previousStart = start;
                     previousEnd = end;
                     cursor = end;
                 }
@@ -258,44 +279,84 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
         return capacity.MidnightUtc(scheduleTo);
     }
 
-    private static (DateTimeOffset Start, DateTimeOffset End, List<(DateOnly Date, decimal Hours)> Allocations)? FindAvailableSlot(
+    private static (int Lane, DateTimeOffset Start, DateTimeOffset End, List<(DateOnly Date, decimal FilledTo)> Allocations)? FindAvailableSlot(
         int workCenterId,
         DateTimeOffset earliest,
         decimal totalHours,
         WorkCenterCapacity capacity,
-        Dictionary<(int, DateOnly), decimal> capacityUsed,
+        Dictionary<(int, int, DateOnly), decimal> laneFill,
+        DateOnly scheduleTo)
+    {
+        (int Lane, DateTimeOffset Start, DateTimeOffset End, List<(DateOnly Date, decimal FilledTo)> Allocations)? best = null;
+
+        for (var lane = 0; lane < LaneCount(capacity); lane++)
+        {
+            if (FindSlotOnLane(workCenterId, lane, earliest, totalHours, capacity, laneFill, scheduleTo) is not { } candidate)
+                continue;
+
+            if (best is null || candidate.End < best.Value.End)
+                best = (lane, candidate.Start, candidate.End, candidate.Allocations);
+        }
+
+        return best;
+    }
+
+    private static (DateTimeOffset Start, DateTimeOffset End, List<(DateOnly Date, decimal FilledTo)> Allocations)? FindSlotOnLane(
+        int workCenterId,
+        int lane,
+        DateTimeOffset earliest,
+        decimal totalHours,
+        WorkCenterCapacity capacity,
+        Dictionary<(int, int, DateOnly), decimal> laneFill,
         DateOnly scheduleTo)
     {
         var date = capacity.LocalDate(earliest);
         var maxDate = scheduleTo.AddDays(30);
-        var allocations = new List<(DateOnly Date, decimal Hours)>();
+        var allocations = new List<(DateOnly Date, decimal FilledTo)>();
         var hoursLeft = totalHours;
         var start = DateTimeOffset.MinValue;
 
         while (date <= maxDate)
         {
-            decimal availableHours = capacity.MachineHoursOn(date);
-            decimal usedHours = capacityUsed.GetValueOrDefault((workCenterId, date));
+            decimal availableHours = capacity.HoursOn(date);
+            decimal filled = laneFill.GetValueOrDefault((workCenterId, lane, date));
             var dayStart = capacity.DayStartUtc(date);
 
-            decimal offsetHours = usedHours;
-            if (allocations.Count == 0)
+            if (allocations.Count > 0)
             {
-                var earliestOffset = (decimal)(earliest - dayStart).TotalHours;
-                if (earliestOffset > offsetHours)
-                    offsetHours = earliestOffset;
+                if (availableHours > 0 && filled > 0)
+                {
+                    allocations.Clear();
+                    hoursLeft = totalHours;
+                    earliest = dayStart;
+                    continue;
+                }
+
+                if (availableHours > 0)
+                {
+                    var continued = Math.Min(availableHours, hoursLeft);
+                    allocations.Add((date, continued));
+                    hoursLeft -= continued;
+
+                    if (hoursLeft <= 0)
+                        return (start, dayStart.AddHours((double)continued), allocations);
+                }
+
+                date = date.AddDays(1);
+                continue;
             }
+
+            var offsetHours = Math.Max(filled, (decimal)(earliest - dayStart).TotalHours);
+            if (offsetHours < 0)
+                offsetHours = 0;
 
             decimal remainingHours = availableHours - offsetHours;
 
-            if (remainingHours > 0 || (totalHours <= 0 && remainingHours >= 0))
+            if (remainingHours > 0 || (totalHours <= 0 && remainingHours >= 0 && availableHours > 0))
             {
                 var dayHours = Math.Min(remainingHours, hoursLeft);
-
-                if (allocations.Count == 0)
-                    start = dayStart.AddHours((double)offsetHours);
-
-                allocations.Add((date, offsetHours - usedHours + dayHours));
+                start = dayStart.AddHours((double)offsetHours);
+                allocations.Add((date, offsetHours + dayHours));
                 hoursLeft -= dayHours;
 
                 if (hoursLeft <= 0)
@@ -307,6 +368,43 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
         return null;
     }
+
+    private static bool BookLockedOperation(
+        ScheduledOperation op,
+        WorkCenterCapacity capacity,
+        Dictionary<(int, int, DateOnly), decimal> laneFill)
+    {
+        var segments = new List<(DateOnly Date, decimal From, decimal To)>();
+        var lastDate = capacity.LocalDate(op.ScheduledEnd);
+        for (var date = capacity.LocalDate(op.ScheduledStart).AddDays(-1); date <= lastDate; date = date.AddDays(1))
+        {
+            var dayStart = capacity.DayStartUtc(date);
+            var nextDayStart = capacity.DayStartUtc(date.AddDays(1));
+            var from = op.ScheduledStart > dayStart ? op.ScheduledStart : dayStart;
+            var to = op.ScheduledEnd < nextDayStart ? op.ScheduledEnd : nextDayStart;
+            if (to > from)
+                segments.Add((date, (decimal)(from - dayStart).TotalHours, (decimal)(to - dayStart).TotalHours));
+        }
+
+        var lanes = LaneCount(capacity);
+        var lane = Enumerable.Range(0, lanes)
+            .Cast<int?>()
+            .FirstOrDefault(l => segments.All(s => laneFill.GetValueOrDefault((op.WorkCenterId, l!.Value, s.Date)) <= s.From));
+        var isFree = lane is not null;
+        lane ??= Enumerable.Range(0, lanes)
+            .OrderBy(l => segments.Sum(s => laneFill.GetValueOrDefault((op.WorkCenterId, l, s.Date))))
+            .First();
+
+        foreach (var (date, _, to) in segments)
+        {
+            var key = (op.WorkCenterId, lane.Value, date);
+            laneFill[key] = Math.Max(laneFill.GetValueOrDefault(key), to);
+        }
+
+        return isFree;
+    }
+
+    private static int LaneCount(WorkCenterCapacity capacity) => Math.Max(1, capacity.Machines);
 
     private static void SpreadAcrossDays(
         ScheduledOperation op,
@@ -452,11 +550,36 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
         return (WorkCenterCapacity.None with { Shifts = shifts, Overrides = calendarOverrides }).HoursOn(date);
     }
 
-    private static ScheduleRunResponseModel MapToResponse(ScheduleRun run)
+    public static ScheduleRunResponseModel MapToResponse(ScheduleRun run)
     {
         return new ScheduleRunResponseModel(
             run.Id, run.RunDate, run.Direction, run.Status,
             run.OperationsScheduled, run.ConflictsDetected,
-            run.CompletedAt, run.RunByUserId, run.ErrorMessage);
+            run.CompletedAt, run.RunByUserId, run.ErrorMessage,
+            IsSimulationRun(run.ParametersJson));
     }
+
+    private static string SerializeParameters(ScheduleParameters parameters, bool isSimulation)
+    {
+        var node = JsonSerializer.SerializeToNode(parameters)!.AsObject();
+        node[IsSimulationKey] = isSimulation;
+        return node.ToJsonString();
+    }
+
+    private static bool IsSimulationRun(string parametersJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(parametersJson);
+            return doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty(IsSimulationKey, out var flag)
+                && flag.ValueKind == JsonValueKind.True;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private const string IsSimulationKey = "IsSimulation";
 }

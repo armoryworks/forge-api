@@ -25,6 +25,7 @@ public class SequenceGateSourceTests
             [new("a", "A", null, 0), new("b", "B", null, 1)], [new("a", "b")], [gate]);
         var d = await new CreateSequenceDefinitionHandler(f.Db).Handle(new CreateSequenceDefinitionCommand(model), default);
         await new PublishSequenceDefinitionHandler(f.Db, f.Clock).Handle(new PublishSequenceDefinitionCommand(d.Id, U), default);
+        if (SequenceSubjects.IsJob(subjectType)) await f.EnsureJobAsync(subjectId);
         var i = await new StartSequenceInstanceHandler(f.Db, f.Evaluation, f.Clock)
             .Handle(new StartSequenceInstanceCommand(new StartSequenceRequestModel(d.Id, null, subjectType, subjectId), U), default);
         return await new CompleteSequenceStepHandler(f.Db, f.Evaluation, f.Clock).Handle(new CompleteSequenceStepCommand(i.Id, "a", U), default);

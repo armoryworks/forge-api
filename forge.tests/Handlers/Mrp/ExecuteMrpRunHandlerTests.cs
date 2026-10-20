@@ -37,6 +37,30 @@ public class ExecuteMrpRunHandlerTests
     }
 
     [Fact]
+    public async Task Handle_ActiveMpsPartNotFlaggedForMrp_IsCountedAsUnplannedDemand()
+    {
+        using var db = TestDbContextFactory.Create();
+        var clock = new SystemClock();
+        var unflagged = new Part { PartNumber = "FG-1", Description = "Finished good", Status = PartStatus.Active, IsMrpPlanned = false };
+        var flagged = new Part { PartNumber = "FG-2", Description = "Planned good", Status = PartStatus.Active, IsMrpPlanned = true };
+        var draftOnly = new Part { PartNumber = "FG-3", Description = "Draft only", Status = PartStatus.Active, IsMrpPlanned = false };
+        db.Parts.AddRange(unflagged, flagged, draftOnly);
+        await db.SaveChangesAsync();
+        var active = new MasterSchedule { Name = "Active", Status = MasterScheduleStatus.Active, PeriodStart = clock.UtcNow, PeriodEnd = clock.UtcNow.AddDays(30) };
+        active.Lines.Add(new MasterScheduleLine { PartId = unflagged.Id, Quantity = 10m, DueDate = clock.UtcNow.AddDays(7) });
+        active.Lines.Add(new MasterScheduleLine { PartId = flagged.Id, Quantity = 10m, DueDate = clock.UtcNow.AddDays(7) });
+        var draft = new MasterSchedule { Name = "Draft", Status = MasterScheduleStatus.Draft, PeriodStart = clock.UtcNow, PeriodEnd = clock.UtcNow.AddDays(30) };
+        draft.Lines.Add(new MasterScheduleLine { PartId = draftOnly.Id, Quantity = 10m, DueDate = clock.UtcNow.AddDays(7) });
+        db.MasterSchedules.AddRange(active, draft);
+        await db.SaveChangesAsync();
+        var handler = new ExecuteMrpRunHandler(new MrpService(db, clock, new PartSourcingResolver(db), NullLogger<MrpService>.Instance));
+
+        var result = await handler.Handle(new ExecuteMrpRunCommand(MrpRunType.Full, 90, null, null), CancellationToken.None);
+
+        result.UnplannedDemandPartCount.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Handle_WithDemandNoSupply_CreatesPurchasePlannedOrder()
     {
         // Arrange

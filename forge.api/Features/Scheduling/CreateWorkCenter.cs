@@ -22,18 +22,13 @@ public record CreateWorkCenterCommand(
     int? CompanyLocationId,
     int SortOrder,
     int? TeamId = null,
-    decimal? IdealCycleTimeSeconds = null) : IRequest<WorkCenterResponseModel>;
+    decimal? IdealCycleTimeSeconds = null) : IRequest<WorkCenterResponseModel>, IWorkCenterFields;
 
 public class CreateWorkCenterValidator : AbstractValidator<CreateWorkCenterCommand>
 {
     public CreateWorkCenterValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.Code).NotEmpty().MaximumLength(50);
-        RuleFor(x => x.DailyCapacityHours).GreaterThan(0);
-        RuleFor(x => x.EfficiencyPercent).InclusiveBetween(1, 200);
-        RuleFor(x => x.NumberOfMachines).GreaterThan(0);
-        RuleFor(x => x.IdealCycleTimeSeconds).GreaterThan(0).When(x => x.IdealCycleTimeSeconds.HasValue);
+        Include(new WorkCenterFieldsValidator());
     }
 }
 
@@ -42,11 +37,12 @@ public class CreateWorkCenterHandler(AppDbContext db) : IRequestHandler<CreateWo
     public async Task<WorkCenterResponseModel> Handle(CreateWorkCenterCommand request, CancellationToken cancellationToken)
     {
         var teamName = await WorkCenterTeamGuard.ResolveTeamNameAsync(db, request.TeamId, cancellationToken);
+        var code = await WorkCenterCodeGuard.EnsureUniqueAsync(db, request.Code, null, cancellationToken);
 
         var wc = new WorkCenter
         {
             Name = request.Name,
-            Code = request.Code,
+            Code = code,
             Description = request.Description,
             DailyCapacityHours = request.DailyCapacityHours,
             EfficiencyPercent = request.EfficiencyPercent,

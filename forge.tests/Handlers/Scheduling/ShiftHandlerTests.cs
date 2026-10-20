@@ -38,6 +38,33 @@ public class ShiftHandlerTests
         result.NetHours.Should().Be(7m); // 8 hours - 60 min break = 7 hours
     }
 
+    [Theory]
+    [InlineData(8, 0, 16, 0, 480)]
+    [InlineData(8, 0, 16, 0, 600)]
+    [InlineData(22, 0, 6, 0, 480)]
+    public void ShiftValidators_RejectABreakAsLongAsTheShift(int startHour, int startMinute, int endHour, int endMinute, int breakMinutes)
+    {
+        var start = new TimeOnly(startHour, startMinute);
+        var end = new TimeOnly(endHour, endMinute);
+
+        new CreateShiftValidator().Validate(new CreateShiftCommand("Day", start, end, breakMinutes))
+            .IsValid.Should().BeFalse();
+        new UpdateShiftValidator().Validate(new UpdateShiftCommand(1, "Day", start, end, breakMinutes, true))
+            .IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShiftValidators_AcceptABreakShorterThanAnOvernightShift()
+    {
+        var start = new TimeOnly(22, 0);
+        var end = new TimeOnly(6, 0);
+
+        new CreateShiftValidator().Validate(new CreateShiftCommand("Night", start, end, 30))
+            .IsValid.Should().BeTrue();
+        new UpdateShiftValidator().Validate(new UpdateShiftCommand(1, "Night", start, end, 30, true))
+            .IsValid.Should().BeTrue();
+    }
+
     [Fact]
     public async Task DeleteShift_SoftDeletes()
     {
