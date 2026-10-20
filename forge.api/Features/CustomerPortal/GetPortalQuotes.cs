@@ -17,7 +17,7 @@ public class GetPortalQuotesHandler(AppDbContext db, IClock clock)
     {
         var scope = db.Quotes.AsNoTracking()
             .Where(q => q.CustomerId == request.CustomerId && q.Status != QuoteStatus.Superseded
-                && q.Status != QuoteStatus.Draft);
+                && q.Status != QuoteStatus.Draft && q.Status != QuoteStatus.ConvertedToQuote);
         var quotes = await scope
             .Include(q => q.Lines)
             .OrderByDescending(q => q.CreatedAt)

@@ -378,11 +378,12 @@ public class CustomerPortalHandlerTests
     }
 
     [Fact]
-    public async Task Portal_quotes_hide_drafts_and_report_a_sent_quote_past_its_day_as_expired()
+    public async Task Portal_quotes_hide_drafts_and_converted_estimates_and_report_a_sent_quote_past_its_day_as_expired()
     {
         var (customerId, _) = await SeedCustomerWithBookAsync();
         await UseShopTimeZoneAsync("America/Denver");
         await SeedQuoteAsync(customerId, "Q-DRAFT", QuoteStatus.Draft, null);
+        await SeedQuoteAsync(customerId, "E-CONVERTED", QuoteStatus.ConvertedToQuote, null);
         await SeedQuoteAsync(customerId, "Q-OPEN", QuoteStatus.Sent, null);
         await SeedQuoteAsync(customerId, "Q-TODAY", QuoteStatus.Sent, new DateTimeOffset(2026, 10, 19, 0, 0, 0, TimeSpan.Zero));
         await SeedQuoteAsync(customerId, "Q-PAST", QuoteStatus.Sent, new DateTimeOffset(2026, 10, 18, 0, 0, 0, TimeSpan.Zero));
