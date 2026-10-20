@@ -181,6 +181,7 @@ public static partial class SeedData
         if (db.ChangeTracker.HasChanges())
             await db.SaveChangesAsync();
     }
+
     /// <summary>Event-type key for the system-generated purchase-order expected-delivery event.</summary>
     public const string PoDeliveryEventTypeKey = "po-delivery";
 
