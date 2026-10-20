@@ -89,6 +89,7 @@ public class MfaService(
         {
             user.MfaEnabled = true;
             user.MfaEnabledAt = DateTimeOffset.UtcNow;
+            user.MfaEnrollmentGraceStartedAt = null;
         }
 
         await db.SaveChangesAsync(ct);

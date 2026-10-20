@@ -17,7 +17,7 @@ public class RefreshTokenHandler(
     ITokenService tokenService,
     ISessionStore sessionStore,
     IRoleClaimsExpander roleClaimsExpander,
-    AppDbContext db) : IRequestHandler<RefreshTokenCommand, LoginResponse>
+    IMfaEnrollmentGrace mfaEnrollmentGrace) : IRequestHandler<RefreshTokenCommand, LoginResponse>
 {
     public async Task<LoginResponse> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
@@ -30,11 +30,11 @@ public class RefreshTokenHandler(
 
         // WU-06 / C1 — expand RoleTemplate so refreshed JWT carries rollup roles.
         var roles = await roleClaimsExpander.GetEffectiveRolesAsync(user, cancellationToken);
-        var enrollmentRequired = await MfaEnrollmentGateMiddleware.IsRequiredAsync(db, user, cancellationToken);
+        var enrollment = await mfaEnrollmentGrace.EvaluateAsync(user, cancellationToken);
         var result = tokenService.GenerateToken(
             user.Id, user.Email!, user.FirstName, user.LastName,
             user.Initials, user.AvatarColor, roles,
-            extraClaims: MfaEnrollmentGateMiddleware.ExtraClaims(enrollmentRequired));
+            extraClaims: MfaEnrollmentGateMiddleware.ExtraClaims(enrollment));
 
         // Rotate session JTI (atomically replaces old JTI with new one)
         var updated = await sessionStore.UpdateSessionJtiAsync(
@@ -48,7 +48,7 @@ public class RefreshTokenHandler(
             result.ExpiresAt,
             new AuthUserResponseModel(
                 user.Id, user.Email!, user.FirstName, user.LastName,
-                user.Initials, user.AvatarColor, roles.ToArray(), false),
-            MfaEnrollmentRequired: enrollmentRequired);
+                user.Initials, user.AvatarColor, roles.ToArray(), false, enrollment.GraceEndsAt),
+            MfaEnrollmentRequired: enrollment.Hold);
     }
 }

@@ -57,7 +57,8 @@ public class LoginHandlerTests
             _roleClaimsExpanderMock.Object,
             _mfaPreAuthMock.Object,
             new Mock<IMfaTrustedDeviceTokenService>().Object,
-            new StubCapabilitySnapshotProvider("CAP-HR-HIRE"));
+            new StubCapabilitySnapshotProvider("CAP-HR-HIRE"),
+            new MfaEnrollmentGrace(_db, _auditWriterMock.Object, TestCaller.ClockAt(DateTimeOffset.UtcNow)));
     }
 
     [Fact]
@@ -120,6 +121,7 @@ public class LoginHandlerTests
         await _db.SaveChangesAsync();
         _db.UserRoles.Add(new IdentityUserRole<int> { UserId = user.Id, RoleId = role.Id });
         await Forge.Data.Services.MfaRolePolicy.SetRequiredRolesAsync(_db, ["Controller"], CancellationToken.None);
+        await Forge.Data.Services.MfaRolePolicy.SetGraceDaysAsync(_db, 0, CancellationToken.None);
         await _db.SaveChangesAsync();
 
         _userManagerMock.Setup(x => x.FindByEmailAsync(user.Email)).ReturnsAsync(user);

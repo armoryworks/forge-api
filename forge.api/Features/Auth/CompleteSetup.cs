@@ -30,7 +30,7 @@ public class CompleteSetupHandler(
     ISessionStore sessionStore,
     IHttpContextAccessor httpContext,
     IRoleClaimsExpander roleClaimsExpander,
-    AppDbContext db) : IRequestHandler<CompleteSetupCommand, LoginResponse>
+    IMfaEnrollmentGrace mfaEnrollmentGrace) : IRequestHandler<CompleteSetupCommand, LoginResponse>
 {
     public async Task<LoginResponse> Handle(CompleteSetupCommand request, CancellationToken cancellationToken)
     {
@@ -70,11 +70,11 @@ public class CompleteSetupHandler(
         // Generate JWT and return login response
         // WU-06 / C1 — RoleTemplate expansion at setup completion.
         var roles = await roleClaimsExpander.GetEffectiveRolesAsync(user, cancellationToken);
-        var enrollmentRequired = await MfaEnrollmentGateMiddleware.IsRequiredAsync(db, user, cancellationToken);
+        var enrollment = await mfaEnrollmentGrace.EvaluateAsync(user, cancellationToken);
         var result = tokenService.GenerateToken(
             user.Id, user.Email!, user.FirstName, user.LastName,
             user.Initials, user.AvatarColor, roles,
-            extraClaims: MfaEnrollmentGateMiddleware.ExtraClaims(enrollmentRequired));
+            extraClaims: MfaEnrollmentGateMiddleware.ExtraClaims(enrollment));
 
         await sessionStore.CreateSessionAsync(user.Id, result.Jti, result.ExpiresAt,
             "setup",
@@ -87,7 +87,7 @@ public class CompleteSetupHandler(
             result.ExpiresAt,
             new AuthUserResponseModel(
                 user.Id, user.Email!, user.FirstName, user.LastName,
-                user.Initials, user.AvatarColor, roles.ToArray(), false),
-            MfaEnrollmentRequired: enrollmentRequired);
+                user.Initials, user.AvatarColor, roles.ToArray(), false, enrollment.GraceEndsAt),
+            MfaEnrollmentRequired: enrollment.Hold);
     }
 }
