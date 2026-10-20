@@ -47,6 +47,6 @@ public class WatchtowerController(IMediator mediator, IRegulatoryPoller poller) 
     public async Task<ActionResult<object>> Poll(CancellationToken ct)
     {
         var result = await poller.PollActiveAsync(ct);
-        return Ok(new { created = result.Created, activeSources = result.ActiveSources });
+        return Ok(new { created = result.Created, activeSources = result.ActiveSources, failedSources = result.FailedSources });
     }
 }

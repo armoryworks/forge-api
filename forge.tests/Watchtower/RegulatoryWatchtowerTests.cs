@@ -51,6 +51,40 @@ public sealed class RegulatoryWatchtowerTests(PostgresFixture fixture)
         (await verify.RegulatoryChangeProposals.CountAsync(p => p.Status == RegulatoryProposalStatus.Pending)).Should().Be(1);
     }
 
+    private sealed class OneSourceThrowsFeedClient(string failingSourceName, IReadOnlyList<RegulatoryFeedItem> items) : IRegulatoryFeedClient
+    {
+        public Task<IReadOnlyList<RegulatoryFeedItem>> FetchAsync(RegulatorySource source, CancellationToken ct = default)
+            => source.Name == failingSourceName
+                ? throw new HttpRequestException("feed unreachable")
+                : Task.FromResult(items);
+    }
+
+    [Fact]
+    public async Task Poller_keeps_going_when_one_source_fails_and_only_stamps_sources_that_succeeded()
+    {
+        await using var db = fixture.CreateContext();
+        await db.RegulatoryChangeProposals.ExecuteDeleteAsync();
+        await db.RegulatorySources.ExecuteDeleteAsync();
+
+        var earlier = DateTimeOffset.UtcNow.AddDays(-3);
+        var broken = new RegulatorySource { Name = "Broken feed", Url = "https://broken", FeedType = RegulatoryFeedType.Rss, IsActive = true, LastPolledAt = earlier };
+        var healthy = new RegulatorySource { Name = "Federal Register", Url = "https://x", FeedType = RegulatoryFeedType.Api, IsActive = true };
+        db.RegulatorySources.AddRange(broken, healthy);
+        await db.SaveChangesAsync();
+
+        var items = new List<RegulatoryFeedItem> { new("New OSHA rule", "https://x/1", null) };
+
+        (await new RegulatoryPoller(db, new OneSourceThrowsFeedClient("Broken feed", items), new SystemClock()).PollActiveAsync())
+            .Should().Be(new RegulatoryPollResult(2, 1, 1));
+
+        await using var verify = fixture.CreateContext();
+        (await verify.RegulatoryChangeProposals.CountAsync(p => p.RegulatorySourceId == healthy.Id)).Should().Be(1);
+        (await verify.RegulatoryChangeProposals.CountAsync(p => p.RegulatorySourceId == broken.Id)).Should().Be(0);
+        var reloadedBroken = await verify.RegulatorySources.SingleAsync(s => s.Id == broken.Id);
+        reloadedBroken.LastPolledAt.Should().BeCloseTo(earlier, TimeSpan.FromMilliseconds(1));
+        (await verify.RegulatorySources.SingleAsync(s => s.Id == healthy.Id)).LastPolledAt.Should().NotBeNull();
+    }
+
     [Fact]
     public async Task Poller_reports_when_no_source_is_active()
     {
