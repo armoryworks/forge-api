@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 using Forge.Core.Interfaces;
 
 namespace Forge.Api.Services;
@@ -10,9 +12,11 @@ namespace Forge.Api.Services;
 /// pending instead of failing the save (graceful degradation, same contract as
 /// the rest of the AI surface).
 /// </summary>
-public class AiI18nTranslationService(IAiService aiService, ILogger<AiI18nTranslationService> logger)
+public partial class AiI18nTranslationService(IAiService aiService, ILogger<AiI18nTranslationService> logger)
     : II18nTranslationService
 {
+    private const string SentencePunctuation = ".!?;:";
+
     private static readonly Dictionary<string, string> LanguageNames = new(StringComparer.OrdinalIgnoreCase)
     {
         ["en"] = "English",
@@ -48,7 +52,20 @@ public class AiI18nTranslationService(IAiService aiService, ILogger<AiI18nTransl
                 0.1,
                 ct);
 
-            return Sanitize(raw);
+            var translated = Sanitize(raw);
+            if (translated is not null && !text.EndsWith('.') && translated.EndsWith('.') && !translated.EndsWith(".."))
+            {
+                translated = translated[..^1].TrimEnd();
+            }
+
+            if (translated is not null && !IsPlausibleTranslation(text, translated))
+            {
+                logger.LogWarning("i18n translation discarded — reply does not read as a label ({Source} → {Target}).",
+                    sourceLanguageCode, targetLanguageCode);
+                return null;
+            }
+
+            return translated;
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
@@ -72,4 +89,38 @@ public class AiI18nTranslationService(IAiService aiService, ILogger<AiI18nTransl
         line = line.Trim().Trim('"', '“', '”').Trim();
         return string.IsNullOrWhiteSpace(line) || line.Length > 2000 ? null : line;
     }
+
+    /// <summary>
+    /// True when <paramref name="reply"/> can stand in for <paramref name="source"/> as a UI label:
+    /// not far longer than the source, no sentence punctuation the source lacks, every
+    /// {{placeholder}} token kept, and no mock or prompt echo.
+    /// </summary>
+    public static bool IsPlausibleTranslation(string source, string reply)
+    {
+        if (string.IsNullOrWhiteSpace(reply))
+        {
+            return false;
+        }
+
+        if (reply.Length > Math.Max(source.Length * 4, source.Length + 40))
+        {
+            return false;
+        }
+
+        if (reply.StartsWith("[Mock AI]", StringComparison.OrdinalIgnoreCase)
+            || reply.Contains("software UI label", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (reply.Any(c => SentencePunctuation.Contains(c) && !source.Contains(c)))
+        {
+            return false;
+        }
+
+        return PlaceholderToken().Matches(source).All(m => reply.Contains(m.Value, StringComparison.Ordinal));
+    }
+
+    [GeneratedRegex(@"\{\{[^{}]*\}\}")]
+    private static partial Regex PlaceholderToken();
 }

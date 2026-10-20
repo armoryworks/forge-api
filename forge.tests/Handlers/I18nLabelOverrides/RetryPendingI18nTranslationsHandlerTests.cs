@@ -1,7 +1,9 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 using Forge.Api.Features.I18nLabelOverrides;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -77,6 +79,26 @@ public class RetryPendingI18nTranslationsHandlerTests
         result.TranslatedCount.Should().Be(0);
         result.StillPendingCount.Should().Be(1);
         _db.I18nLabelOverrides.Single(o => o.LanguageCode == "es").IsPendingTranslation.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_CannedAiReply_LeavesRowPending()
+    {
+        await SeedPendingPairAsync();
+        var ai = new Mock<IAiService>();
+        ai.Setup(a => a.IsAvailableAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        ai.Setup(a => a.GenerateTextAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("Canned assistant answer. This response is fixed for testing");
+        var translator = new AiI18nTranslationService(ai.Object, NullLogger<AiI18nTranslationService>.Instance);
+        var handler = new RetryPendingI18nTranslationsHandler(_db, translator, new SystemClock());
+
+        var result = await handler.Handle(new RetryPendingI18nTranslationsCommand(), CancellationToken.None);
+
+        result.TranslatedCount.Should().Be(0);
+        result.StillPendingCount.Should().Be(1);
+        var row = _db.I18nLabelOverrides.Single(o => o.LanguageCode == "es");
+        row.IsPendingTranslation.Should().BeTrue();
+        row.Value.Should().Be("Client Name");
     }
 
     [Fact]

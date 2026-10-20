@@ -1,7 +1,9 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 using Forge.Api.Features.I18nLabelOverrides;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -90,6 +92,24 @@ public class UpsertI18nLabelOverrideHandlerTests
         pending.IsPendingTranslation.Should().BeTrue();
         pending.Value.Should().Be("Client Name"); // Source text kept as placeholder.
         result.Overrides.Single(o => o.LanguageCode == "en").IsPendingTranslation.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Handle_CannedAiReply_FlagsSiblingPending()
+    {
+        var ai = new Mock<IAiService>();
+        ai.Setup(a => a.IsAvailableAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        ai.Setup(a => a.GenerateTextAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("Canned assistant answer. This response is fixed for testing");
+        var translator = new AiI18nTranslationService(ai.Object, NullLogger<AiI18nTranslationService>.Instance);
+        var handler = new UpsertI18nLabelOverrideHandler(_db, translator);
+
+        var result = await handler.Handle(Command(), CancellationToken.None);
+
+        result.TranslationsPending.Should().BeTrue();
+        var pending = result.Overrides.Single(o => o.LanguageCode == "es");
+        pending.IsPendingTranslation.Should().BeTrue();
+        pending.Value.Should().Be("Client Name");
     }
 
     [Fact]
