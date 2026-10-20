@@ -16,7 +16,7 @@ public class InvoiceLine : BaseEntity
 
     public const string NonTaxableCode = "NON";
 
-    public decimal LineTotal => Quantity * UnitPrice;
+    public decimal LineTotal => Math.Round(Quantity * UnitPrice, 2, MidpointRounding.AwayFromZero);
 
     public bool IsTaxable => TaxCode != NonTaxableCode;
 

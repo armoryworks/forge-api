@@ -86,4 +86,33 @@ public sealed class InvoiceListRoundingTests(PostgresFixture fixture)
         row.BalanceDue.Should().Be(invoice.BalanceDue);
         decimal.Round(row.Total, 2).Should().Be(row.Total);
     }
+
+    [Fact]
+    public async Task List_total_sums_the_rounded_lines_like_the_invoice()
+    {
+        await using var db = fixture.CreateContext();
+        var (customerId, currencyId) = await SeedAsync(db);
+        var invoice = new Invoice
+        {
+            InvoiceNumber = $"INV-L{Guid.NewGuid():N}"[..14],
+            CustomerId = customerId,
+            CurrencyId = currencyId,
+            Status = InvoiceStatus.Draft,
+            InvoiceDate = Today,
+            DueDate = Today.AddDays(30),
+            TaxRate = 0.0725m,
+            Lines =
+            [
+                new InvoiceLine { Description = "Third", Quantity = 1, UnitPrice = 33.333m, LineNumber = 1 },
+                new InvoiceLine { Description = "Third", Quantity = 1, UnitPrice = 33.333m, LineNumber = 2 },
+                new InvoiceLine { Description = "Third", Quantity = 1, UnitPrice = 33.333m, LineNumber = 3 },
+            ],
+        };
+
+        var row = await ListSingleAsync(db, customerId, invoice);
+
+        row.Total.Should().Be(107.24m);
+        row.Total.Should().Be(invoice.Total);
+        row.BalanceDue.Should().Be(invoice.BalanceDue);
+    }
 }

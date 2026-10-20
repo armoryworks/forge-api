@@ -71,8 +71,7 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db)
                 i.TaxRate,
                 i.FxRate,
                 i.SalesOrder != null && i.SalesOrder.TaxCollectedBy == TaxCollectedBy.Marketplace,
-                i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice),
-                i.Lines.Sum(l => l.Quantity * l.UnitPrice)))
+                i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2))))
             .ToListAsync(cancellationToken);
 
         var rows = new List<SalesTaxLiabilityJurisdictionRow>();
@@ -118,8 +117,7 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db)
     }
 
     private static decimal PostedTax(InvoiceTaxRow invoice) =>
-        Math.Round(invoice.Subtotal + invoice.TaxableSubtotal * invoice.TaxRate, 2, MidpointRounding.AwayFromZero)
-        - Math.Round(invoice.Subtotal, 2, MidpointRounding.AwayFromZero);
+        Math.Round(invoice.TaxableSubtotal * invoice.TaxRate, 2, MidpointRounding.AwayFromZero);
 
     private static decimal ToFunctional(decimal amount, decimal fxRate) =>
         fxRate == 1m ? amount : Math.Round(amount * fxRate, 2, MidpointRounding.AwayFromZero);
@@ -128,5 +126,5 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db)
         string.IsNullOrWhiteSpace(row.State) ? null : row.State.Trim().ToUpperInvariant();
 
     private sealed record InvoiceTaxRow(
-        string? State, decimal TaxRate, decimal FxRate, bool MarketplaceCollected, decimal TaxableSubtotal, decimal Subtotal);
+        string? State, decimal TaxRate, decimal FxRate, bool MarketplaceCollected, decimal TaxableSubtotal);
 }

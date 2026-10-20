@@ -43,10 +43,10 @@ public class Invoice : BaseAuditableEntity, IConcurrencyVersioned
     public string? Provider { get; set; }
     public DateTimeOffset? LastSyncedAt { get; set; }
 
-    public decimal Subtotal => QuantizeMoney(Lines.Sum(l => l.LineTotal));
+    public decimal Subtotal => Lines.Sum(l => l.LineTotal);
     public decimal TaxableSubtotal => Lines.Where(l => l.IsTaxable).Sum(l => l.LineTotal);
-    public decimal TaxAmount => Total - Subtotal;
-    public decimal Total => QuantizeMoney(Lines.Sum(l => l.LineTotal) + TaxableSubtotal * TaxRate);
+    public decimal TaxAmount => QuantizeMoney(TaxableSubtotal * TaxRate);
+    public decimal Total => Subtotal + TaxAmount;
     public decimal AmountPaid => PaymentApplications.Sum(pa => pa.Amount);
 
     // F-027 — the single canonical invoice balance every consumer reads

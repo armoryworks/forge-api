@@ -30,7 +30,7 @@ public class InvoiceAmountRoundingTests
     }
 
     [Fact]
-    public void Amounts_are_quantized_and_tax_is_total_less_subtotal()
+    public void Each_line_and_the_tax_round_to_the_cent()
     {
         var invoice = BuildInvoice(0.0725m, (3m, 33.335m, true), (0.1m, 0.2m, true));
 
@@ -38,6 +38,17 @@ public class InvoiceAmountRoundingTests
         invoice.Total.Should().Be(107.28m);
         invoice.TaxAmount.Should().Be(7.25m);
         (invoice.Subtotal + invoice.TaxAmount).Should().Be(invoice.Total);
+    }
+
+    [Fact]
+    public void Subtotal_is_the_sum_of_the_rounded_lines()
+    {
+        var invoice = BuildInvoice(0.0725m, (1m, 33.333m, true), (1m, 33.333m, true), (1m, 33.333m, true));
+
+        invoice.Lines.Should().OnlyContain(l => l.LineTotal == 33.33m);
+        invoice.Subtotal.Should().Be(99.99m);
+        invoice.TaxAmount.Should().Be(7.25m);
+        invoice.Total.Should().Be(107.24m);
     }
 
     [Fact]
@@ -72,6 +83,7 @@ public class InvoiceAmountRoundingTests
         posted.ArTotal.Should().Be(invoice.Total);
         posted.TaxAmount.Should().Be(invoice.TaxAmount);
         posted.Lines.Sum(l => l.Amount).Should().Be(invoice.Subtotal);
+        posted.Lines.Should().OnlyContain(l => l.Amount == l.Line.LineTotal);
     }
 
     [Fact]

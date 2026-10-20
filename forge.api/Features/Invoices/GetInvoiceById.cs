@@ -42,7 +42,7 @@ public class GetInvoiceByIdHandler(IInvoiceRepository repo)
             invoice.Notes,
             invoice.Lines.Select(l => new InvoiceLineResponseModel(
                 l.Id, l.PartId, l.Part?.PartNumber, l.Description,
-                l.Quantity, l.UnitPrice, Math.Round(l.LineTotal, 2, MidpointRounding.AwayFromZero), l.LineNumber, l.IsTaxable)).ToList(),
+                l.Quantity, l.UnitPrice, l.LineTotal, l.LineNumber, l.IsTaxable)).ToList(),
             invoice.PaymentApplications.Select(pa => new PaymentApplicationResponseModel(
                 pa.Id, pa.PaymentId, pa.Payment.PaymentNumber,
                 pa.InvoiceId, invoice.InvoiceNumber, pa.Amount)).ToList(),
