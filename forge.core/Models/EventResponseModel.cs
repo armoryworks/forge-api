@@ -29,7 +29,8 @@ public record EventResponseModel(
     DateTimeOffset? CompletedAt = null,
     string? EvidenceUrl = null,
     int? EvidenceDocumentSetId = null,
-    bool IsSystemGenerated = false);
+    bool IsSystemGenerated = false,
+    bool IsAllDay = false);
 
 public record EventAttendeeResponseModel(
     int Id,

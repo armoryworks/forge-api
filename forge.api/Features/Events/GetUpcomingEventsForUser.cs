@@ -52,6 +52,7 @@ public class GetUpcomingEventsForUserHandler(AppDbContext db)
                 a.Status.ToString(), a.RespondedAt)).ToList(),
             evt.CreatedAt, evt.EventTypeId, evt.CalendarEventType?.SuperGroupId,
             evt.Status?.ToString(), evt.OwnerUserId, evt.IsBlocking, evt.AcknowledgedAt,
-            IsSystemGenerated: evt.IsSystemGenerated)).ToList();
+            IsSystemGenerated: evt.IsSystemGenerated,
+            IsAllDay: evt.IsAllDay)).ToList();
     }
 }

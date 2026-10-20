@@ -140,4 +140,19 @@ public class GetEventsHandlerTests
 
         result.Select(e => e.Title).Should().ContainInOrder("Earlier", "Middle", "Later");
     }
+
+    [Fact]
+    public async Task Handle_ReturnsIsAllDay_SoTheCalendarDoesNotShowAClockTime()
+    {
+        var user = await SeedUser();
+        var allDay = await SeedEvent(user.Id, "Delivery milestone", EventType.Other, new DateTimeOffset(2026, 10, 30, 0, 0, 0, TimeSpan.Zero));
+        allDay.IsAllDay = true;
+        await _db.SaveChangesAsync();
+        await SeedEvent(user.Id, "Standup", EventType.Meeting, new DateTimeOffset(2026, 10, 30, 15, 0, 0, TimeSpan.Zero));
+
+        var result = await _handler.Handle(new GetEventsQuery(null, null, null), CancellationToken.None);
+
+        result.Single(e => e.Title == "Delivery milestone").IsAllDay.Should().BeTrue();
+        result.Single(e => e.Title == "Standup").IsAllDay.Should().BeFalse();
+    }
 }

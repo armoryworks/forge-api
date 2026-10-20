@@ -54,7 +54,7 @@ public class OnSalesOrderConfirmed_CreateDeliveryMilestones(
             db.Events.Add(new Event
             {
                 Title = title.Length > 200 ? title[..200] : title,
-                Description = $"Delivery milestone for {salesOrderTerm} {so.OrderNumber}, Line {line.LineNumber}. Quantity: {line.Quantity.ToString("0.####", CultureInfo.InvariantCulture)}.",
+                Description = $"Delivery milestone for {salesOrderTerm} {so.OrderNumber}, Line {line.LineNumber}. Quantity: {line.Quantity.ToString("#,0.####", CultureInfo.InvariantCulture)}.",
                 StartTime = deliveryDate,
                 EndTime = deliveryDate,
                 EventType = EventType.Other,

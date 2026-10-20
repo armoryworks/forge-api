@@ -91,4 +91,51 @@ public class DeleteEventHandlerTests
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
     }
+
+    [Fact]
+    public async Task Handle_AllDayEvent_CancellationShowsTheDateOnly()
+    {
+        _db.WorkingCalendars.Add(new WorkingCalendar { Name = "Plant", TimeZone = "America/Denver", IsDefault = true });
+        var day = new DateTimeOffset(2026, 10, 20, 0, 0, 0, TimeSpan.Zero);
+        var evt = new Event
+        {
+            Title = "Ship SO-1001",
+            EventType = EventType.Other,
+            StartTime = day,
+            EndTime = day.AddDays(1),
+            IsAllDay = true,
+            CreatedByUserId = 10,
+            Attendees = { new EventAttendee { UserId = 20, Status = AttendeeStatus.Invited } },
+        };
+        _db.Events.Add(evt);
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(new DeleteEventCommand(evt.Id), CancellationToken.None);
+
+        _db.Notifications.Single(n => n.EntityId == evt.Id).Message
+            .Should().Be("\"Ship SO-1001\" on 10/20/2026 has been cancelled.");
+    }
+
+    [Fact]
+    public async Task Handle_TimedEvent_CancellationShowsTheStartInShopTime()
+    {
+        _db.WorkingCalendars.Add(new WorkingCalendar { Name = "Plant", TimeZone = "America/Denver", IsDefault = true });
+        var start = new DateTimeOffset(2026, 10, 21, 2, 0, 0, TimeSpan.Zero);
+        var evt = new Event
+        {
+            Title = "Evening Review",
+            EventType = EventType.Meeting,
+            StartTime = start,
+            EndTime = start.AddHours(1),
+            CreatedByUserId = 10,
+            Attendees = { new EventAttendee { UserId = 20, Status = AttendeeStatus.Invited } },
+        };
+        _db.Events.Add(evt);
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(new DeleteEventCommand(evt.Id), CancellationToken.None);
+
+        _db.Notifications.Single(n => n.EntityId == evt.Id).Message
+            .Should().Be("\"Evening Review\" on 10/20/2026 08:00 PM has been cancelled.");
+    }
 }

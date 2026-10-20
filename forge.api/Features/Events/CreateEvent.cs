@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -81,6 +82,7 @@ public class CreateEventHandler(AppDbContext db, IHttpContextAccessor httpContex
             .Select(u => u.LastName + ", " + u.FirstName)
             .FirstOrDefaultAsync(cancellationToken) ?? "Unknown";
 
+        var startText = EventTimeText.Start(evt, await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken));
         foreach (var attendee in evt.Attendees)
         {
             db.Notifications.Add(new Notification
@@ -90,7 +92,7 @@ public class CreateEventHandler(AppDbContext db, IHttpContextAccessor httpContex
                 Severity = request.IsRequired ? "warning" : "info",
                 Source = "events",
                 Title = $"Event: {evt.Title}",
-                Message = $"{creatorName} invited you to \"{evt.Title}\" on {evt.StartTime:MM/dd/yyyy hh:mm tt}.",
+                Message = $"{creatorName} invited you to \"{evt.Title}\" on {startText}.",
                 EntityType = "events",
                 EntityId = evt.Id,
             });
@@ -126,6 +128,7 @@ public class CreateEventHandler(AppDbContext db, IHttpContextAccessor httpContex
                 userNames.GetValueOrDefault(a.UserId, ""),
                 a.Status.ToString(), a.RespondedAt)).ToList(),
             evt.CreatedAt, evt.EventTypeId, evt.CalendarEventType?.SuperGroupId,
-            evt.Status?.ToString(), evt.OwnerUserId, evt.IsBlocking, evt.AcknowledgedAt);
+            evt.Status?.ToString(), evt.OwnerUserId, evt.IsBlocking, evt.AcknowledgedAt,
+            IsAllDay: evt.IsAllDay);
     }
 }
