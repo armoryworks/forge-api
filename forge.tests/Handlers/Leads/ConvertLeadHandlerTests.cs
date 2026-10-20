@@ -9,6 +9,7 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Repositories;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Leads;
@@ -18,12 +19,13 @@ public class ConvertLeadHandlerTests
     private readonly AppDbContext _db = TestDbContextFactory.Create();
     private readonly Mock<ILeadRepository> _leadRepo = new();
     private readonly Mock<IMediator> _mediator = new();
+    private readonly Mock<IBusinessIdentifierService> _identifiers = new();
     private readonly ConvertLeadHandler _handler;
 
     public ConvertLeadHandlerTests()
     {
         _db.CurrentUserId = 1;
-        _handler = new ConvertLeadHandler(_leadRepo.Object, _db, _mediator.Object);
+        _handler = new ConvertLeadHandler(_leadRepo.Object, _db, _mediator.Object, new CustomerRepository(_db), _identifiers.Object);
     }
 
     private async Task<Lead> SeedLead(string companyName = "Acme Co", string? contactName = "Jane Smith",
@@ -63,6 +65,18 @@ public class ConvertLeadHandlerTests
         contact.FirstName.Should().Be("Jane");
         contact.LastName.Should().Be("Smith");
         contact.IsPrimary.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_NumbersTheCustomerAndRegistersTheIdentifier()
+    {
+        var lead = await SeedLead();
+
+        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, new ConvertLeadRequestModel(CreateJob: false)), CancellationToken.None);
+
+        var customer = await _db.Customers.FirstAsync(c => c.Id == result.CustomerId);
+        customer.CustomerNumber.Should().StartWith("CUST");
+        _identifiers.Verify(i => i.IssueAsync(BusinessEntityType.Customer, customer.Id, customer.CustomerNumber!, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

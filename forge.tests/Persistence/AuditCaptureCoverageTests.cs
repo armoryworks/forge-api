@@ -53,6 +53,47 @@ public class AuditCaptureCoverageTests
     }
 
     [Fact]
+    public async Task Updates_made_without_an_actor_are_audited_as_the_system_user()
+    {
+        await using var db = TestDbContextFactory.Create();
+        db.CurrentUserId = null;
+        var order = await AddOrderAsync(db);
+
+        order.Status = SalesOrderStatus.Cancelled;
+        await db.SaveChangesAsync();
+
+        var audit = await db.AuditLogEntries.SingleAsync(a => a.Action == "SalesOrderUpdated");
+        audit.UserId.Should().Be(0);
+        audit.EntityId.Should().Be(order.Id);
+        audit.Details.Should().Contain("Status");
+    }
+
+    [Fact]
+    public async Task Encrypted_bank_details_are_redacted_in_snapshots_and_history()
+    {
+        await using var db = TestDbContextFactory.Create();
+        db.CurrentUserId = 2;
+        var account = new VendorBankAccount
+        {
+            VendorId = 1, Nickname = "Operating", ChangedByUserId = 2,
+            RoutingNumberEncrypted = "CfDJ8routing", AccountNumberEncrypted = "CfDJ8account-1",
+            RoutingNumberMasked = "*****6789", AccountNumberMasked = "****4321",
+        };
+        db.VendorBankAccounts.Add(account);
+        await db.SaveChangesAsync();
+
+        account.AccountNumberEncrypted = "CfDJ8account-2";
+        await db.SaveChangesAsync();
+
+        var audits = await db.AuditLogEntries.Where(a => a.EntityType == nameof(VendorBankAccount)).ToListAsync();
+        audits.Should().HaveCount(2).And.OnlyContain(a => !a.Details!.Contains("CfDJ8") && a.Details.Contains("[redacted]"));
+        audits.Should().Contain(a => a.Details!.Contains("****4321"));
+        var history = await db.ActivityLogs.SingleAsync(l => l.Action == "FieldChanged");
+        history.OldValue.Should().Be("[redacted]");
+        history.NewValue.Should().Be("[redacted]");
+    }
+
+    [Fact]
     public async Task Hard_deleting_an_auditable_row_leaves_a_deleted_trail()
     {
         await using var db = TestDbContextFactory.Create();

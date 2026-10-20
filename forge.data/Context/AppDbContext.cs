@@ -810,7 +810,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
 
     private const string RedactedValue = "[redacted]";
 
-    private static readonly string[] SecretPropertyMarkers = ["Token", "Secret", "Password", "ApiKey", "PrivateKey"];
+    private static readonly string[] SecretPropertyMarkers = ["Token", "Secret", "Password", "ApiKey", "PrivateKey", "Encrypted", "Protected"];
 
     private static readonly string[] SecretSettingKeyMarkers =
         ["token", "secret", "password", "api-key", "api_key", "apikey", "private-key", "private_key"];
@@ -1010,30 +1010,27 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
         // Emit one system-wide AuditLogEntry per modified entity (collapsing
         // per-field ActivityLog rows into a single audit row with a JSON diff
         // payload — better signal for compliance/security review).
-        if (userId is int updUid)
+        foreach (var (entity, (entityType, child, diffs)) in modifiedDiffs)
         {
-            foreach (var (entity, (entityType, child, diffs)) in modifiedDiffs)
+            if (diffs.Count == 0) continue;
+            var changes = diffs.Select(d => new
             {
-                if (diffs.Count == 0) continue;
-                var changes = diffs.Select(d => new
-                {
-                    field = d.Field,
-                    oldValue = d.Old,
-                    newValue = d.New,
-                }).ToList();
+                field = d.Field,
+                oldValue = d.Old,
+                newValue = d.New,
+            }).ToList();
 
-                readyAuditLogs.Add(new AuditLogEntry
-                {
-                    UserId = updUid,
-                    Action = $"{entityType}Updated",
-                    EntityType = child?.ParentType ?? entityType,
-                    EntityId = child?.ParentId(entity) ?? entity.Id,
-                    Details = SafeSerialize(child is null ? changes : new { lineId = entity.Id, changes }),
-                    IpAddress = ipAddress,
-                    UserAgent = userAgent,
-                    CreatedAt = now,
-                });
-            }
+            readyAuditLogs.Add(new AuditLogEntry
+            {
+                UserId = auditUid,
+                Action = $"{entityType}Updated",
+                EntityType = child?.ParentType ?? entityType,
+                EntityId = child?.ParentId(entity) ?? entity.Id,
+                Details = SafeSerialize(child is null ? changes : new { lineId = entity.Id, changes }),
+                IpAddress = ipAddress,
+                UserAgent = userAgent,
+                CreatedAt = now,
+            });
         }
 
         return (readyLogs, pendingAdded, readyAuditLogs, pendingAuditAdded);
