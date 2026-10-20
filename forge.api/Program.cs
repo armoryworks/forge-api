@@ -1670,7 +1670,7 @@ try
         app.MapOpenApi();
         app.MapScalarApiReference(options =>
         {
-            options.WithTitle("QB Engineer API");
+            options.WithTitle("Forge API");
             options.WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
         });
 
@@ -2145,7 +2145,7 @@ try
     app.MapHub<ChatHub>("/hubs/chat");
     app.MapHub<AccountingHub>("/hubs/accounting");
 
-    Log.Information("QB Engineer API starting on {Urls}", string.Join(", ", app.Urls));
+    Log.Information("Forge API starting on {Urls}", string.Join(", ", app.Urls));
     await app.RunAsync();
 }
 catch (Exception ex)

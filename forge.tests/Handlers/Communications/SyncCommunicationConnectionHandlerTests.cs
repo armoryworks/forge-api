@@ -60,6 +60,32 @@ public class SyncCommunicationConnectionHandlerTests
     }
 
     [Fact]
+    public async Task Sync_MarksPendingConnectionConnected_OnSuccess()
+    {
+        var config = await SeedConnectionAsync(42, CommunicationKind.Email, "stub", isConnected: false);
+        _db.CurrentUserId = 42;
+
+        await MakeHandler(new StubProvider("stub", CommunicationKind.Email, eventCount: 0))
+            .Handle(new SyncCommunicationConnectionCommand(config.Id), CancellationToken.None);
+
+        _db.CommunicationSyncConfigs.Find(config.Id)!.IsConnected.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Sync_LeavesPendingConnectionPending_OnFailure()
+    {
+        var config = await SeedConnectionAsync(42, CommunicationKind.Email, "stub", isConnected: false);
+        _db.CurrentUserId = 42;
+
+        var act = async () => await MakeHandler(new ThrowingProvider("stub", CommunicationKind.Email,
+                new InvalidOperationException("handshake refused")))
+            .Handle(new SyncCommunicationConnectionCommand(config.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        _db.CommunicationSyncConfigs.Find(config.Id)!.IsConnected.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Sync_ResolvesByProviderIdAndKind_NotJustProviderId()
     {
         // Two providers share the same ProviderId across different Kinds —

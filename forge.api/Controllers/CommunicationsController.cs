@@ -102,6 +102,19 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     }
 
     /// <summary>
+    /// Which OAuth-IMAP providers are configured on this install. The SPA
+    /// hides the Gmail / Microsoft tiles for providers that are not, rather
+    /// than letting <see cref="BeginOAuthImap"/> fail with a 409.
+    /// </summary>
+    [HttpGet("oauth/imap/providers")]
+    [RequiresCapability("CAP-EXT-EMAIL-SYNC")]
+    public async Task<ActionResult<List<OAuthImapProviderStatus>>> GetOAuthImapProviders(CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetOAuthImapProvidersQuery(), ct);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Phase 1k.2 — OAuth-IMAP authorize-flow initiation. Returns the
     /// authorize URL the SPA opens (popup or new tab). The provider
     /// redirects back to the SPA's callback page, which posts the

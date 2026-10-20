@@ -36,6 +36,13 @@ public class MfaService(
     {
         var secret = GenerateTotpSecret();
 
+        var abandoned = await db.UserMfaDevices
+            .Where(d => d.UserId == userId && !d.IsVerified)
+            .ToListAsync(ct);
+
+        foreach (var stale in abandoned)
+            stale.DeletedAt = DateTimeOffset.UtcNow;
+
         var device = new UserMfaDevice
         {
             UserId = userId,
@@ -171,6 +178,14 @@ public class MfaService(
         {
             user.MfaEnabled = false;
             user.MfaEnabledAt = null;
+            user.MfaRecoveryCodesRemaining = 0;
+
+            var codes = await db.MfaRecoveryCodes
+                .Where(c => c.UserId == userId)
+                .ToListAsync(ct);
+
+            foreach (var code in codes)
+                code.DeletedAt = DateTimeOffset.UtcNow;
         }
 
         await db.SaveChangesAsync(ct);
@@ -261,6 +276,12 @@ public class MfaService(
 
     public async Task<MfaRecoveryCodesResponseModel> GenerateRecoveryCodesAsync(int userId, CancellationToken ct)
     {
+        var user = await db.Users.FindAsync([userId], ct)
+            ?? throw new KeyNotFoundException("User not found");
+
+        if (!user.MfaEnabled)
+            throw new InvalidOperationException("Turn on two-factor authentication before generating recovery codes");
+
         // Soft-delete existing codes
         var existing = await db.MfaRecoveryCodes
             .Where(c => c.UserId == userId)
@@ -282,9 +303,7 @@ public class MfaService(
             });
         }
 
-        var user = await db.Users.FindAsync([userId], ct);
-        if (user is not null)
-            user.MfaRecoveryCodesRemaining = RecoveryCodeCount;
+        user.MfaRecoveryCodesRemaining = RecoveryCodeCount;
 
         await db.SaveChangesAsync(ct);
 
@@ -361,8 +380,10 @@ public class MfaService(
         var user = await db.Users.FindAsync([userId], ct);
 
         var devices = await db.UserMfaDevices
-            .Where(d => d.UserId == userId)
+            .Where(d => d.UserId == userId && d.IsVerified)
             .AsNoTracking()
+            .OrderByDescending(d => d.IsDefault)
+            .ThenBy(d => d.CreatedAt)
             .Select(d => new MfaDeviceSummary
             {
                 Id = d.Id,
@@ -379,7 +400,7 @@ public class MfaService(
             IsEnabled = user?.MfaEnabled ?? false,
             IsEnforcedByPolicy = user is not null && await MfaRolePolicy.IsEnforcedAsync(db, user, ct),
             Devices = devices,
-            RecoveryCodesRemaining = user?.MfaRecoveryCodesRemaining ?? 0,
+            RecoveryCodesRemaining = user is { MfaEnabled: true } ? user.MfaRecoveryCodesRemaining : 0,
         };
     }
 

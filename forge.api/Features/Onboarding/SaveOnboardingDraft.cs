@@ -1,7 +1,9 @@
+using FluentValidation;
 using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Banking;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -26,6 +28,17 @@ namespace Forge.Api.Features.Onboarding;
 public record SaveOnboardingDraftCommand(
     int UserId,
     SaveOnboardingDraftRequestModel Model) : IRequest<OnboardingDraftStatusModel>;
+
+public class SaveOnboardingDraftValidator : AbstractValidator<SaveOnboardingDraftCommand>
+{
+    public SaveOnboardingDraftValidator()
+    {
+        RuleFor(x => x.Model.RoutingNumber)
+            .Must(r => NachaFileGenerator.IsValidRoutingNumber(r!.Trim()))
+            .When(x => !string.IsNullOrWhiteSpace(x.Model.RoutingNumber))
+            .WithMessage("Routing number must be a valid 9-digit ABA routing number.");
+    }
+}
 
 public class SaveOnboardingDraftHandler(AppDbContext db, IPiiProtector pii, ISystemAuditWriter auditWriter)
     : IRequestHandler<SaveOnboardingDraftCommand, OnboardingDraftStatusModel>

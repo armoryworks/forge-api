@@ -40,7 +40,9 @@ public class UploadFileChunkCommandValidator : AbstractValidator<UploadFileChunk
 
         RuleFor(x => x.FileName)
             .NotEmpty().WithMessage("File name is required.")
-            .MaximumLength(255).WithMessage("File name must not exceed 255 characters.");
+            .MaximumLength(255).WithMessage("File name must not exceed 255 characters.")
+            .Must((x, name) => FileEntityTypes.IsAllowedFileName(x.EntityType, name))
+            .WithMessage("This file type cannot be uploaded here.");
 
         RuleFor(x => x.ChunkIndex)
             .GreaterThanOrEqualTo(0).WithMessage("Chunk index must be 0 or greater.");
@@ -127,7 +129,7 @@ public class UploadFileChunkHandler(
             httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         var bucketName = FileEntityTypes.ResolveBucket(request.EntityType, minioOptions.Value);
-        var objectKey = $"{request.EntityType}/{request.EntityId}/{Guid.NewGuid():N}-{request.FileName}";
+        var objectKey = $"{request.EntityType}/{request.EntityId}/{Guid.NewGuid():N}-{FileEntityTypes.ObjectKeyName(request.FileName)}";
 
         using var assembledStream = new MemoryStream();
         for (var i = 0; i < request.TotalChunks; i++)
@@ -152,13 +154,14 @@ public class UploadFileChunkHandler(
 
         assembledStream.Position = 0;
         var totalSize = assembledStream.Length;
+        var contentType = FileEntityTypes.NormalizeContentType(request.ContentType);
 
-        await storage.UploadAsync(bucketName, objectKey, assembledStream, request.ContentType, cancellationToken);
+        await storage.UploadAsync(bucketName, objectKey, assembledStream, contentType, cancellationToken);
 
         var attachment = new FileAttachment
         {
-            FileName = request.FileName,
-            ContentType = request.ContentType,
+            FileName = FileEntityTypes.DisplayName(request.FileName),
+            ContentType = contentType,
             Size = totalSize,
             BucketName = bucketName,
             ObjectKey = objectKey,

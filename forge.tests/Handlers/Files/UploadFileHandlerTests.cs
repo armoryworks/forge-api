@@ -61,13 +61,15 @@ public class UploadFileHandlerTests
             _storage.Object, _fileRepo.Object, _httpContextAccessor.Object, Options.Create(_minio), _access.Object);
     }
 
-    private static IFormFile PngFile()
+    private static IFormFile PngFile() => NamedFile("test.png", "image/png");
+
+    private static IFormFile NamedFile(string fileName, string contentType)
     {
-        var bytes = Encoding.UTF8.GetBytes("png");
-        return new FormFile(new MemoryStream(bytes), 0, bytes.Length, "file", "test.png")
+        var bytes = Encoding.UTF8.GetBytes("bytes");
+        return new FormFile(new MemoryStream(bytes), 0, bytes.Length, "file", fileName)
         {
             Headers = new HeaderDictionary(),
-            ContentType = "image/png",
+            ContentType = contentType,
         };
     }
 
@@ -104,7 +106,7 @@ public class UploadFileHandlerTests
         foreach (var entityType in FileEntityTypes.Valid)
         {
             new UploadFileCommandValidator()
-                .Validate(new UploadFileCommand(entityType, 1, PngFile()))
+                .Validate(new UploadFileCommand(entityType, 1, NamedFile("test.pdf", "application/pdf")))
                 .IsValid.Should().BeTrue($"single upload must accept '{entityType}'");
         }
     }
@@ -154,6 +156,59 @@ public class UploadFileHandlerTests
             It.IsAny<Stream>(), "image/png", It.IsAny<CancellationToken>()), Times.Once);
         _fileRepo.Verify(r => r.AddAsync(It.Is<FileAttachment>(a =>
             a.EntityType == "purchase-orders" && a.EntityId == 23 && a.BucketName == "forge-job-files"),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("parts", "payload.exe")]
+    [InlineData("jobs", "macro.PS1")]
+    [InlineData("employee-docs", "invoice.pdf.exe")]
+    [InlineData("parts", "trailing.exe. ")]
+    [InlineData("customers", "page.html")]
+    public void Validator_rejects_executable_and_script_files(string entityType, string fileName)
+    {
+        var result = new UploadFileCommandValidator()
+            .Validate(new UploadFileCommand(entityType, 3, NamedFile(fileName, "application/octet-stream")));
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.ErrorMessage == "This file type cannot be uploaded here.");
+    }
+
+    [Theory]
+    [InlineData("parts", "bracket.step")]
+    [InlineData("parts", "bracket.STL")]
+    [InlineData("jobs", "program.nc")]
+    [InlineData("jobs", "O1001")]
+    [InlineData("employee-docs", "offer.docx")]
+    public void Validator_accepts_cad_cam_and_office_files_on_general_types(string entityType, string fileName)
+        => new UploadFileCommandValidator()
+            .Validate(new UploadFileCommand(entityType, 3, NamedFile(fileName, "application/octet-stream")))
+            .IsValid.Should().BeTrue();
+
+    [Theory]
+    [InlineData("pay-stubs", "stub.pdf", true)]
+    [InlineData("pay-stubs", "stub.png", false)]
+    [InlineData("tax-documents", "w2.docx", false)]
+    [InlineData("identity-docs", "passport.JPG", true)]
+    [InlineData("identity-docs", "passport.zip", false)]
+    [InlineData("identity-docs", "passport", false)]
+    public void Validator_limits_hr_document_types(string entityType, string fileName, bool valid)
+        => new UploadFileCommandValidator()
+            .Validate(new UploadFileCommand(entityType, 3, NamedFile(fileName, "application/pdf")))
+            .IsValid.Should().Be(valid);
+
+    [Fact]
+    public async Task Handle_strips_paths_from_the_name_and_normalises_the_content_type()
+    {
+        await _handler.Handle(
+            new UploadFileCommand("parts", 5, NamedFile("..\\..\\etc/pass wd?.step", "bogus type")), CancellationToken.None);
+
+        _storage.Verify(s => s.UploadAsync(
+            "forge-job-files",
+            It.Is<string>(k => k.StartsWith("parts/5/") && k.EndsWith("-pass_wd_.step") && !k.Contains("..")),
+            It.IsAny<Stream>(), "application/octet-stream", It.IsAny<CancellationToken>()), Times.Once);
+        _fileRepo.Verify(r => r.AddAsync(It.Is<FileAttachment>(a =>
+            a.FileName == "pass wd?.step" && a.ContentType == "application/octet-stream"),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 }

@@ -148,13 +148,13 @@ public class DownloadsController : ControllerBase
             #Requires -RunAsAdministrator
             <#
             .SYNOPSIS
-                Installs the QB Engineer RFID Relay on this workstation.
+                Installs the Forge RFID Relay on this workstation.
 
             .DESCRIPTION
                 Downloads and configures the RFID relay service that bridges USB NFC/RFID
-                smart card readers to the QB Engineer browser app. This script:
+                smart card readers to the Forge browser app. This script:
                   1. Installs Node.js (LTS) if not already present
-                  2. Downloads relay scripts from the QB Engineer server
+                  2. Downloads relay scripts from the Forge server
                   3. Installs npm dependencies
                   4. Registers a Windows Service that starts automatically at boot
 
@@ -192,7 +192,7 @@ public class DownloadsController : ControllerBase
 
             Write-Host ""
             Write-Host "============================================" -ForegroundColor Cyan
-            Write-Host "  QB Engineer RFID Relay -- Client Setup" -ForegroundColor Cyan
+            Write-Host "  Forge RFID Relay -- Client Setup" -ForegroundColor Cyan
             Write-Host "============================================" -ForegroundColor Cyan
             Write-Host "  Server:  $ServerUrl"
             Write-Host "  Install: $InstallDir"
@@ -463,7 +463,7 @@ public class DownloadsController : ControllerBase
             Write-Host "  Install dir:  $InstallDir"
             Write-Host ""
             Write-Host "  The relay will start automatically when Windows boots."
-            Write-Host "  Plug in your RFID reader and open QB Engineer to test."
+            Write-Host "  Plug in your RFID reader and open Forge to test."
             Write-Host ""
             Write-Host "  To check status:     Get-Service $ServiceName"
             Write-Host '  To view logs:        Event Viewer > Windows Logs > Application'

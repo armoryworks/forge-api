@@ -285,6 +285,17 @@ public class UploadFileChunkHandlerTests : IDisposable
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
+    [Theory]
+    [InlineData("jobs", "setup.exe", false)]
+    [InlineData("parts", "run.BAT", false)]
+    [InlineData("parts", "bracket.step", true)]
+    [InlineData("pay-stubs", "stub.png", false)]
+    [InlineData("pay-stubs", "stub.pdf", true)]
+    public void Validator_applies_the_shared_file_type_rules(string entityType, string fileName, bool valid)
+        => new UploadFileChunkCommandValidator()
+            .Validate(BuildChunkCommand(Guid.NewGuid().ToString(), 0, 1, "x", fileName: fileName, entityType: entityType))
+            .IsValid.Should().Be(valid);
+
     private static UploadFileChunkCommand BuildChunkCommand(
         string uploadId,
         int chunkIndex,

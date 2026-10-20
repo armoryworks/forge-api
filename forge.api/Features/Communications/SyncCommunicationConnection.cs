@@ -85,6 +85,7 @@ public class SyncCommunicationConnectionHandler(
 
         // Success — clear any previous error and stamp LastSyncedAt.
         connection.LastSyncedAt = now;
+        connection.IsConnected = true;
         connection.LastError = null;
         connection.LastErrorAt = null;
         await db.SaveChangesAsync(cancellationToken);

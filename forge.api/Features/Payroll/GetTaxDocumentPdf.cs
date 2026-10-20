@@ -20,7 +20,7 @@ public class GetTaxDocumentPdfHandler(AppDbContext db)
             ?? throw new KeyNotFoundException($"TaxDocument {request.Id} not found");
 
         if (!request.IsAdmin && doc.UserId != request.RequestingUserId)
-            throw new UnauthorizedAccessException("You do not have access to this tax document.");
+            throw new KeyNotFoundException($"TaxDocument {request.Id} not found");
 
         return doc.FileAttachmentId;
     }

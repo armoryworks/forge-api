@@ -28,6 +28,11 @@ public class UploadFileCommandValidator : AbstractValidator<UploadFileCommand>
 
         RuleFor(x => x.File)
             .NotNull().WithMessage("File is required.");
+
+        RuleFor(x => x.File.FileName)
+            .Must((x, name) => FileEntityTypes.IsAllowedFileName(x.EntityType, name))
+            .When(x => x.File is not null)
+            .WithMessage("This file type cannot be uploaded here.");
     }
 }
 
@@ -48,15 +53,16 @@ public class UploadFileHandler(
         var file = request.File;
 
         var bucketName = FileEntityTypes.ResolveBucket(request.EntityType, minioOptions.Value);
-        var objectKey = $"{request.EntityType}/{request.EntityId}/{Guid.NewGuid():N}-{file.FileName}";
+        var objectKey = $"{request.EntityType}/{request.EntityId}/{Guid.NewGuid():N}-{FileEntityTypes.ObjectKeyName(file.FileName)}";
+        var contentType = FileEntityTypes.NormalizeContentType(file.ContentType);
 
         await using var stream = file.OpenReadStream();
-        await storage.UploadAsync(bucketName, objectKey, stream, file.ContentType, cancellationToken);
+        await storage.UploadAsync(bucketName, objectKey, stream, contentType, cancellationToken);
 
         var attachment = new FileAttachment
         {
-            FileName = file.FileName,
-            ContentType = file.ContentType,
+            FileName = FileEntityTypes.DisplayName(file.FileName),
+            ContentType = contentType,
             Size = file.Length,
             BucketName = bucketName,
             ObjectKey = objectKey,

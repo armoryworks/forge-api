@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Banking;
 using Forge.Api.Services;
 using Forge.Data.Context;
 
@@ -74,6 +75,17 @@ public static class OnboardingPiiMerge
             if (!string.IsNullOrEmpty(fp))
                 formData["i9ForeignPassportNumber"] = fp;
         }
+    }
+
+    public static bool HasCompleteDirectDeposit(
+        Core.Entities.EmployeeProfile profile, IPiiProtector pii, string? bankName, string? routingNumber, string? accountNumber)
+    {
+        var bank = string.IsNullOrWhiteSpace(bankName) ? profile.BankName : bankName;
+        var routing = string.IsNullOrWhiteSpace(routingNumber) ? pii.Unprotect(profile.BankRoutingProtected) : routingNumber;
+        var account = string.IsNullOrWhiteSpace(accountNumber) ? pii.Unprotect(profile.BankAccountProtected) : accountNumber;
+        return !string.IsNullOrWhiteSpace(bank)
+            && NachaFileGenerator.IsValidRoutingNumber(routing?.Trim())
+            && !string.IsNullOrWhiteSpace(account);
     }
 
     private static bool IsBlank(Dictionary<string, string> d, string key) =>

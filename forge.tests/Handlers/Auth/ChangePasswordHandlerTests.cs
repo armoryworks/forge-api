@@ -1,5 +1,6 @@
 using Bogus;
 using FluentAssertions;
+using ValidationException = FluentValidation.ValidationException;
 using Microsoft.AspNetCore.Identity;
 using Moq;
 using Forge.Api.Features.Auth;
@@ -61,7 +62,7 @@ public class ChangePasswordHandlerTests
     }
 
     [Fact]
-    public async Task Handle_InvalidCurrentPassword_ThrowsUnauthorizedAccessException()
+    public async Task Handle_InvalidCurrentPassword_ThrowsValidationException()
     {
         var user = new ApplicationUser
         {
@@ -80,9 +81,58 @@ public class ChangePasswordHandlerTests
 
         var act = () => _handler.Handle(command, CancellationToken.None);
 
-        await act.Should().ThrowAsync<UnauthorizedAccessException>()
-            .WithMessage("Current password is incorrect");
+        var ex = await act.Should().ThrowAsync<ValidationException>();
+        ex.Which.Errors.Should().ContainSingle(e =>
+            e.PropertyName == nameof(ChangePasswordCommand.CurrentPassword)
+            && e.ErrorMessage == "Current password is incorrect.");
 
         _sessionStoreMock.Verify(x => x.RevokeAllUserSessionsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_PolicyRejectsNewPassword_ThrowsValidationExceptionAndKeepsSessions()
+    {
+        var user = new ApplicationUser
+        {
+            Id = 3,
+            Email = _faker.Internet.Email(),
+            FirstName = _faker.Name.FirstName(),
+            LastName = _faker.Name.LastName(),
+        };
+
+        _userManagerMock.Setup(x => x.FindByIdAsync("3"))
+            .ReturnsAsync(user);
+        _userManagerMock.Setup(x => x.CheckPasswordAsync(user, "OldPassword1!"))
+            .ReturnsAsync(true);
+        _userManagerMock.Setup(x => x.ChangePasswordAsync(user, "OldPassword1!", "NEWPASSWORD1"))
+            .ReturnsAsync(IdentityResult.Failed(new IdentityError { Code = "PasswordRequiresLower", Description = "Passwords must have at least one lowercase ('a'-'z')." }));
+
+        var command = new ChangePasswordCommand(3, "OldPassword1!", "NEWPASSWORD1");
+
+        var act = () => _handler.Handle(command, CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<ValidationException>();
+        ex.Which.Errors.Should().ContainSingle(e => e.PropertyName == nameof(ChangePasswordCommand.NewPassword));
+        _sessionStoreMock.Verify(x => x.RevokeAllUserSessionsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("Same1Password", "Same1Password", "New password must be different from the current password.")]
+    [InlineData("OldPassword1!", "NOLOWER123", "New password must contain a lowercase letter.")]
+    [InlineData("OldPassword1!", "noupper123", "New password must contain an uppercase letter.")]
+    [InlineData("OldPassword1!", "NoDigitsHere", "New password must contain a digit.")]
+    public void Validator_RejectsNewPasswordsThePolicyWouldRefuse(string current, string next, string message)
+    {
+        var result = new ChangePasswordValidator().Validate(new ChangePasswordCommand(1, current, next));
+
+        result.Errors.Should().Contain(e => e.ErrorMessage == message);
+    }
+
+    [Fact]
+    public void Validator_AcceptsCompliantNewPassword()
+    {
+        var result = new ChangePasswordValidator().Validate(new ChangePasswordCommand(1, "OldPassword1!", "NewPassword1"));
+
+        result.IsValid.Should().BeTrue();
     }
 }

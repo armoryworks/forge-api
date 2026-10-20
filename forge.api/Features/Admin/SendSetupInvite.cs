@@ -23,7 +23,7 @@ public class SendSetupInviteHandler(
         var tokenResult = await mediator.Send(new GenerateSetupTokenCommand(request.UserId), cancellationToken);
 
         var companySetting = await settings.FindByKeyAsync("company_name", cancellationToken);
-        var companyName = companySetting?.Value ?? "QB Engineer";
+        var companyName = companySetting?.Value ?? "Forge";
 
         var setupUrl = $"{request.BaseUrl.TrimEnd('/')}/setup/{Uri.EscapeDataString(tokenResult.Token)}";
 

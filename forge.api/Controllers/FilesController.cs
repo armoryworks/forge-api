@@ -21,7 +21,7 @@ public class FilesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{entityType}/{entityId:int}/files")]
-    [DisableRequestSizeLimit]
+    [RequestSizeLimit(FileEntityTypes.MaxUploadBytes)]
     public async Task<ActionResult<FileAttachmentResponseModel>> UploadFile(
         string entityType, int entityId, IFormFile file)
     {
@@ -30,7 +30,7 @@ public class FilesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{entityType}/{entityId:int}/files/chunked")]
-    [DisableRequestSizeLimit]
+    [RequestSizeLimit(FileEntityTypes.MaxUploadBytes)]
     public async Task<ActionResult<ChunkedUploadResponseModel>> UploadFileChunk(
         string entityType,
         int entityId,
