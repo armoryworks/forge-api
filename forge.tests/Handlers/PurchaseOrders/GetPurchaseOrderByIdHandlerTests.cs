@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Moq;
 
+using Forge.Api.Features.Lots;
 using Forge.Api.Features.PurchaseOrders;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -140,5 +141,42 @@ public class GetPurchaseOrderByIdHandlerTests
         byDescription["none"].PartDefaultBinId.Should().BeNull();
         byDescription["service"].PartNumber.Should().BeNull();
         byDescription["service"].PartDefaultBinId.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public async Task Handle_FlagsALotTrackedLineWhileLotsAreOn(bool lotsOn, bool expected)
+    {
+        var po = new PurchaseOrder
+        {
+            Id = 11,
+            PONumber = "PO-0011",
+            VendorId = 3,
+            Vendor = new Vendor { Id = 3, CompanyName = "Vendor" },
+        };
+        po.Lines.Add(new PurchaseOrderLine
+        {
+            Id = 110,
+            PartId = 8,
+            Part = new Part { Id = 8, PartNumber = "HW-INS-M4", TraceabilityType = TraceabilityType.Lot },
+            OrderedQuantity = 2,
+        });
+        po.Lines.Add(new PurchaseOrderLine
+        {
+            Id = 111,
+            PartId = 9,
+            Part = new Part { Id = 9, PartNumber = "P-009" },
+            OrderedQuantity = 2,
+        });
+        _repo.Setup(r => r.FindWithDetailsAsync(11, It.IsAny<CancellationToken>())).ReturnsAsync(po);
+        var handler = new GetPurchaseOrderByIdHandler(
+            _repo.Object, TestDbContextFactory.Create(),
+            lotsOn ? new StubCapabilitySnapshotProvider(ReceiptLotRecords.Capability) : new StubCapabilitySnapshotProvider());
+
+        var result = await handler.Handle(new GetPurchaseOrderByIdQuery(11), CancellationToken.None);
+
+        result.Lines.Single(l => l.Id == 110).LotTracked.Should().Be(expected);
+        result.Lines.Single(l => l.Id == 111).LotTracked.Should().BeFalse();
     }
 }

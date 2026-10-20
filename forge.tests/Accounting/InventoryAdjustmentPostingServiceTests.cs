@@ -96,6 +96,20 @@ public class InventoryAdjustmentPostingServiceTests
     }
 
     [Fact]
+    public async Task OverageWithoutStoreRow_PostsAtStandard_AndStartsTheStore()
+    {
+        var (db, part) = await SeedAsync(InventoryClass.Subassembly, storeQty: null, standard: 4m);
+        using var _ = db;
+
+        await AdjustmentPosting(db).PostAdjustmentAsync(Adjustment(part.Id, 5m));
+
+        var lines = await LinesAsync(db, "Inventory:CycleCountLine:1:ADJUST");
+        lines.Single(l => l.GlAccountId == SubassemblyId).Debit.Should().Be(20m);
+        var row = await db.InventoryValuations.SingleAsync();
+        (row.OnHandQuantity, row.TotalValue).Should().Be((5m, 20m));
+    }
+
+    [Fact]
     public async Task RePost_IsNoOp_AndDoesNotRelieveTheStoreTwice()
     {
         var (db, part) = await SeedAsync();

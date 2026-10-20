@@ -23,7 +23,9 @@ public record ReceiveItemsCommand(
     List<ReceiveLineModel> Lines,
     decimal? ActualFreight = null,
     FreightAllocationMethod FreightAllocationMethod = FreightAllocationMethod.ByExtendedValue,
-    string? PackingSlipNumber = null) : IRequest;
+    string? PackingSlipNumber = null) : IRequest<ReceiveItemsResult>;
+
+public record ReceiveItemsResult(string ReceiptNumber, IReadOnlyList<int> MovementIds);
 
 public class ReceiveItemsValidator : AbstractValidator<ReceiveItemsCommand>
 {
@@ -61,9 +63,9 @@ public class ReceiveItemsHandler(
     IInventoryRepository? inventory = null,
     ICapabilitySnapshotProvider? capabilities = null,
     IBarcodeService? barcodes = null)
-    : IRequestHandler<ReceiveItemsCommand>
+    : IRequestHandler<ReceiveItemsCommand, ReceiveItemsResult>
 {
-    public async Task Handle(ReceiveItemsCommand request, CancellationToken cancellationToken)
+    public async Task<ReceiveItemsResult> Handle(ReceiveItemsCommand request, CancellationToken cancellationToken)
     {
         var po = await repo.FindWithDetailsAsync(request.PurchaseOrderId, cancellationToken)
             ?? throw new KeyNotFoundException($"Purchase order {request.PurchaseOrderId} not found");
@@ -90,6 +92,13 @@ public class ReceiveItemsHandler(
         var receiptNumber = $"R-{receiptDate:yyyyMMdd}-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}";
         var actualFreight = request.ActualFreight ?? po.EstimatedFreight;
         var packingSlip = string.IsNullOrWhiteSpace(request.PackingSlipNumber) ? null : request.PackingSlipNumber.Trim();
+        var user = httpContext.HttpContext?.User;
+        var userId = int.TryParse(
+            user?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+            out var uid) ? uid : 0;
+        var receivedBy = user?.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
+
+        var assignedLots = new List<string>();
 
         // Pre-compute per-line allocation. ByExtendedValue / ByQuantity
         // need the totals, so we collect first then divvy up. Manual reads
@@ -115,12 +124,15 @@ public class ReceiveItemsHandler(
             var baseQty = contentPerUnit is > 0
                 ? receiveItem.Quantity * contentPerUnit.Value
                 : receiveItem.Quantity;
-            var lot = string.IsNullOrWhiteSpace(receiveItem.LotNumber) ? null : receiveItem.LotNumber.Trim();
+            var lot = await ReceiptLotRecords.ResolveAsync(
+                db, clock, line.Part, string.IsNullOrWhiteSpace(receiveItem.LotNumber) ? null : receiveItem.LotNumber.Trim(),
+                capabilities, assignedLots, cancellationToken);
 
             var rec = new ReceivingRecord
             {
                 PurchaseOrderLineId = line.Id,
                 QuantityReceived = receiveItem.Quantity,
+                ReceivedBy = receivedBy,
                 StorageLocationId = receiveItem.StorageLocationId,
                 Notes = receiveItem.Notes,
                 LotNumber = lot,
@@ -220,11 +232,6 @@ public class ReceiveItemsHandler(
             po.Status = PurchaseOrderStatus.PartiallyReceived;
         }
 
-        // Resolve the actor once (tolerant) — used as the accounting PostedBy and on the domain event.
-        var userId = int.TryParse(
-            httpContext.HttpContext?.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
-            out var uid) ? uid : 0;
-
         // One transaction: the receiving records + PO-status flip AND the inline inventory / GRNI posting
         // commit (or roll back) together — the locked inline model (§2). The engine's SaveChanges joins
         // this transaction; the handler commits once, so a posting failure unwinds the receipt too. On
@@ -245,6 +252,7 @@ public class ReceiveItemsHandler(
         // rises, in the part's base unit (purchase-unit count × ContentQuantity). Per line, find-or-create the
         // active BinContent for (part, location, lot) so lots never blend, then record a Receive movement.
         // Not gated by CAP-ACCT-FULLGL — this is operational inventory, independent of the GL posting below.
+        var movementIds = new List<int>();
         if (inventory is not null)
         {
             int? fallbackBinId = null;
@@ -286,7 +294,7 @@ public class ReceiveItemsHandler(
                     }, cancellationToken);
                 }
 
-                await inventory.AddMovementAsync(new BinMovement
+                var movement = new BinMovement
                 {
                     EntityType = "part",
                     EntityId = stockPartId,
@@ -296,7 +304,9 @@ public class ReceiveItemsHandler(
                     MovedBy = userId,
                     MovedAt = clock.UtcNow,
                     Reason = BinMovementReason.Receive,
-                }, cancellationToken);
+                };
+                await inventory.AddMovementAsync(movement, cancellationToken);
+                movementIds.Add(movement.Id);
             }
         }
 
@@ -319,6 +329,7 @@ public class ReceiveItemsHandler(
             await tx.CommitAsync(cancellationToken);
 
         await mediator.Publish(new PurchaseOrderReceivedEvent(request.PurchaseOrderId, 0, userId), cancellationToken);
+        return new ReceiveItemsResult(receiptNumber, movementIds);
     }
 
     /// <summary>

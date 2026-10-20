@@ -9,8 +9,8 @@ namespace Forge.Api.Features.Shipments;
 /// <summary>
 /// One-click "create a shipment from this order" — builds a shipment covering every line that is
 /// production-complete and not yet fully shipped, pre-filled with its remaining quantity, then delegates
-/// to <see cref="CreateShipmentCommand"/> (which validates the confirmed order, decrements fulfillment,
-/// pushes SO status, and stamps the scan code). A line is shippable when it has no production jobs, or all
+/// to <see cref="CreateShipmentCommand"/> (which validates the confirmed order and the quantity still open
+/// to ship, and stamps the scan code). A line is shippable when it has no production jobs, or all
 /// of its jobs have reached a ship/complete stage — so un-produced lines are left behind, not shipped.
 /// </summary>
 public record CreateShipmentFromSalesOrderCommand(int SalesOrderId) : IRequest<ShipmentListItemModel>;
@@ -30,13 +30,15 @@ public class CreateShipmentFromSalesOrderHandler(AppDbContext db, IMediator medi
         var order = await db.SalesOrders
             .Include(o => o.Lines).ThenInclude(l => l.Jobs).ThenInclude(j => j.CurrentStage)
             .Include(o => o.Lines).ThenInclude(l => l.Part)
+            .Include(o => o.Shipments).ThenInclude(s => s.Lines)
             .FirstOrDefaultAsync(o => o.Id == request.SalesOrderId, cancellationToken)
             ?? throw new KeyNotFoundException($"Sales order {request.SalesOrderId} not found");
 
         var lines = new List<CreateShipmentLineModel>();
         foreach (var line in order.Lines)
         {
-            if (line.RemainingQuantity <= 0 || !line.ShipsGoods) continue;
+            var open = SalesOrderShipping.OpenToShip(order, line);
+            if (open <= 0 || !line.ShipsGoods) continue;
 
             // Ship a line only once its production is done: no jobs, or every job at a ship/complete stage.
             var productionComplete = line.Jobs.Count == 0 || line.Jobs.All(j =>
@@ -45,7 +47,7 @@ public class CreateShipmentFromSalesOrderHandler(AppDbContext db, IMediator medi
                     || j.CurrentStage.Name.Contains("Ship", StringComparison.OrdinalIgnoreCase)));
 
             if (productionComplete)
-                lines.Add(new CreateShipmentLineModel(line.Id, line.RemainingQuantity, null));
+                lines.Add(new CreateShipmentLineModel(line.Id, open, null));
         }
 
         if (lines.Count == 0)

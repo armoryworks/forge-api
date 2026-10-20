@@ -1,5 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Capabilities;
+using Forge.Api.Features.Lots;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -9,7 +11,8 @@ namespace Forge.Api.Features.PurchaseOrders;
 
 public record GetPurchaseOrderByIdQuery(int Id) : IRequest<PurchaseOrderDetailResponseModel>;
 
-public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo, AppDbContext db)
+public class GetPurchaseOrderByIdHandler(
+    IPurchaseOrderRepository repo, AppDbContext db, ICapabilitySnapshotProvider? capabilities = null)
     : IRequestHandler<GetPurchaseOrderByIdQuery, PurchaseOrderDetailResponseModel>
 {
     public async Task<PurchaseOrderDetailResponseModel> Handle(GetPurchaseOrderByIdQuery request, CancellationToken cancellationToken)
@@ -92,7 +95,8 @@ public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo, AppDbCon
                     : null,
                 l.Part?.DefaultBinId is int pathBinId
                     ? receivableDefaultBinPaths.GetValueOrDefault(pathBinId)
-                    : null)).ToList(),
+                    : null,
+                ReceiptLotRecords.TracksLot(l.Part, capabilities))).ToList(),
             po.CreatedAt,
             po.UpdatedAt,
             po.ShortCloseReason,

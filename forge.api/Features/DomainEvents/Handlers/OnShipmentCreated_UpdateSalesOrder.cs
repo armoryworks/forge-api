@@ -3,7 +3,6 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.DomainEvents.Handlers;
@@ -22,35 +21,21 @@ public class OnShipmentCreated_UpdateSalesOrder(
         if (shipment is null) return;
 
         var so = await db.SalesOrders
-            .Include(s => s.Lines).ThenInclude(l => l.Part)
             .FirstOrDefaultAsync(s => s.Id == notification.SalesOrderId, ct);
 
         if (so is null) return;
 
-        // Update SO status based on fulfillment
-        // ShippedQuantity is already committed by CreateShipment (inline increment + SaveChanges)
-        // before this event fires — do NOT increment here or it doubles the count (INV-SH1).
-        var allFullyShipped = so.Lines.Where(l => l.ShipsGoods).All(l => l.IsFullyShipped);
-        var anyShipped = so.Lines.Any(l => l.ShippedQuantity > 0);
-
-        if (allFullyShipped)
-            so.Status = SalesOrderStatus.Shipped;
-        else if (anyShipped)
-            so.Status = SalesOrderStatus.PartiallyShipped;
-
-        // Log activity
         db.ActivityLogs.Add(new ActivityLog
         {
             EntityType = "SalesOrder",
             EntityId = so.Id,
             UserId = notification.UserId,
             Action = "shipment_created",
-            Description = $"Shipment {shipment.ShipmentNumber} created. SO status: {so.Status}.",
+            Description = $"Shipment {shipment.ShipmentNumber} created.",
         });
 
         await db.SaveChangesAsync(ct);
         logger.LogInformation(
-            "Updated SO {OrderNumber} shipped quantities from shipment {ShipmentNumber}. Status: {Status}",
-            so.OrderNumber, shipment.ShipmentNumber, so.Status);
+            "Logged shipment {ShipmentNumber} on SO {OrderNumber}", shipment.ShipmentNumber, so.OrderNumber);
     }
 }

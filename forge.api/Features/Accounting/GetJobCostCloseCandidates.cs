@@ -62,14 +62,14 @@ public class GetJobCostCloseCandidatesHandler(AppDbContext db)
 
         var jobs = await db.Jobs.AsNoTracking()
             .Where(j => jobIds.Contains(j.Id))
-            .Select(j => new { j.Id, j.JobNumber, j.Title, j.CompletedDate })
+            .Select(j => new { j.Id, j.JobNumber, j.Title, j.CompletedDate, IsComplete = j.CompletedDate != null || j.Disposition != null })
             .ToListAsync(ct);
         var balanceByJob = balances.ToDictionary(b => b.JobId, b => b.Balance);
 
         return jobs
             .Where(j => !closed.Contains($"{JournalSource.Inventory}:Job:{j.Id}:PRODVARIANCE"))
             .Select(j => new JobCostCloseCandidateModel(
-                j.Id, j.JobNumber, j.Title, j.CompletedDate, Math.Round(balanceByJob[j.Id], 2)))
+                j.Id, j.JobNumber, j.Title, j.CompletedDate, Math.Round(balanceByJob[j.Id], 2), j.IsComplete))
             .OrderBy(j => j.CompletedDate is null)
             .ThenBy(j => j.CompletedDate)
             .ThenBy(j => j.JobNumber, StringComparer.Ordinal)

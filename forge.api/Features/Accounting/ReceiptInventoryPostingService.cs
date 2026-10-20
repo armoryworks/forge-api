@@ -46,7 +46,7 @@ public interface IReceiptInventoryPostingService
     /// <summary>
     /// Posts the inventory / GRNI journal for a PO receipt (the <see cref="ReceivingRecord"/>s sharing
     /// <paramref name="receiptNumber"/>), when (and only when) CAP-ACCT-FULLGL is enabled. A no-op while
-    /// the capability is off, or when the receipt has no number (the single-line inventory receive path).
+    /// the capability is off, or when the receipt has no number (older receiving records).
     /// </summary>
     Task PostReceiptAsync(
         int purchaseOrderId, string? receiptNumber, DateOnly entryDate, int receivedByUserId,
@@ -65,6 +65,10 @@ public sealed class ReceiptInventoryPostingService(
     IStandardCostResolver? standardCost = null) : IReceiptInventoryPostingService
 {
     private const string FullGlCapability = "CAP-ACCT-FULLGL";
+
+    /// <summary>The idempotency key of the inventory / GRNI journal posted for one PO receipt.</summary>
+    public static string ReceiptIdempotencyKey(int purchaseOrderId, string receiptNumber)
+        => $"{JournalSource.Inventory}:Receipt:{purchaseOrderId}:{receiptNumber}:RECEIPT";
 
     private const string KeyInventoryRaw = "INVENTORY_RAW";
     private const string KeyInventoryWip = "INVENTORY_WIP";
@@ -86,9 +90,8 @@ public sealed class ReceiptInventoryPostingService(
         if (!capabilities.IsEnabled(FullGlCapability))
             return;
 
-        // The single-line inventory receive path (Features/Inventory/ReceivePurchaseOrder) leaves
-        // ReceiptNumber null and isn't posted here — STAGE C hooks the primary, freight-bearing
-        // ReceiveItems flow. (Hooking that secondary path is a tracked follow-up.)
+        // Every receive path (ReceiveItems, the inventory tab's ReceivePurchaseOrder and the scanner, which
+        // goes through ReceiveItems) stamps a ReceiptNumber; a record without one has nothing to key on.
         if (string.IsNullOrWhiteSpace(receiptNumber))
             return;
 
@@ -218,7 +221,7 @@ public sealed class ReceiptInventoryPostingService(
             SourceId = purchaseOrderId,
             CurrencyId = book.FunctionalCurrencyId,
             Memo = $"PO receipt {receiptNumber} — inventory / GRNI (PO {purchaseOrderId})",
-            IdempotencyKey = $"{JournalSource.Inventory}:Receipt:{purchaseOrderId}:{receiptNumber}:RECEIPT",
+            IdempotencyKey = ReceiptIdempotencyKey(purchaseOrderId, receiptNumber),
             Lines = lines,
         };
 

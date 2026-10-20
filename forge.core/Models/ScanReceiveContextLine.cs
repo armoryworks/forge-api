@@ -5,4 +5,5 @@ public record ScanReceiveContextLine(
     string PoNumber,
     decimal ExpectedQuantity,
     decimal ReceivedQuantity,
-    decimal RemainingQuantity);
+    decimal RemainingQuantity,
+    bool LotTracked = false);

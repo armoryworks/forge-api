@@ -183,6 +183,36 @@ public class GetAssignableSalesOrderLinesHandlerTests
     }
 
     [Fact]
+    public async Task Handle_QuantityOnAPendingShipment_IsNotOfferedForAJob()
+    {
+        var so = new SalesOrder { OrderNumber = "SO-310", CustomerId = 1, Status = SalesOrderStatus.Confirmed };
+        _db.SalesOrders.Add(so);
+        await _db.SaveChangesAsync();
+        var line = new SalesOrderLine
+        {
+            SalesOrderId = so.Id, PartId = 900, Description = "Line", Quantity = 50m, UnitPrice = 1m, LineNumber = 1,
+        };
+        _db.SalesOrderLines.Add(line);
+        await _db.SaveChangesAsync();
+        _db.Shipments.AddRange(
+            new Shipment
+            {
+                ShipmentNumber = "SH-310-1", SalesOrderId = so.Id, Status = ShipmentStatus.Pending,
+                Lines = [new ShipmentLine { SalesOrderLineId = line.Id, Quantity = 20m }],
+            },
+            new Shipment
+            {
+                ShipmentNumber = "SH-310-2", SalesOrderId = so.Id, Status = ShipmentStatus.Cancelled,
+                Lines = [new ShipmentLine { SalesOrderLineId = line.Id, Quantity = 30m }],
+            });
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new GetAssignableSalesOrderLinesQuery(true, null), CancellationToken.None);
+
+        result.Single(r => r.Id == line.Id).RemainingQuantity.Should().Be(30m);
+    }
+
+    [Fact]
     public async Task Handle_CompletedJobWhoseOutputShipped_IsNotCountedTwice()
     {
         var line = await SeedLineWithJobAsync(ordered: 100m, shipped: 50m, onJob: 50m, completed: true);

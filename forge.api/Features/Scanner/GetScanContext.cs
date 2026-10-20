@@ -2,7 +2,9 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Features.Jobs;
+using Forge.Api.Features.Lots;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -12,7 +14,8 @@ namespace Forge.Api.Features.Scanner;
 
 public record GetScanContextQuery(string PartIdentifier) : IRequest<ScanContextResponseModel>;
 
-public class GetScanContextHandler(AppDbContext db, IHttpContextAccessor httpContext)
+public class GetScanContextHandler(
+    AppDbContext db, IHttpContextAccessor httpContext, ICapabilitySnapshotProvider? capabilities = null)
     : IRequestHandler<GetScanContextQuery, ScanContextResponseModel>
 {
     private static readonly string[] ShipRoles = ["Admin", "Manager", "OfficeManager"];
@@ -28,7 +31,7 @@ public class GetScanContextHandler(AppDbContext db, IHttpContextAccessor httpCon
         var part = await db.Parts
             .AsNoTracking()
             .Where(p => p.PartNumber == identifier)
-            .Select(p => new { p.Id, p.PartNumber, p.Description })
+            .Select(p => new { p.Id, p.PartNumber, p.Description, p.TraceabilityType })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (part == null)
@@ -44,7 +47,7 @@ public class GetScanContextHandler(AppDbContext db, IHttpContextAccessor httpCon
                 part = await db.Parts
                     .AsNoTracking()
                     .Where(p => p.Id == vendorMatch.PartId)
-                    .Select(p => new { p.Id, p.PartNumber, p.Description })
+                    .Select(p => new { p.Id, p.PartNumber, p.Description, p.TraceabilityType })
                     .FirstOrDefaultAsync(cancellationToken);
             }
         }
@@ -63,7 +66,7 @@ public class GetScanContextHandler(AppDbContext db, IHttpContextAccessor httpCon
                 part = await db.Parts
                     .AsNoTracking()
                     .Where(p => p.Id == barcode.PartId)
-                    .Select(p => new { p.Id, p.PartNumber, p.Description })
+                    .Select(p => new { p.Id, p.PartNumber, p.Description, p.TraceabilityType })
                     .FirstOrDefaultAsync(cancellationToken);
             }
         }
@@ -88,7 +91,7 @@ public class GetScanContextHandler(AppDbContext db, IHttpContextAccessor httpCon
                 part = await db.Parts
                     .AsNoTracking()
                     .Where(p => p.Id == lotPartId.Value)
-                    .Select(p => new { p.Id, p.PartNumber, p.Description })
+                    .Select(p => new { p.Id, p.PartNumber, p.Description, p.TraceabilityType })
                     .FirstOrDefaultAsync(cancellationToken);
             }
         }
@@ -118,19 +121,22 @@ public class GetScanContextHandler(AppDbContext db, IHttpContextAccessor httpCon
         // Count — always available
         actions.Add(new ScanAvailableAction("Count", true, null, null));
 
+        var lotTracked = ReceiptLotRecords.TracksLot(part.TraceabilityType, capabilities);
         var openPoLines = await db.PurchaseOrderLines
             .AsNoTracking()
             .Where(pol => pol.PartId == part.Id
                 && pol.ReceivedQuantity < pol.OrderedQuantity
-                && pol.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
-                && pol.PurchaseOrder.Status != PurchaseOrderStatus.Closed)
+                && (pol.PurchaseOrder.Status == PurchaseOrderStatus.Submitted
+                    || pol.PurchaseOrder.Status == PurchaseOrderStatus.Acknowledged
+                    || pol.PurchaseOrder.Status == PurchaseOrderStatus.PartiallyReceived))
             .OrderBy(pol => pol.PurchaseOrder.PONumber)
             .Select(pol => new ScanReceiveContextLine(
                 pol.Id,
                 pol.PurchaseOrder.PONumber,
                 pol.OrderedQuantity,
                 pol.ReceivedQuantity,
-                pol.OrderedQuantity - pol.ReceivedQuantity))
+                pol.OrderedQuantity - pol.ReceivedQuantity,
+                lotTracked))
             .ToListAsync(cancellationToken);
 
         actions.Add(new ScanAvailableAction(

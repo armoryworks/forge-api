@@ -103,19 +103,24 @@ public class CreateShipmentHandler(
             Notes = request.Notes,
         };
 
+        var takenHere = new Dictionary<int, decimal>();
+        decimal OpenToShip(SalesOrderLine orderLine)
+            => SalesOrderShipping.OpenToShip(order, orderLine) - takenHere.GetValueOrDefault(orderLine.Id);
+
         foreach (var line in request.Lines)
         {
             if (line.SalesOrderLineId.HasValue)
             {
-                // SO-line based: validate remaining quantity and update fulfillment
+                // SO-line based: validate remaining quantity
                 var orderLine = order.Lines.FirstOrDefault(l => l.Id == line.SalesOrderLineId)
                     ?? throw new KeyNotFoundException($"Sales order line {line.SalesOrderLineId} not found");
 
-                if (line.Quantity > orderLine.RemainingQuantity)
+                var open = OpenToShip(orderLine);
+                if (line.Quantity > open)
                     throw new InvalidOperationException(
-                        $"Cannot ship {line.Quantity} of line {orderLine.LineNumber} — only {orderLine.RemainingQuantity} remaining");
+                        $"Cannot ship {line.Quantity} of line {orderLine.LineNumber} — only {open} remaining");
 
-                orderLine.ShippedQuantity += line.Quantity;
+                takenHere[orderLine.Id] = takenHere.GetValueOrDefault(orderLine.Id) + line.Quantity;
 
                 shipment.Lines.Add(new ShipmentLine
                 {
@@ -129,18 +134,19 @@ public class CreateShipmentHandler(
             {
                 // Part-based: resolve the line to the matching SO line so the
                 // quantity is validated against the order (a part can't be
-                // over-shipped, and a part not on the order is rejected) and SO
-                // fulfillment is tracked — same guarantees as the SO-line path.
-                var orderLine = order.Lines.FirstOrDefault(l => l.PartId == line.PartId && l.RemainingQuantity > 0)
+                // over-shipped, and a part not on the order is rejected) — same
+                // guarantees as the SO-line path.
+                var orderLine = order.Lines.FirstOrDefault(l => l.PartId == line.PartId && OpenToShip(l) > 0)
                     ?? order.Lines.FirstOrDefault(l => l.PartId == line.PartId)
                     ?? throw new InvalidOperationException(
                         $"Part {line.PartId} is not on sales order {order.OrderNumber}");
 
-                if (line.Quantity > orderLine.RemainingQuantity)
+                var open = OpenToShip(orderLine);
+                if (line.Quantity > open)
                     throw new InvalidOperationException(
-                        $"Cannot ship {line.Quantity} of line {orderLine.LineNumber} — only {orderLine.RemainingQuantity} remaining");
+                        $"Cannot ship {line.Quantity} of line {orderLine.LineNumber} — only {open} remaining");
 
-                orderLine.ShippedQuantity += line.Quantity;
+                takenHere[orderLine.Id] = takenHere.GetValueOrDefault(orderLine.Id) + line.Quantity;
 
                 shipment.Lines.Add(new ShipmentLine
                 {
@@ -159,12 +165,6 @@ public class CreateShipmentHandler(
         // verify the label belongs to this shipment's content. Always set — cheap, and useful on
         // manual carriers too — even though the gate only enforces it for carriers that require it.
         shipment.ScanCode = ShipmentScanCode.Compute(shipmentNumber, shipment.Lines);
-
-        // Update order status based on fulfillment (only applies when SO lines are linked)
-        if (order.Lines.Any(l => l.ShipsGoods) && order.Lines.Where(l => l.ShipsGoods).All(l => l.IsFullyShipped))
-            order.Status = SalesOrderStatus.Shipped;
-        else if (order.Lines.Any(l => l.ShippedQuantity > 0))
-            order.Status = SalesOrderStatus.PartiallyShipped;
 
         await shipmentRepo.AddAsync(shipment, cancellationToken);
         await shipmentRepo.SaveChangesAsync(cancellationToken);

@@ -4,6 +4,7 @@ using Moq;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Jobs.ProductionRuns;
+using Forge.Api.Features.Lots;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
@@ -32,12 +33,13 @@ public class ReceiveProductionRunToStockHandlerTests : IDisposable
     }
 
     private async Task<ProductionRun> SeedRunAsync(
-        int completedQty, ProductionRunStatus status = ProductionRunStatus.Completed, int? defaultBinId = null)
+        int completedQty, ProductionRunStatus status = ProductionRunStatus.Completed, int? defaultBinId = null,
+        TraceabilityType traceability = TraceabilityType.None)
     {
         var part = new Part
         {
             PartNumber = "P-FG-001", Name = "FG Part", InventoryClass = InventoryClass.FinishedGood,
-            DefaultBinId = defaultBinId,
+            DefaultBinId = defaultBinId, TraceabilityType = traceability,
         };
         _db.Parts.Add(part);
         var job = new Job { JobNumber = "JOB-FG-001", Description = "Test Job" };
@@ -241,6 +243,55 @@ public class ReceiveProductionRunToStockHandlerTests : IDisposable
         rows.Should().HaveCount(2);
         rows.Single(b => b.LotNumber == "HEAT-A").Quantity.Should().Be(5m);
         rows.Single(b => b.LotNumber == null).Quantity.Should().Be(11m);
+    }
+
+    [Fact]
+    public async Task Handle_LotTrackedPart_StocksUnderANewRunLot()
+    {
+        _capabilities.Setup(c => c.IsEnabled(ReceiptLotRecords.Capability)).Returns(true);
+        var run = await SeedRunAsync(completedQty: 8, traceability: TraceabilityType.Lot);
+        var barcodes = new Mock<Forge.Core.Interfaces.IBarcodeService>();
+        var handler = new ReceiveProductionRunToStockHandler(
+            _db, new SystemClock(), _capabilities.Object, new InventoryRepository(_db), barcodes: barcodes.Object);
+
+        await handler.Handle(new ReceiveProductionRunToStockCommand(run.JobId, run.Id, ReceivedByUserId: 1), default);
+
+        _db.ChangeTracker.Clear();
+        var lot = await _db.LotRecords.SingleAsync();
+        var expected = lot.LotNumber;
+        expected.Should().MatchRegex(@"^LOT-\d{8}-001$");
+        (lot.LotNumber, lot.PartId, lot.JobId, lot.ProductionRunId, lot.Quantity)
+            .Should().Be((expected, run.PartId, (int?)run.JobId, (int?)run.Id, 8m));
+        (await _db.BinContents.SingleAsync(b => b.EntityId == run.PartId)).LotNumber.Should().Be(expected);
+        (await _db.BinMovements.SingleAsync(m => m.EntityId == run.PartId)).LotNumber.Should().Be(expected);
+        barcodes.Verify(b => b.CreateBarcodeAsync(BarcodeEntityType.Lot, lot.Id, expected, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_LotTrackedPart_UsesTheLotAlreadyMadeForTheRun()
+    {
+        _capabilities.Setup(c => c.IsEnabled(ReceiptLotRecords.Capability)).Returns(true);
+        var run = await SeedRunAsync(completedQty: 8, traceability: TraceabilityType.Lot);
+        _db.LotRecords.Add(new LotRecord { LotNumber = "LOT-PRE-1", PartId = run.PartId, ProductionRunId = run.Id, Quantity = 10m });
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(new ReceiveProductionRunToStockCommand(run.JobId, run.Id, ReceivedByUserId: 1), default);
+
+        _db.ChangeTracker.Clear();
+        (await _db.LotRecords.CountAsync()).Should().Be(1);
+        (await _db.BinContents.SingleAsync(b => b.EntityId == run.PartId)).LotNumber.Should().Be("LOT-PRE-1");
+    }
+
+    [Fact]
+    public async Task Handle_LotTrackedPartWithLotsOff_StocksUnlotted()
+    {
+        var run = await SeedRunAsync(completedQty: 8, traceability: TraceabilityType.Lot);
+
+        await _handler.Handle(new ReceiveProductionRunToStockCommand(run.JobId, run.Id, ReceivedByUserId: 1), default);
+
+        _db.ChangeTracker.Clear();
+        (await _db.LotRecords.AnyAsync()).Should().BeFalse();
+        (await _db.BinContents.SingleAsync(b => b.EntityId == run.PartId)).LotNumber.Should().BeNull();
     }
 
     public void Dispose() => _db.Dispose();

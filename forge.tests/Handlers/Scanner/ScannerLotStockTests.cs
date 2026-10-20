@@ -225,20 +225,29 @@ public class ScannerLotStockTests : IDisposable
         rows.Single(r => r.LotNumber == "HEAT-A").Quantity.Should().Be(10m);
     }
 
-    [Fact]
-    public async Task ReverseReceive_TakesStockFromTheUnlottedRowItAddedTo()
+    private async Task<(int PartId, int BinId, int PoId, int LineId, int LogId)> ScanReceiveAsync()
     {
         var (partId, binId, _) = await SeedAsync(unlotted: 0m, lotted: 10m);
-        var po = new PurchaseOrder { PONumber = "PO-SCAN-2", VendorId = 1, Status = PurchaseOrderStatus.Submitted };
+        var vendor = new Vendor { CompanyName = "Bar stock supplier" };
+        _db.Vendors.Add(vendor);
+        await _db.SaveChangesAsync();
+        var po = new PurchaseOrder { PONumber = "PO-SCAN-2", VendorId = vendor.Id, Status = PurchaseOrderStatus.Submitted };
         _db.PurchaseOrders.Add(po);
         await _db.SaveChangesAsync();
         var line = new PurchaseOrderLine { PurchaseOrderId = po.Id, PartId = partId, OrderedQuantity = 5m, UnitPrice = 30m };
         _db.PurchaseOrderLines.Add(line);
         await _db.SaveChangesAsync();
         _db.ChangeTracker.Clear();
-        var logId = await new ExecuteScanReceiveHandler(_db, _clock, _accessor).Handle(
+        var logId = await new ExecuteScanReceiveHandler(_db, _accessor, ReceiptMediator.For(_db, _clock, _accessor)).Handle(
             new ExecuteScanReceiveCommand(new ScanReceiveRequestModel(partId, line.Id, 4m, binId)), CancellationToken.None);
         _db.ChangeTracker.Clear();
+        return (partId, binId, po.Id, line.Id, logId);
+    }
+
+    [Fact]
+    public async Task ReverseReceive_TakesTheStockBack_AndUndoesThePurchaseOrderReceipt()
+    {
+        var (partId, binId, poId, lineId, logId) = await ScanReceiveAsync();
 
         await ReverseAsync(logId);
 
@@ -246,6 +255,48 @@ public class ScannerLotStockTests : IDisposable
         var rows = await ActiveAsync(partId, binId);
         rows.Single(r => r.LotNumber == "HEAT-A").Quantity.Should().Be(10m);
         rows.Where(r => r.LotNumber == null).Sum(r => r.Quantity).Should().Be(0m);
+        (await _db.PurchaseOrderLines.SingleAsync(l => l.Id == lineId)).ReceivedQuantity.Should().Be(0m);
+        (await _db.PurchaseOrders.SingleAsync(p => p.Id == poId)).Status.Should().Be(PurchaseOrderStatus.Submitted);
+        (await _db.ReceivingRecords.AnyAsync(r => r.PurchaseOrderLineId == lineId)).Should().BeFalse();
+        (await _db.ReceivingRecords.IgnoreQueryFilters().SingleAsync(r => r.PurchaseOrderLineId == lineId))
+            .DeletedAt.Should().NotBeNull();
+        (await _db.ScanActionLogs.SingleAsync(l => l.Id == logId)).IsReversed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ReverseReceive_PostedToTheBooks_IsRefused_AndLeavesTheReceiptAndStock()
+    {
+        var (partId, binId, poId, lineId, logId) = await ScanReceiveAsync();
+        var receiptNumber = (await _db.ReceivingRecords.SingleAsync(r => r.PurchaseOrderLineId == lineId)).ReceiptNumber!;
+        _db.JournalEntries.Add(new Forge.Core.Entities.Accounting.JournalEntry
+        {
+            BookId = 1, EntryNumber = 1, EntryDate = new DateOnly(2026, 10, 7), FiscalPeriodId = 1, FiscalYearId = 1,
+            CurrencyId = 1, IdempotencyKey = ReceiptInventoryPostingService.ReceiptIdempotencyKey(poId, receiptNumber),
+        });
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var act = () => ReverseAsync(logId);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*posted to the books*");
+        _db.ChangeTracker.Clear();
+        (await ActiveAsync(partId, binId)).Where(r => r.LotNumber == null).Sum(r => r.Quantity).Should().Be(4m);
+        (await _db.PurchaseOrderLines.SingleAsync(l => l.Id == lineId)).ReceivedQuantity.Should().Be(4m);
+        (await _db.ScanActionLogs.SingleAsync(l => l.Id == logId)).IsReversed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ReverseReceive_BilledLine_IsRefused()
+    {
+        var (_, _, _, lineId, logId) = await ScanReceiveAsync();
+        _db.VendorBillLines.Add(new VendorBillLine { VendorBillId = 1, PurchaseOrderLineId = lineId, Description = "Bar", Quantity = 4m, UnitPrice = 30m });
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var act = () => ReverseAsync(logId);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already billed*");
+        (await _db.PurchaseOrderLines.SingleAsync(l => l.Id == lineId)).ReceivedQuantity.Should().Be(4m);
     }
 
     [Fact]

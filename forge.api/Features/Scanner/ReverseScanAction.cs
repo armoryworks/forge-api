@@ -13,6 +13,7 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Scanner;
 
@@ -92,10 +93,14 @@ public class ReverseScanActionHandler(
             throw new InvalidOperationException(
                 "This material was already returned from the job, so the scan cannot be reversed.");
 
+        var receipt = await ScannedReceiptAsync(original, cancellationToken);
+
         // Create counter-movements based on action type
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
 
         var stockChange = await ReverseStockAsync(original, userId, now, cancellationToken);
+        if (receipt is not null)
+            await UndoReceiptAsync(receipt, original.Quantity, now, cancellationToken);
         foreach (var issueId in issueIds)
             await mediator.Send(new ReturnMaterialIssueCommand(
                 original.RelatedEntityId!.Value, issueId, userId, StockRestoredByCaller: true), cancellationToken);
@@ -141,6 +146,66 @@ public class ReverseScanActionHandler(
             .OrderBy(mi => mi.Id)
             .Select(mi => mi.Id)
             .ToListAsync(ct);
+    }
+
+    private async Task<ReceivingRecord?> ScannedReceiptAsync(ScanActionLog original, CancellationToken ct)
+    {
+        if (original.ActionType != ScanActionType.Receive)
+            return null;
+
+        var note = ScanReceiveNote.For(original.Id);
+        var receipt = await db.ReceivingRecords
+            .Include(r => r.PurchaseOrderLine).ThenInclude(l => l.PurchaseOrder).ThenInclude(po => po.Lines)
+            .FirstOrDefaultAsync(r => r.Notes == note, ct)
+            ?? throw new InvalidOperationException(
+                "This receipt can't be reversed from the scanner. Ask a buyer or inventory lead to correct it.");
+
+        if (receipt.InspectionStatus is not (ReceivingInspectionStatus.NotRequired or ReceivingInspectionStatus.Pending)
+            || receipt.QcInspectionId is not null)
+            throw new InvalidOperationException(
+                "This receipt has already been inspected, so the scan cannot be reversed.");
+
+        var journalKey = ReceiptInventoryPostingService.ReceiptIdempotencyKey(
+            receipt.PurchaseOrderLine.PurchaseOrderId, receipt.ReceiptNumber ?? string.Empty);
+        if (await db.JournalEntries.AnyAsync(j => j.IdempotencyKey == journalKey, ct))
+            throw new InvalidOperationException(
+                "This receipt is already posted to the books, so the scan cannot be reversed. Ask a buyer or inventory lead to correct it.");
+
+        if (await db.VendorBillLines.AnyAsync(b => b.PurchaseOrderLineId == receipt.PurchaseOrderLineId, ct))
+            throw new InvalidOperationException(
+                "This purchase order line is already billed, so the scan cannot be reversed. Ask a buyer or inventory lead to correct it.");
+
+        return receipt;
+    }
+
+    private async Task UndoReceiptAsync(ReceivingRecord receipt, decimal baseQuantity, DateTimeOffset now, CancellationToken ct)
+    {
+        var line = receipt.PurchaseOrderLine;
+        var po = line.PurchaseOrder;
+        line.ReceivedQuantity -= receipt.QuantityReceived;
+        receipt.DeletedAt = now;
+
+        if (po.Status is PurchaseOrderStatus.Received or PurchaseOrderStatus.PartiallyReceived
+            && po.Lines.Any(l => l.RemainingQuantity > 0))
+        {
+            po.ReceivedDate = null;
+            po.Status = po.Lines.Any(l => l.ReceivedQuantity > 0)
+                ? PurchaseOrderStatus.PartiallyReceived
+                : po.AcknowledgedDate is null ? PurchaseOrderStatus.Submitted : PurchaseOrderStatus.Acknowledged;
+        }
+
+        if (receipt.LotNumber is not null)
+        {
+            var lot = await db.LotRecords
+                .FirstOrDefaultAsync(l => l.LotNumber == receipt.LotNumber && l.PartId == line.PartId, ct);
+            if (lot is not null)
+                lot.Quantity = Math.Max(0m, lot.Quantity - baseQuantity);
+        }
+
+        db.LogActivityAt(
+            "receipt-reversed",
+            $"Scanner receipt {receipt.ReceiptNumber} of {receipt.QuantityReceived} was reversed",
+            ("PurchaseOrder", po.Id));
     }
 
     private async Task<decimal> ReverseStockAsync(ScanActionLog original, int userId, DateTimeOffset now, CancellationToken ct)

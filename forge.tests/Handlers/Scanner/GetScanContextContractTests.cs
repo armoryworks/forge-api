@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
+using Forge.Api.Capabilities;
+using Forge.Api.Features.Lots;
 using Forge.Api.Features.Scanner;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -90,9 +92,10 @@ public class GetScanContextContractTests : IDisposable
         _db.ChangeTracker.Clear();
     }
 
-    private async Task<JsonElement> ContextJsonAsync(IHttpContextAccessor caller)
+    private async Task<JsonElement> ContextJsonAsync(
+        IHttpContextAccessor caller, ICapabilitySnapshotProvider? capabilities = null)
     {
-        var result = await new GetScanContextHandler(_db, caller)
+        var result = await new GetScanContextHandler(_db, caller, capabilities)
             .Handle(new GetScanContextQuery("RM-100"), CancellationToken.None);
         return JsonSerializer.SerializeToElement(result, WebJson);
     }
@@ -115,6 +118,40 @@ public class GetScanContextContractTests : IDisposable
         line.GetProperty("expectedQuantity").GetDecimal().Should().Be(10);
         line.GetProperty("receivedQuantity").GetDecimal().Should().Be(4);
         line.GetProperty("remainingQuantity").GetDecimal().Should().Be(6);
+        line.GetProperty("lotTracked").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ReceiveContext_FlagsALotTrackedPartWhileLotsAreOn()
+    {
+        await SeedAsync();
+        var raw = await _db.Parts.SingleAsync(p => p.PartNumber == "RM-100");
+        raw.TraceabilityType = TraceabilityType.Lot;
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var receive = Action(
+            await ContextJsonAsync(Caller("ProductionWorker"), new StubCapabilitySnapshotProvider(ReceiptLotRecords.Capability)),
+            "Receive");
+
+        receive.GetProperty("context").GetProperty("poLines").EnumerateArray().Single()
+            .GetProperty("lotTracked").GetBoolean().Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(PurchaseOrderStatus.Draft)]
+    [InlineData(PurchaseOrderStatus.Received)]
+    public async Task ReceiveContext_LeavesOutLinesOnAPurchaseOrderThatCannotBeReceived(PurchaseOrderStatus status)
+    {
+        await SeedAsync();
+        var po = await _db.PurchaseOrders.SingleAsync();
+        po.Status = status;
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var receive = Action(await ContextJsonAsync(Caller("ProductionWorker")), "Receive");
+
+        receive.GetProperty("enabled").GetBoolean().Should().BeFalse();
     }
 
     [Fact]

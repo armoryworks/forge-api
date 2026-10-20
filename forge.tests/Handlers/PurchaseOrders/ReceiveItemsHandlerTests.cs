@@ -1,12 +1,14 @@
 using FluentAssertions;
 using Moq;
 
+using Forge.Api.Features.Lots;
 using Forge.Api.Features.PurchaseOrders;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Integrations;
+using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.PurchaseOrders;
 
@@ -556,5 +558,21 @@ public class ReceiveItemsHandlerTests
 
         po.Status.Should().Be(PurchaseOrderStatus.Received);
         _addedRecords.Should().ContainSingle().Which.PackingSlipNumber.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_LotTrackedPartWithALot_ReturnsTheReceiptNumber()
+    {
+        var part = new Part { Id = 6, PartNumber = "HW-INS-M4", TraceabilityType = TraceabilityType.Lot };
+        var po = GivenStockPo(orderedQty: 10m, part);
+        var handler = new ReceiveItemsHandler(
+            _repo.Object, _clock, _mediator.Object, _httpContext.Object,
+            capabilities: new StubCapabilitySnapshotProvider(ReceiptLotRecords.Capability));
+
+        var result = await handler.Handle(new ReceiveItemsCommand(
+            po.Id, [new ReceiveLineModel(1, 10m, null, null, LotNumber: "HEAT-1")]), CancellationToken.None);
+
+        _addedRecords.Should().ContainSingle().Which.LotNumber.Should().Be("HEAT-1");
+        result.ReceiptNumber.Should().Be(_addedRecords[0].ReceiptNumber);
     }
 }
