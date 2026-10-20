@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -36,7 +38,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
             Direction = parameters.Direction,
             Status = ScheduleRunStatus.Running,
             RunByUserId = parameters.RunByUserId ?? 0,
-            ParametersJson = System.Text.Json.JsonSerializer.Serialize(parameters),
+            ParametersJson = SerializeParameters(parameters, isSimulation),
         };
         db.ScheduleRuns.Add(run);
         await db.SaveChangesAsync(ct);
@@ -96,7 +98,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
             var lockedByJobOperation = lockedOps
                 .GroupBy(so => (so.JobId, so.OperationId))
-                .ToDictionary(g => g.Key, g => g.Max(so => so.ScheduledEnd));
+                .ToDictionary(g => g.Key, g => (Start: g.Min(so => so.ScheduledStart), End: g.Max(so => so.ScheduledEnd)));
 
             foreach (var locked in lockedOps)
             {
@@ -128,6 +130,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                     ? null
                     : ScheduleToStart(parameters.ScheduleTo, capacityLookup, operations, workCenters[0].Id);
 
+                DateTimeOffset? previousStart = null;
                 DateTimeOffset? previousEnd = null;
                 var quantity = OperationTimeMath.JobBuildQuantity(job);
 
@@ -135,10 +138,11 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                 {
                     var op = operations[i];
 
-                    if (lockedByJobOperation.TryGetValue((job.Id, op.Id), out var lockedEnd))
+                    if (lockedByJobOperation.TryGetValue((job.Id, op.Id), out var locked))
                     {
-                        previousEnd = lockedEnd;
-                        cursor = cursor is { } c && c > lockedEnd ? c : lockedEnd;
+                        previousStart = locked.Start;
+                        previousEnd = locked.End;
+                        cursor = cursor is { } c && c > locked.End ? c : locked.End;
                         continue;
                     }
 
@@ -173,11 +177,12 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                     decimal totalHours = setupHours + runHours;
 
                     // Apply overlap from previous operation
-                    if (previousEnd.HasValue && cursor.HasValue && i > 0 && operations[i - 1].OverlapPercent > 0)
+                    if (previousStart is { } prevStart && previousEnd is { } prevEnd && cursor == prevEnd
+                        && i > 0 && operations[i - 1].OverlapPercent > 0)
                     {
-                        decimal overlapFraction = operations[i - 1].OverlapPercent / 100m;
-                        var prevDuration = previousEnd.Value - cursor.Value;
-                        cursor = cursor.Value.AddHours((double)(-(decimal)prevDuration.TotalHours * overlapFraction));
+                        var overlapFraction = Math.Min(operations[i - 1].OverlapPercent, 100m) / 100m;
+                        var overlapStart = prevEnd.AddHours(-(prevEnd - prevStart).TotalHours * (double)overlapFraction);
+                        cursor = overlapStart > prevStart ? overlapStart : prevStart;
                     }
 
                     var notBefore = cursor ?? capacity.MidnightUtc(parameters.ScheduleFrom);
@@ -218,6 +223,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                         laneFill[laneKey] = Math.Max(laneFill.GetValueOrDefault(laneKey), filledTo);
                     }
 
+                    previousStart = start;
                     previousEnd = end;
                     cursor = end;
                 }
@@ -530,11 +536,36 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
         return (WorkCenterCapacity.None with { Shifts = shifts, Overrides = calendarOverrides }).HoursOn(date);
     }
 
-    private static ScheduleRunResponseModel MapToResponse(ScheduleRun run)
+    public static ScheduleRunResponseModel MapToResponse(ScheduleRun run)
     {
         return new ScheduleRunResponseModel(
             run.Id, run.RunDate, run.Direction, run.Status,
             run.OperationsScheduled, run.ConflictsDetected,
-            run.CompletedAt, run.RunByUserId, run.ErrorMessage);
+            run.CompletedAt, run.RunByUserId, run.ErrorMessage,
+            IsSimulationRun(run.ParametersJson));
     }
+
+    private static string SerializeParameters(ScheduleParameters parameters, bool isSimulation)
+    {
+        var node = JsonSerializer.SerializeToNode(parameters)!.AsObject();
+        node[IsSimulationKey] = isSimulation;
+        return node.ToJsonString();
+    }
+
+    private static bool IsSimulationRun(string parametersJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(parametersJson);
+            return doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty(IsSimulationKey, out var flag)
+                && flag.ValueKind == JsonValueKind.True;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private const string IsSimulationKey = "IsSimulation";
 }
