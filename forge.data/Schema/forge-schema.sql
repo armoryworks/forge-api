@@ -3150,8 +3150,8 @@ CREATE TABLE public.cycle_count_lines (
     bin_content_id integer,
     entity_type character varying(50) NOT NULL,
     entity_id integer NOT NULL,
-    expected_quantity integer NOT NULL,
-    actual_quantity integer NOT NULL,
+    expected_quantity numeric(18,4) NOT NULL,
+    actual_quantity numeric(18,4) NOT NULL,
     notes character varying(500)
 );
 

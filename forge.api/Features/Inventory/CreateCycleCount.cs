@@ -55,8 +55,8 @@ public class CreateCycleCountHandler(
                 BinContentId = content.Id,
                 EntityType = content.EntityType,
                 EntityId = content.EntityId,
-                ExpectedQuantity = (int)content.Quantity,
-                ActualQuantity = (int)content.Quantity,
+                ExpectedQuantity = content.Quantity,
+                ActualQuantity = content.Quantity,
             });
         }
 

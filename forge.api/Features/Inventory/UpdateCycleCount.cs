@@ -69,13 +69,24 @@ public class UpdateCycleCountHandler(
         {
             cycleCount.Status = "Approved";
 
-            foreach (var line in cycleCount.Lines.Where(l => l.Variance != 0))
+            foreach (var line in cycleCount.Lines)
             {
                 if (line.BinContentId.HasValue)
                 {
                     var content = await repo.FindBinContentWithLocationAsync(line.BinContentId.Value, cancellationToken);
                     if (content != null)
                     {
+                        var onHand = content.RemovedAt is null ? content.Quantity : 0m;
+                        var delta = line.ActualQuantity - onHand;
+                        if (delta == 0)
+                            continue;
+
+                        if (onHand != line.ExpectedQuantity)
+                            throw new InvalidOperationException(
+                                $"Cannot approve: {line.EntityType} {line.EntityId} in this bin has changed from " +
+                                $"{line.ExpectedQuantity} to {onHand} since the count was taken. " +
+                                "Recount it in a new cycle count.");
+
                         // S-RI1: approving a count that drops a bin below its reserved qty would
                         // inflate 'available' (= on-hand − reserved) into a phantom surplus.
                         if (content.ReservedQuantity > line.ActualQuantity)
@@ -90,16 +101,21 @@ public class UpdateCycleCountHandler(
                             content.RemovedAt = now;
                             content.RemovedBy = userId;
                         }
+                        else
+                        {
+                            content.RemovedAt = null;
+                            content.RemovedBy = null;
+                        }
 
                         // Create movement record for the adjustment
                         var movement = new BinMovement
                         {
                             EntityType = line.EntityType,
                             EntityId = line.EntityId,
-                            Quantity = Math.Abs(line.Variance),
+                            Quantity = Math.Abs(delta),
                             LotNumber = content.LotNumber,
-                            FromLocationId = line.Variance < 0 ? content.LocationId : null,
-                            ToLocationId = line.Variance > 0 ? content.LocationId : null,
+                            FromLocationId = delta < 0 ? content.LocationId : null,
+                            ToLocationId = delta > 0 ? content.LocationId : null,
                             MovedBy = userId,
                             MovedAt = now,
                             Reason = BinMovementReason.CycleCount,
@@ -109,7 +125,7 @@ public class UpdateCycleCountHandler(
 
                         if (string.Equals(line.EntityType, "part", StringComparison.OrdinalIgnoreCase))
                             adjustments.Add(new InventoryAdjustmentPosting(
-                                "CycleCountLine", line.Id, line.EntityId, line.Variance,
+                                "CycleCountLine", line.Id, line.EntityId, delta,
                                 DateOnly.FromDateTime(now.UtcDateTime), userId, $"cycle count {cycleCount.Id}"));
                     }
                 }

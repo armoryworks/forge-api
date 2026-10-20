@@ -6,9 +6,9 @@ public class CycleCountLine : BaseEntity
     public int? BinContentId { get; set; }
     public string EntityType { get; set; } = string.Empty;
     public int EntityId { get; set; }
-    public int ExpectedQuantity { get; set; }
-    public int ActualQuantity { get; set; }
-    public int Variance => ActualQuantity - ExpectedQuantity;
+    public decimal ExpectedQuantity { get; set; }
+    public decimal ActualQuantity { get; set; }
+    public decimal Variance => ActualQuantity - ExpectedQuantity;
     public string? Notes { get; set; }
 
     public CycleCount CycleCount { get; set; } = null!;

@@ -10,6 +10,8 @@ public class CycleCountLineConfiguration : IEntityTypeConfiguration<CycleCountLi
     {
         builder.Ignore(e => e.Variance);
 
+        builder.Property(e => e.ExpectedQuantity).HasPrecision(18, 4);
+        builder.Property(e => e.ActualQuantity).HasPrecision(18, 4);
         builder.Property(e => e.EntityType).HasMaxLength(50);
         builder.Property(e => e.Notes).HasMaxLength(500);
 
