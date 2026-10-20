@@ -54,7 +54,7 @@ public class Job : BaseAuditableEntity, IConcurrencyVersioned
     public decimal EstimatedSubcontractCost { get; set; }
     public decimal EstimatedTotalCost => EstimatedMaterialCost + EstimatedLaborCost + EstimatedBurdenCost + EstimatedSubcontractCost;
     public decimal QuotedPrice { get; set; }
-    public decimal EstimatedMarginPercent => QuotedPrice > 0 ? (QuotedPrice - EstimatedTotalCost) / QuotedPrice * 100 : 0;
+    public decimal? EstimatedMarginPercent => QuotedPrice > 0 ? (QuotedPrice - EstimatedTotalCost) / QuotedPrice * 100 : null;
 
     // Disposition
     public JobDisposition? Disposition { get; set; }

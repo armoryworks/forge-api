@@ -83,7 +83,7 @@ public class ApproveSuggestionHandler(
             Priority: JobPriority.Normal,
             DueDate: now.AddDays(leadTimeDays),
             PartId: suggestion.PartId,
-            Quantity: suggestion.SuggestedQuantity), ct);
+            Quantity: JobQuantityRules.Fit(suggestion.SuggestedQuantity)), ct);
 
         return job.Id;
     }

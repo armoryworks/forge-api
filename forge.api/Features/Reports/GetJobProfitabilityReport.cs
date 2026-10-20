@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Jobs;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -37,19 +38,24 @@ public class GetJobProfitabilityReportHandler(AppDbContext db)
         }
 
         // Only include jobs with a quoted price
-        query = query.Where(j => j.QuotedPrice > 0);
+        query = query.Where(j => j.SalesOrderLineId != null || j.QuotedPrice > 0);
 
-        var jobs = await query
+        var candidates = await query
             .Select(j => new
             {
                 j.Id,
                 j.JobNumber,
                 j.Title,
                 CustomerName = j.Customer != null ? j.Customer.Name : null,
-                j.QuotedPrice,
                 j.CompletedDate,
             })
             .ToListAsync(cancellationToken);
+
+        var prices = await JobSalesPrice.ResolveAsync(db, candidates.Select(j => j.Id).ToList(), cancellationToken);
+        var jobs = candidates
+            .Select(j => new { j.Id, j.JobNumber, j.Title, j.CustomerName, j.CompletedDate, QuotedPrice = prices.GetValueOrDefault(j.Id) })
+            .Where(j => j.QuotedPrice > 0)
+            .ToList();
 
         var jobIds = jobs.Select(j => j.Id).ToList();
 

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Jobs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -21,7 +22,8 @@ public class ReleasePlannedOrderHandler(
     IBusinessIdentifierService identifiers,
     IVendorCostResolver vendorCostResolver,
     ICurrencyService currencyService,
-    IPartSourcingResolver sourcingResolver)
+    IPartSourcingResolver sourcingResolver,
+    IStandardCostResolver? standardCost = null)
     : IRequestHandler<ReleasePlannedOrderCommand, ReleasePlannedOrderResult>
 {
     public async Task<ReleasePlannedOrderResult> Handle(ReleasePlannedOrderCommand request, CancellationToken cancellationToken)
@@ -131,6 +133,7 @@ public class ReleasePlannedOrderHandler(
                 PartId = order.PartId,
                 Quantity = order.Quantity,
             });
+            await JobEstimates.SnapshotAsync(db, standardCost, job, order.Quantity, cancellationToken);
             job.ActivityLogs.Add(new JobActivityLog
             {
                 Action = ActivityAction.Created,

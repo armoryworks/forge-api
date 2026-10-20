@@ -45,10 +45,10 @@ public static class SalesOrderLineDefaultQuantity
                 .Select(jp => new { jp.Quantity, Completed = j.CompletedDate != null }))
             .ToListAsync(ct);
 
-        return Math.Max(1m, Remaining(
+        return JobQuantityRules.Fit(Math.Max(1m, Remaining(
             line.Quantity,
             Math.Max(line.ShippedQuantity, line.OnLiveShipments),
             onOpenJobs.Where(q => !q.Completed).Sum(q => q.Quantity),
-            onOpenJobs.Where(q => q.Completed).Sum(q => q.Quantity)));
+            onOpenJobs.Where(q => q.Completed).Sum(q => q.Quantity))));
     }
 }

@@ -1,3 +1,4 @@
+using Forge.Core.Entities;
 using Forge.Core.Models;
 
 namespace Forge.Core.Interfaces;
@@ -17,4 +18,11 @@ public interface IJobCostService
     Task<decimal> GetActualSubcontractCostAsync(int jobId, CancellationToken ct);
     Task<decimal> GetCurrentLaborRateAsync(int userId, DateTimeOffset asOf, CancellationToken ct);
     Task RecalculateTimeEntryCostsAsync(int jobId, CancellationToken ct);
+    /// <summary>Prices the job's time entries that carry no cost yet (labor, actual labor and burden all zero), leaving
+    /// already-priced entries alone. Run before absorbing conversion cost so entries logged before pricing ran are counted.</summary>
+    Task PriceUnpricedTimeEntriesAsync(int jobId, CancellationToken ct);
+    /// <summary>Sets one entry's labor, actual labor and burden cost from its duration (no save). Labor rate: the user's
+    /// labor rate, else the work center's labor cost per hour, else the operation's labor rate; burden follows the
+    /// costing policy the standard rollup uses.</summary>
+    Task PriceTimeEntryAsync(TimeEntry entry, CancellationToken ct);
 }

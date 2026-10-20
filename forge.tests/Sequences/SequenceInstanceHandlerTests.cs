@@ -51,6 +51,35 @@ public class SequenceInstanceHandlerTests
     }
 
     [Fact]
+    public async Task Instances_filter_by_subject_type_ignoring_case()
+    {
+        await using var f = new SequenceHandlerFixture();
+        var defId = await PublishedSerial(f);
+        var started = await Start(f, defId);
+
+        var found = await new GetSequenceInstancesHandler(f.Db)
+            .Handle(new GetSequenceInstancesQuery("job", 42, null, null), default);
+
+        found.Should().ContainSingle(i => i.Id == started.Id);
+    }
+
+    [Fact]
+    public async Task A_lowercase_subject_type_is_stored_canonically_and_matches_the_definition()
+    {
+        await using var f = new SequenceHandlerFixture();
+        var model = new SequenceDefinitionRequestModel("job-lower", "Lowercase subject", null, " job ",
+            [new("cut", "Cut", null, 0)], [], []);
+        var def = await new CreateSequenceDefinitionHandler(f.Db).Handle(new CreateSequenceDefinitionCommand(model), default);
+        await new PublishSequenceDefinitionHandler(f.Db, f.Clock).Handle(new PublishSequenceDefinitionCommand(def.Id, U), default);
+
+        var started = await new StartSequenceInstanceHandler(f.Db, f.Evaluation, f.Clock)
+            .Handle(new StartSequenceInstanceCommand(new StartSequenceRequestModel(def.Id, null, "JOB", 7), U), default);
+
+        def.SubjectEntityType.Should().Be("Job");
+        started.SubjectEntityType.Should().Be("Job");
+    }
+
+    [Fact]
     public async Task Complete_every_step_completes_the_instance_and_the_event_log_tells_the_story()
     {
         await using var f = new SequenceHandlerFixture();

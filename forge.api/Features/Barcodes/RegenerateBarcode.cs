@@ -1,5 +1,7 @@
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Middleware;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -10,11 +12,24 @@ namespace Forge.Api.Features.Barcodes;
 public record RegenerateBarcodeCommand(BarcodeEntityType EntityType, int EntityId, string NaturalIdentifier)
     : IRequest<BarcodeResponseModel>;
 
-public class RegenerateBarcodeHandler(AppDbContext db, IBarcodeService barcodeService)
+public class RegenerateBarcodeHandler(AppDbContext db, IBarcodeService barcodeService, IHttpContextAccessor? httpContext = null)
     : IRequestHandler<RegenerateBarcodeCommand, BarcodeResponseModel>
 {
+    public const string JobRoleMessage = "Only an admin or a manager can regenerate a work order barcode.";
+
     public async Task<BarcodeResponseModel> Handle(RegenerateBarcodeCommand request, CancellationToken cancellationToken)
     {
+        if (request.EntityType == BarcodeEntityType.Job)
+        {
+            var user = httpContext?.HttpContext?.User;
+            if (user?.IsInRole("Admin") != true && user?.IsInRole("Manager") != true)
+                throw new ForbiddenException(JobRoleMessage);
+        }
+
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         // Deactivate existing barcodes for this entity
         var baseQuery = db.Barcodes
             .Where(b => b.EntityType == request.EntityType && b.DeletedAt == null);
@@ -43,6 +58,9 @@ public class RegenerateBarcodeHandler(AppDbContext db, IBarcodeService barcodeSe
 
         var newBarcode = await barcodeService.CreateBarcodeAsync(
             request.EntityType, request.EntityId, request.NaturalIdentifier, cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
         return new BarcodeResponseModel(
             newBarcode.Id, newBarcode.Value, newBarcode.EntityType.ToString(),

@@ -83,6 +83,7 @@ public class AddHoldHandler(
             Notes = request.Data.Notes?.Trim(),
             WorkCenterId = workCenterId,
             OperationId = operationId,
+            SetById = currentUserId,
         };
 
         await db.StatusEntries.AddAsync(statusEntry, cancellationToken);

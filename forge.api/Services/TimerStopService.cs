@@ -22,7 +22,8 @@ public class TimerStopService(
     UserManager<ApplicationUser> userManager,
     IJobRepository jobRepository,
     ICustomerRepository customerRepository,
-    ILogger<TimerStopService> logger) : ITimerStopService
+    ILogger<TimerStopService> logger,
+    IJobCostService? jobCost = null) : ITimerStopService
 {
     public void Close(TimeEntry entry, DateTimeOffset stopAt, string? notes = null, string? reason = null, string? appendNote = null)
     {
@@ -43,6 +44,14 @@ public class TimerStopService(
     public async Task<IReadOnlyList<TimeEntryResponseModel>> PublishStoppedAsync(
         IReadOnlyList<TimeEntry> entries, CancellationToken cancellationToken)
     {
+        var jobEntries = entries.Where(e => e.JobId.HasValue).ToList();
+        if (jobCost is not null && jobEntries.Count > 0)
+        {
+            foreach (var entry in jobEntries)
+                await jobCost.PriceTimeEntryAsync(entry, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         var results = new List<TimeEntryResponseModel>(entries.Count);
         foreach (var entry in entries)
         {

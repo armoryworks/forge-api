@@ -30,7 +30,8 @@ public class AdminCorrectTimeEntryValidator : AbstractValidator<AdminCorrectTime
 public class AdminCorrectTimeEntryHandler(
     AppDbContext db,
     ITimeTrackingRepository repo,
-    IMediator mediator) : IRequestHandler<AdminCorrectTimeEntryCommand, TimeEntryResponseModel>
+    IMediator mediator,
+    IJobCostService? jobCost = null) : IRequestHandler<AdminCorrectTimeEntryCommand, TimeEntryResponseModel>
 {
     public async Task<TimeEntryResponseModel> Handle(AdminCorrectTimeEntryCommand request, CancellationToken cancellationToken)
     {
@@ -57,15 +58,11 @@ public class AdminCorrectTimeEntryHandler(
         var data = request.Data;
         if (data.JobId.HasValue) entry.JobId = data.JobId;
         if (data.Date.HasValue) entry.Date = data.Date.Value;
-        if (data.StartTime.HasValue) entry.TimerStart = data.StartTime.Value;
-        if (data.EndTime.HasValue) entry.TimerStop = data.EndTime.Value;
-        // Auto-calculate duration from start/end if both are provided
-        if (data.StartTime.HasValue && data.EndTime.HasValue)
-            entry.DurationMinutes = (int)Math.Round((data.EndTime.Value - data.StartTime.Value).TotalMinutes);
-        else if (data.DurationMinutes.HasValue)
-            entry.DurationMinutes = data.DurationMinutes.Value;
+        TimeEntryTimes.Apply(entry, data.StartTime, data.EndTime, data.DurationMinutes);
         if (data.Category is not null) entry.Category = data.Category.Trim();
         if (data.Notes is not null) entry.Notes = data.Notes.Trim();
+        if (jobCost is not null && entry.JobId.HasValue)
+            await jobCost.PriceTimeEntryAsync(entry, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

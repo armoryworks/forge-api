@@ -19,20 +19,20 @@ public class OnJobCreated_StartSequences(AppDbContext db, IMediator mediator) : 
     {
         var defs = await db.SequenceDefinitions
             .Where(d => d.DeletedAt == null && d.Status == SequenceDefinitionStatus.Published
-                        && d.SubjectEntityType == "Job" && d.AutoStartOnSubjectCreate)
+                        && d.SubjectEntityType != null && d.SubjectEntityType.ToLower() == SequenceSubjects.JobLower && d.AutoStartOnSubjectCreate)
             .OrderByDescending(d => d.Version)
             .ToListAsync(cancellationToken);
         if (defs.Count == 0) return;
 
         var running = await db.SequenceInstances
-            .Where(i => i.SubjectEntityType == "Job" && i.SubjectEntityId == notification.JobId && i.Status == SequenceInstanceStatus.Running)
+            .Where(i => i.SubjectEntityType != null && i.SubjectEntityType.ToLower() == SequenceSubjects.JobLower && i.SubjectEntityId == notification.JobId && i.Status == SequenceInstanceStatus.Running)
             .Select(i => i.Definition!.Code).ToListAsync(cancellationToken);
 
         foreach (var def in defs.GroupBy(d => d.Code).Select(g => g.First()))
         {
             if (running.Contains(def.Code)) continue;
             await mediator.Send(new StartSequenceInstanceCommand(
-                new StartSequenceRequestModel(def.Id, null, "Job", notification.JobId), notification.UserId), cancellationToken);
+                new StartSequenceRequestModel(def.Id, null, SequenceSubjects.Job, notification.JobId), notification.UserId), cancellationToken);
         }
     }
 }

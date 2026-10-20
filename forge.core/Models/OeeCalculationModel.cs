@@ -20,6 +20,7 @@ public record OeeCalculationModel
     public decimal Availability { get; init; }
     public decimal Performance { get; init; }
     public decimal Quality { get; init; }
+    public bool HasProduction { get; init; }
 
     public decimal Oee => Availability * Performance * Quality;
     public decimal OeePercent => Oee * 100;

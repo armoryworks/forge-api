@@ -66,7 +66,7 @@ public class GetJobOperationTimeSummaryHandler(AppDbContext db)
                     ActualTotalMinutes = totalMinutes,
                     SetupVarianceMinutes = setupMinutes - estSetup,
                     RunVarianceMinutes = runMinutes - estRun,
-                    EfficiencyPercent = totalMinutes > 0 ? estTotal / totalMinutes * 100 : 0,
+                    EfficiencyPercent = totalMinutes > 0 && estTotal > 0 ? estTotal / totalMinutes * 100 : null,
                     EntryCount = entries.Count,
                 };
             })

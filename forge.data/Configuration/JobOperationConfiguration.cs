@@ -14,11 +14,11 @@ public class JobOperationConfiguration : IEntityTypeConfiguration<JobOperation>
         builder.Property(e => e.Version).HasDefaultValue(1u).IsConcurrencyToken();
 
         builder.Property(e => e.Title).HasMaxLength(200);
-        builder.Property(e => e.CompletedQuantity).HasPrecision(10, 2);
-        builder.Property(e => e.ScrapQuantity).HasPrecision(10, 2);
-        builder.Property(e => e.EstSetupMinutes).HasPrecision(10, 2);
+        builder.Property(e => e.CompletedQuantity).HasPrecision(18, 4);
+        builder.Property(e => e.ScrapQuantity).HasPrecision(18, 4);
+        builder.Property(e => e.EstSetupMinutes).HasPrecision(18, 4);
         builder.Property(e => e.EstRunMinutesEach).HasPrecision(14, 6);
-        builder.Property(e => e.EstRunMinutesLot).HasPrecision(10, 2);
+        builder.Property(e => e.EstRunMinutesLot).HasPrecision(18, 4);
 
         builder.HasIndex(e => new { e.JobId, e.OperationId })
             .IsUnique()

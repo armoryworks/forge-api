@@ -64,7 +64,7 @@ public class UpdateCostingProfileHandler(AppDbContext db, IClock clock)
 
         profile.Mode = mode;
         profile.DepartmentalRates = mode == "departmental" && rates.Count > 0
-            ? JsonSerializer.Serialize(rates, StandardCostRollupService.DeptRateJson)
+            ? JsonSerializer.Serialize(rates, CostingConversionPolicy.DeptRateJson)
             : null;
 
         // Persist first so a freshly-created profile has a real Id for the activity row to reference.

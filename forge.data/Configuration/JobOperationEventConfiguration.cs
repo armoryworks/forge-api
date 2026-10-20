@@ -10,7 +10,7 @@ public class JobOperationEventConfiguration : IEntityTypeConfiguration<JobOperat
     public void Configure(EntityTypeBuilder<JobOperationEvent> builder)
     {
         builder.Property(e => e.Kind).HasConversion<string>().HasMaxLength(20);
-        builder.Property(e => e.Quantity).HasPrecision(10, 2);
+        builder.Property(e => e.Quantity).HasPrecision(18, 4);
         builder.Property(e => e.ReasonCode).HasMaxLength(50);
 
         builder.HasIndex(e => new { e.JobOperationId, e.OccurredAt });

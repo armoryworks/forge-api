@@ -22,7 +22,7 @@ public class JobStageGateSource(AppDbContext db) : IGateSource
 
     public async Task<SequenceGateVerdictResult> EvaluateAsync(SequenceGateContext context, CancellationToken cancellationToken)
     {
-        if (context.Instance.SubjectEntityType != "Job" || context.Instance.SubjectEntityId is null)
+        if (!SequenceSubjects.IsJob(context.Instance.SubjectEntityType) || context.Instance.SubjectEntityId is null)
             return SequenceGateVerdictResult.NoGo("job-stage gate needs a Job subject");
         var cfg = SequenceGateConfig.Parse(context.Gate.ConfigJson);
         var stageCode = cfg.GetString("stageCode");

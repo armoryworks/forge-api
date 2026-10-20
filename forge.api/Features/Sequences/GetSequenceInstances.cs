@@ -15,7 +15,11 @@ public class GetSequenceInstancesHandler(AppDbContext db) : IRequestHandler<GetS
     public async Task<IReadOnlyList<SequenceInstanceResponseModel>> Handle(GetSequenceInstancesQuery request, CancellationToken cancellationToken)
     {
         var q = db.SequenceInstances.WithGraph().Where(i => i.DeletedAt == null);
-        if (!string.IsNullOrWhiteSpace(request.SubjectEntityType)) q = q.Where(i => i.SubjectEntityType == request.SubjectEntityType);
+        if (!string.IsNullOrWhiteSpace(request.SubjectEntityType))
+        {
+            var subjectType = request.SubjectEntityType.Trim().ToLowerInvariant();
+            q = q.Where(i => i.SubjectEntityType != null && i.SubjectEntityType.ToLower() == subjectType);
+        }
         if (request.SubjectEntityId.HasValue) q = q.Where(i => i.SubjectEntityId == request.SubjectEntityId);
         if (request.Status.HasValue) q = q.Where(i => i.Status == request.Status);
         if (request.DefinitionId.HasValue) q = q.Where(i => i.DefinitionId == request.DefinitionId);

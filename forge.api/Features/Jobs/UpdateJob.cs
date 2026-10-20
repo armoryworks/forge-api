@@ -45,6 +45,7 @@ public class UpdateJobCommandValidator : AbstractValidator<UpdateJobCommand>
             .Must((cmd, start) => !UpdateJobHandler.StartsAfterDue(start, cmd.DueDate))
             .WithMessage(UpdateJobHandler.StartAfterDueMessage);
         RuleFor(x => x.Quantity).GreaterThan(0).When(x => x.Quantity is not null);
+        RuleFor(x => x.Quantity).JobQuantityLimits();
     }
 }
 
@@ -57,7 +58,8 @@ public class UpdateJobHandler(
     ISystemSettingRepository systemSettings,
     IBusinessIdentifierService identifiers,
     AppDbContext db,
-    ICapabilitySnapshotProvider capabilities) : IRequestHandler<UpdateJobCommand, JobDetailResponseModel>
+    ICapabilitySnapshotProvider capabilities,
+    IStandardCostResolver? standardCost = null) : IRequestHandler<UpdateJobCommand, JobDetailResponseModel>
 {
     // System setting that gates caller-supplied job numbers (shared with CreateJob).
     private const string AllowManualJobNumbersKey = "jobs.allow_manual_numbers";
@@ -381,6 +383,8 @@ public class UpdateJobHandler(
             db.JobParts.Add(new JobPart { JobId = job.Id, PartId = job.PartId!.Value, Quantity = quantity });
         else
             buildPart.Quantity = quantity;
+
+        await JobEstimates.SnapshotAsync(db, standardCost, job, quantity, ct);
 
         var oldText = oldQuantity?.ToString("0.####", CultureInfo.InvariantCulture);
         var newText = quantity.ToString("0.####", CultureInfo.InvariantCulture);

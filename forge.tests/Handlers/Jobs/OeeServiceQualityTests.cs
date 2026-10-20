@@ -51,5 +51,18 @@ public class OeeServiceQualityTests : IDisposable
         result.Quality.Should().Be(0.8m, "8 good of 10 processed — NOT the old (8−2)/8 = 0.75");
     }
 
+    [Fact]
+    public async Task NoRuns_ReportsNoProduction()
+    {
+        var wc = new WorkCenter { Name = "WC-IDLE", DailyCapacityHours = 8m, IdealCycleTimeSeconds = 60m, IsActive = true };
+        _db.Add(wc);
+        await _db.SaveChangesAsync();
+
+        var result = await new OeeService(_db).CalculateOeeAsync(
+            wc.Id, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), default);
+
+        result.HasProduction.Should().BeFalse();
+    }
+
     public void Dispose() => _db.Dispose();
 }

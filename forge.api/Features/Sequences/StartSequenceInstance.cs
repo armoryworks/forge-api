@@ -33,7 +33,9 @@ public class StartSequenceInstanceHandler(AppDbContext db, ISequenceEvaluationSe
         if (def is null) throw new KeyNotFoundException("No matching sequence definition.");
         if (def.Status != SequenceDefinitionStatus.Published)
             throw new InvalidOperationException($"Definition {def.Code} v{def.Version} is {def.Status}; only published definitions can start.");
-        if (def.SubjectEntityType is not null && !string.IsNullOrEmpty(m.SubjectEntityType) && def.SubjectEntityType != m.SubjectEntityType)
+        var subjectType = SequenceSubjects.Canonical(m.SubjectEntityType);
+        if (def.SubjectEntityType is not null && subjectType is not null
+            && !string.Equals(SequenceSubjects.Canonical(def.SubjectEntityType), subjectType, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException($"Definition {def.Code} runs against {def.SubjectEntityType}, not {m.SubjectEntityType}.");
 
         var now = clock.UtcNow;
@@ -41,7 +43,7 @@ public class StartSequenceInstanceHandler(AppDbContext db, ISequenceEvaluationSe
         {
             DefinitionId = def.Id,
             Definition = def,
-            SubjectEntityType = string.IsNullOrWhiteSpace(m.SubjectEntityType) ? null : m.SubjectEntityType,
+            SubjectEntityType = subjectType,
             SubjectEntityId = m.SubjectEntityId,
             Status = SequenceInstanceStatus.Running,
             StartedAt = now,

@@ -1,5 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
+using Forge.Api.Features.Accounting;
+using Forge.Api.Features.Jobs;
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -7,7 +11,8 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Services;
 
-public class JobCostService(AppDbContext db) : IJobCostService
+public class JobCostService(
+    AppDbContext db, ICapabilitySnapshotProvider? capabilities = null, IStandardCostResolver? standardCost = null) : IJobCostService
 {
     public async Task<JobCostSummaryModel> GetCostSummaryAsync(int jobId, CancellationToken ct)
     {
@@ -23,27 +28,35 @@ public class JobCostService(AppDbContext db) : IJobCostService
                 j.EstimatedLaborCost,
                 j.EstimatedBurdenCost,
                 j.EstimatedSubcontractCost,
+                j.PartId,
+                BuildQuantity = j.JobParts.Where(jp => jp.PartId == j.PartId).Sum(jp => (decimal?)jp.Quantity) ?? 0m,
             })
             .FirstOrDefaultAsync(ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found");
+
+        var estimate = new JobEstimate(
+            job.EstimatedMaterialCost, job.EstimatedLaborCost, job.EstimatedBurdenCost, job.EstimatedSubcontractCost);
+        if (standardCost is not null && JobEstimates.IsUnset(estimate.Material, estimate.Labor, estimate.Burden, estimate.Subcontract))
+            estimate = await JobEstimates.ComputeAsync(db, standardCost, job.PartId, job.BuildQuantity, ct);
 
         var materialActual = await GetActualMaterialCostAsync(jobId, ct);
         var laborActual = await GetActualLaborCostAsync(jobId, ct);
         var burdenActual = await GetActualBurdenCostAsync(jobId, ct);
         var subcontractActual = await GetActualSubcontractCostAsync(jobId, ct);
+        var prices = await JobSalesPrice.ResolveAsync(db, [jobId], ct);
 
         return new JobCostSummaryModel
         {
             JobId = job.Id,
             JobNumber = job.JobNumber,
-            QuotedPrice = job.QuotedPrice,
-            MaterialEstimated = job.EstimatedMaterialCost,
+            QuotedPrice = prices.GetValueOrDefault(jobId, job.QuotedPrice),
+            MaterialEstimated = estimate.Material,
             MaterialActual = materialActual,
-            LaborEstimated = job.EstimatedLaborCost,
+            LaborEstimated = estimate.Labor,
             LaborActual = laborActual,
-            BurdenEstimated = job.EstimatedBurdenCost,
+            BurdenEstimated = estimate.Burden,
             BurdenActual = burdenActual,
-            SubcontractEstimated = job.EstimatedSubcontractCost,
+            SubcontractEstimated = estimate.Subcontract,
             SubcontractActual = subcontractActual,
         };
     }
@@ -123,40 +136,88 @@ public class JobCostService(AppDbContext db) : IJobCostService
     {
         var entries = await db.TimeEntries
             .Where(t => t.JobId == jobId)
-            .Include(t => t.Operation)
             .ToListAsync(ct);
 
-        // Pre-load labor rates for all users referenced by these entries
+        await PriceAsync(entries, ct);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task PriceUnpricedTimeEntriesAsync(int jobId, CancellationToken ct)
+    {
+        var entries = await db.TimeEntries
+            .Where(t => t.JobId == jobId && t.DurationMinutes > 0
+                && t.LaborCost == 0m && t.ActualLaborCost == 0m && t.BurdenCost == 0m)
+            .ToListAsync(ct);
+        if (entries.Count == 0)
+            return;
+
+        await PriceAsync(entries, ct);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public Task PriceTimeEntryAsync(TimeEntry entry, CancellationToken ct) => PriceAsync([entry], ct);
+
+    private async Task PriceAsync(IReadOnlyList<TimeEntry> entries, CancellationToken ct)
+    {
+        if (entries.Count == 0)
+            return;
+
         var userIds = entries.Select(e => e.UserId).Distinct().ToList();
-        var laborRates = await db.LaborRates
-            .AsNoTracking()
-            .Where(r => userIds.Contains(r.UserId))
-            .OrderByDescending(r => r.EffectiveFrom)
-            .ToListAsync(ct);
-
-        var ratesByUser = laborRates
+        var ratesByUser = (await db.LaborRates
+                .AsNoTracking()
+                .Where(r => userIds.Contains(r.UserId))
+                .OrderByDescending(r => r.EffectiveFrom)
+                .ToListAsync(ct))
             .GroupBy(r => r.UserId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        var operationIds = entries.Where(e => e.OperationId.HasValue).Select(e => e.OperationId!.Value).Distinct().ToList();
+        var operations = await db.Operations
+            .AsNoTracking()
+            .Where(o => operationIds.Contains(o.Id))
+            .Select(o => new { o.Id, o.WorkCenterId, o.LaborRate, o.BurdenRate })
+            .ToDictionaryAsync(o => o.Id, ct);
+
+        int? WorkCenterOf(TimeEntry e) =>
+            e.WorkCenterId ?? (e.OperationId is int opId && operations.TryGetValue(opId, out var op) ? op.WorkCenterId : null);
+
+        var workCenterIds = entries.Select(WorkCenterOf).Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+        var workCenters = await db.WorkCenters
+            .AsNoTracking()
+            .Where(w => workCenterIds.Contains(w.Id))
+            .Select(w => new { w.Id, w.LaborCostPerHour, w.BurdenRatePerHour })
+            .ToDictionaryAsync(w => w.Id, ct);
+
+        var policies = new Dictionary<DateOnly, CostingConversionPolicy>();
         foreach (var entry in entries)
         {
-            var entryDate = DateOnly.FromDateTime(entry.Date.ToDateTime(TimeOnly.MinValue));
+            if (!policies.TryGetValue(entry.Date, out var policy))
+            {
+                policy = await CostingConversionPolicy.LoadAsync(db, capabilities, entry.Date, ct);
+                policies[entry.Date] = policy;
+            }
 
             var userRate = ratesByUser.TryGetValue(entry.UserId, out var rates)
-                ? rates.FirstOrDefault(r => r.EffectiveFrom <= entryDate
-                    && (r.EffectiveTo == null || r.EffectiveTo >= entryDate))
+                ? rates.FirstOrDefault(r => r.EffectiveFrom <= entry.Date
+                    && (r.EffectiveTo == null || r.EffectiveTo >= entry.Date))
                 : null;
+            var operation = entry.OperationId is int operationId ? operations.GetValueOrDefault(operationId) : null;
+            var workCenterId = WorkCenterOf(entry);
+            var workCenter = workCenterId is int wcId ? workCenters.GetValueOrDefault(wcId) : null;
 
-            var hourlyRate = userRate?.StandardRatePerHour ?? 0m;
+            var hourlyRate = userRate?.StandardRatePerHour
+                ?? Positive(workCenter?.LaborCostPerHour)
+                ?? Positive(operation?.LaborRate)
+                ?? 0m;
             var actualRate = userRate?.ActualRatePerHour ?? hourlyRate; // no actual rate → costs at standard
-            var burdenRate = entry.Operation?.BurdenRate ?? 0m;
+            var burdenPerHour = Positive(operation?.BurdenRate) ?? workCenter?.BurdenRatePerHour ?? 0m;
             var hours = entry.DurationMinutes / 60m;
 
             entry.LaborCost = hours * hourlyRate;       // standard-rate basis (efficiency variance)
             entry.ActualLaborCost = hours * actualRate; // actual-rate basis (rate variance = actual − standard)
-            entry.BurdenCost = hours * burdenRate;
+            entry.BurdenCost = policy.Overhead(workCenterId, hours, entry.LaborCost, burdenPerHour);
         }
-
-        await db.SaveChangesAsync(ct);
     }
+
+    private static decimal? Positive(decimal? value) => value > 0m ? value : null;
 }

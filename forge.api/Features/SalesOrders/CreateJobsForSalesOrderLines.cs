@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Jobs;
 using Forge.Api.Features.SalesOrders.Acceptance;
 using Forge.Api.Features.Shipments;
 using Forge.Api.Hubs;
@@ -29,7 +30,8 @@ public class CreateJobsForSalesOrderLinesHandler(
     IHubContext<BoardHub> boardHub,
     ISalesOrderAcceptanceGate acceptanceGate,
     IMediator mediator,
-    ICloudFolderAutoCreator folderAutoCreator)
+    ICloudFolderAutoCreator folderAutoCreator,
+    IStandardCostResolver? standardCost = null)
     : IRequestHandler<CreateJobsForSalesOrderLinesCommand, CreateJobsForSalesOrderLinesResponseModel>
 {
     private const int MaxTitleLength = 200;
@@ -123,7 +125,7 @@ public class CreateJobsForSalesOrderLinesHandler(
         foreach (var line in toCreate)
         {
             var partId = line.PartId!.Value;
-            var quantity = SalesOrderShipping.OpenToShip(so, line);
+            var quantity = JobQuantityRules.Fit(SalesOrderShipping.OpenToShip(so, line));
             var jobNumber = await jobRepo.GenerateNextJobNumberAsync(cancellationToken);
 
             var job = new Job
@@ -149,6 +151,7 @@ public class CreateJobsForSalesOrderLinesHandler(
                 Quantity = quantity,
                 Notes = $"From {so.OrderNumber} line {line.LineNumber}",
             });
+            await JobEstimates.SnapshotAsync(db, standardCost, job, quantity, cancellationToken);
 
             job.ActivityLogs.Add(new JobActivityLog
             {

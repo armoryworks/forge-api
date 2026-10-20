@@ -119,7 +119,7 @@ public class StandardCostRollupServiceTests
         {
             Code = "default",
             Mode = "departmental",
-            DepartmentalRates = JsonSerializer.Serialize(rows, StandardCostRollupService.DeptRateJson),
+            DepartmentalRates = JsonSerializer.Serialize(rows, CostingConversionPolicy.DeptRateJson),
             EffectiveFrom = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)),
         });
         await db.SaveChangesAsync();
