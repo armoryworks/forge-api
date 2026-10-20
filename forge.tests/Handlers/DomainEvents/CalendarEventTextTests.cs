@@ -66,6 +66,6 @@ public class CalendarEventTextTests
             .Handle(new SalesOrderConfirmedEvent(so.Id, 1), CancellationToken.None);
 
         var evt = await db.Events.SingleAsync();
-        evt.Description.Should().Be("Delivery milestone for Sales Order SO-12, Line 1. Quantity: 5000.");
+        evt.Description.Should().Be("Delivery milestone for Sales Order SO-12, Line 1. Quantity: 5,000.");
     }
 }

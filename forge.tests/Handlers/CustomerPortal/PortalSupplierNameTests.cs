@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -48,6 +49,8 @@ public class PortalSupplierNameTests : IDisposable
         new RequestMagicLinkHandler(
                 _db, _portalAuth.Object, _email.Object,
                 new ConfigurationBuilder().Build(),
+                Mock.Of<IHostEnvironment>(),
+                Mock.Of<IClock>(c => c.UtcNow == DateTimeOffset.UtcNow),
                 NullLogger<RequestMagicLinkHandler>.Instance)
             .Handle(new RequestMagicLinkCommand(ContactEmail, "https://forge.test"), CancellationToken.None);
 

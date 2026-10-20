@@ -40,7 +40,7 @@ public class CustomerActivityWordingTests
         db.Customers.Add(customer);
         await db.SaveChangesAsync();
 
-        var result = await new GetCustomerSummaryHandler(db)
+        var result = await new GetCustomerSummaryHandler(db, Mock.Of<IClock>(c => c.UtcNow == DateTimeOffset.UtcNow))
             .Handle(new GetCustomerSummaryQuery(customer.Id), CancellationToken.None);
 
         result.IsOnCreditHold.Should().BeTrue();

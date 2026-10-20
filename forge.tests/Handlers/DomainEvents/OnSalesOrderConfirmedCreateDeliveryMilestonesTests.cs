@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.DomainEvents.Handlers;
+using Forge.Api.Features.Terminology;
 using Forge.Core.Entities;
 using Forge.Tests.Helpers;
 
@@ -31,7 +32,7 @@ public class OnSalesOrderConfirmedCreateDeliveryMilestonesTests
         db.SalesOrders.Add(so);
         await db.SaveChangesAsync();
         var handler = new OnSalesOrderConfirmed_CreateDeliveryMilestones(
-            db, NullLogger<OnSalesOrderConfirmed_CreateDeliveryMilestones>.Instance);
+            db, new TerminologyLabels(db), NullLogger<OnSalesOrderConfirmed_CreateDeliveryMilestones>.Instance);
 
         var original = CultureInfo.CurrentCulture;
         CultureInfo.CurrentCulture = new CultureInfo("de-DE");
