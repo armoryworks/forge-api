@@ -1,7 +1,9 @@
 using FluentAssertions;
+using MediatR;
 using Moq;
 
 using Forge.Api.Features.SalesTax;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -143,5 +145,48 @@ public class GetTaxRateForCustomerHandlerTests
         var result = await Handler(db).Handle(new GetTaxRateForCustomerQuery(customer.Id), CancellationToken.None);
 
         result.Should().BeNull();
+    }
+
+    private static TaxOverrideGuard Guard(AppDbContext db)
+    {
+        var mediator = new Mock<IMediator>();
+        mediator.Setup(m => m.Send(It.IsAny<GetTaxRateForCustomerQuery>(), It.IsAny<CancellationToken>()))
+            .Returns((GetTaxRateForCustomerQuery q, CancellationToken ct) => Handler(db).Handle(q, ct));
+        var clock = new Mock<IClock>();
+        clock.Setup(c => c.UtcNow).Returns(Now);
+        return new TaxOverrideGuard(db, mediator.Object, clock.Object);
+    }
+
+    [Fact]
+    public async Task Override_guard_lets_an_exempt_customer_be_quoted_at_zero_without_a_certificate()
+    {
+        using var db = TestDbContextFactory.Create();
+        await SeedUtahAsync(db);
+        var customer = await AddUtahCustomerAsync(db, c => c.IsTaxExempt = true);
+        var guard = Guard(db);
+
+        var baseline = await guard.GetDefaultRateAsync(customer.Id, CancellationToken.None);
+        var documentId = await guard.EnsureCanOverrideAsync(customer.Id, 0m, baseline, CancellationToken.None);
+
+        baseline.Should().Be(0m);
+        documentId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Override_guard_needs_a_certificate_to_tax_an_exempt_customer()
+    {
+        using var db = TestDbContextFactory.Create();
+        var (_, county, _) = await SeedUtahAsync(db);
+        var customer = await AddUtahCustomerAsync(db, c =>
+        {
+            c.IsTaxExempt = true;
+            c.DefaultTaxCodeId = county.Id;
+        });
+        var guard = Guard(db);
+
+        var baseline = await guard.GetDefaultRateAsync(customer.Id, CancellationToken.None);
+        var act = () => guard.EnsureCanOverrideAsync(customer.Id, county.Rate, baseline, CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
     }
 }

@@ -67,8 +67,12 @@ public class VoidPaymentGlReversalTests
         return new Mock<ISettingsService>().Object;
     }
 
-    private static VoidPaymentHandler Handler(AppDbContext db, IPaymentCashPostingService? cashPosting)
-        => new(new PaymentRepository(db), db, FullPolicySettings(), cashPosting);
+    private static readonly DateTimeOffset BeforeDueDate = new(2026, 1, 20, 0, 0, 0, TimeSpan.Zero);
+
+    private static VoidPaymentHandler Handler(
+        AppDbContext db, IPaymentCashPostingService? cashPosting, DateTimeOffset? now = null)
+        => new(new PaymentRepository(db), db, FullPolicySettings(), cashPosting,
+            Mock.Of<IClock>(c => c.UtcNow == (now ?? BeforeDueDate)));
 
     private static async Task<AppDbContext> SeedAsync()
     {
@@ -241,5 +245,17 @@ public class VoidPaymentGlReversalTests
         item.AppliedFunctionalAmount.Should().Be(0m);
         item.Status.Should().Be(OpenItemStatus.Open);
         item.OpenFunctionalAmount.Should().Be(100m);
+    }
+
+    [Fact]
+    public async Task Void_AfterTheDueDate_ReopensTheInvoiceAsOverdue()
+    {
+        using var db = await SeedAsync();
+        var (payment, invoice) = await AddPaidInvoiceAsync(db);
+
+        await Handler(db, cashPosting: null, now: invoice.DueDate.AddDays(1)).Handle(
+            new VoidPaymentCommand(payment.Id, new VoidPaymentRequestModel("bounced check")), CancellationToken.None);
+
+        (await db.Invoices.SingleAsync(i => i.Id == invoice.Id)).Status.Should().Be(InvoiceStatus.Overdue);
     }
 }
