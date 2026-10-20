@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Jobs;
 using Forge.Core.Models;
@@ -14,7 +15,7 @@ namespace Forge.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/jobs")]
-[Authorize(Roles = "Admin,Manager,PM,Engineer,ProductionWorker,OfficeManager,Procurement")]
+[Authorize(Roles = JobRoles.BoardRead)]
 [RequiresCapability("CAP-MFG-WO-RELEASE")]
 public class JobListController(IMediator mediator) : ControllerBase
 {
