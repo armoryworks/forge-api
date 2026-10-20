@@ -1,11 +1,12 @@
 using MediatR;
+using Forge.Api.Services;
 using Forge.Core.Interfaces;
 
 namespace Forge.Api.Features.Admin;
 
 public record GetBrandSettingsQuery : IRequest<BrandSettingsResponseModel>;
 
-public record BrandSettingsResponseModel(string? PrimaryColor, string? AccentColor, string? AppName, bool HasLogo);
+public record BrandSettingsResponseModel(string? PrimaryColor, string? AccentColor, string? AppName, bool HasLogo, string? CompanyName);
 
 public class GetBrandSettingsHandler(ISystemSettingRepository repo) : IRequestHandler<GetBrandSettingsQuery, BrandSettingsResponseModel>
 {
@@ -23,7 +24,8 @@ public class GetBrandSettingsHandler(ISystemSettingRepository repo) : IRequestHa
             PrimaryColor: lookup.GetValueOrDefault("theme.primary_color"),
             AccentColor: lookup.GetValueOrDefault("theme.accent_color"),
             AppName: lookup.GetValueOrDefault("app.name"),
-            HasLogo: hasLogo
+            HasLogo: hasLogo,
+            CompanyName: await CompanyIdentity.GetCompanyNameAsync(repo, ct)
         );
     }
 }

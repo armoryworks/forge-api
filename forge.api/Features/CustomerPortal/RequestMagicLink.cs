@@ -1,7 +1,10 @@
+using System.Net;
+
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -95,17 +98,20 @@ public class RequestMagicLinkHandler(
 
         try
         {
+            var company = await CompanyIdentity.GetCompanyNameAsync(db, ct);
+            var portalName = company is null ? "the customer portal" : $"the {company} customer portal";
+            var htmlPortalName = company is null ? portalName : $"the {WebUtility.HtmlEncode(company)} customer portal";
             var html =
                 $"<p>Hi {contact.FirstName},</p>" +
-                $"<p>Click the link below to sign in to the customer portal. The link expires in 15 minutes.</p>" +
+                $"<p>Click the link below to sign in to {htmlPortalName}. The link expires in 15 minutes.</p>" +
                 $"<p><a href=\"{link}\">Sign in to the portal</a></p>" +
                 $"<p>If you didn't request this, you can safely ignore this email.</p>";
             var text =
-                $"Hi {contact.FirstName},\n\nSign in to the customer portal — link expires in 15 minutes:\n{link}\n";
+                $"Hi {contact.FirstName},\n\nSign in to {portalName} — link expires in 15 minutes:\n{link}\n";
 
             await email.SendAsync(new EmailMessage(
                 To: contact.Email!,
-                Subject: "Sign in to your customer portal",
+                Subject: company is null ? "Sign in to your customer portal" : $"Sign in to the {company} customer portal",
                 HtmlBody: html,
                 PlainTextBody: text), ct);
         }
