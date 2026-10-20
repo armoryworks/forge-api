@@ -56,7 +56,7 @@ public class UpdateCarrierHandlerTests : IDisposable
         stored.DeliveryUpdateMode.Should().Be(CarrierDeliveryUpdateMode.Webhook);
         stored.RequiresScanToShip.Should().BeFalse();
         var log = await _db.ActivityLogs.SingleAsync(a => a.EntityType == "Carrier" && a.EntityId == carrier.Id && a.Action == "updated");
-        log.Description.Should().Contain("deliveryUpdateMode").And.Contain("requiresScanToShip");
+        log.Description.Should().Contain("delivery update mode").And.Contain("requires scan to ship");
     }
 
     [Fact]

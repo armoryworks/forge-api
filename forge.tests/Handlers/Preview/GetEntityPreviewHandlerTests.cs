@@ -66,6 +66,8 @@ public class GetEntityPreviewHandlerTests
         result!.Title.Should().Be("SO-1055");
         result.Subtitle.Should().Be("Acme Corp");
         result.Fields.Should().Contain(f => f.Label == "Status" && f.Value == "Confirmed");
+        result.Fields.Should().Contain(f => f.Key == "status" && f.Kind == "enum" && f.RawValue == "Confirmed");
+        result.Fields.Should().Contain(f => f.Key == "total" && f.Kind == "money" && f.RawValue == "0");
         result.Links.Should().Contain(l => l.Type == "customer" && l.Id == customer.Id);
     }
 

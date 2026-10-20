@@ -89,7 +89,7 @@ public class UpdateLeadOutreachPreferencesHandler(AppDbContext db, IClock clock)
         {
             var verb = isNew ? "outreach-preferences-created" : "outreach-preferences-updated";
             db.LogActivityAt(verb,
-                $"Updated outreach preferences: {string.Join(", ", changed)}",
+                $"Updated outreach preferences: {ActivityChangeSummary.Fields(changed)}",
                 ("Lead", request.LeadId));
         }
 

@@ -173,7 +173,7 @@ public class TermsDocumentCrudHandlerTests
 
         // Rollup rule: one explicit row covering both fields.
         var log = _db.ActivityLogs.Single(l => l.Action == "terms-document-updated");
-        log.Description.Should().Contain("title").And.Contain("bodyMarkdown");
+        log.Description.Should().Contain("title").And.Contain("body markdown");
     }
 
     [Fact]

@@ -25,6 +25,8 @@ public class GetEcoByIdHandler(AppDbContext db) : IRequestHandler<GetEcoByIdQuer
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => $"{u.LastName}, {u.FirstName}", cancellationToken);
 
+        var itemLabels = await EcoAffectedItemLabels.ResolveAsync(db, eco.AffectedItems, cancellationToken);
+
         return new EcoResponseModel
         {
             Id = eco.Id,
@@ -49,6 +51,7 @@ public class GetEcoByIdHandler(AppDbContext db) : IRequestHandler<GetEcoByIdQuer
                 Id = a.Id,
                 EntityType = a.EntityType,
                 EntityId = a.EntityId,
+                EntityLabel = itemLabels.GetValueOrDefault((a.EntityType, a.EntityId)),
                 ChangeDescription = a.ChangeDescription,
                 OldValue = a.OldValue,
                 NewValue = a.NewValue,

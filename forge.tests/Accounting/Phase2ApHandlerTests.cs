@@ -654,6 +654,8 @@ public class Phase2ApHandlerTests
         detail.FxRate.Should().Be(1m);
         detail.Lines.Should().HaveCount(1);
         detail.Lines[0].PurchaseOrderLineId.Should().Be(poLineId);
+        detail.PurchaseOrderNumber.Should().Be("PO-9");
+        detail.Lines[0].PurchaseOrderLineLabel.Should().Be("PO-9 line 1");
         detail.Lines[0].Quantity.Should().Be(3m);
         detail.Lines[0].LineTotal.Should().Be(30m);
     }

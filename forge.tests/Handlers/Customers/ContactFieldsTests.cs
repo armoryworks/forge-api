@@ -78,7 +78,7 @@ public class ContactFieldsTests
         listed.ContactName.Should().Be("Night shift lead");
         listed.Phone.Should().Be("555-0199");
         (await db.ActivityLogs.SingleAsync(a => a.Action == "address-updated")).Description
-            .Should().Contain("contactName").And.Contain("phone");
+            .Should().Contain("contact name").And.Contain("phone");
     }
 
     [Fact]

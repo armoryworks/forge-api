@@ -16,7 +16,9 @@ public static class SequenceMapping
             g.StepKey, g.Key, g.Name, g.SourceType, g.ConfigJson, g.ExpiryAction, g.EscalateRole)).ToList(),
         d.CreatedAt, d.UpdatedAt);
 
-    public static SequenceInstanceResponseModel ToModel(SequenceInstance i)
+    public static SequenceInstanceResponseModel ToModel(SequenceInstance i) => ToModel(i, null);
+
+    public static SequenceInstanceResponseModel ToModel(SequenceInstance i, string? subjectLabel)
     {
         var def = i.Definition ?? throw new InvalidOperationException("Instance loaded without its definition.");
         var net = new SequenceNet(def);
@@ -48,7 +50,7 @@ public static class SequenceMapping
 
         return new SequenceInstanceResponseModel(i.Id, i.DefinitionId, def.Code, def.Version, def.Name,
             i.SubjectEntityType, i.SubjectEntityId, i.Status, i.StartedAt, i.StartedByUserId, i.CompletedAt,
-            i.CancelledAt, i.CancelReason, i.Version, steps, gateModels);
+            i.CancelledAt, i.CancelReason, i.Version, steps, gateModels, subjectLabel);
     }
 
     public static SequenceEventResponseModel ToModel(SequenceEvent e) =>

@@ -219,7 +219,7 @@ public class UpdatePurchaseOrderHandler(
             var pickSummary = picks.Count > 0 ? $" ({string.Join(", ", picks)})" : string.Empty;
             var description = changedFields.Count == 1 && expectedDateChange is not null
                 ? expectedDateChange
-                : $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}{pickSummary}";
+                : $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {ActivityChangeSummary.Fields(changedFields)}{pickSummary}";
             db.LogActivityAt("updated", description, ("PurchaseOrder", po.Id));
         }
 

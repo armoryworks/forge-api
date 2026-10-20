@@ -29,6 +29,7 @@ public record EcoAffectedItemResponseModel
     public int Id { get; init; }
     public string EntityType { get; init; } = string.Empty;
     public int EntityId { get; init; }
+    public string? EntityLabel { get; init; }
     public string ChangeDescription { get; init; } = string.Empty;
     public string? OldValue { get; init; }
     public string? NewValue { get; init; }

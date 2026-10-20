@@ -32,6 +32,14 @@ public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorReposit
         var hasFailedTransmission = await repo.HasFailedTransmissionAsync(
             bill.PaymentApplications.Select(a => a.VendorPaymentId).Distinct().ToList(), cancellationToken);
 
+        var poIds = bill.Lines
+            .Select(l => l.PurchaseOrderLine?.PurchaseOrderId)
+            .Append(bill.PurchaseOrderId)
+            .OfType<int>()
+            .Distinct()
+            .ToList();
+        var poRefs = await repo.GetPurchaseOrderRefsAsync(poIds, cancellationToken);
+
         return new VendorBillDetailModel(
             bill.Id, bill.BillNumber, bill.VendorId, vendor?.CompanyName ?? $"Vendor {bill.VendorId}",
             bill.VendorInvoiceNumber, bill.PurchaseOrderId, bill.Status.ToString(), bill.BillDate, bill.DueDate,
@@ -43,9 +51,15 @@ public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorReposit
                     l.Id, l.LineNumber, l.PartId, l.PurchaseOrderLineId,
                     l.Description, l.Quantity, l.UnitPrice, l.LineTotal, l.AccountDeterminationKey,
                     l.GlAccountId,
-                    l.GlAccount is null ? null : $"{l.GlAccount.AccountNumber} {l.GlAccount.Name}"))
+                    l.GlAccount is null ? null : $"{l.GlAccount.AccountNumber} {l.GlAccount.Name}",
+                    l.PurchaseOrderLineId is int lineId && poRefs.Lines.TryGetValue(lineId, out var lineRef)
+                        ? $"{lineRef.PoNumber} line {lineRef.Position}"
+                        : null))
                 .ToList(),
             hasFailedTransmission,
-            bill.ExpenseId);
+            bill.ExpenseId,
+            bill.PurchaseOrderId is int poId && poRefs.PoNumbers.TryGetValue(poId, out var poNumber)
+                ? poNumber
+                : null);
     }
 }

@@ -24,6 +24,7 @@ public class GetSequenceInstancesHandler(AppDbContext db) : IRequestHandler<GetS
         if (request.Status.HasValue) q = q.Where(i => i.Status == request.Status);
         if (request.DefinitionId.HasValue) q = q.Where(i => i.DefinitionId == request.DefinitionId);
         var list = await q.OrderByDescending(i => i.StartedAt).Take(500).ToListAsync(cancellationToken);
-        return list.Select(SequenceMapping.ToModel).ToList();
+        var labels = await SequenceSubjectLabels.ResolveAsync(db, list, cancellationToken);
+        return list.Select(i => SequenceMapping.ToModel(i, SequenceSubjectLabels.Lookup(labels, i))).ToList();
     }
 }

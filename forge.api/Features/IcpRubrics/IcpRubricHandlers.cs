@@ -133,7 +133,7 @@ public class UpdateIcpRubricHandler(AppDbContext db) : IRequestHandler<UpdateIcp
         if (changed.Count > 0)
         {
             db.LogActivityAt("icp-rubric-updated",
-                $"Updated {changed.Count} field(s): {string.Join(", ", changed)}",
+                $"Updated {changed.Count} field(s): {ActivityChangeSummary.Fields(changed)}",
                 ("IcpRubric", rubric.Id));
         }
 

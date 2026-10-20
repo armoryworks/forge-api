@@ -131,7 +131,7 @@ public class UpdateCarrierHandler(AppDbContext db) : IRequestHandler<UpdateCarri
         if (changedFields.Count > 0)
         {
             db.LogActivityAt("updated",
-                $"Carrier {carrier.Name}: updated {changedFields.Count} field(s): {string.Join(", ", changedFields)}",
+                $"Carrier {carrier.Name}: updated {changedFields.Count} field(s): {ActivityChangeSummary.Fields(changedFields)}",
                 ("Carrier", carrier.Id));
             await db.SaveChangesAsync(cancellationToken);
         }

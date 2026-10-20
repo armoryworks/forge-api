@@ -43,7 +43,7 @@ public class UpdateCustomerCommercialTermsTests
         saved.IsTaxExempt.Should().BeTrue();
         saved.TaxExemptionId.Should().Be("UT-12345");
         (await db.ActivityLogs.SingleAsync(a => a.Action == "updated")).Description
-            .Should().Contain("creditLimit").And.Contain("isTaxExempt").And.Contain("taxExemptionId");
+            .Should().Contain("credit limit").And.Contain("tax exempt").And.Contain("tax exemption ID");
     }
 
     [Fact]

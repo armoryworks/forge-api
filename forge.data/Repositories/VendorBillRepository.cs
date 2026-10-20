@@ -83,6 +83,25 @@ public class VendorBillRepository(AppDbContext db) : IVendorBillRepository
             .Include(b => b.PaymentApplications)
             .FirstOrDefaultAsync(b => b.Id == id, ct);
 
+    public async Task<VendorBillPurchaseOrderRefs> GetPurchaseOrderRefsAsync(
+        IReadOnlyCollection<int> purchaseOrderIds, CancellationToken ct)
+    {
+        if (purchaseOrderIds.Count == 0)
+            return new VendorBillPurchaseOrderRefs(new Dictionary<int, string>(), new Dictionary<int, (string, int)>());
+
+        var orders = await db.PurchaseOrders.AsNoTracking()
+            .Where(p => purchaseOrderIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.PONumber, LineIds = p.Lines.OrderBy(l => l.Id).Select(l => l.Id).ToList() })
+            .ToListAsync(ct);
+
+        var lines = new Dictionary<int, (string, int)>();
+        foreach (var order in orders)
+            for (var i = 0; i < order.LineIds.Count; i++)
+                lines[order.LineIds[i]] = (order.PONumber, i + 1);
+
+        return new VendorBillPurchaseOrderRefs(orders.ToDictionary(o => o.Id, o => o.PONumber), lines);
+    }
+
     public Task<string> GenerateNextBillNumberAsync(CancellationToken ct)
         => DocumentNumberSequence.NextAsync(
             db.VendorBills.IgnoreQueryFilters().Select(b => b.BillNumber), "BILL", ct);

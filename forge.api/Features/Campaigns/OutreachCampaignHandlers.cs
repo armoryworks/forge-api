@@ -99,7 +99,7 @@ public class UpdateOutreachCampaignHandler(AppDbContext db)
         if (changed.Count > 0)
         {
             db.LogActivityAt("campaign-updated",
-                $"Updated {changed.Count} field(s): {string.Join(", ", changed)}",
+                $"Updated {changed.Count} field(s): {ActivityChangeSummary.Fields(changed)}",
                 ("Campaign", c.Id));
         }
 

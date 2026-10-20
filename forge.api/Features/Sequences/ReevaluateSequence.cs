@@ -17,6 +17,6 @@ public class ReevaluateSequenceHandler(AppDbContext db, ISequenceEvaluationServi
         await evaluation.EvaluateAsync(request.InstanceId, request.UserId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         var i = await db.SequenceInstances.WithGraph().FirstAsync(x => x.Id == request.InstanceId, cancellationToken);
-        return SequenceMapping.ToModel(i);
+        return await SequenceSubjectLabels.ToModelAsync(db, i, cancellationToken);
     }
 }

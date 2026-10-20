@@ -105,7 +105,7 @@ public class CreateQcInspectionHandler(AppDbContext db, IHttpContextAccessor htt
         var points = new List<(string, int)> { ("QcInspection", inspection.Id) };
         if (inspection.JobId is int loggedJobId)
             points.Add(("Job", loggedJobId));
-        db.LogActivityAt("inspection-started", $"Inspection QC #{inspection.Id} started", [.. points]);
+        db.LogActivityAt("inspection-started", $"QC inspection #{inspection.Id} started", [.. points]);
         await db.SaveChangesAsync(cancellationToken);
 
         return await QcInspectionMapping.LoadResponseAsync(db, inspection.Id, cancellationToken);

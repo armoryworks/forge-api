@@ -473,4 +473,33 @@ public class UpdatePartHandlerTests
         part.ProcurementSource.Should().Be(ProcurementSource.Make);
         part.InventoryClass.Should().Be(InventoryClass.Subassembly);
     }
+
+    [Fact]
+    public async Task Resending_unchanged_values_logs_no_update_row()
+    {
+        var part = new Part { Id = 1, PartNumber = "PRT-00001", Name = "Test", Description = "Steel", Status = PartStatus.Active };
+        _db.Parts.Attach(part);
+        SetupRepoForUpdate(part);
+
+        await _handler.Handle(
+            new UpdatePartCommand(1, EmptyUpdate() with { Name = "Test", Description = "Steel", Status = PartStatus.Active }),
+            CancellationToken.None);
+
+        _db.ActivityLogs.Local.Should().NotContain(a => a.Action == "updated");
+    }
+
+    [Fact]
+    public async Task Logs_only_the_fields_that_really_changed_in_plain_words()
+    {
+        var part = new Part { Id = 1, PartNumber = "PRT-00001", Name = "Test", Description = "Steel", Status = PartStatus.Active };
+        _db.Parts.Attach(part);
+        SetupRepoForUpdate(part);
+
+        await _handler.Handle(
+            new UpdatePartCommand(1, EmptyUpdate() with { Name = "Renamed", Description = "Steel", Status = PartStatus.Active, HtsCode = "8708.99" }),
+            CancellationToken.None);
+
+        _db.ActivityLogs.Local.Should().ContainSingle(a => a.Action == "updated")
+            .Which.Description.Should().Be("Updated 2 fields: HTS code, name");
+    }
 }

@@ -9,6 +9,7 @@ using Forge.Core.Entities.Compliance;
 using Forge.Core.Entities.Regulatory;
 using Forge.Core.Interfaces;
 using Forge.Core.Settings;
+using Forge.Data.Extensions;
 
 namespace Forge.Data.Context;
 
@@ -878,7 +879,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
                             EntityId = 0, // populated after save
                             UserId = userId,
                             Action = "Created",
-                            Description = $"{FormatEntityTypeName(entityType)} created",
+                            Description = $"{ActivityChangeSummary.TitleLabel(entityType)} created",
                             CreatedAt = now,
                         };
                         pendingAdded.Add((auditable, log));
@@ -908,7 +909,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
                             EntityId = entry.Entity.Id,
                             UserId = userId,
                             Action = "Deleted",
-                            Description = $"{FormatEntityTypeName(entityType)} deleted",
+                            Description = $"{ActivityChangeSummary.TitleLabel(entityType)} deleted",
                             CreatedAt = now,
                         });
                     }
@@ -942,7 +943,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
                                 EntityId = entry.Entity.Id,
                                 UserId = userId,
                                 Action = "Deleted",
-                                Description = $"{FormatEntityTypeName(entityType)} deleted",
+                                Description = $"{ActivityChangeSummary.TitleLabel(entityType)} deleted",
                                 CreatedAt = now,
                             });
 
@@ -969,8 +970,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
                         // Skip navigation/shadow properties
                         if (prop.Metadata.IsShadowProperty()) continue;
 
-                        var oldVal = FormatPropertyValue(prop.OriginalValue);
-                        var newVal = FormatPropertyValue(prop.CurrentValue);
+                        var oldVal = ActivityChangeSummary.FormatValue(prop.OriginalValue);
+                        var newVal = ActivityChangeSummary.FormatValue(prop.CurrentValue);
                         if (oldVal == newVal) continue;
 
                         if (IsRedacted(entry, prop))
@@ -987,7 +988,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
                                 EntityId = entry.Entity.Id,
                                 UserId = userId,
                                 Action = "FieldChanged",
-                                Description = $"{FormatPropertyName(prop.Metadata.Name)} changed from \"{oldVal}\" to \"{newVal}\"",
+                                Description = $"{ActivityChangeSummary.TitleLabel(prop.Metadata.Name)} changed from \"{oldVal}\" to \"{newVal}\"",
                                 FieldName = prop.Metadata.Name,
                                 OldValue = oldVal,
                                 NewValue = newVal,
@@ -1107,39 +1108,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     {
         if (string.IsNullOrEmpty(value)) return value;
         return value.Length <= maxLength ? value : value[..(maxLength - 3)] + "...";
-    }
-
-    private static string FormatPropertyValue(object? value)
-    {
-        if (value == null) return "";
-        if (value is DateTimeOffset dto) return dto.ToString("yyyy-MM-dd HH:mm:ss");
-        if (value is DateTime dt) return dt.ToString("yyyy-MM-dd HH:mm:ss");
-        if (value is decimal d) return d.ToString("G");
-        if (value is bool b) return b ? "true" : "false";
-        return value.ToString() ?? "";
-    }
-
-    private static string FormatPropertyName(string name)
-    {
-        // Convert PascalCase to spaced words: "CustomerPO" → "Customer PO"
-        var result = new System.Text.StringBuilder();
-        for (var i = 0; i < name.Length; i++)
-        {
-            if (i > 0 && char.IsUpper(name[i]))
-            {
-                // Don't add space between consecutive uppercase (e.g., "PO")
-                if (!char.IsUpper(name[i - 1]) || (i + 1 < name.Length && char.IsLower(name[i + 1])))
-                    result.Append(' ');
-            }
-            result.Append(name[i]);
-        }
-        return result.ToString();
-    }
-
-    private static string FormatEntityTypeName(string typeName)
-    {
-        // "SalesOrder" → "Sales Order"
-        return FormatPropertyName(typeName);
     }
 
     /// <summary>

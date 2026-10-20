@@ -81,7 +81,7 @@ public class UpsertSalesOrderStageHandler(AppDbContext db)
             action = "stage-updated";
             description = changed.Count == 0
                 ? $"Stage '{stage.Name}' saved with no field changes"
-                : $"Updated stage '{stage.Name}': {string.Join(", ", changed)}";
+                : $"Updated stage '{stage.Name}': {ActivityChangeSummary.Fields(changed)}";
         }
         else
         {

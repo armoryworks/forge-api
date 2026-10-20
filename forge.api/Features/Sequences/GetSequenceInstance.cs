@@ -14,6 +14,6 @@ public class GetSequenceInstanceHandler(AppDbContext db) : IRequestHandler<GetSe
     {
         var i = await db.SequenceInstances.WithGraph().FirstOrDefaultAsync(x => x.Id == request.Id && x.DeletedAt == null, cancellationToken)
             ?? throw new KeyNotFoundException($"Sequence instance {request.Id} not found.");
-        return SequenceMapping.ToModel(i);
+        return await SequenceSubjectLabels.ToModelAsync(db, i, cancellationToken);
     }
 }

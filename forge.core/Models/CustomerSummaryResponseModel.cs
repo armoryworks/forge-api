@@ -33,4 +33,5 @@ public record CustomerSummaryResponseModel(
     bool IsTaxExempt = false,
     string? TaxExemptionId = null,
     uint RowVersion = 0,
-    string? DefaultCreditTerms = null);
+    string? DefaultCreditTerms = null,
+    bool IsOnCreditHold = false);

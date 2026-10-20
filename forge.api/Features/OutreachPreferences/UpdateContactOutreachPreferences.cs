@@ -84,7 +84,7 @@ public class UpdateContactOutreachPreferencesHandler(AppDbContext db, IClock clo
         {
             var verb = isNew ? "outreach-preferences-created" : "outreach-preferences-updated";
             db.LogActivityAt(verb,
-                $"Updated outreach preferences: {string.Join(", ", changed)}",
+                $"Updated outreach preferences: {ActivityChangeSummary.Fields(changed)}",
                 ("Contact", request.ContactId),
                 ("Customer", contact.CustomerId));
         }

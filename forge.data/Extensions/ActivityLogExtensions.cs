@@ -17,7 +17,8 @@ namespace Forge.Data.Extensions;
 ///
 /// <para><strong>Rollup rule.</strong> A multi-field update is a single
 /// activity row whose Description summarizes all changes (e.g. "Updated 4
-/// fields: leadTimeDays, minOrderQty, packSize, notes"). Per-field history
+/// fields: lead time days, min order qty, pack size, notes"), with field
+/// names humanized by <see cref="ActivityChangeSummary"/>. Per-field history
 /// rows belong on the History tab, which is a different stream — do not
 /// emit one ActivityLog per field. See CLAUDE.md "Activity logging" for the
 /// authoritative spec.</para>

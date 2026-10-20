@@ -35,6 +35,6 @@ public class ClearSequenceGateHandler(AppDbContext db, ISequenceEvaluationServic
         }
         await evaluation.EvaluateAsync(i.Id, request.UserId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        return SequenceMapping.ToModel(await db.SequenceInstances.WithGraph().FirstAsync(x => x.Id == i.Id, cancellationToken));
+        return await SequenceSubjectLabels.ToModelAsync(db, await db.SequenceInstances.WithGraph().FirstAsync(x => x.Id == i.Id, cancellationToken), cancellationToken);
     }
 }

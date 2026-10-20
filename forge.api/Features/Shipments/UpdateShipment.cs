@@ -139,7 +139,7 @@ public class UpdateShipmentHandler(
             "updated",
             changedFields.Count == 1
                 ? $"Updated shipment {shipment.ShipmentNumber}: {changedFields[0]}"
-                : $"Updated {changedFields.Count} fields on shipment {shipment.ShipmentNumber}: {string.Join(", ", changedFields)}",
+                : $"Updated {changedFields.Count} fields on shipment {shipment.ShipmentNumber}: {ActivityChangeSummary.Fields(changedFields)}",
             ("Shipment", shipment.Id));
 
         await repo.SaveChangesAsync(cancellationToken);

@@ -115,7 +115,7 @@ public class UpdateSalesChannelHandler(AppDbContext db)
 
         db.LogActivityAt(
             "updated",
-            $"Updated {changed.Count} field(s): {string.Join(", ", changed)}",
+            $"Updated {changed.Count} field(s): {ActivityChangeSummary.Fields(changed)}",
             ("SalesChannel", channel.Id));
         await db.SaveChangesAsync(ct);
 

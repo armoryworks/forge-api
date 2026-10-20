@@ -157,7 +157,7 @@ public class UpdateVendorHandler(
         if (request.Is1099.HasValue && request.Is1099.Value != vendor.Is1099)
         {
             vendor.Is1099 = request.Is1099.Value;
-            changedFields.Add("is1099");
+            changedFields.Add("1099-vendor");
         }
         if (request.TaxId != null)
         {
@@ -183,7 +183,7 @@ public class UpdateVendorHandler(
         {
             db.LogActivityAt(
                 "updated",
-                $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}",
+                $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {ActivityChangeSummary.Fields(changedFields)}",
                 ("Vendor", vendor.Id));
         }
 

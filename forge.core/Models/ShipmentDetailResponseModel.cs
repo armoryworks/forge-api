@@ -28,4 +28,5 @@ public record ShipmentDetailResponseModel(
     int? InvoiceId,
     List<ShipmentLineResponseModel> Lines,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    string? InvoiceNumber = null);

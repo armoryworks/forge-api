@@ -81,7 +81,7 @@ public class UpdateTermsDocumentHandler(AppDbContext db)
         if (changedFields.Count > 0)
         {
             var description =
-                $"Updated terms document \"{doc.Title}\" ({changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)})";
+                $"Updated terms document \"{doc.Title}\" ({changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {ActivityChangeSummary.Fields(changedFields)})";
 
             if (doc.CustomerId.HasValue)
                 db.LogActivityAt("terms-document-updated", description, ("Customer", doc.CustomerId.Value));
