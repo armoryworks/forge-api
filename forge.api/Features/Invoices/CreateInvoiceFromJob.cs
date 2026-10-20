@@ -17,7 +17,8 @@ namespace Forge.Api.Features.Invoices;
 /// price comes from the job's sales-order line (that line's price and its not-yet-invoiced
 /// quantity, at the order's tax rate) or, for a job with no order line, from the job's quoted
 /// price at the customer's default tax rate. A job with neither is refused rather than drafted
-/// at 0.00, because an invoice cannot be repriced after it is created.
+/// at 0.00, because an invoice cannot be repriced after it is created. Credit terms come from the
+/// order, then the customer's default, then Net 30, and the due date follows those terms.
 /// </summary>
 public record CreateInvoiceFromJobCommand(int JobId) : IRequest<InvoiceListItemModel>;
 
@@ -32,7 +33,7 @@ public class CreateInvoiceFromJobValidator : AbstractValidator<CreateInvoiceFrom
 public class CreateInvoiceFromJobHandler(AppDbContext db, IMediator mediator, IClock clock)
     : IRequestHandler<CreateInvoiceFromJobCommand, InvoiceListItemModel>
 {
-    private const int DefaultNetDays = 30;
+    private const CreditTerms FallbackTerms = CreditTerms.Net30;
 
     public async Task<InvoiceListItemModel> Handle(
         CreateInvoiceFromJobCommand request, CancellationToken cancellationToken)
@@ -53,6 +54,10 @@ public class CreateInvoiceFromJobHandler(AppDbContext db, IMediator mediator, IC
             ? $"{job.JobNumber} — {job.Title}"
             : $"{job.JobNumber} — {job.Title}: {job.Description}";
         var now = clock.UtcNow;
+        var customerTerms = await db.Customers.AsNoTracking()
+            .Where(c => c.Id == customerId)
+            .Select(c => c.DefaultCreditTerms)
+            .FirstOrDefaultAsync(cancellationToken);
 
         CreateInvoiceCommand command;
         if (job.SalesOrderLine is { } orderLine)
@@ -63,13 +68,14 @@ public class CreateInvoiceFromJobHandler(AppDbContext db, IMediator mediator, IC
                 throw new InvalidOperationException(
                     $"Line {orderLine.LineNumber} of {order.OrderNumber} for {job.JobNumber} is already invoiced in full.");
 
+            var terms = order.CreditTerms ?? customerTerms ?? FallbackTerms;
             command = new CreateInvoiceCommand(
                 CustomerId: order.CustomerId,
                 SalesOrderId: order.Id,
                 ShipmentId: null,
                 InvoiceDate: now,
-                DueDate: now.AddDays(DefaultNetDays),
-                CreditTerms: null,
+                DueDate: now.AddDays(terms.NetDays()),
+                CreditTerms: terms.ToString(),
                 TaxRate: order.TaxRate,
                 Notes: $"Invoice for {job.JobNumber}: {job.Title}",
                 Lines:
@@ -81,13 +87,14 @@ public class CreateInvoiceFromJobHandler(AppDbContext db, IMediator mediator, IC
         else if (job.QuotedPrice > 0m)
         {
             var taxRate = await mediator.Send(new GetTaxRateForCustomerQuery(customerId), cancellationToken);
+            var terms = customerTerms ?? FallbackTerms;
             command = new CreateInvoiceCommand(
                 CustomerId: customerId,
                 SalesOrderId: null,
                 ShipmentId: null,
                 InvoiceDate: now,
-                DueDate: now.AddDays(DefaultNetDays),
-                CreditTerms: null,
+                DueDate: now.AddDays(terms.NetDays()),
+                CreditTerms: terms.ToString(),
                 TaxRate: taxRate?.Rate ?? 0m,
                 Notes: $"Invoice for {job.JobNumber}: {job.Title}",
                 Lines: [new CreateInvoiceLineModel(job.PartId, description, 1m, job.QuotedPrice)]);

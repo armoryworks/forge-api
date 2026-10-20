@@ -169,7 +169,7 @@ public class GetInvoiceSourcesHandlerTests
         var customer = new Customer { Name = "Acme" };
         _db.Customers.Add(customer);
         await _db.SaveChangesAsync();
-        var order = new SalesOrder { OrderNumber = "SO-7", CustomerId = customer.Id, Status = SalesOrderStatus.Shipped, TaxRate = 0.0725m };
+        var order = new SalesOrder { OrderNumber = "SO-7", CustomerId = customer.Id, Status = SalesOrderStatus.Shipped, TaxRate = 0.0725m, CreditTerms = CreditTerms.Net45 };
         var freight = new SalesOrderLine { Description = "Freight", Quantity = 1m, UnitPrice = 40m, LineNumber = 1, TaxCode = InvoiceLine.NonTaxableCode };
         order.Lines.Add(freight);
         _db.SalesOrders.Add(order);
@@ -182,6 +182,7 @@ public class GetInvoiceSourcesHandlerTests
         var result = await new GetInvoiceSourcesHandler(_db).Handle(new GetInvoiceSourcesQuery(customer.Id), CancellationToken.None);
 
         result.SalesOrders.Should().ContainSingle().Which.TaxRate.Should().Be(0.0725m);
+        result.SalesOrders.Single().CreditTerms.Should().Be(CreditTerms.Net45);
         result.Shipments.Single().Lines.Should().ContainSingle().Which.Taxable.Should().BeFalse();
     }
 

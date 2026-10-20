@@ -34,7 +34,9 @@ public record CustomerDetailResponseModel(
     // pre-existing positional call sites / fixtures compiling.
     string? CustomerNumber = null,
     string? Fax = null,
-    uint RowVersion = 0);
+    uint RowVersion = 0,
+    string? DefaultCreditTerms = null,
+    DateOnly? ExemptionExpiryDate = null);
 
 /// <summary>
 /// Minimal nested address shape returned alongside a customer record. Phase 3 F3.

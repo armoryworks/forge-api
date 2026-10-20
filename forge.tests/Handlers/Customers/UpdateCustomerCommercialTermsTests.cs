@@ -4,6 +4,7 @@ using Moq;
 
 using Forge.Api.Features.Customers;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 using Forge.Data.Repositories;
@@ -118,5 +119,43 @@ public class UpdateCustomerCommercialTermsTests
         summary.CreditLimit.Should().Be(5_000m);
         summary.IsTaxExempt.Should().BeTrue();
         summary.TaxExemptionId.Should().Be("UT-9");
+    }
+
+    [Fact]
+    public async Task Update_sets_default_credit_terms_from_a_typed_spelling()
+    {
+        using var db = TestDbContextFactory.Create();
+        var customer = await SeedAsync(db);
+
+        await CreateHandler(db).Handle(
+            new UpdateCustomerCommand(customer.Id, null, null, null, null, null, DefaultCreditTerms: "Net 45"),
+            CancellationToken.None);
+
+        (await db.Customers.SingleAsync()).DefaultCreditTerms.Should().Be(CreditTerms.Net45);
+        (await db.ActivityLogs.SingleAsync(a => a.Action == "updated")).Description.Should().Contain("defaultCreditTerms");
+    }
+
+    [Fact]
+    public async Task Update_clears_default_credit_terms_on_request_and_leaves_them_alone_otherwise()
+    {
+        using var db = TestDbContextFactory.Create();
+        var customer = await SeedAsync(db, c => c.DefaultCreditTerms = CreditTerms.Net60);
+
+        await CreateHandler(db).Handle(
+            new UpdateCustomerCommand(customer.Id, "Acme Renamed", null, null, null, null), CancellationToken.None);
+        (await db.Customers.SingleAsync()).DefaultCreditTerms.Should().Be(CreditTerms.Net60);
+
+        await CreateHandler(db).Handle(
+            new UpdateCustomerCommand(customer.Id, null, null, null, null, null, ClearDefaultCreditTerms: true),
+            CancellationToken.None);
+        (await db.Customers.SingleAsync()).DefaultCreditTerms.Should().BeNull();
+    }
+
+    [Fact]
+    public void Validator_rejects_unknown_default_credit_terms()
+    {
+        new UpdateCustomerValidator()
+            .Validate(new UpdateCustomerCommand(1, null, null, null, null, null, DefaultCreditTerms: "Net 31"))
+            .IsValid.Should().BeFalse();
     }
 }

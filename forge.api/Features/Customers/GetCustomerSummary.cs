@@ -79,6 +79,7 @@ public class GetCustomerSummaryHandler(AppDbContext db, IClock clock)
             customer.CreditLimit,
             customer.IsTaxExempt,
             customer.TaxExemptionId,
-            customer.Version);
+            customer.Version,
+            customer.DefaultCreditTerms?.ToString());
     }
 }

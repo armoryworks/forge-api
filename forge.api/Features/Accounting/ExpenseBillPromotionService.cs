@@ -218,21 +218,9 @@ public sealed class ExpenseBillPromotionService(
     /// conservative choice (the bill surfaces as due immediately rather than silently far-dated).
     /// </summary>
     private static (CreditTerms Terms, int Days) MapVendorTerms(string? vendorPaymentTerms)
-    {
-        var normalized = new string(
-            (vendorPaymentTerms ?? string.Empty).Where(char.IsLetterOrDigit).ToArray())
-            .ToLowerInvariant();
-
-        return normalized switch
-        {
-            "net15" => (CreditTerms.Net15, 15),
-            "net30" => (CreditTerms.Net30, 30),
-            "net45" => (CreditTerms.Net45, 45),
-            "net60" => (CreditTerms.Net60, 60),
-            "net90" => (CreditTerms.Net90, 90),
-            _ => (CreditTerms.DueOnReceipt, 0),
-        };
-    }
+        => CreditTermsExtensions.TryParseLenient(vendorPaymentTerms, out var terms)
+            ? (terms, terms.NetDays())
+            : (CreditTerms.DueOnReceipt, 0);
 
     /// <summary>The active book's functional currency, or the seeded default (1) when no book exists.</summary>
     private async Task<int> ResolveFunctionalCurrencyIdAsync(CancellationToken ct)

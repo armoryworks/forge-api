@@ -1,12 +1,13 @@
 using MediatR;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Settings;
 
 namespace Forge.Api.Features.Payments;
 
 public record GetPaymentByIdQuery(int Id) : IRequest<PaymentDetailResponseModel>;
 
-public class GetPaymentByIdHandler(IPaymentRepository repo)
+public class GetPaymentByIdHandler(IPaymentRepository repo, ISettingsService? settings = null)
     : IRequestHandler<GetPaymentByIdQuery, PaymentDetailResponseModel>
 {
     public async Task<PaymentDetailResponseModel> Handle(GetPaymentByIdQuery request, CancellationToken cancellationToken)
@@ -15,6 +16,9 @@ public class GetPaymentByIdHandler(IPaymentRepository repo)
             ?? throw new KeyNotFoundException($"Payment {request.Id} not found");
 
         var appliedAmount = payment.Applications.Sum(a => a.Amount);
+        var policy = settings is null
+            ? null
+            : await settings.GetStringAsync(PaymentsSettings.ModificationPolicyKey, cancellationToken);
 
         return new PaymentDetailResponseModel(
             payment.Id,
@@ -33,6 +37,7 @@ public class GetPaymentByIdHandler(IPaymentRepository repo)
                 a.InvoiceId, a.Invoice.InvoiceNumber, a.Amount)).ToList(),
             payment.CreatedAt,
             payment.UpdatedAt,
-            payment.Version);
+            payment.Version,
+            CanVoid: (policy ?? PaymentsSettings.PolicyFull) == PaymentsSettings.PolicyFull);
     }
 }

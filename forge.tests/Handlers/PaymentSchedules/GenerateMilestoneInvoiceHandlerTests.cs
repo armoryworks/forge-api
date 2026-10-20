@@ -99,6 +99,8 @@ public class GenerateMilestoneInvoiceHandlerTests
         sent!.CustomerId.Should().Be(order.CustomerId);
         sent.SalesOrderId.Should().Be(order.Id);
         sent.TaxRate.Should().Be(0m);
+        sent.DueDate.Should().Be(Now);
+        sent.CreditTerms.Should().Be("DueOnReceipt");
         sent.Lines.Should().HaveCount(1);
         sent.Lines[0].PartId.Should().BeNull();
         sent.Lines[0].Quantity.Should().Be(1m);
@@ -108,6 +110,33 @@ public class GenerateMilestoneInvoiceHandlerTests
         milestone.InvoiceId.Should().Be(77);
         milestone.AmountLocked.Should().Be(300.00m);
         milestone.Status.Should().Be(PaymentMilestoneStatus.Invoiced);
+    }
+
+    [Theory]
+    [InlineData(30, "Net30")]
+    [InlineData(37, null)]
+    public async Task Handle_NetDaysMilestone_StampsTermsOnlyWhenTheyMatchTheDueDate(int netDays, string? expectedTerms)
+    {
+        using var db = TestDbContextFactory.Create();
+        var (milestone, order) = await SeedLinkedMilestoneAsync(db);
+        milestone.DueTrigger = PaymentDueTrigger.NetDays;
+        milestone.NetDays = netDays;
+        await db.SaveChangesAsync();
+
+        CreateInvoiceCommand? sent = null;
+        _mediator
+            .Setup(m => m.Send(It.IsAny<CreateInvoiceCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<InvoiceListItemModel>, CancellationToken>((cmd, _) => sent = (CreateInvoiceCommand)cmd)
+            .ReturnsAsync(new InvoiceListItemModel(
+                78, "INV-00078", order.CustomerId, "Acme Corp", "Draft",
+                Now, Now, 300m, 0m, 300m, Now));
+
+        var handler = new GenerateMilestoneInvoiceHandler(db, _mediator.Object, FixedClock(), _providers.Object);
+        await handler.Handle(new GenerateMilestoneInvoiceCommand(milestone.Id), CancellationToken.None);
+
+        sent!.DueDate.Should().Be(Now.AddDays(netDays));
+        sent.CreditTerms.Should().Be(expectedTerms);
+        new CreateInvoiceValidator().Validate(sent).IsValid.Should().BeTrue();
     }
 
     [Fact]

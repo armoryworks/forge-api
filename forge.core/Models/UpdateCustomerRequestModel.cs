@@ -22,4 +22,6 @@ public record UpdateCustomerRequestModel(
     bool? IsTaxExempt = null,
     string? TaxExemptionId = null,
     decimal? CreditLimit = null,
-    bool? ClearCreditLimit = null);
+    bool? ClearCreditLimit = null,
+    string? DefaultCreditTerms = null,
+    bool? ClearDefaultCreditTerms = null);

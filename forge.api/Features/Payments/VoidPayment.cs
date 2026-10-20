@@ -26,7 +26,8 @@ public class VoidPaymentHandler(
     ISettingsService settings,
     // Optional / null-default so existing construction sites (unit tests without a GL) keep working;
     // production DI supplies it, and with CAP-ACCT-FULLGL off it no-ops anyway.
-    IPaymentCashPostingService? cashPosting = null)
+    IPaymentCashPostingService? cashPosting = null,
+    IClock? clock = null)
     : IRequestHandler<VoidPaymentCommand>
 {
     public async Task Handle(VoidPaymentCommand request, CancellationToken cancellationToken)
@@ -55,7 +56,8 @@ public class VoidPaymentHandler(
         foreach (var app in payment.Applications.ToList())
             db.Remove(app);
 
-        payment.DeletedAt = DateTimeOffset.UtcNow;
+        var now = clock?.UtcNow ?? DateTimeOffset.UtcNow;
+        payment.DeletedAt = now;
 
         db.LogActivityAt("voided", $"Payment {payment.PaymentNumber} voided: {reason}",
             ("Payment", payment.Id), ("Customer", payment.CustomerId));
@@ -75,7 +77,7 @@ public class VoidPaymentHandler(
             if (invoice is null) continue;
 
             invoice.Status = invoice.AmountPaid <= 0
-                ? InvoiceStatus.Sent
+                ? invoice.DueDate < now ? InvoiceStatus.Overdue : InvoiceStatus.Sent
                 : invoice.AmountPaid >= invoice.Total ? InvoiceStatus.Paid : InvoiceStatus.PartiallyPaid;
         }
 

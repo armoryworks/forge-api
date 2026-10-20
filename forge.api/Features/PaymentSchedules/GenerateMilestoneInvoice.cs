@@ -87,7 +87,7 @@ public class GenerateMilestoneInvoiceHandler(
             ShipmentId: null,
             InvoiceDate: now,
             DueDate: dueDate,
-            CreditTerms: null,
+            CreditTerms: CreditTermsExtensions.FromNetDays((dueDate.ToOffset(now.Offset).Date - now.Date).Days)?.ToString(),
             TaxRate: 0m,
             Notes: $"Pre-payment milestone invoice for order {salesOrder.OrderNumber}",
             Lines:

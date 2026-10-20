@@ -33,7 +33,10 @@ public class UpdateSalesOrderValidator : AbstractValidator<UpdateSalesOrderComma
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.ShippingAddressId).GreaterThan(0).When(x => x.ShippingAddressId.HasValue);
         RuleFor(x => x.BillingAddressId).GreaterThan(0).When(x => x.BillingAddressId.HasValue);
-        RuleFor(x => x.CreditTerms).MaximumLength(50).When(x => x.CreditTerms is not null);
+        RuleFor(x => x.CreditTerms)
+            .Must(t => CreditTermsExtensions.TryParseLenient(t, out _))
+            .When(x => !string.IsNullOrWhiteSpace(x.CreditTerms))
+            .WithMessage(CreditTermsExtensions.AllowedValuesMessage);
         RuleFor(x => x.CustomerPO).MaximumLength(100).When(x => x.CustomerPO is not null);
         RuleFor(x => x.Notes).MaximumLength(2000).When(x => x.Notes is not null);
         RuleFor(x => x.TaxRate).InclusiveBetween(0, 1).When(x => x.TaxRate.HasValue);
@@ -101,7 +104,12 @@ public class UpdateSalesOrderHandler(
             await EnsureAddressUsableAsync(order.CustomerId, billingId, AddressType.Billing, "billingAddressId", cancellationToken);
             order.BillingAddressId = billingId;
         }
-        if (request.CreditTerms != null) order.CreditTerms = Enum.Parse<CreditTerms>(request.CreditTerms, true);
+        if (!string.IsNullOrWhiteSpace(request.CreditTerms))
+        {
+            if (!CreditTermsExtensions.TryParseLenient(request.CreditTerms, out var terms))
+                throw new ValidationException(CreditTermsExtensions.AllowedValuesMessage);
+            order.CreditTerms = terms;
+        }
         if (request.RequestedDeliveryDate.HasValue) order.RequestedDeliveryDate = request.RequestedDeliveryDate;
         if (request.CustomerPO != null) order.CustomerPO = request.CustomerPO;
         if (request.Notes != null) order.Notes = request.Notes;

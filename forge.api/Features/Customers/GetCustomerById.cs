@@ -58,7 +58,9 @@ public class GetCustomerByIdHandler(ICustomerRepository repo)
             ReferenceNotes: customer.ReferenceNotes,
             CustomerNumber: customer.CustomerNumber,
             Fax: customer.Fax,
-            RowVersion: customer.Version);
+            RowVersion: customer.Version,
+            DefaultCreditTerms: customer.DefaultCreditTerms?.ToString(),
+            ExemptionExpiryDate: customer.ExemptionExpiryDate);
     }
 
     private static AddressOutput? PickAddress(Customer customer, AddressType type)

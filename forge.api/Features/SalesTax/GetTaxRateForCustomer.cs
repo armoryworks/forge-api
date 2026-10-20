@@ -26,7 +26,7 @@ public class GetTaxRateForCustomerHandler(AppDbContext db, IClock clock)
             .Where(r => r.IsActive
                      && r.EffectiveFrom <= now
                      && (r.EffectiveTo == null || r.EffectiveTo > now)
-                     && (exempt || !r.ExemptFlag));
+                     && (exempt ? r.ExemptFlag || r.Rate == 0m : !r.ExemptFlag));
 
         if (customer?.DefaultTaxCodeId is int defaultTaxCodeId)
         {
