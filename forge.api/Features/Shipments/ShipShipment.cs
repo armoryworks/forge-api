@@ -77,10 +77,6 @@ public class ShipShipmentHandler(
             httpContext?.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
             out var uid) ? uid : 0;
 
-        // Relieve on-hand inventory before flipping status. Backorder-tolerant: a line short of free stock
-        // is left unrelieved and logged on the shipment rather than blocking the ship — stock that was never
-        // tracked, or backordered lines, must still be shippable. Relief is idempotent per line
-        // (InventoryRelievedAt guard), so a later re-ship won't double-decrement.
         if (relief is not null
             && await relief.RelieveShipmentAsync(shipment, userId, cancellationToken) is { Count: > 0 } shortLines)
             logger?.LogWarning(
