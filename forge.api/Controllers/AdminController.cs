@@ -520,7 +520,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     [RequiresCapability("CAP-IDEN-AUTH-MFA")]
     public async Task<IActionResult> SetMfaPolicy([FromBody] MfaPolicyRequestModel request, CancellationToken ct)
     {
-        await mediator.Send(new SetMfaPolicyCommand(request.RequiredRoles), ct);
+        await mediator.Send(new SetMfaPolicyCommand(request.RequiredRoles, request.EnrollmentGraceDays), ct);
         return NoContent();
     }
 

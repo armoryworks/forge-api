@@ -11,5 +11,9 @@ public record GetMfaPolicyQuery : IRequest<MfaPolicyResponseModel>;
 public class GetMfaPolicyHandler(AppDbContext db) : IRequestHandler<GetMfaPolicyQuery, MfaPolicyResponseModel>
 {
     public async Task<MfaPolicyResponseModel> Handle(GetMfaPolicyQuery request, CancellationToken cancellationToken)
-        => new() { RequiredRoles = await MfaRolePolicy.GetEffectiveRequiredRolesAsync(db, cancellationToken) };
+        => new()
+        {
+            RequiredRoles = await MfaRolePolicy.GetEffectiveRequiredRolesAsync(db, cancellationToken),
+            EnrollmentGraceDays = await MfaRolePolicy.GetGraceDaysAsync(db, cancellationToken),
+        };
 }

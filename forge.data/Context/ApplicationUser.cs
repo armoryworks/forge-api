@@ -45,6 +45,7 @@ public class ApplicationUser : IdentityUser<int>, IActiveAware
     public bool MfaEnforcedByPolicy { get; set; }
     public DateTimeOffset? MfaEnabledAt { get; set; }
     public int MfaRecoveryCodesRemaining { get; set; }
+    public DateTimeOffset? MfaEnrollmentGraceStartedAt { get; set; }
 
     public bool IsNonEmployee { get; set; }
 

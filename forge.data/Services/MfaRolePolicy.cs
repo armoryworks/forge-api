@@ -10,6 +10,8 @@ namespace Forge.Data.Services;
 public static class MfaRolePolicy
 {
     public const string SettingKey = "mfa.required_roles";
+    public const string GraceDaysSettingKey = "mfa.enrollment_grace_days";
+    public const int DefaultGraceDays = 7;
 
     public static async Task<IReadOnlyList<string>?> GetRequiredRolesAsync(AppDbContext db, CancellationToken ct)
     {
@@ -65,6 +67,30 @@ public static class MfaRolePolicy
                 Key = SettingKey,
                 Value = value,
                 Description = "Roles whose members must enrol in multi-factor authentication",
+            });
+        else
+            existing.Value = value;
+    }
+
+    public static async Task<int> GetGraceDaysAsync(AppDbContext db, CancellationToken ct)
+    {
+        var raw = await db.SystemSettings.AsNoTracking()
+            .Where(s => s.Key == GraceDaysSettingKey)
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+        return int.TryParse(raw, out var days) && days >= 0 ? days : DefaultGraceDays;
+    }
+
+    public static async Task SetGraceDaysAsync(AppDbContext db, int days, CancellationToken ct)
+    {
+        var value = days.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var existing = await db.SystemSettings.FirstOrDefaultAsync(s => s.Key == GraceDaysSettingKey, ct);
+        if (existing is null)
+            db.SystemSettings.Add(new SystemSetting
+            {
+                Key = GraceDaysSettingKey,
+                Value = value,
+                Description = "Days a user in an MFA-required role may keep working before enrolling (0 = hold immediately)",
             });
         else
             existing.Value = value;

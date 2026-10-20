@@ -591,6 +591,7 @@ try
     builder.Services.AddScoped<ISystemAuditWriter, SystemAuditWriter>();
     // Phase 3 / WU-06 / C1 — role-template rollup expansion at auth time.
     builder.Services.AddScoped<IRoleClaimsExpander, RoleClaimsExpander>();
+    builder.Services.AddScoped<IMfaEnrollmentGrace, MfaEnrollmentGrace>();
     // Startup-only: pulls admin-saved integration settings out of system_settings
     // into the IOptions<T> singletons so a restart doesn't reset them to
     // appsettings.json defaults. See IntegrationOptionsHydrator docs.

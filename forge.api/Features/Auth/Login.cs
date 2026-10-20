@@ -22,7 +22,8 @@ public record AuthUserResponseModel(
     string? Initials,
     string? AvatarColor,
     string[] Roles,
-    bool ProfileComplete);
+    bool ProfileComplete,
+    DateTimeOffset? MfaEnrollmentDeadline = null);
 
 // --- Login ---
 
@@ -54,7 +55,8 @@ public class LoginHandler(
     IRoleClaimsExpander roleClaimsExpander,
     IMfaPreAuthTokenService mfaPreAuth,
     IMfaTrustedDeviceTokenService trustedDeviceTokens,
-    ICapabilitySnapshotProvider capabilities)
+    ICapabilitySnapshotProvider capabilities,
+    IMfaEnrollmentGrace mfaEnrollmentGrace)
     : IRequestHandler<LoginCommand, LoginResponse>
 {
     public async Task<LoginResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -125,12 +127,12 @@ public class LoginHandler(
         // WU-06 / C1 — combine identity roles with any roles included via
         // the user's assigned RoleTemplate so the JWT carries the full set.
         var roles = await roleClaimsExpander.GetEffectiveRolesAsync(user, cancellationToken);
-        var enrollmentRequired = await MfaEnrollmentGateMiddleware.IsRequiredAsync(db, user, cancellationToken);
+        var enrollment = await mfaEnrollmentGrace.EvaluateAsync(user, cancellationToken);
 
         var result = tokenService.GenerateToken(
             user.Id, user.Email!, user.FirstName, user.LastName,
             user.Initials, user.AvatarColor, roles,
-            extraClaims: MfaEnrollmentGateMiddleware.ExtraClaims(enrollmentRequired));
+            extraClaims: MfaEnrollmentGateMiddleware.ExtraClaims(enrollment));
 
         await sessionStore.CreateSessionAsync(user.Id, result.Jti, result.ExpiresAt,
             "credentials",
@@ -158,9 +160,10 @@ public class LoginHandler(
             user.Initials,
             user.AvatarColor,
             roles.ToArray(),
-            profileComplete);
+            profileComplete,
+            enrollment.GraceEndsAt);
 
-        return new LoginResponse(result.Token, result.ExpiresAt, userResponse, MfaEnrollmentRequired: enrollmentRequired);
+        return new LoginResponse(result.Token, result.ExpiresAt, userResponse, MfaEnrollmentRequired: enrollment.Hold);
     }
 }
 
@@ -172,7 +175,8 @@ public class GetCurrentUserHandler(
     UserManager<ApplicationUser> userManager,
     AppDbContext db,
     IRoleClaimsExpander roleClaimsExpander,
-    ICapabilitySnapshotProvider capabilities)
+    ICapabilitySnapshotProvider capabilities,
+    IMfaEnrollmentGrace mfaEnrollmentGrace)
     : IRequestHandler<GetCurrentUserQuery, AuthUserResponseModel>
 {
     public async Task<AuthUserResponseModel> Handle(GetCurrentUserQuery request, CancellationToken cancellationToken)
@@ -190,6 +194,7 @@ public class GetCurrentUserHandler(
         var roles = await roleClaimsExpander.GetEffectiveRolesAsync(user, cancellationToken);
 
         var profileComplete = await EmployeeComplianceRules.IsProfileCompleteAsync(db, capabilities, user.Id, cancellationToken);
+        var enrollment = await mfaEnrollmentGrace.EvaluateAsync(user, cancellationToken);
 
         return new AuthUserResponseModel(
             user.Id,
@@ -199,6 +204,7 @@ public class GetCurrentUserHandler(
             user.Initials,
             user.AvatarColor,
             roles.ToArray(),
-            profileComplete);
+            profileComplete,
+            enrollment.GraceEndsAt);
     }
 }
