@@ -88,7 +88,61 @@ public class GlCsvExportTests
     }
 
     private static string[] Lines(byte[] content)
-        => Encoding.UTF8.GetString(content).Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+        => Encoding.UTF8.GetString(content).TrimStart('\uFEFF').Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+
+    [Fact]
+    public void CsvBuilder_StartsWithUtf8ByteOrderMark()
+    {
+        var bytes = new CsvBuilder().AppendRow("a", "Café").ToUtf8Bytes();
+
+        bytes.Take(3).Should().Equal(0xEF, 0xBB, 0xBF);
+        Encoding.UTF8.GetString(bytes[3..]).Should().Be("a,Café\r\n");
+    }
+
+    [Theory]
+    [InlineData("=SUM(A1)", "'=SUM(A1)")]
+    [InlineData("@x", "'@x")]
+    [InlineData("+Cash", "'+Cash")]
+    [InlineData("-cmd", "'-cmd")]
+    [InlineData("\tx", "'\tx")]
+    [InlineData("-12.50", "-12.50")]
+    [InlineData("-100", "-100")]
+    [InlineData("Cash", "Cash")]
+    public void CsvBuilder_PrefixesFormulaLikeText_LeavesNegativeNumbersAlone(string field, string expected)
+    {
+        var bytes = new CsvBuilder().AppendRow(field).ToUtf8Bytes();
+
+        Lines(bytes)[0].Should().Be(expected);
+    }
+
+    [Fact]
+    public void CsvBuilder_FormulaGuard_StillQuotesFieldsWithCommas()
+    {
+        var bytes = new CsvBuilder().AppendRow("=HYPERLINK(\"x\",1)").ToUtf8Bytes();
+
+        Lines(bytes)[0].Should().Be("\"'=HYPERLINK(\"\"x\"\",1)\"");
+    }
+
+    [Fact]
+    public async Task GlDetailCsv_NeutralisesFormulaInMemo_AndAccountName()
+    {
+        await using var db = TestDbContextFactory.Create();
+        db.GlAccounts.AddRange(
+            new GlAccount { Id = CashId, BookId = BookId, AccountNumber = "1000", Name = "+Cash" },
+            new GlAccount { Id = RevenueId, BookId = BookId, AccountNumber = "4000", Name = "Revenue" });
+        AddEntry(db, entryId: 1, entryNumber: 1, From, JournalEntryStatus.Posted,
+            memo: "=SUM(A1)", debitAccountId: CashId, creditAccountId: RevenueId, amount: 12.5m);
+        await db.SaveChangesAsync();
+
+        var detail = await new ExportGlDetailCsvHandler(db)
+            .Handle(new ExportGlDetailCsvQuery(BookId, From, To), CancellationToken.None);
+        var trial = await new ExportTrialBalanceCsvHandler(new TrialBalanceService(db))
+            .Handle(new ExportTrialBalanceCsvQuery(BookId, From, To), CancellationToken.None);
+
+        Lines(detail.Content)[1].Should().Be("1,2026-06-01,Manual,,'=SUM(A1),1000,'+Cash,12.50,0.00,,");
+        Lines(trial.Content).Should().Contain("1000,'+Cash,12.50,0.00,12.50");
+        Lines(trial.Content).Should().Contain("4000,Revenue,0.00,12.50,-12.50");
+    }
 
     // ── trial-balance.csv ──
 
@@ -192,7 +246,7 @@ public class GlCsvExportTests
         result.FileName.Should().Be("journal-summary-2026-06.csv");
 
         var lines = Lines(result.Content);
-        lines[0].Should().Be("accountNumber,accountName,totalDebit,totalCredit");
+        lines[0].Should().Be("accountNumber,accountName,netDebit,netCredit");
 
         // The one-JE shape: Cash net-debit 100, Revenue net-credit 100; the
         // zero-net Clearing account is omitted entirely.
