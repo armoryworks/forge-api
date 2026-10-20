@@ -5,10 +5,10 @@ using QuestPDF.Infrastructure;
 namespace Forge.Api.Services;
 
 /// <summary>
-/// Font families for generated PDFs. QuestPDF only falls back to fonts that are listed on the text style, so
-/// without this a customer or vendor name in Chinese, Japanese, Korean or Arabic, or an emoji, prints as empty
-/// boxes. The fallbacks are the Noto CJK, Amiri and Noto Color Emoji fonts installed in the API image; where a
-/// family is missing (a developer machine, a test run) it is skipped.
+/// Font families for generated PDFs. A customer or vendor name in Chinese, Japanese, Korean or Arabic, or an
+/// emoji, needs a font with those glyphs or it prints as empty boxes; the API image installs the Noto CJK, Amiri
+/// and Noto Color Emoji fonts, and listing them here fixes the order QuestPDF tries them in. Where a family is
+/// missing (a developer machine, a test run) it is skipped.
 /// </summary>
 public static class PdfFonts
 {
