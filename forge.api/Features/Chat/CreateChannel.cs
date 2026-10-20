@@ -76,7 +76,7 @@ public class CreateChannelHandler(AppDbContext db) : IRequestHandler<CreateChann
             room.CreatedAt,
             users.Select(u => new ChatRoomMemberResponseModel(
                 u.Id,
-                (u.FirstName + " " + u.LastName).Trim(),
+                $"{u.LastName}, {u.FirstName}".Trim(',', ' '),
                 u.Initials ?? "??",
                 u.AvatarColor ?? "#94a3b8",
                 memberMap.GetValueOrDefault(u.Id)?.Role ?? ChannelMemberRole.Member,

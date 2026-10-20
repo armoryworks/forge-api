@@ -24,7 +24,7 @@ public class GetThreadHandler(AppDbContext db)
             .Select(x => new ChatMessageResponseModel(
                 x.Message.Id,
                 x.Message.SenderId,
-                (x.Sender.FirstName + " " + x.Sender.LastName).Trim(),
+                $"{x.Sender.LastName}, {x.Sender.FirstName}".Trim(',', ' '),
                 x.Sender.Initials ?? "??",
                 x.Sender.AvatarColor ?? "#94a3b8",
                 x.Message.RecipientId ?? 0,

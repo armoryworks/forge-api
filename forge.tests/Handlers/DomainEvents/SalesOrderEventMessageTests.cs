@@ -156,4 +156,28 @@ public class SalesOrderEventMessageTests
         notification.Message.Should().EndWith($"{OrderNumber}.");
         ShouldNameTheOrderOnce(notification.Message);
     }
+
+    [Fact]
+    public async Task Material_shortfall_notification_prints_quantities_without_padded_decimals()
+    {
+        var so = await SeedOrderAsync();
+        var assembly = new Part { Id = 20, PartNumber = "ASM-20", Name = "Assembly" };
+        var material = new Part { Id = 21, PartNumber = "MAT-21", Name = "Material" };
+        _db.Parts.AddRange(assembly, material);
+        _db.BOMLines.Add(new BOMLine
+        {
+            ParentPartId = assembly.Id, ChildPartId = material.Id, Quantity = 1.2500m, SourceType = BOMSourceType.Buy,
+        });
+        var line = _db.SalesOrderLines.Single(l => l.Id == 606);
+        line.PartId = assembly.Id;
+        line.Quantity = 2.0000m;
+        await _db.SaveChangesAsync();
+        var handler = new OnSalesOrderConfirmed_CheckBomMaterials(
+            _db, _clock.Object, NullLogger<OnSalesOrderConfirmed_CheckBomMaterials>.Instance);
+
+        await handler.Handle(new SalesOrderConfirmedEvent(so.Id, ManagerUserId), CancellationToken.None);
+
+        _db.Notifications.Single().Message.Should()
+            .Be($"Insufficient inventory for MAT-21: need 2.5, available 0 (shortfall 2.5). {OrderNumber}.");
+    }
 }

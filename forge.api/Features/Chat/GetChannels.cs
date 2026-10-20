@@ -69,7 +69,7 @@ public class GetChannelsHandler(AppDbContext db) : IRequestHandler<GetChannelsQu
                     var u = users.GetValueOrDefault(m.UserId);
                     return new ChatRoomMemberResponseModel(
                         m.UserId,
-                        u != null ? (u.FirstName + " " + u.LastName).Trim() : "Unknown",
+                        u != null ? $"{u.LastName}, {u.FirstName}".Trim(',', ' ') : "Unknown",
                         u?.Initials ?? "??",
                         u?.AvatarColor ?? "#94a3b8",
                         m.Role,

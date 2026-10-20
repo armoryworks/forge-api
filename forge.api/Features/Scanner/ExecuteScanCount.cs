@@ -137,7 +137,7 @@ public class ExecuteScanCountHandler(
                         {
                             UserId = managerId,
                             Title = "Cycle Count Variance",
-                            Message = $"Part {part.PartNumber}: expected {recordedQty}, counted {data.ActualCount} (variance {variancePercent:P0})",
+                            Message = $"Part {part.PartNumber}: expected {recordedQty:0.####}, counted {data.ActualCount:0.####} (variance {variancePercent:P0})",
                             Severity = "warning",
                             Type = "inventory",
                             Source = "scanner",
