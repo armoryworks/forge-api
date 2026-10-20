@@ -6,27 +6,28 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.CustomerPortal;
 
-public record GetPortalShipmentsQuery(int CustomerId) : IRequest<List<PortalShipmentListItem>>;
+public record GetPortalShipmentsQuery(int CustomerId) : IRequest<PortalList<PortalShipmentListItem>>;
 
 public class GetPortalShipmentsHandler(AppDbContext db)
-    : IRequestHandler<GetPortalShipmentsQuery, List<PortalShipmentListItem>>
+    : IRequestHandler<GetPortalShipmentsQuery, PortalList<PortalShipmentListItem>>
 {
-    public async Task<List<PortalShipmentListItem>> Handle(GetPortalShipmentsQuery request, CancellationToken ct)
+    public async Task<PortalList<PortalShipmentListItem>> Handle(GetPortalShipmentsQuery request, CancellationToken ct)
     {
-        var shipments = await db.Shipments.AsNoTracking()
-            .Include(s => s.SalesOrder)
-            .Where(s => s.SalesOrder.CustomerId == request.CustomerId)
+        var scope = db.Shipments.AsNoTracking()
+            .Where(s => s.SalesOrder.CustomerId == request.CustomerId);
+        var shipments = await scope
             .OrderByDescending(s => s.ShippedDate ?? s.CreatedAt)
-            .Take(200)
+            .Take(PortalReadRules.ListCap)
             .ToListAsync(ct);
+        var totalCount = await PortalReadRules.TotalCountAsync(scope, shipments.Count, ct);
 
-        return shipments.Select(s => new PortalShipmentListItem(
+        return new(shipments.Select(s => new PortalShipmentListItem(
             Id: s.Id,
             ShipmentNumber: s.ShipmentNumber,
             Status: s.Status.ToString(),
             ShippedDate: s.ShippedDate,
             DeliveredDate: s.DeliveredDate,
             Carrier: s.Carrier,
-            TrackingNumber: s.TrackingNumber)).ToList();
+            TrackingNumber: s.TrackingNumber)).ToList(), totalCount);
     }
 }

@@ -23,7 +23,8 @@ public record GetPortalDashboardQuery(int CustomerId) : IRequest<PortalSummaryRe
 
 public class GetPortalDashboardHandler(
     AppDbContext db,
-    IAccountingService accounting)
+    IAccountingService accounting,
+    IClock clock)
     : IRequestHandler<GetPortalDashboardQuery, PortalSummaryResponseModel>
 {
     public async Task<PortalSummaryResponseModel> Handle(GetPortalDashboardQuery request, CancellationToken ct)
@@ -36,8 +37,11 @@ public class GetPortalDashboardHandler(
         var openSoCount = await db.SalesOrders.AsNoTracking()
             .CountAsync(o => o.CustomerId == request.CustomerId && openSoStatuses.Contains(o.Status), ct);
 
+        var quoteValidFrom = await PortalReadRules.QuoteValidFromAsync(db, clock, ct);
         var openQuoteCount = await db.Quotes.AsNoTracking()
-            .CountAsync(q => q.CustomerId == request.CustomerId && openQuoteStatuses.Contains(q.Status), ct);
+            .CountAsync(q => q.CustomerId == request.CustomerId
+                && openQuoteStatuses.Contains(q.Status)
+                && (q.ExpirationDate == null || q.ExpirationDate >= quoteValidFrom), ct);
 
         var standalone = string.Equals(accounting.ProviderId, "mock", StringComparison.OrdinalIgnoreCase);
         var openInvoiceCount = standalone

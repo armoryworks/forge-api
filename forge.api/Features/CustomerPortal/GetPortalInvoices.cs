@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -11,44 +12,39 @@ namespace Forge.Api.Features.CustomerPortal;
 /// Phase 1q — portal invoice list. ⚡ Standalone Financial: returns
 /// an empty list when an external accounting provider is connected, so
 /// the customer doesn't see partial / divergent invoice data — the
-/// integrated provider's portal is the source of truth in that mode.
+/// integrated provider's portal is the source of truth in that mode. That
+/// empty list is flagged as <see cref="PortalList{T}.ExternalAccounting"/>.
 /// </summary>
-public record GetPortalInvoicesQuery(int CustomerId) : IRequest<List<PortalInvoiceListItem>>;
+public record GetPortalInvoicesQuery(int CustomerId) : IRequest<PortalList<PortalInvoiceListItem>>;
 
 public class GetPortalInvoicesHandler(AppDbContext db, IAccountingService accounting)
-    : IRequestHandler<GetPortalInvoicesQuery, List<PortalInvoiceListItem>>
+    : IRequestHandler<GetPortalInvoicesQuery, PortalList<PortalInvoiceListItem>>
 {
-    public async Task<List<PortalInvoiceListItem>> Handle(GetPortalInvoicesQuery request, CancellationToken ct)
+    public async Task<PortalList<PortalInvoiceListItem>> Handle(GetPortalInvoicesQuery request, CancellationToken ct)
     {
         var standalone = string.Equals(accounting.ProviderId, "mock", StringComparison.OrdinalIgnoreCase);
-        if (!standalone) return new List<PortalInvoiceListItem>();
+        if (!standalone) return new([], 0, ExternalAccounting: true);
 
-        var invoices = await db.Invoices.AsNoTracking()
+        var scope = db.Invoices.AsNoTracking()
+            .Where(i => i.CustomerId == request.CustomerId && i.Status != InvoiceStatus.Draft);
+        var invoices = await scope
             .Include(i => i.Lines)
-            .Where(i => i.CustomerId == request.CustomerId)
+            .Include(i => i.PaymentApplications)
+            .Include(i => i.Currency)
             .OrderByDescending(i => i.InvoiceDate)
-            .Take(200)
+            .Take(PortalReadRules.ListCap)
             .ToListAsync(ct);
+        var totalCount = await PortalReadRules.TotalCountAsync(scope, invoices.Count, ct);
 
-        var invoiceIds = invoices.Select(i => i.Id).ToList();
-        var paidByInvoice = await db.PaymentApplications.AsNoTracking()
-            .Where(pa => invoiceIds.Contains(pa.InvoiceId))
-            .GroupBy(pa => pa.InvoiceId)
-            .Select(g => new { InvoiceId = g.Key, Paid = g.Sum(x => x.Amount) })
-            .ToDictionaryAsync(x => x.InvoiceId, x => x.Paid, ct);
-
-        return invoices.Select(i =>
-        {
-            var paid = paidByInvoice.GetValueOrDefault(i.Id, 0m);
-            return new PortalInvoiceListItem(
-                Id: i.Id,
-                InvoiceNumber: i.InvoiceNumber,
-                Status: i.Status.ToString(),
-                InvoiceDate: i.InvoiceDate,
-                DueDate: i.DueDate,
-                Total: i.Total,
-                AmountPaid: paid,
-                Balance: i.Total - paid);
-        }).ToList();
+        return new(invoices.Select(i => new PortalInvoiceListItem(
+            Id: i.Id,
+            InvoiceNumber: i.InvoiceNumber,
+            Status: i.Status.ToString(),
+            InvoiceDate: i.InvoiceDate,
+            DueDate: i.DueDate,
+            Total: Math.Round(i.Total, 2, MidpointRounding.AwayFromZero),
+            AmountPaid: i.AmountPaid,
+            Balance: i.Status == InvoiceStatus.Voided ? 0m : i.BalanceDue,
+            CurrencyCode: i.Currency?.Code)).ToList(), totalCount);
     }
 }

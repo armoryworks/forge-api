@@ -25,6 +25,9 @@ namespace Forge.Api.Controllers;
 /// endpoints require a portal session JWT validated by the dedicated
 /// <see cref="PortalTokenService.SchemeName"/> bearer scheme
 /// (`portal_session=true` claim); employee tokens are not accepted there.
+/// The two auth endpoints also run under <see cref="PortalAuthRateLimit"/>,
+/// and the /me list endpoints report their full row count in
+/// <see cref="PortalReadRules.TotalCountHeader"/>.
 /// </summary>
 [ApiController]
 [Route("api/v1/portal")]
@@ -79,7 +82,7 @@ public class CustomerPortalController(IMediator mediator, IConfiguration config)
     {
         var (customerId, _) = RequirePortalClaims();
         var result = await mediator.Send(new GetPortalSalesOrdersQuery(customerId));
-        return Ok(result);
+        return PortalListResult(result);
     }
 
     [HttpGet("me/quotes")]
@@ -88,7 +91,7 @@ public class CustomerPortalController(IMediator mediator, IConfiguration config)
     {
         var (customerId, _) = RequirePortalClaims();
         var result = await mediator.Send(new GetPortalQuotesQuery(customerId));
-        return Ok(result);
+        return PortalListResult(result);
     }
 
     [HttpGet("me/invoices")]
@@ -97,7 +100,7 @@ public class CustomerPortalController(IMediator mediator, IConfiguration config)
     {
         var (customerId, _) = RequirePortalClaims();
         var result = await mediator.Send(new GetPortalInvoicesQuery(customerId));
-        return Ok(result);
+        return PortalListResult(result);
     }
 
     [HttpGet("me/shipments")]
@@ -106,7 +109,7 @@ public class CustomerPortalController(IMediator mediator, IConfiguration config)
     {
         var (customerId, _) = RequirePortalClaims();
         var result = await mediator.Send(new GetPortalShipmentsQuery(customerId));
-        return Ok(result);
+        return PortalListResult(result);
     }
 
     [HttpPost("me/quotes/{id:int}/respond")]
@@ -116,6 +119,14 @@ public class CustomerPortalController(IMediator mediator, IConfiguration config)
         var (customerId, contactId) = RequirePortalClaims();
         await mediator.Send(new RespondToQuoteCommand(id, customerId, contactId, request.Accepted));
         return NoContent();
+    }
+
+    private ActionResult<List<T>> PortalListResult<T>(PortalList<T> list)
+    {
+        Response.Headers[PortalReadRules.TotalCountHeader] = list.TotalCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (list.ExternalAccounting)
+            Response.Headers[PortalReadRules.ExternalAccountingHeader] = "true";
+        return Ok(list.Items);
     }
 
     private (int CustomerId, int ContactId) RequirePortalClaims()

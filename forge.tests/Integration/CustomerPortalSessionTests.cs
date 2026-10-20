@@ -34,6 +34,30 @@ public class CustomerPortalSessionTests
     }
 
     [Fact]
+    public async Task RequestLink_IsRateLimitedPerClient_UnderTheConfiguredLimit()
+    {
+        var limited = _factory.WithWebHostBuilder(b => b.UseSetting("Portal:AuthRateLimitPerMinute", "2"));
+        using (var scope = limited.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var capability = await db.Capabilities.SingleAsync(c => c.Code == "CAP-EXT-CUSTOMER-PORTAL");
+            capability.Enabled = true;
+            await db.SaveChangesAsync();
+        }
+        await limited.Services.GetRequiredService<ICapabilitySnapshotProvider>().RefreshAsync();
+        var anon = limited.CreateClient();
+
+        var statuses = new List<HttpStatusCode>();
+        for (var i = 0; i < 3; i++)
+        {
+            var response = await anon.PostAsJsonAsync("/api/v1/portal/auth/request-link", new { email = $"limit-{i}@customer.test" });
+            statuses.Add(response.StatusCode);
+        }
+
+        statuses.Should().Equal(HttpStatusCode.OK, HttpStatusCode.OK, HttpStatusCode.TooManyRequests);
+    }
+
+    [Fact]
     public async Task MagicLink_PointsAtTheConfiguredFrontend_NotTheCallersOrigin()
     {
         var seeded = await SeedPortalContactAsync("origin-probe@customer.test");
@@ -52,7 +76,10 @@ public class CustomerPortalSessionTests
 
         (await portal.GetAsync("/api/v1/portal/me")).StatusCode.Should().Be(HttpStatusCode.OK);
         (await portal.GetAsync("/api/v1/portal/me/dashboard")).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await portal.GetAsync("/api/v1/portal/me/quotes")).StatusCode.Should().Be(HttpStatusCode.OK);
+        var quotes = await portal.GetAsync("/api/v1/portal/me/quotes");
+        quotes.StatusCode.Should().Be(HttpStatusCode.OK);
+        quotes.Headers.GetValues("X-Total-Count").Should().Equal("1");
+        (await quotes.Content.ReadFromJsonAsync<JsonElement>()).GetArrayLength().Should().Be(1);
 
         var respond = await portal.PostAsJsonAsync(
             $"/api/v1/portal/me/quotes/{seeded.QuoteId}/respond", new { accepted = true });
@@ -175,6 +202,14 @@ public class CustomerPortalSessionTests
             Status = QuoteStatus.Sent,
         };
         db.Quotes.Add(quote);
+        await db.SaveChangesAsync();
+
+        db.CustomerPortalAccesses.Add(new CustomerPortalAccess
+        {
+            ContactId = contact.Id,
+            CustomerId = customer.Id,
+            IsEnabled = true,
+        });
         await db.SaveChangesAsync();
 
         return (email, contact.Id, quote.Id);
