@@ -384,6 +384,19 @@ public sealed class ResolveScanFallbackTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Two_active_bins_sharing_a_name_resolve_unknown()
+    {
+        var name = $"Twin-{UniqueNumber()}";
+        await SeedBinAsync(name);
+        await SeedBinAsync(name);
+
+        var result = await ResolveAsync(name);
+
+        result.Kind.Should().Be("unknown");
+        result.Id.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Lot_names_the_part_it_belongs_to()
     {
         var number = $"QL-{UniqueNumber()}";
