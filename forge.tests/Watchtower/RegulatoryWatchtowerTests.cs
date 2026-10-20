@@ -51,11 +51,11 @@ public sealed class RegulatoryWatchtowerTests(PostgresFixture fixture)
         (await verify.RegulatoryChangeProposals.CountAsync(p => p.Status == RegulatoryProposalStatus.Pending)).Should().Be(1);
     }
 
-    private sealed class OneSourceThrowsFeedClient(string failingSourceName, IReadOnlyList<RegulatoryFeedItem> items) : IRegulatoryFeedClient
+    private sealed class OneSourceThrowsFeedClient(string failingSourceName, IReadOnlyList<RegulatoryFeedItem> items, Exception? failure = null) : IRegulatoryFeedClient
     {
         public Task<IReadOnlyList<RegulatoryFeedItem>> FetchAsync(RegulatorySource source, CancellationToken ct = default)
             => source.Name == failingSourceName
-                ? throw new HttpRequestException("feed unreachable")
+                ? throw (failure ?? new HttpRequestException("feed unreachable"))
                 : Task.FromResult(items);
     }
 
@@ -83,6 +83,51 @@ public sealed class RegulatoryWatchtowerTests(PostgresFixture fixture)
         var reloadedBroken = await verify.RegulatorySources.SingleAsync(s => s.Id == broken.Id);
         reloadedBroken.LastPolledAt.Should().BeCloseTo(earlier, TimeSpan.FromMilliseconds(1));
         (await verify.RegulatorySources.SingleAsync(s => s.Id == healthy.Id)).LastPolledAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Poller_counts_a_source_that_times_out_as_failed_and_polls_the_rest()
+    {
+        await using var db = fixture.CreateContext();
+        await db.RegulatoryChangeProposals.ExecuteDeleteAsync();
+        await db.RegulatorySources.ExecuteDeleteAsync();
+
+        db.RegulatorySources.AddRange(
+            new RegulatorySource { Name = "Slow feed", Url = "https://slow", FeedType = RegulatoryFeedType.Rss, IsActive = true },
+            new RegulatorySource { Name = "Federal Register", Url = "https://x", FeedType = RegulatoryFeedType.Api, IsActive = true });
+        await db.SaveChangesAsync();
+
+        var items = new List<RegulatoryFeedItem> { new("New OSHA rule", "https://x/1", null) };
+        var client = new OneSourceThrowsFeedClient("Slow feed", items, new TaskCanceledException("request timed out"));
+
+        (await new RegulatoryPoller(db, client, new SystemClock()).PollActiveAsync())
+            .Should().Be(new RegulatoryPollResult(2, 1, 1));
+    }
+
+    [Fact]
+    public async Task Poller_stops_when_the_caller_cancels()
+    {
+        await using var db = fixture.CreateContext();
+        await db.RegulatoryChangeProposals.ExecuteDeleteAsync();
+        await db.RegulatorySources.ExecuteDeleteAsync();
+
+        db.RegulatorySources.Add(new RegulatorySource { Name = "Slow feed", Url = "https://slow", FeedType = RegulatoryFeedType.Rss, IsActive = true });
+        await db.SaveChangesAsync();
+
+        using var cts = new CancellationTokenSource();
+        var poller = new RegulatoryPoller(db, new CancelsCallerFeedClient(cts), new SystemClock());
+
+        await FluentActions.Awaiting(() => poller.PollActiveAsync(cts.Token))
+            .Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    private sealed class CancelsCallerFeedClient(CancellationTokenSource cts) : IRegulatoryFeedClient
+    {
+        public Task<IReadOnlyList<RegulatoryFeedItem>> FetchAsync(RegulatorySource source, CancellationToken ct = default)
+        {
+            cts.Cancel();
+            throw new OperationCanceledException(ct);
+        }
     }
 
     [Fact]

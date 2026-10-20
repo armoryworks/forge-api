@@ -47,7 +47,7 @@ public sealed class RegulatoryPoller(
             {
                 items = await client.FetchAsync(source, ct);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogWarning(ex, "Regulatory source {SourceId} ({SourceName}) could not be polled", source.Id, source.Name);
                 failed++;
