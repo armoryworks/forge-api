@@ -91,9 +91,9 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
                 i.Status.ToString(),
                 i.InvoiceDate,
                 i.DueDate,
-                i.Lines.Sum(l => l.Quantity * l.UnitPrice) + i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice) * i.TaxRate,
+                i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) + Math.Round(i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) * i.TaxRate, 2),
                 i.PaymentApplications.Sum(pa => pa.Amount),
-                i.Lines.Sum(l => l.Quantity * l.UnitPrice) + i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice) * i.TaxRate - i.PaymentApplications.Sum(pa => pa.Amount),
+                i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) + Math.Round(i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) * i.TaxRate, 2) - i.PaymentApplications.Sum(pa => pa.Amount),
                 i.CreatedAt))
             .ToListAsync(ct);
 

@@ -193,6 +193,19 @@ public class GetSalesTaxLiabilityHandlerTests : IDisposable
     }
 
     [Fact]
+    public async Task FractionalLine_ReportsTheRoundedLineAndTheInvoiceTax()
+    {
+        await SeedCustomerAsync();
+        var invoice = await AddInvoiceAsync(await AddOrderAsync("WA"), 0.0725m, 33.333m);
+
+        var report = await _handler.Handle(new GetSalesTaxLiabilityQuery(), default);
+
+        report.TotalTaxableBase.Should().Be(33.33m);
+        report.TotalLiability.Should().Be(2.42m);
+        report.TotalLiability.Should().Be(invoice.TaxAmount);
+    }
+
+    [Fact]
     public async Task DateFilter_UsesTheInvoiceDate()
     {
         await SeedCustomerAsync();

@@ -17,7 +17,7 @@ public class GetInvoiceByIdHandler(IInvoiceRepository repo)
         var subtotal = invoice.Subtotal;
         var taxAmount = invoice.TaxAmount;
         var total = invoice.Total;
-        var amountPaid = invoice.PaymentApplications.Sum(pa => pa.Amount);
+        var amountPaid = invoice.AmountPaid;
 
         return new InvoiceDetailResponseModel(
             invoice.Id,
@@ -37,12 +37,12 @@ public class GetInvoiceByIdHandler(IInvoiceRepository repo)
             taxAmount,
             total,
             amountPaid,
-            total - amountPaid,
+            invoice.BalanceDue,
             invoice.CustomerPO,
             invoice.Notes,
             invoice.Lines.Select(l => new InvoiceLineResponseModel(
                 l.Id, l.PartId, l.Part?.PartNumber, l.Description,
-                l.Quantity, l.UnitPrice, l.Quantity * l.UnitPrice, l.LineNumber, l.IsTaxable)).ToList(),
+                l.Quantity, l.UnitPrice, l.LineTotal, l.LineNumber, l.IsTaxable)).ToList(),
             invoice.PaymentApplications.Select(pa => new PaymentApplicationResponseModel(
                 pa.Id, pa.PaymentId, pa.Payment.PaymentNumber,
                 pa.InvoiceId, invoice.InvoiceNumber, pa.Amount)).ToList(),

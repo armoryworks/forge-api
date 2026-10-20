@@ -43,10 +43,12 @@ namespace Forge.Api.Features.Accounting;
 /// ON a posting failure propagates and fails the operation (the inline model's
 /// "fail visibly" rule — §2).</para>
 ///
-/// <para><b>Phase-2 STAGE B — COGS / finished-goods relief.</b> On control transfer, stocked
-/// finished-goods lines also relieve inventory: Dr COGS / Cr INVENTORY_FG at the resolved standard
-/// cost, posted as a separate journal entry (idempotency purpose <c>:COGS</c>). Lines with no part, a
-/// non-finished-goods part, or no resolvable cost are skipped. When the invoice precedes delivery
+/// <para><b>Phase-2 STAGE B — COGS / inventory relief.</b> On control transfer, lines for stocked
+/// parts (Raw, Component, Subassembly or FinishedGood, non-phantom) also relieve inventory: Dr COGS at the
+/// resolved standard cost, Cr the inventory account the part's class is carried in (INVENTORY_RAW for Raw
+/// and Component, INVENTORY_SUBASSEMBLY, INVENTORY_FG), posted as a separate journal entry (idempotency
+/// purpose <c>:COGS</c>). Lines with no part, a non-stocked part (Consumable, Tool, Service, phantom) or no
+/// resolvable cost are skipped. When the invoice precedes delivery
 /// (deferred revenue), COGS waits for the same delivery trigger as the revenue reclass.</para>
 /// </summary>
 public interface IInvoiceArPostingService
@@ -64,7 +66,7 @@ public interface IInvoiceArPostingService
     /// <summary>
     /// Delivery trigger for an invoice that was finalized BEFORE delivery (§8.4 / matrix row 2):
     /// reclassifies the invoice's DEFERRED_REVENUE credits to SALES_REVENUE (Dr deferred / Cr
-    /// revenue per original line) and posts the COGS / finished-goods relief that was deferred with
+    /// revenue per original line) and posts the COGS / inventory relief that was deferred with
     /// it. A no-op while CAP-ACCT-FULLGL is off, when the invoice was booked straight to revenue,
     /// or when its original AR entry is absent/reversed. Idempotent (purpose <c>:REVENUE_RECLASS</c>;
     /// COGS keeps its own <c>:COGS</c> key).
@@ -75,9 +77,9 @@ public interface IInvoiceArPostingService
 
     /// <summary>
     /// Reverses everything the invoice posted, for an invoice being voided: the AR / revenue / tax entry
-    /// (<c>:REVENUE</c>), the delivery reclass (<c>:REVENUE_RECLASS</c>) and the COGS / finished-goods relief
+    /// (<c>:REVENUE</c>), the delivery reclass (<c>:REVENUE_RECLASS</c>) and the COGS / inventory relief
     /// (<c>:COGS</c>), each by an equal-and-opposite entry, and flips the invoice's AR open item to Voided.
-    /// Finished goods relieved from the valuation store go back to it at the line's COGS value, only for parts
+    /// Inventory relieved from the valuation store goes back to it at the line's COGS value, only for parts
     /// that still have a store row. Each entry reverses in its own period, or on <paramref name="voidDate"/>
     /// when that period is hard-closed. A no-op while CAP-ACCT-FULLGL is off; entries that are not Posted
     /// (never posted, or already reversed) are skipped, so a second call does nothing.
@@ -113,6 +115,8 @@ public sealed class InvoiceArPostingService(
 
     // Phase-2 STAGE B — COGS / finished-goods relief at the sale.
     private const string KeyCogs = "COGS";
+    private const string KeyInventoryRaw = "INVENTORY_RAW";
+    private const string KeyInventorySubassembly = "INVENTORY_SUBASSEMBLY";
     private const string KeyInventoryFg = "INVENTORY_FG";
 
     public async Task PostInvoiceFinalizedAsync(
@@ -237,7 +241,7 @@ public sealed class InvoiceArPostingService(
 
         // COGS / finished-goods relief that waited for this same delivery trigger (STAGE B).
         // Its own :COGS idempotency key makes this safe if it somehow already posted.
-        await PostCogsAsync(invoice, book, deliveredByUserId, ct);
+        await PostCogsAsync(invoice, book, DateOnly.FromDateTime(deliveredAt.UtcDateTime), deliveredByUserId, ct);
     }
 
     public async Task ReverseInvoiceFinalizedAsync(
@@ -284,7 +288,7 @@ public sealed class InvoiceArPostingService(
 
         var cogsEntry = posted.FirstOrDefault(e => e.IdempotencyKey == keys[2]);
         if (cogsEntry is not null)
-            await RestoreFinishedGoodsAsync(invoice, book, cogsEntry, ct);
+            await RestoreRelievedInventoryAsync(invoice, book, cogsEntry, ct);
 
         if (posted.Count == 0)
         {
@@ -304,14 +308,14 @@ public sealed class InvoiceArPostingService(
         }
     }
 
-    private async Task RestoreFinishedGoodsAsync(Invoice invoice, Book book, JournalEntry cogsEntry, CancellationToken ct)
+    private async Task RestoreRelievedInventoryAsync(Invoice invoice, Book book, JournalEntry cogsEntry, CancellationToken ct)
     {
         if (valuation is null)
             return;
 
         foreach (var line in invoice.Lines.OrderBy(l => l.LineNumber))
         {
-            if (!LineRelievesFinishedGoods(line))
+            if (!LineRelievesInventory(line))
                 continue;
 
             var prefix = $"COGS — invoice {invoice.InvoiceNumber} line {line.LineNumber}:";
@@ -523,7 +527,7 @@ public sealed class InvoiceArPostingService(
         // inventory is NOT relieved yet — COGS waits for the same delivery trigger as the revenue
         // reclass (TODO below).
         if (controlTransferred)
-            await PostCogsAsync(invoice, book, finalizedByUserId, ct);
+            await PostCogsAsync(invoice, book, entryDate, finalizedByUserId, ct);
 
         // ── Deferred-revenue reclass on delivery (§8.4 / matrix row 2): handled by
         // PostDeliveryReclassAsync above, triggered by ShipmentDeliveredEvent via
@@ -531,15 +535,18 @@ public sealed class InvoiceArPostingService(
     }
 
     /// <summary>
-    /// Phase-2 STAGE B — COGS / finished-goods relief at the sale (§7 matrix row 1, §8.1). For each
-    /// stocked finished-goods line with a resolvable standard cost, posts Dr COGS for the line cost and
-    /// a single aggregate Cr INVENTORY_FG, as a separate journal entry (idempotency purpose :COGS).
-    /// Lines with no part, a non-finished-goods part, or no resolvable cost are skipped (the document
-    /// still finalizes; gross margin understates for that line until a cost lands). INVENTORY_FG is an
-    /// inventory control account reconciled by part via the valuation store (§8.1), so the credit posts
-    /// party-less (the engine requires a party only for AR/AP control accounts).
+    /// Phase-2 STAGE B — COGS / inventory relief at the sale (§7 matrix row 1, §8.1). For each line of a
+    /// stocked part (see <see cref="LineRelievesInventory"/>) with a resolvable standard cost, posts Dr COGS
+    /// for the line cost and one aggregate credit per inventory account the sold parts are carried in
+    /// (<see cref="ReliefKeyFor"/>), as a separate journal entry (idempotency purpose :COGS) dated
+    /// <paramref name="entryDate"/> — the invoice date when revenue is recognized at finalize, the delivery
+    /// date when it is recognized by the delivery reclass, so revenue and its COGS land in the same period. Lines with no
+    /// part, a non-stocked part, or no resolvable cost are skipped (the document still finalizes; gross
+    /// margin understates for that line until a cost lands). The INVENTORY_* accounts are inventory control
+    /// accounts reconciled by part via the valuation store (§8.1), so the credits post party-less (the
+    /// engine requires a party only for AR/AP control accounts).
     /// </summary>
-    private async Task PostCogsAsync(Invoice invoice, Book book, int userId, CancellationToken ct)
+    private async Task PostCogsAsync(Invoice invoice, Book book, DateOnly entryDate, int userId, CancellationToken ct)
     {
         var idempotencyKey = $"{JournalSource.Inventory}:Invoice:{invoice.Id}:COGS";
 
@@ -553,10 +560,11 @@ public sealed class InvoiceArPostingService(
 
         var lines = new List<PostingLine>();
         decimal totalCogs = 0m;
+        var reliefByKey = new Dictionary<string, decimal>();
 
         foreach (var line in invoice.Lines.OrderBy(l => l.LineNumber))
         {
-            if (!LineRelievesFinishedGoods(line))
+            if (!LineRelievesInventory(line))
                 continue;
 
             // Costing. Standard (resolver wired): relieve finished goods at STANDARD; still decrement the
@@ -606,6 +614,8 @@ public sealed class InvoiceArPostingService(
                 continue;
 
             totalCogs += lineCogs;
+            var reliefKey = ReliefKeyFor(line.Part!);
+            reliefByKey[reliefKey] = reliefByKey.GetValueOrDefault(reliefKey) + lineCogs;
             lines.Add(new PostingLine
             {
                 AccountKey = KeyCogs,
@@ -625,22 +635,26 @@ public sealed class InvoiceArPostingService(
         //
         // Cr INVENTORY_FG for the aggregate relief (inventory control account; party-less — reconciled
         // by part via the valuation store, §8.1).
-        lines.Add(new PostingLine
+        foreach (var (reliefKey, label) in ReliefAccounts)
         {
-            AccountKey = KeyInventoryFg,
-            Credit = totalCogs,
-            Description = $"Finished-goods relief — invoice {invoice.InvoiceNumber}",
-        });
+            if (reliefByKey.TryGetValue(reliefKey, out var relief))
+                lines.Add(new PostingLine
+                {
+                    AccountKey = reliefKey,
+                    Credit = relief,
+                    Description = $"{label} relief — invoice {invoice.InvoiceNumber}",
+                });
+        }
 
         var request = new PostingRequest
         {
             BookId = book.Id,
-            EntryDate = DateOnly.FromDateTime(invoice.InvoiceDate.UtcDateTime),
+            EntryDate = entryDate,
             Source = JournalSource.Inventory,
             SourceType = "Invoice",
             SourceId = invoice.Id,
             CurrencyId = book.FunctionalCurrencyId,
-            Memo = $"COGS / finished-goods relief — invoice {invoice.InvoiceNumber}",
+            Memo = $"COGS / inventory relief — invoice {invoice.InvoiceNumber}",
             IdempotencyKey = idempotencyKey,
             Lines = lines,
         };
@@ -679,12 +693,26 @@ public sealed class InvoiceArPostingService(
         return (arTotal, arTotal - roundedSubtotal, ordered.Select((l, i) => (l, amounts[i])).ToList());
     }
 
-    /// <summary>A line relieves finished-goods inventory iff it carries a Part that is a (non-phantom)
-    /// FinishedGood. Service / free-text lines (null Part) and non-FG parts do not.</summary>
-    private static bool LineRelievesFinishedGoods(InvoiceLine line) =>
+    /// <summary>A line relieves inventory iff it carries a (non-phantom) Part of a perpetual-stocked class
+    /// (Raw, Component, Subassembly, FinishedGood) — the classes receipts, production and issues carry in an
+    /// INVENTORY_* account. Service / free-text lines (null Part), Consumable, Tool and Service parts do not.</summary>
+    private static bool LineRelievesInventory(InvoiceLine line) =>
         line.Part is { } part
-        && part.InventoryClass == InventoryClass.FinishedGood
+        && part.InventoryClass is InventoryClass.Raw or InventoryClass.Component
+            or InventoryClass.Subassembly or InventoryClass.FinishedGood
         && part.ProcurementSource != ProcurementSource.Phantom;
+
+    /// <summary>The inventory determination key a sold part is relieved from, matching where its class is
+    /// carried: Raw and Component in INVENTORY_RAW, Subassembly in INVENTORY_SUBASSEMBLY, FinishedGood in
+    /// INVENTORY_FG. Only called for parts that pass <see cref="LineRelievesInventory"/>.</summary>
+    private static string ReliefKeyFor(Part part) => InventoryValuationService.StoreKeyFor(part.InventoryClass);
+
+    private static readonly (string Key, string Label)[] ReliefAccounts =
+    [
+        (KeyInventoryRaw, "Raw-materials"),
+        (KeyInventorySubassembly, "Subassembly"),
+        (KeyInventoryFg, "Finished-goods"),
+    ];
 
     /// <summary>Resolved per-unit standard cost (documented read priority, Part.cs):
     /// ManualCostOverride ?? CurrentCostCalculation.ResultAmount ?? null.</summary>
@@ -711,7 +739,7 @@ public sealed class InvoiceArPostingService(
                     entryDate = entry.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     totalCogs,
                 },
-                reason = $"Invoice {invoice.InvoiceNumber} — COGS / finished-goods relief posted.",
+                reason = $"Invoice {invoice.InvoiceNumber} — COGS / inventory relief posted.",
             });
 
             await auditWriter.WriteAsync(

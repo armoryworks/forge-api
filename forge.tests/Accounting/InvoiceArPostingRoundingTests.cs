@@ -61,13 +61,16 @@ public class InvoiceArPostingRoundingTests
     }
 
     [Fact]
-    public void FractionalLines_SumToTheRoundedSubtotal()
+    public void FractionalLines_PostEachLineRoundedToTheCent()
     {
         var invoice = InvoiceOf(0.0725m, false, (1m, 33.333m), (1m, 33.333m), (1m, 33.333m));
 
         var posted = InvoiceArPostingService.ComputePostedAmounts(invoice);
 
-        posted.Lines.Sum(l => l.Amount).Should().Be(100.00m);
+        posted.Lines.Should().OnlyContain(l => l.Amount == 33.33m);
+        posted.Lines.Sum(l => l.Amount).Should().Be(99.99m);
+        posted.TaxAmount.Should().Be(7.25m);
+        posted.ArTotal.Should().Be(107.24m);
         posted.Lines.Should().OnlyContain(l => l.Amount == decimal.Round(l.Amount, 2));
         (posted.Lines.Sum(l => l.Amount) + posted.TaxAmount).Should().Be(posted.ArTotal);
         posted.ArTotal.Should().Be(invoice.BalanceDue);

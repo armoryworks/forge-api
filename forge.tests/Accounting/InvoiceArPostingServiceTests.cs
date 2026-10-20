@@ -38,6 +38,8 @@ public class InvoiceArPostingServiceTests
     private const int SalesTaxPayableId = 104;
     private const int CogsId = 105;
     private const int InventoryFgId = 106;
+    private const int InventoryRawId = 107;
+    private const int InventorySubassemblyId = 108;
 
     private const int OpenPeriodId = 1000;
 
@@ -121,7 +123,9 @@ public class InvoiceArPostingServiceTests
             new GlAccount { Id = DeferredRevenueId, BookId = BookId, AccountNumber = "24000", Name = "Deferred Revenue", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
             new GlAccount { Id = SalesTaxPayableId, BookId = BookId, AccountNumber = "23000", Name = "Sales Tax Payable", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
             new GlAccount { Id = CogsId, BookId = BookId, AccountNumber = "50000", Name = "Cost of Goods Sold", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
-            new GlAccount { Id = InventoryFgId, BookId = BookId, AccountNumber = "13300", Name = "Inventory — Finished Goods", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true });
+            new GlAccount { Id = InventoryFgId, BookId = BookId, AccountNumber = "13300", Name = "Inventory — Finished Goods", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true },
+            new GlAccount { Id = InventoryRawId, BookId = BookId, AccountNumber = "13100", Name = "Inventory — Raw Materials", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true },
+            new GlAccount { Id = InventorySubassemblyId, BookId = BookId, AccountNumber = "13250", Name = "Inventory — Subassemblies", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true });
 
         db.Set<AccountDeterminationRule>().AddRange(
             new AccountDeterminationRule { BookId = BookId, Key = "AR_CONTROL", GlAccountId = ArControlId },
@@ -129,7 +133,9 @@ public class InvoiceArPostingServiceTests
             new AccountDeterminationRule { BookId = BookId, Key = "DEFERRED_REVENUE", GlAccountId = DeferredRevenueId },
             new AccountDeterminationRule { BookId = BookId, Key = "SALES_TAX_PAYABLE", GlAccountId = SalesTaxPayableId },
             new AccountDeterminationRule { BookId = BookId, Key = "COGS", GlAccountId = CogsId },
-            new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_FG", GlAccountId = InventoryFgId });
+            new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_FG", GlAccountId = InventoryFgId },
+            new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_RAW", GlAccountId = InventoryRawId },
+            new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_SUBASSEMBLY", GlAccountId = InventorySubassemblyId });
 
         await db.SaveChangesAsync();
         return db;
@@ -505,17 +511,101 @@ public class InvoiceArPostingServiceTests
         (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(1); // revenue only — COGS skipped
     }
 
-    [Fact]
-    public async Task Post_NonFinishedGoodsPart_PostsNoCogs()
+    [Theory]
+    [InlineData(InventoryClass.Consumable)]
+    [InlineData(InventoryClass.Tool)]
+    [InlineData(InventoryClass.Service)]
+    public async Task Post_NonStockedPart_PostsNoCogs(InventoryClass inventoryClass)
     {
         using var db = await SeedAsync();
-        // A raw-material part line is consumed in production, not relieved at the sale.
-        var invoice = await AddFinishedGoodsInvoiceAsync(db, unitCost: 30m, inventoryClass: InventoryClass.Raw);
+        var invoice = await AddFinishedGoodsInvoiceAsync(db, unitCost: 30m, inventoryClass: inventoryClass);
         var service = CreateService(db, fullGlOn: true);
 
         await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
 
         (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(InventoryClass.Raw, InventoryRawId)]
+    [InlineData(InventoryClass.Component, InventoryRawId)]
+    [InlineData(InventoryClass.Subassembly, InventorySubassemblyId)]
+    [InlineData(InventoryClass.FinishedGood, InventoryFgId)]
+    public async Task Post_StockedPart_RelievesTheInventoryAccountItsClassIsCarriedIn(
+        InventoryClass inventoryClass, int inventoryAccountId)
+    {
+        using var db = await SeedAsync();
+        var invoice = await AddFinishedGoodsInvoiceAsync(db, unitCost: 30m, qty: 2m, inventoryClass: inventoryClass);
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+
+        var cogs = await db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines)
+            .SingleAsync(e => e.Source == JournalSource.Inventory);
+        cogs.Lines.Single(l => l.GlAccountId == CogsId).Debit.Should().Be(60m);
+        cogs.Lines.Where(l => l.Credit > 0m).Should().ContainSingle()
+            .Which.Should().Match<JournalLine>(l => l.GlAccountId == inventoryAccountId && l.Credit == 60m);
+    }
+
+    [Fact]
+    public async Task Post_PhantomPart_PostsNoCogs()
+    {
+        using var db = await SeedAsync();
+        var invoice = await AddFinishedGoodsInvoiceAsync(db, unitCost: 30m, inventoryClass: InventoryClass.Subassembly);
+        var part = await db.Set<Part>().SingleAsync();
+        part.ProcurementSource = ProcurementSource.Phantom;
+        await db.SaveChangesAsync();
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+
+        (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Post_MixedClassLines_PostOneCreditPerInventoryAccount()
+    {
+        using var db = await SeedAsync();
+        var customer = new Customer { Name = "Acme Corp" };
+        db.Set<Customer>().Add(customer);
+        var raw = new Part { PartNumber = "RAW-1", Description = "Bar stock", InventoryClass = InventoryClass.Raw, ProcurementSource = ProcurementSource.Buy, ManualCostOverride = 5m };
+        var component = new Part { PartNumber = "CMP-1", Description = "Bearing", InventoryClass = InventoryClass.Component, ProcurementSource = ProcurementSource.Buy, ManualCostOverride = 2m };
+        var sub = new Part { PartNumber = "SUB-1", Description = "Housing", InventoryClass = InventoryClass.Subassembly, ProcurementSource = ProcurementSource.Make, ManualCostOverride = 12m };
+        var fg = new Part { PartNumber = "FG-1", Description = "Widget", InventoryClass = InventoryClass.FinishedGood, ProcurementSource = ProcurementSource.Make, ManualCostOverride = 30m };
+        var consumable = new Part { PartNumber = "CON-1", Description = "Rags", InventoryClass = InventoryClass.Consumable, ProcurementSource = ProcurementSource.Buy, ManualCostOverride = 1m };
+        db.Set<Part>().AddRange(raw, component, sub, fg, consumable);
+        await db.SaveChangesAsync();
+
+        var invoice = new Invoice
+        {
+            InvoiceNumber = "INV-2002",
+            CustomerId = customer.Id,
+            InvoiceDate = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero),
+            DueDate = new DateTimeOffset(2026, 2, 14, 0, 0, 0, TimeSpan.Zero),
+            Status = InvoiceStatus.Draft,
+            TaxRate = 0m,
+            Lines =
+            [
+                new InvoiceLine { Description = "Bar stock", Quantity = 4m, UnitPrice = 10m, LineNumber = 1, PartId = raw.Id },
+                new InvoiceLine { Description = "Bearing", Quantity = 3m, UnitPrice = 5m, LineNumber = 2, PartId = component.Id },
+                new InvoiceLine { Description = "Housing", Quantity = 1m, UnitPrice = 25m, LineNumber = 3, PartId = sub.Id },
+                new InvoiceLine { Description = "Widget", Quantity = 2m, UnitPrice = 100m, LineNumber = 4, PartId = fg.Id },
+                new InvoiceLine { Description = "Rags", Quantity = 5m, UnitPrice = 2m, LineNumber = 5, PartId = consumable.Id },
+            ],
+        };
+        db.Invoices.Add(invoice);
+        await db.SaveChangesAsync();
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+
+        var cogs = await db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines)
+            .SingleAsync(e => e.Source == JournalSource.Inventory);
+        cogs.Lines.Where(l => l.GlAccountId == CogsId).Select(l => l.Debit)
+            .Should().BeEquivalentTo([20m, 6m, 12m, 60m]);
+        cogs.Lines.Where(l => l.Credit > 0m).Select(l => (l.GlAccountId, l.Credit))
+            .Should().BeEquivalentTo([(InventoryRawId, 26m), (InventorySubassemblyId, 12m), (InventoryFgId, 60m)]);
+        cogs.Lines.Sum(l => l.Debit).Should().Be(cogs.Lines.Sum(l => l.Credit));
     }
 
     [Fact]
