@@ -36,7 +36,10 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
         var quantity = await db.JobParts
             .Where(jp => jp.JobId == job.Id && jp.PartId == job.PartId)
             .SumAsync(jp => jp.Quantity, ct);
-        return quantity > 0m ? quantity : 1m;
+        var lineQuantity = job.SalesOrderLineId is { } lineId
+            ? await db.SalesOrderLines.Where(l => l.Id == lineId).Select(l => (decimal?)l.Quantity).FirstOrDefaultAsync(ct)
+            : null;
+        return OperationTimeMath.JobBuildQuantity(quantity, lineQuantity);
     }
 
     public async Task<JobOperation> EnsureRowAsync(Job job, Operation operation, CancellationToken ct)
