@@ -227,6 +227,30 @@ public class TelemetryReporterGateTests
     }
 
     [Fact]
+    public async Task AHeartbeat_LeavesNoAuditOrHistoryRow()
+    {
+        var (db, spy, reporter) = await BuildAsync(new()
+        {
+            [TelemetrySettingKeys.Enabled] = "true",
+            [TelemetrySettingKeys.ConsentDecision] = "accepted",
+            [TelemetrySettingKeys.ConsentVersion] = TelemetryAgreement.Version,
+            [TelemetrySettingKeys.Token] = "live-token",
+            [TelemetrySettingKeys.EnrollmentStatus] = "Accepted",
+            [TelemetrySettingKeys.LastHeartbeatAt] = "2026-08-30T11:55:00.0000000+00:00",
+            [TelemetrySettingKeys.LastError] = "",
+        });
+        using var _ = db;
+        var auditBefore = await db.AuditLogEntries.CountAsync();
+        var historyBefore = await db.ActivityLogs.CountAsync();
+
+        await reporter.RunAsync();
+
+        (await Setting(db, TelemetrySettingKeys.LastHeartbeatAt)).Should().StartWith("2026-08-30T12:00:00");
+        (await db.AuditLogEntries.CountAsync()).Should().Be(auditBefore);
+        (await db.ActivityLogs.CountAsync()).Should().Be(historyBefore);
+    }
+
+    [Fact]
     public async Task ARevokedToken_IsDroppedSoTheNextCycleReEnrolls()
     {
         // Monitoring paused at the far end shouldn't need the customer to do anything;

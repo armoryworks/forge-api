@@ -200,7 +200,17 @@ public sealed class TelemetryReporter(
         var setting = await db.SystemSettings.FirstOrDefaultAsync(s => s.Key == key, ct);
         if (setting is null) db.SystemSettings.Add(new Core.Entities.SystemSetting { Key = key, Value = value });
         else setting.Value = value;
-        await db.SaveChangesAsync(ct);
+
+        var suppressAudit = db.SuppressAudit;
+        db.SuppressAudit = suppressAudit || key == TelemetrySettingKeys.LastHeartbeatAt;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        finally
+        {
+            db.SuppressAudit = suppressAudit;
+        }
     }
 
     private static string Truncate(string value, int max) => value.Length <= max ? value : value[..max];
