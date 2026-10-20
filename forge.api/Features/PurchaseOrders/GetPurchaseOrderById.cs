@@ -41,9 +41,33 @@ public class GetPurchaseOrderByIdHandler(
             && po.Vendor.MinOrderAmount.Value > 0
             && poTotal < po.Vendor.MinOrderAmount.Value;
 
+        var fallbackBin = po.Lines.Any(l => l.PartId is not null)
+            ? ReceiveItemsHandler.PickFallbackBin(await db.StorageLocations
+                .AsNoTracking()
+                .Where(l => l.DeletedAt == null && l.IsActive && l.LocationType == LocationType.Bin)
+                .OrderBy(l => l.SortOrder).ThenBy(l => l.Name)
+                .ToListAsync(cancellationToken))
+            : null;
+
         var receivableDefaultBinPaths = await ResolveReceivableBinPathsAsync(
-            po.Lines.Where(l => l.Part?.DefaultBinId is not null).Select(l => l.Part!.DefaultBinId!.Value),
+            po.Lines.Where(l => l.Part?.DefaultBinId is not null).Select(l => l.Part!.DefaultBinId!.Value)
+                .Concat(fallbackBin is null ? [] : [fallbackBin.Id]),
             cancellationToken);
+
+        var unitIds = po.Lines.Where(l => l.PurchaseUnitId is null)
+            .Select(l => l.UomId ?? l.Part?.StockUomId)
+            .OfType<int>()
+            .Distinct()
+            .ToList();
+        var units = unitIds.Count == 0
+            ? []
+            : await db.UnitsOfMeasure.AsNoTracking()
+                .Where(u => unitIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, cancellationToken);
+        UnitOfMeasure? UnitOf(PurchaseOrderLine line) =>
+            line.PurchaseUnitId is null && (line.UomId ?? line.Part?.StockUomId) is int unitId
+                ? units.GetValueOrDefault(unitId)
+                : null;
 
         var contact = po.VendorContactId is int contactId
             ? await db.VendorContacts.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contactId, cancellationToken)
@@ -96,7 +120,9 @@ public class GetPurchaseOrderByIdHandler(
                 l.Part?.DefaultBinId is int pathBinId
                     ? receivableDefaultBinPaths.GetValueOrDefault(pathBinId)
                     : null,
-                ReceiptLotRecords.TracksLot(l.Part, capabilities))).ToList(),
+                ReceiptLotRecords.TracksLot(l.Part, capabilities),
+                UnitOf(l) is { } unit ? unit.Symbol ?? unit.Code : null,
+                UnitOf(l)?.DecimalPlaces)).ToList(),
             po.CreatedAt,
             po.UpdatedAt,
             po.ShortCloseReason,
@@ -123,7 +149,9 @@ public class GetPurchaseOrderByIdHandler(
             ShipToLocationId: shipTo?.Id,
             ShipToLocationName: shipTo?.Name,
             ShipToAddressText: shipTo is null ? null : PurchaseOrderParties.OneLine(shipTo),
-            RowVersion: po.Version);
+            RowVersion: po.Version,
+            ReceivingFallbackBinId: fallbackBin?.Id,
+            ReceivingFallbackBinPath: fallbackBin is null ? null : receivableDefaultBinPaths.GetValueOrDefault(fallbackBin.Id));
     }
 
     private async Task<Dictionary<int, string>> ResolveReceivableBinPathsAsync(

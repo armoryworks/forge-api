@@ -25,4 +25,6 @@ public record PurchaseOrderLineResponseModel(
     string? ManualOverrideReason,
     int? PartDefaultBinId = null,
     string? PartDefaultBinPath = null,
-    bool LotTracked = false);
+    bool LotTracked = false,
+    string? UnitSymbol = null,
+    int? QuantityDecimalPlaces = null);

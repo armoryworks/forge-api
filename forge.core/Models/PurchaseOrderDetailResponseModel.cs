@@ -53,4 +53,6 @@ public record PurchaseOrderDetailResponseModel(
     int? ShipToLocationId = null,
     string? ShipToLocationName = null,
     string? ShipToAddressText = null,
-    uint RowVersion = 0);
+    uint RowVersion = 0,
+    int? ReceivingFallbackBinId = null,
+    string? ReceivingFallbackBinPath = null);

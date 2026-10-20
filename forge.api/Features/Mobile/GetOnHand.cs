@@ -8,7 +8,7 @@ namespace Forge.Api.Features.Mobile;
 
 public record GetOnHandQuery(int PartId, int LocationId) : IRequest<OnHandResponseModel>;
 
-/// <summary>Quantity on hand for a part at a bin — the stepper default — plus lots when the part is lot-tracked.</summary>
+/// <summary>Quantity on hand for a part at a bin — the stepper default — plus lots when the part is lot-tracked, and the stock held without a lot.</summary>
 public class GetOnHandHandler(AppDbContext db) : IRequestHandler<GetOnHandQuery, OnHandResponseModel>
 {
     public async Task<OnHandResponseModel> Handle(GetOnHandQuery request, CancellationToken ct)
@@ -41,6 +41,7 @@ public class GetOnHandHandler(AppDbContext db) : IRequestHandler<GetOnHandQuery,
             request.PartId, part.PartNumber, request.LocationId, location,
             contents.Sum(c => c.Quantity),
             part.TraceabilityType != TraceabilityType.None,
-            lots);
+            lots,
+            contents.Where(c => string.IsNullOrEmpty(c.LotNumber)).Sum(c => c.Quantity));
     }
 }
