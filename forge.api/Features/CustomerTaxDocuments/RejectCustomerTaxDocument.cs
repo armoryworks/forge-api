@@ -36,7 +36,7 @@ public class RejectCustomerTaxDocumentHandler(AppDbContext db)
 
         db.LogActivityAt(
             "tax-document-rejected",
-            $"Rejected {document.CertificateType} tax certificate ({document.StateCode}): {document.RejectionReason}",
+            $"Rejected {document.CertificateType} tax certificate{(document.StateCode is null ? "" : $" ({document.StateCode})")}: {document.RejectionReason}",
             ("Customer", document.CustomerId));
 
         await db.SaveChangesAsync(cancellationToken);

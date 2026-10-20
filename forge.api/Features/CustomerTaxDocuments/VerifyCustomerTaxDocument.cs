@@ -32,7 +32,7 @@ public class VerifyCustomerTaxDocumentHandler(
 
         db.LogActivityAt(
             "tax-document-verified",
-            $"Verified {document.CertificateType} tax certificate ({document.StateCode})",
+            $"Verified {document.CertificateType} tax certificate{(document.StateCode is null ? "" : $" ({document.StateCode})")}",
             ("Customer", document.CustomerId));
 
         await db.SaveChangesAsync(cancellationToken);
