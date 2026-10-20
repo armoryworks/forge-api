@@ -57,6 +57,24 @@ public sealed class PickerSearchQueryTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Part_search_without_a_sort_shows_the_exact_match_ahead_of_more_than_a_page_of_others()
+    {
+        await using var db = fixture.CreateContext();
+        var t = Token();
+        var now = DateTimeOffset.UtcNow;
+        db.Parts.Add(new Part { PartNumber = t, Name = "Exact", CreatedAt = now.AddDays(-30) });
+        for (var i = 0; i < 12; i++)
+            db.Parts.Add(new Part { PartNumber = $"A{i:D2}-{t}", Name = $"Other {i}", CreatedAt = now.AddMinutes(i) });
+        await db.SaveChangesAsync();
+
+        var page = await PartRepo(db).GetPagedAsync(new PartListQuery { Q = t, PageSize = 10 }, CancellationToken.None);
+
+        page.TotalCount.Should().Be(13);
+        page.Items.Should().HaveCount(10);
+        page.Items[0].PartNumber.Should().Be(t);
+    }
+
+    [Fact]
     public async Task Part_search_keeps_an_explicit_sort()
     {
         await using var db = fixture.CreateContext();
