@@ -94,6 +94,14 @@ public class TrainingController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("modules/{id:int}/restore")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> RestoreModule(int id, CancellationToken ct = default)
+    {
+        await mediator.Send(new RestoreTrainingModuleCommand(id), ct);
+        return NoContent();
+    }
+
     [HttpPatch("modules/{moduleId:int}/walkthrough-steps")]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<TrainingModuleDetailResponseModel>> UpdateWalkthroughSteps(

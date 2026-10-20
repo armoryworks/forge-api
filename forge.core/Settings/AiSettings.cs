@@ -18,7 +18,7 @@ public static class AiSettings
     [
         new(KeyMode, Group, "Mode", SettingDataType.Enum,
             DefaultValue: IntegrationModeChoices.Mock,
-            Description: "Mock returns canned text — useful when no Ollama instance is reachable.",
+            Description: "Mock returns canned text, useful when no Ollama instance is reachable. Real sends requests to the Ollama server below. Disabled turns the AI assistant off.",
             Choices: IntegrationModeChoices.All, SortOrder: 0),
         new(KeyBaseUrl, Group, "Base URL", SettingDataType.Url,
             DefaultValue: "http://forge-ai:11434",

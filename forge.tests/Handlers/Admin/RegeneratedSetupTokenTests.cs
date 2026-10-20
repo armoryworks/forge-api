@@ -90,4 +90,32 @@ public class RegeneratedSetupTokenTests
             .Handle(new ValidateSetupTokenQuery(code), CancellationToken.None);
         info.Email.Should().Be("pending@example.com");
     }
+
+    [Fact]
+    public async Task SendSetupInvite_OperationKey_CarriesNothingDerivedFromTheToken()
+    {
+        var mediator = new Mock<IMediator>();
+        mediator.Setup(m => m.Send(It.IsAny<GenerateSetupTokenCommand>(), It.IsAny<CancellationToken>()))
+            .Returns((GenerateSetupTokenCommand c, CancellationToken ct) =>
+                new GenerateSetupTokenHandler(_userManager.Object).Handle(c, ct));
+        var settings = new Mock<ISystemSettingRepository>();
+        string? operationKey = null;
+        EmailMessage? sent = null;
+        var outbox = new Mock<IIntegrationOutboxService>();
+        outbox.Setup(o => o.EnqueueEmailAsync(It.IsAny<string>(), It.IsAny<EmailMessage>(),
+                It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+            .Callback((string key, EmailMessage m, string? _, int? _, CancellationToken _) => { operationKey = key; sent = m; })
+            .ReturnsAsync(new IntegrationOutboxEntry());
+
+        await new SendSetupInviteHandler(_userManager.Object, mediator.Object, outbox.Object, settings.Object)
+            .Handle(new SendSetupInviteCommand(42, "https://forge.example"), CancellationToken.None);
+
+        var code = Regex.Match(sent!.HtmlBody, "https://forge\\.example/setup/([A-Z2-9]{4}-[A-Z2-9]{4})").Groups[1].Value;
+        var hash = CreateAdminUserHandler.HashSetupToken(code);
+
+        operationKey.Should().StartWith("setup-invite:42:");
+        operationKey.Should().NotContain(code);
+        operationKey.Should().NotContain(hash);
+        operationKey.Should().NotContainEquivalentOf(hash[..16]);
+    }
 }

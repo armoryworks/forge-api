@@ -18,7 +18,7 @@ public static class SmtpSettings
         new(KeyMode, Group, "Mode",
             DataType: SettingDataType.Enum,
             DefaultValue: IntegrationModeChoices.Mock,
-            Description: "Mock logs outbound emails to the integration outbox without sending.",
+            Description: "Mock records outbound emails in the integration outbox without sending them. Real sends them through the SMTP server below. Disabled turns outbound email off.",
             Choices: IntegrationModeChoices.All,
             SortOrder: 0),
         new(KeyHost, Group, "Host", SettingDataType.String,

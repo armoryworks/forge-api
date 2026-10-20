@@ -13,6 +13,10 @@ namespace Forge.Api.Features.Capabilities.Descriptor;
 ///
 /// Phase 4 Phase-C — Each row carries a <c>Version</c> + <c>ETag</c> so the
 /// admin UI can submit If-Match on subsequent toggle / config writes (4D §5.4).
+///
+/// <c>OnboardingComplete</c> is the install-wide signal behind the capability
+/// onboarding banner: true once any preset has been applied (a
+/// <c>PresetApplied</c> audit row) or any discovery run has been recorded.
 /// </summary>
 public record GetCapabilityDescriptorQuery() : IRequest<CapabilityDescriptorResponseModel>;
 
@@ -20,7 +24,8 @@ public record CapabilityDescriptorResponseModel(
     DateTimeOffset GeneratedAt,
     int TotalCount,
     int EnabledCount,
-    IReadOnlyList<CapabilityDescriptorEntry> Capabilities);
+    IReadOnlyList<CapabilityDescriptorEntry> Capabilities,
+    bool OnboardingComplete = false);
 
 public record CapabilityDescriptorEntry(
     string Id,
@@ -125,10 +130,17 @@ public class GetCapabilityDescriptorHandler(AppDbContext db, ICapabilitySnapshot
 
         var enabledCount = entries.Count(r => r.Enabled);
 
+        var onboardingComplete =
+            await db.AuditLogEntries.AsNoTracking().AnyAsync(
+                a => a.Action == CapabilityAuditEvents.PresetApplied && a.EntityType == CapabilityAuditEvents.EntityType,
+                cancellationToken)
+            || await db.DiscoveryRuns.AsNoTracking().AnyAsync(cancellationToken);
+
         return new CapabilityDescriptorResponseModel(
             GeneratedAt: snapshots.Current.GeneratedAt,
             TotalCount: entries.Count,
             EnabledCount: enabledCount,
-            Capabilities: entries);
+            Capabilities: entries,
+            OnboardingComplete: onboardingComplete);
     }
 }

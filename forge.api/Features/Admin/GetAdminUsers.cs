@@ -23,7 +23,9 @@ public class GetAdminUsersHandler(
     {
         var users = await db.Users
             .Include(u => u.WorkLocation)
-            .OrderBy(u => u.FirstName)
+            .OrderBy(u => u.LastName)
+            .ThenBy(u => u.FirstName)
+            .ThenBy(u => u.Id)
             .ToListAsync(cancellationToken);
 
         // Batch-load scan identifier types per user
