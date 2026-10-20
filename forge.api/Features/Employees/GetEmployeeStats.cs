@@ -29,20 +29,7 @@ public class GetEmployeeStatsHandler(AppDbContext db)
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == request.EmployeeId, cancellationToken);
 
-        var complianceChecks = new[]
-        {
-            profile?.W4CompletedAt is not null,
-            profile?.I9CompletedAt is not null,
-            profile?.StateWithholdingCompletedAt is not null,
-            profile is not null && !string.IsNullOrWhiteSpace(profile.EmergencyContactName),
-            profile is not null && !string.IsNullOrWhiteSpace(profile.Street1),
-            profile?.DirectDepositCompletedAt is not null,
-            profile?.WorkersCompAcknowledgedAt is not null,
-            profile?.HandbookAcknowledgedAt is not null,
-        };
-        var compliancePercent = complianceChecks.Length > 0
-            ? (int)Math.Round(100.0 * complianceChecks.Count(c => c) / complianceChecks.Length)
-            : 0;
+        var compliancePercent = EmployeeComplianceRules.PercentComplete(EmployeeComplianceRules.Checklist(profile));
 
         // Active jobs
         var activeJobCount = await db.Jobs
@@ -51,13 +38,24 @@ public class GetEmployeeStatsHandler(AppDbContext db)
                 && j.CompletedDate == null, cancellationToken);
 
         // Training progress
-        var trainingModules = await db.TrainingProgress
-            .Where(p => p.UserId == request.EmployeeId && p.DeletedAt == null)
-            .Select(p => p.Status)
+        var requiredModuleIds = await db.TrainingPathEnrollments
+            .Where(e => e.UserId == request.EmployeeId)
+            .SelectMany(e => e.Path.PathModules.Where(pm => pm.IsRequired).Select(pm => pm.ModuleId))
+            .Distinct()
             .ToListAsync(cancellationToken);
-        var trainingPercent = trainingModules.Count > 0
-            ? (int)Math.Round(100.0 * trainingModules.Count(s => s == TrainingProgressStatus.Completed) / trainingModules.Count)
-            : 0;
+        var trainingRows = await db.TrainingProgress
+            .Where(p => p.UserId == request.EmployeeId && p.DeletedAt == null)
+            .Select(p => new { p.ModuleId, p.Status })
+            .ToListAsync(cancellationToken);
+        var completedModuleIds = trainingRows
+            .Where(r => r.Status == TrainingProgressStatus.Completed)
+            .Select(r => r.ModuleId)
+            .ToHashSet();
+        var trainingPercent = requiredModuleIds.Count > 0
+            ? (int)Math.Round(100.0 * requiredModuleIds.Count(completedModuleIds.Contains) / requiredModuleIds.Count)
+            : trainingRows.Count > 0
+                ? (int)Math.Round(100.0 * completedModuleIds.Count / trainingRows.Count)
+                : 0;
 
         // Outstanding expenses
         var outstandingExpenses = await db.Expenses

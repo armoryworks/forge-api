@@ -7,12 +7,30 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Employees;
 
-public record GetEmployeeDetailQuery(int EmployeeId, string? Kind = null) : IRequest<EmployeeDetailResponseModel?>;
+public record GetEmployeeDetailQuery(
+    int EmployeeId,
+    string? Kind = null,
+    int? CallerUserId = null,
+    bool CallerIsAdmin = false) : IRequest<EmployeeDetailResponseModel?>;
 
 public class GetEmployeeDetailHandler(AppDbContext db, UserManager<ApplicationUser> userManager)
     : IRequestHandler<GetEmployeeDetailQuery, EmployeeDetailResponseModel?>
 {
     public async Task<EmployeeDetailResponseModel?> Handle(GetEmployeeDetailQuery request, CancellationToken ct)
+    {
+        var detail = await ResolveAsync(request, ct);
+        if (detail is null)
+            return null;
+
+        var restrictedTeamId = await EmployeeTeamScope.RestrictedTeamIdAsync(
+            db, request.CallerUserId, request.CallerIsAdmin, ct);
+        if (restrictedTeamId is null)
+            return detail;
+
+        return detail.HasLogin && detail.TeamId == restrictedTeamId ? detail : null;
+    }
+
+    private async Task<EmployeeDetailResponseModel?> ResolveAsync(GetEmployeeDetailQuery request, CancellationToken ct)
     {
         // Phase 3 / WU-19 / F9 — id-resolution order designed to preserve
         // backward compatibility with the legacy user-keyed contract while
@@ -86,10 +104,10 @@ public class GetEmployeeDetailHandler(AppDbContext db, UserManager<ApplicationUs
         string? teamName = null;
         if (user.TeamId.HasValue)
         {
-            teamName = await db.ReferenceData
+            teamName = await db.Teams
                 .AsNoTracking()
-                .Where(r => r.Id == user.TeamId.Value)
-                .Select(r => r.Label)
+                .Where(t => t.Id == user.TeamId.Value)
+                .Select(t => t.Name)
                 .FirstOrDefaultAsync(ct);
         }
 
@@ -98,23 +116,7 @@ public class GetEmployeeDetailHandler(AppDbContext db, UserManager<ApplicationUs
             .Select(s => s.IdentifierType)
             .ToListAsync(ct);
 
-        var complianceItems = new[]
-        {
-            profile?.W4CompletedAt is not null,
-            profile?.I9CompletedAt is not null,
-            profile?.StateWithholdingCompletedAt is not null,
-            profile is not null &&
-                !string.IsNullOrWhiteSpace(profile.EmergencyContactName) &&
-                !string.IsNullOrWhiteSpace(profile.EmergencyContactPhone),
-            profile is not null &&
-                !string.IsNullOrWhiteSpace(profile.Street1) &&
-                !string.IsNullOrWhiteSpace(profile.City) &&
-                !string.IsNullOrWhiteSpace(profile.State) &&
-                !string.IsNullOrWhiteSpace(profile.ZipCode),
-            profile?.DirectDepositCompletedAt is not null,
-            profile?.WorkersCompAcknowledgedAt is not null,
-            profile?.HandbookAcknowledgedAt is not null,
-        };
+        var checklist = EmployeeComplianceRules.Checklist(profile);
 
         // Id semantics — legacy callers reach this branch by passing User.Id.
         // We preserve User.Id as the response Id so existing UI navigation
@@ -151,27 +153,14 @@ public class GetEmployeeDetailHandler(AppDbContext db, UserManager<ApplicationUs
             profile?.EmergencyContactName,
             profile?.EmergencyContactPhone,
             profile?.EmergencyContactRelationship,
-            complianceItems.Count(c => c),
-            complianceItems.Length);
+            checklist.Count(c => c.Completed),
+            checklist.Count,
+            ComplianceChecklist: checklist);
     }
 
     private static EmployeeDetailResponseModel ProjectUserlessProfile(Core.Entities.EmployeeProfile profile)
     {
-        var complianceItems = new[]
-        {
-            profile.W4CompletedAt is not null,
-            profile.I9CompletedAt is not null,
-            profile.StateWithholdingCompletedAt is not null,
-            !string.IsNullOrWhiteSpace(profile.EmergencyContactName) &&
-                !string.IsNullOrWhiteSpace(profile.EmergencyContactPhone),
-            !string.IsNullOrWhiteSpace(profile.Street1) &&
-                !string.IsNullOrWhiteSpace(profile.City) &&
-                !string.IsNullOrWhiteSpace(profile.State) &&
-                !string.IsNullOrWhiteSpace(profile.ZipCode),
-            profile.DirectDepositCompletedAt is not null,
-            profile.WorkersCompAcknowledgedAt is not null,
-            profile.HandbookAcknowledgedAt is not null,
-        };
+        var checklist = EmployeeComplianceRules.Checklist(profile);
 
         return new EmployeeDetailResponseModel(
             profile.Id,
@@ -204,8 +193,9 @@ public class GetEmployeeDetailHandler(AppDbContext db, UserManager<ApplicationUs
             profile.EmergencyContactName,
             profile.EmergencyContactPhone,
             profile.EmergencyContactRelationship,
-            complianceItems.Count(c => c),
-            complianceItems.Length,
-            HasLogin: false);
+            checklist.Count(c => c.Completed),
+            checklist.Count,
+            HasLogin: false,
+            ComplianceChecklist: checklist);
     }
 }

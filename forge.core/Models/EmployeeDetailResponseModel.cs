@@ -36,4 +36,5 @@ public record EmployeeDetailResponseModel(
     string? EmergencyContactRelationship,
     int ComplianceCompletedItems,
     int ComplianceTotalItems,
-    bool HasLogin = true);
+    bool HasLogin = true,
+    IReadOnlyList<EmployeeComplianceCheckModel>? ComplianceChecklist = null);

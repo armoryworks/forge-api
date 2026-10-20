@@ -10,7 +10,7 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Training;
 
-public record SubmitQuizCommand(int UserId, int ModuleId, List<QuizAnswerModel> Answers)
+public record SubmitQuizCommand(int UserId, int ModuleId, List<QuizAnswerModel> Answers, bool IsAdmin = false)
     : IRequest<QuizSubmissionResponseModel>;
 
 public class SubmitQuizHandler(AppDbContext db) : IRequestHandler<SubmitQuizCommand, QuizSubmissionResponseModel>
@@ -30,15 +30,22 @@ public class SubmitQuizHandler(AppDbContext db) : IRequestHandler<SubmitQuizComm
 
         // If the quiz has randomized sessions, score only the questions that were presented
         var sessionIds = DeserializeSessionIds(progress?.QuizSessionJson);
+        var isPooled = content.QuestionsPerQuiz is { } perQuiz && perQuiz < content.Questions.Count;
+        if (isPooled && sessionIds.Count == 0 && !request.IsAdmin)
+            throw new InvalidOperationException("This quiz has no active question set. Reload the quiz and try again.");
+
         var questionsToScore = sessionIds.Count > 0
             ? content.Questions.Where(q => sessionIds.Contains(q.Id)).ToList()
             : content.Questions;
 
-        var answerMap = request.Answers.ToDictionary(a => a.QuestionId, a => a.OptionId);
+        var answerMap = request.Answers
+            .GroupBy(a => a.QuestionId)
+            .ToDictionary(g => g.Key, g => g.Last().OptionId);
 
         var correctCount = 0;
         var scoredQuestions = new List<QuizScoredQuestionModel>();
 
+        var graded = new List<(QuizQuestion Question, QuizOption CorrectOption, bool IsCorrect)>();
         foreach (var question in questionsToScore)
         {
             var correctOption = question.Options.FirstOrDefault(o => o.IsCorrect);
@@ -47,18 +54,23 @@ public class SubmitQuizHandler(AppDbContext db) : IRequestHandler<SubmitQuizComm
             answerMap.TryGetValue(question.Id, out var givenOptionId);
             var isCorrect = givenOptionId == correctOption.Id;
             if (isCorrect) correctCount++;
+            graded.Add((question, correctOption, isCorrect));
+        }
 
+        var totalQuestions = graded.Count;
+        var score = totalQuestions > 0 ? (int)Math.Round((double)correctCount / totalQuestions * 100) : 0;
+        var passed = score >= content.PassingScore;
+        var revealAnswers = passed || request.IsAdmin;
+
+        foreach (var (question, correctOption, isCorrect) in graded)
+        {
             scoredQuestions.Add(new QuizScoredQuestionModel(
                 question.Id,
                 isCorrect,
-                correctOption.Id,
-                question.Explanation
+                revealAnswers ? correctOption.Id : null,
+                revealAnswers ? question.Explanation : null
             ));
         }
-
-        var totalQuestions = questionsToScore.Count(q => q.Options.Any(o => o.IsCorrect));
-        var score = totalQuestions > 0 ? (int)Math.Round((double)correctCount / totalQuestions * 100) : 0;
-        var passed = score >= content.PassingScore;
 
         var answersJson = JsonSerializer.Serialize(request.Answers);
 
@@ -103,7 +115,7 @@ public class SubmitQuizHandler(AppDbContext db) : IRequestHandler<SubmitQuizComm
         if (passed)
             await CheckAndCompleteEnrollmentsAsync(request.UserId, ct);
 
-        return new QuizSubmissionResponseModel(score, passed, scoredQuestions.ToArray());
+        return new QuizSubmissionResponseModel(score, passed, content.PassingScore, scoredQuestions.ToArray());
     }
 
     private async Task CheckAndCompleteEnrollmentsAsync(int userId, CancellationToken ct)
@@ -163,15 +175,15 @@ public class SubmitQuizHandler(AppDbContext db) : IRequestHandler<SubmitQuizComm
         {
             return JsonSerializer.Deserialize<QuizContent>(contentJson,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-                ?? new QuizContent([], 70);
+                ?? new QuizContent([], 70, null);
         }
         catch
         {
-            return new QuizContent([], 70);
+            return new QuizContent([], 70, null);
         }
     }
 
-    private record QuizContent(List<QuizQuestion> Questions, int PassingScore);
+    private record QuizContent(List<QuizQuestion> Questions, int PassingScore, int? QuestionsPerQuiz);
     private record QuizQuestion(string Id, string Text, List<QuizOption> Options, string? Explanation);
     private record QuizOption(string Id, string Text, bool IsCorrect);
 }
