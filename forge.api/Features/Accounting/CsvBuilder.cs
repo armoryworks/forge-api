@@ -10,7 +10,10 @@ namespace Forge.Api.Features.Accounting;
 /// doubled. Amounts are invariant-culture 2dp (no currency symbol); dates are ISO
 /// <c>yyyy-MM-dd</c>. Shared by the three export handlers so the dialect can never
 /// drift between files the CPA loads side by side. Bytes are UTF-8 with a byte order
-/// mark so Excel opens the files as UTF-8.
+/// mark so Excel opens the files as UTF-8. A text field that a spreadsheet would read
+/// as a formula (leading <c>=</c>, <c>+</c>, <c>@</c>, tab or CR, or a leading
+/// <c>-</c> that is not a number) is prefixed with a single quote; amounts and dates
+/// are never altered.
 /// </summary>
 public sealed class CsvBuilder
 {
@@ -64,9 +67,18 @@ public sealed class CsvBuilder
     {
         if (string.IsNullOrEmpty(field)) return string.Empty;
 
+        if (LooksLikeFormula(field)) field = "'" + field;
+
         var needsQuoting = field.Contains(',') || field.Contains('"')
             || field.Contains('\r') || field.Contains('\n');
 
         return needsQuoting ? $"\"{field.Replace("\"", "\"\"")}\"" : field;
     }
+
+    private static bool LooksLikeFormula(string field) => field[0] switch
+    {
+        '=' or '+' or '@' or '\t' or '\r' => true,
+        '-' => !decimal.TryParse(field, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out _),
+        _ => false,
+    };
 }
