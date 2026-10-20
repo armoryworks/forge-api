@@ -249,6 +249,74 @@ public class ScannerLotStockTests : IDisposable
     }
 
     [Fact]
+    public async Task ReverseMove_WhenTheMovedStockIsNowReserved_IsRefusedAndChangesNothing()
+    {
+        var (partId, binId, otherId) = await SeedAsync(unlotted: 5m, lotted: 10m);
+        var logId = await new ExecuteScanMoveHandler(_db, _clock, _accessor).Handle(
+            new ExecuteScanMoveCommand(new ScanMoveRequestModel(partId, binId, otherId, 12m)), CancellationToken.None);
+        var moved = await _db.BinContents.SingleAsync(b => b.LocationId == otherId && b.LotNumber == "HEAT-A");
+        moved.ReservedQuantity = 4m;
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var act = () => ReverseAsync(logId);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*lot HEAT-A*only 3*");
+        _db.ChangeTracker.Clear();
+        (await ActiveAsync(partId, otherId)).Sum(r => r.Quantity).Should().Be(12m);
+        (await ActiveAsync(partId, binId)).Sum(r => r.Quantity).Should().Be(3m);
+        (await _db.ScanActionLogs.AsNoTracking().SingleAsync(l => l.Id == logId)).IsReversed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ReverseMove_WhenTheMovedLotWasUsed_IsRefusedRatherThanTakingAnotherLot()
+    {
+        var (partId, binId, otherId) = await SeedAsync(unlotted: 0m, lotted: 10m);
+        var logId = await new ExecuteScanMoveHandler(_db, _clock, _accessor).Handle(
+            new ExecuteScanMoveCommand(new ScanMoveRequestModel(partId, binId, otherId, 6m)), CancellationToken.None);
+        var moved = await _db.BinContents.SingleAsync(b => b.LocationId == otherId && b.LotNumber == "HEAT-A");
+        moved.Quantity = 2m;
+        _db.BinContents.Add(new BinContent
+        {
+            LocationId = otherId, EntityType = "part", EntityId = partId, Quantity = 10m, LotNumber = "HEAT-B",
+            PlacedAt = _clock.UtcNow,
+        });
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var act = () => ReverseAsync(logId);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("Cannot reverse this scan*");
+        _db.ChangeTracker.Clear();
+        (await ActiveAsync(partId, otherId)).Single(r => r.LotNumber == "HEAT-B").Quantity.Should().Be(10m);
+    }
+
+    [Fact]
+    public async Task ReverseMove_RecordedBeforeMovementsWereLinked_TakesBackAnyLotsFreeUnits()
+    {
+        var (partId, binId, otherId) = await SeedAsync(unlotted: 0m, lotted: 6m);
+        _db.BinContents.Add(new BinContent
+        {
+            LocationId = otherId, EntityType = "part", EntityId = partId, Quantity = 4m, LotNumber = "HEAT-A",
+            PlacedAt = _clock.UtcNow,
+        });
+        var log = new ScanActionLog
+        {
+            UserId = UserId, ActionType = ScanActionType.Move, PartId = partId,
+            FromLocationId = binId, ToLocationId = otherId, Quantity = 4m,
+        };
+        _db.ScanActionLogs.Add(log);
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        await ReverseAsync(log.Id);
+
+        _db.ChangeTracker.Clear();
+        (await ActiveAsync(partId, otherId)).Should().BeEmpty();
+        (await ActiveAsync(partId, binId)).Sum(r => r.Quantity).Should().Be(10m);
+    }
+
+    [Fact]
     public async Task Issue_RecordsAMaterialIssuePerLotAgainstTheJob_AndPostsEachOne()
     {
         var (partId, binId, _) = await SeedAsync(unlotted: 5m, lotted: 10m);

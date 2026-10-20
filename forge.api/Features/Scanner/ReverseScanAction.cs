@@ -171,7 +171,8 @@ public class ReverseScanActionHandler(
             var quantity = Math.Abs(movedQuantity);
             if (toLocationId is int to)
             {
-                await ScanBinStock.RemoveAsync(db, partId, to, lotNumber, quantity, userId, now, ct);
+                await ScanBinStock.RemoveAsync(
+                    db, partId, to, lotNumber, anyLot: movementId is null, quantity, userId, now, ct);
                 change -= quantity;
             }
             if (fromLocationId is int from)
