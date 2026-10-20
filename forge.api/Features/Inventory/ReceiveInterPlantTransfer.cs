@@ -110,7 +110,7 @@ public class ReceiveInterPlantTransferHandler(
                 {
                     EntityType = "part",
                     EntityId = line.PartId,
-                    Quantity = shortage,
+                    Quantity = -shortage,
                     LotNumber = line.LotNumber,
                     MovedBy = userId,
                     MovedAt = now,

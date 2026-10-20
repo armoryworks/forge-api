@@ -5,6 +5,7 @@ using Forge.Api.Features.Jobs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
+using Forge.Data.Repositories;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Jobs;
@@ -148,6 +149,29 @@ public class CreateMaterialIssueHandlerTests : IDisposable
             Command(job, part, 5m) with { StorageLocationId = bin.Id, LotNumber = "L-1", IssueType = MaterialIssueType.Return },
             CancellationToken.None);
         (await OnHandAsync(part, bin)).Should().Be(13m);
+    }
+
+    [Fact]
+    public async Task Handle_IssueAndReturnByBin_RecordTheMovementDirection()
+    {
+        var (job, part) = await SeedAsync();
+        var bin = await BinAsync();
+        var row = await StockAsync(part, bin, 10m, "L-1");
+
+        await _handler.Handle(Command(job, part, 3m) with { BinContentId = row.Id }, CancellationToken.None);
+        await _handler.Handle(
+            Command(job, part, 2m) with { BinContentId = row.Id, IssueType = MaterialIssueType.Return },
+            CancellationToken.None);
+
+        var movements = await _db.BinMovements.AsNoTracking().OrderBy(m => m.Id).ToListAsync();
+        movements[0].FromLocationId.Should().Be(bin.Id);
+        movements[0].ToLocationId.Should().BeNull();
+        movements[1].FromLocationId.Should().BeNull();
+        movements[1].ToLocationId.Should().Be(bin.Id);
+        movements[1].Quantity.Should().Be(2m);
+        var shown = await new InventoryRepository(_db).GetMovementsAsync(null, null, null, 50, CancellationToken.None);
+        shown.Single(m => m.Id == movements[0].Id).Quantity.Should().Be(-3m);
+        shown.Single(m => m.Id == movements[1].Id).Quantity.Should().Be(2m);
     }
 
     [Fact]

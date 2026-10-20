@@ -306,11 +306,18 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
         if (locationId.HasValue)
             query = query.Where(m => m.FromLocationId == locationId || m.ToLocationId == locationId);
 
-        if (!string.IsNullOrWhiteSpace(entityType))
-            query = query.Where(m => m.EntityType == entityType);
+        if (entityType == "part" && entityId is int partId)
+            query = query.Where(m => (m.EntityType == "part" && m.EntityId == partId)
+                || (m.EntityType == "ShipmentLine" && db.ShipmentLines.Any(l => l.Id == m.EntityId
+                    && (l.PartId == partId || (l.PartId == null && l.SalesOrderLine != null && l.SalesOrderLine.PartId == partId)))));
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(entityType))
+                query = query.Where(m => m.EntityType == entityType);
 
-        if (entityId.HasValue)
-            query = query.Where(m => m.EntityId == entityId.Value);
+            if (entityId.HasValue)
+                query = query.Where(m => m.EntityId == entityId.Value);
+        }
 
         var movements = await query
             .OrderByDescending(m => m.MovedAt)
@@ -366,7 +373,12 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
     }
 
     private static decimal SignedMovementQuantity(decimal stored, int? fromLocationId, int? toLocationId) =>
-        fromLocationId.HasValue && !toLocationId.HasValue ? -Math.Abs(stored) : Math.Abs(stored);
+        (fromLocationId.HasValue, toLocationId.HasValue) switch
+        {
+            (true, false) => -Math.Abs(stored),
+            (false, false) => stored,
+            _ => Math.Abs(stored),
+        };
 
     public async Task<List<ReceivingRecordResponseModel>> GetReceivingHistoryAsync(
         int? purchaseOrderId, int? partId, int take, CancellationToken ct)
