@@ -42,6 +42,12 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
         if (query.Status.HasValue)
             q = q.Where(i => i.Status == query.Status.Value);
 
+        if (query.OpenOnly == true)
+            q = q.Where(i =>
+                i.Status != InvoiceStatus.Draft &&
+                i.Status != InvoiceStatus.Voided &&
+                i.Lines.Sum(l => l.Quantity * l.UnitPrice) + i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice) * i.TaxRate - i.PaymentApplications.Sum(pa => pa.Amount) > 0);
+
         if (!string.IsNullOrWhiteSpace(query.Q))
         {
             var term = query.Q.Trim().ToLower();

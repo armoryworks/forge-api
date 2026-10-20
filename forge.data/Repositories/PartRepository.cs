@@ -118,6 +118,7 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
             "createdat"          => desc ? q.OrderByDescending(p => p.CreatedAt)          : q.OrderBy(p => p.CreatedAt),
             "updatedat"          => desc ? q.OrderByDescending(p => p.UpdatedAt)          : q.OrderBy(p => p.UpdatedAt),
             "id"                 => desc ? q.OrderByDescending(p => p.Id)                 : q.OrderBy(p => p.Id),
+            _ when !string.IsNullOrWhiteSpace(query.Q) => OrderByPartRelevance(q, query.Q.Trim().ToLower()),
             _ => q.OrderByDescending(p => p.CreatedAt),
         };
         ordered = ordered.ThenBy(p => p.Id);
@@ -205,6 +206,14 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
             query.EffectivePage,
             query.EffectivePageSize);
     }
+
+    private static IOrderedQueryable<Part> OrderByPartRelevance(IQueryable<Part> q, string term) =>
+        q.OrderBy(p =>
+                p.PartNumber.ToLower() == term ? 0
+                : p.PartNumber.ToLower().StartsWith(term) ? 1
+                : p.Name.ToLower().StartsWith(term) ? 2
+                : 3)
+            .ThenByDescending(p => p.CreatedAt);
 
     public async Task<PartDetailResponseModel?> GetDetailAsync(int id, CancellationToken ct)
     {
