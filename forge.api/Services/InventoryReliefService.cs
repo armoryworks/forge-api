@@ -97,10 +97,12 @@ public class InventoryReliefService(AppDbContext db, ILogger<InventoryReliefServ
             .ToListAsync(ct);
 
         var ownReservations = line.SalesOrderLineId is int ownLineId
-            ? await db.Reservations
+            ? (await db.Reservations
                 .Include(r => r.BinContent)
                 .Where(r => r.SalesOrderLineId == ownLineId)
-                .ToListAsync(ct)
+                .ToListAsync(ct))
+                .Where(r => r.DeletedAt is null)
+                .ToList()
             : [];
         var ownReserved = ownReservations
             .GroupBy(r => r.BinContentId)

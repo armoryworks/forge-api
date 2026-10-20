@@ -311,6 +311,35 @@ public class InventoryReliefServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task RelieveShipment_TwoLinesOfOneOrderLine_ReleaseItsReservationOnce()
+    {
+        var (_, so, part) = await SeedSpineAsync("P-TWOLINES-001", 5m);
+        var soLine = so.Lines.First();
+        var bin = MakeBin(part.Id, 10m);
+        bin.ReservedQuantity = 10m;
+        _db.BinContents.Add(bin);
+        await _db.SaveChangesAsync();
+        _db.Reservations.AddRange(
+            new Reservation { PartId = part.Id, BinContentId = bin.Id, SalesOrderLineId = soLine.Id, Quantity = 5m },
+            new Reservation { PartId = part.Id, BinContentId = bin.Id, Quantity = 5m });
+        var shipment = MakeShipment(so.Id, soLine.Id, 3m);
+        shipment.Lines.Add(new ShipmentLine { SalesOrderLineId = soLine.Id, Quantity = 2m });
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+        var loaded = await _db.Shipments
+            .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
+            .FirstAsync(s => s.Id == shipment.Id);
+
+        var shortLines = await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
+
+        shortLines.Should().BeEmpty();
+        _db.ChangeTracker.Clear();
+        var binAfter = await _db.BinContents.FindAsync(bin.Id);
+        binAfter!.Quantity.Should().Be(5m);
+        binAfter.ReservedQuantity.Should().Be(5m);
+    }
+
+    [Fact]
     public async Task RelieveShipment_DrawsTheLinesOwnReservationFirst()
     {
         var (_, so, part) = await SeedSpineAsync("P-OWNRES-001", 5m);
