@@ -58,6 +58,7 @@ public class ConvertQuoteToOrderHandler(
             Notes = quote.Notes,
             // F7: the customer's PO reference captured at quote time follows the order.
             CustomerPO = quote.CustomerPO,
+            CreditTerms = quote.Customer.DefaultCreditTerms,
         };
 
         var lineNumber = 1;

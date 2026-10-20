@@ -96,6 +96,31 @@ public class ConvertQuoteToOrderHandlerTests
         _quoteRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Theory]
+    [InlineData(CreditTerms.Net45)]
+    [InlineData(null)]
+    public async Task Handle_OrderStartsFromCustomerDefaultCreditTerms(CreditTerms? customerTerms)
+    {
+        var quote = new Quote
+        {
+            Id = 7,
+            CustomerId = 3,
+            Status = QuoteStatus.Accepted,
+            Customer = new Customer { Id = 3, Name = "Terms Co", DefaultCreditTerms = customerTerms },
+        };
+        quote.Lines.Add(new QuoteLine { Description = "Bracket", Quantity = 1, UnitPrice = 10m, LineNumber = 1 });
+
+        _quoteRepo.Setup(r => r.FindWithDetailsAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(quote);
+        _orderRepo.Setup(r => r.GenerateNextOrderNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("SO-0007");
+        SalesOrder? capturedOrder = null;
+        _orderRepo.Setup(r => r.AddAsync(It.IsAny<SalesOrder>(), It.IsAny<CancellationToken>()))
+            .Callback<SalesOrder, CancellationToken>((o, _) => capturedOrder = o);
+
+        await _handler.Handle(new ConvertQuoteToOrderCommand(7), CancellationToken.None);
+
+        capturedOrder!.CreditTerms.Should().Be(customerTerms);
+    }
+
     [Fact]
     public async Task Handle_CopiesLineDetailsFromQuoteToOrder()
     {
