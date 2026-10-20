@@ -8,11 +8,15 @@ public static class EventTimeText
 {
     public const string DateFormat = "MM/dd/yyyy";
     public const string DateTimeFormat = "MM/dd/yyyy hh:mm tt";
+    public const string TimeFormat = "hh:mm tt";
 
     public static string Start(Event evt, TimeZoneInfo shopZone) =>
         evt.IsAllDay
             ? evt.StartTime.UtcDateTime.ToString(DateFormat, CultureInfo.InvariantCulture)
             : Instant(evt.StartTime, shopZone);
+
+    public static string TimeOfDay(DateTimeOffset value, TimeZoneInfo shopZone) =>
+        TimeZoneInfo.ConvertTime(value, shopZone).ToString(TimeFormat, CultureInfo.InvariantCulture);
 
     public static string Instant(DateTimeOffset value, TimeZoneInfo shopZone) =>
         TimeZoneInfo.ConvertTime(value, shopZone).ToString(DateTimeFormat, CultureInfo.InvariantCulture);

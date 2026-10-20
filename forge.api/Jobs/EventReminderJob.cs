@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Events;
+using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -34,8 +36,12 @@ public class EventReminderJob(
             return;
         }
 
+        var shopZone = await ClockStateRules.ShopTimeZoneAsync(db, ct);
         foreach (var evt in upcomingEvents)
         {
+            var when = evt.IsAllDay
+                ? $"is on {EventTimeText.Start(evt, shopZone)}"
+                : $"starts at {EventTimeText.TimeOfDay(evt.StartTime, shopZone)}";
             foreach (var attendee in evt.Attendees.Where(a => a.Status != AttendeeStatus.Declined))
             {
                 db.Notifications.Add(new Notification
@@ -45,7 +51,7 @@ public class EventReminderJob(
                     Severity = evt.IsRequired ? "warning" : "info",
                     Source = "events",
                     Title = $"Reminder: {evt.Title}",
-                    Message = $"\"{evt.Title}\" starts at {evt.StartTime:hh:mm tt}.{(evt.Location != null ? $" Location: {evt.Location}" : "")}",
+                    Message = $"\"{evt.Title}\" {when}.{(evt.Location != null ? $" Location: {evt.Location}" : "")}",
                     EntityType = "events",
                     EntityId = evt.Id,
                 });
