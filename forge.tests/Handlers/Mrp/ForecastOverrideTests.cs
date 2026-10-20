@@ -84,6 +84,29 @@ public class ForecastOverrideTests
             .HistoricalQuantity.Should().Be(300m);
     }
 
+    [Fact]
+    public async Task ForecastDetail_ReturnsBucketsWithTheLatestOverride()
+    {
+        var (forecastId, _) = await SeedApprovedForecastAsync();
+        await Override(forecastId, November, 2500m);
+        await Override(forecastId, November, 1800m);
+
+        var detail = await new GetDemandForecastHandler(_db).Handle(new GetDemandForecastQuery(forecastId), CancellationToken.None);
+
+        detail.ForecastBuckets.Should().NotBeNullOrEmpty();
+        detail.ForecastBuckets!.Single(b => b.PeriodStart == November).OverrideQuantity.Should().Be(1800m);
+        detail.OverrideCount.Should().Be(2);
+        detail.Status.Should().Be(ForecastStatus.Approved);
+    }
+
+    [Fact]
+    public async Task ForecastDetail_UnknownId_IsNotFound()
+    {
+        var act = () => new GetDemandForecastHandler(_db).Handle(new GetDemandForecastQuery(9999), CancellationToken.None);
+
+        await act.Should().ThrowAsync<KeyNotFoundException>();
+    }
+
     private async Task<(int ForecastId, int ScheduleId)> SeedApprovedForecastAsync()
     {
         var part = await SeedPartAsync();
