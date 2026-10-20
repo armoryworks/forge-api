@@ -13,12 +13,14 @@ public class DailyDigestJob(
     ISystemSettingRepository settings,
     IClock clock,
     ITerminologyLabels terminology,
+    IConfiguration configuration,
     ILogger<DailyDigestJob> logger)
 {
     public async Task SendDailyDigestAsync(CancellationToken ct = default)
     {
         var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct) ?? "Forge";
         var terms = await terminology.GetAsync(ct);
+        var appBaseUrl = configuration[FrontendBaseUrl.SettingKey];
 
         // Get users with email digest enabled
         var users = await db.Users
@@ -70,7 +72,8 @@ public class DailyDigestJob(
                     upcomingJobs.Select(j => new DigestJobItem(j.JobNumber, j.Title, j.DueDate)).ToList(),
                     overdueJobs.Select(j => new DigestJobItem(j.JobNumber, j.Title, j.DueDate)).ToList(),
                     completedYesterday,
-                    terms);
+                    terms,
+                    appBaseUrl);
 
                 var operationKey = $"daily-digest:{user.Id}:{now:yyyy-MM-dd}";
                 await outbox.EnqueueEmailAsync(

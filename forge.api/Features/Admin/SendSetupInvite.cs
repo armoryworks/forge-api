@@ -25,15 +25,18 @@ public class SendSetupInviteHandler(
         var companySetting = await settings.FindByKeyAsync("company_name", cancellationToken);
         var companyName = companySetting?.Value ?? "Forge";
 
-        var setupUrl = $"{request.BaseUrl.TrimEnd('/')}/setup/{Uri.EscapeDataString(tokenResult.Token)}";
+        var baseUrl = request.BaseUrl.TrimEnd('/');
+        var setupUrl = $"{baseUrl}/setup/{Uri.EscapeDataString(tokenResult.Token)}";
 
         var html = EmailTemplateBuilder.BuildNotificationEmail(
             companyName,
             user.FirstName,
             "Welcome! Complete Your Account Setup",
-            $"You've been invited to join {companyName}. Click the link below to set your password and complete your account setup.<br><br>" +
-            $"<a href=\"{setupUrl}\" style=\"display:inline-block;padding:12px 24px;background:#1e293b;color:white;text-decoration:none;font-weight:600;\">Complete Setup</a><br><br>" +
-            $"This link expires in 7 days. If the button doesn't work, copy and paste this URL:<br>{setupUrl}");
+            $"You've been invited to join {companyName}. Use the button below to set your password and complete your account setup.\n\n" +
+            $"This link expires in 7 days. If the button doesn't work, copy and paste this URL:\n{setupUrl}",
+            appBaseUrl: baseUrl,
+            actionUrl: setupUrl,
+            actionLabel: "Complete Setup");
 
         var operationKey = $"setup-invite:{user.Id}:{Guid.NewGuid():N}";
         await outbox.EnqueueEmailAsync(
