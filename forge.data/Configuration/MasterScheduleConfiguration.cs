@@ -9,6 +9,7 @@ public class MasterScheduleConfiguration : IEntityTypeConfiguration<MasterSchedu
     public void Configure(EntityTypeBuilder<MasterSchedule> builder)
     {
         builder.Ignore(e => e.IsDeleted);
+        builder.Property(e => e.Version).HasDefaultValue(1u);
 
         builder.Property(e => e.Name).HasMaxLength(200);
         builder.Property(e => e.Description).HasMaxLength(2000);

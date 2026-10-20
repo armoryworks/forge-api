@@ -3,8 +3,11 @@ using Forge.Core.Interfaces;
 
 namespace Forge.Core.Entities;
 
-public class Vendor : BaseAuditableEntity, IActiveAware
+public class Vendor : BaseAuditableEntity, IActiveAware, IConcurrencyVersioned
 {
+    /// <summary>Optimistic-locking version. See IConcurrencyVersioned.</summary>
+    public uint Version { get; set; }
+
     public string CompanyName { get; set; } = string.Empty;
 
     /// <summary>

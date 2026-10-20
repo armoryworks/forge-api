@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Concurrency;
 using Forge.Api.Features.Auth;
 using Forge.Api.Validation;
 using Forge.Api.Workflows;
@@ -135,6 +136,18 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             });
             await context.Response.WriteAsync(json);
+        }
+        catch (StaleVersionException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status412PreconditionFailed;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(JsonSerializer.Serialize(new
+            {
+                errors = new[]
+                {
+                    new { field = "If-Match", message = ex.Message, rejectedValue = ex.RejectedValue },
+                },
+            }, CamelCase));
         }
         catch (ForbiddenException ex)
         {

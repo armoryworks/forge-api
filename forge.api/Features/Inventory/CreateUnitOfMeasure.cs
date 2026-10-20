@@ -27,18 +27,20 @@ public class CreateUnitOfMeasureHandler(AppDbContext db)
 {
     public async Task<UomResponseModel> Handle(CreateUnitOfMeasureCommand request, CancellationToken ct)
     {
+        var code = request.Data.Code.Trim();
+        var codeKey = code.ToLowerInvariant();
         var exists = await db.UnitsOfMeasure
-            .AnyAsync(u => u.Code == request.Data.Code, ct);
+            .AnyAsync(u => u.Code.ToLower() == codeKey, ct);
 
         if (exists)
-            throw new InvalidOperationException($"UOM code '{request.Data.Code}' already exists.");
+            throw new InvalidOperationException($"UOM code '{code}' already exists.");
 
         if (!Enum.TryParse<UomCategory>(request.Data.Category, true, out var category))
             throw new InvalidOperationException($"Invalid category '{request.Data.Category}'.");
 
         var uom = new UnitOfMeasure
         {
-            Code = request.Data.Code.Trim().ToUpperInvariant(),
+            Code = code,
             Name = request.Data.Name.Trim(),
             Symbol = request.Data.Symbol?.Trim(),
             Category = category,
@@ -52,6 +54,6 @@ public class CreateUnitOfMeasureHandler(AppDbContext db)
 
         return new UomResponseModel(
             uom.Id, uom.Code, uom.Name, uom.Symbol,
-            uom.Category.ToString(), uom.DecimalPlaces, uom.IsBaseUnit, uom.IsActive, uom.SortOrder);
+            uom.Category.ToString(), uom.DecimalPlaces, uom.IsBaseUnit, uom.IsActive, uom.SortOrder, uom.Version);
     }
 }

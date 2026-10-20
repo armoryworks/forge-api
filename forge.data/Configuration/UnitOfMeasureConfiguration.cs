@@ -13,6 +13,7 @@ public class UnitOfMeasureConfiguration : IEntityTypeConfiguration<UnitOfMeasure
         builder.Property(e => e.Name).HasMaxLength(100);
         builder.Property(e => e.Symbol).HasMaxLength(20);
         builder.Property(e => e.Category).HasConversion<string>().HasMaxLength(20);
+        builder.Property(e => e.Version).HasDefaultValue(1u);
 
         builder.HasIndex(e => e.Code).IsUnique();
         builder.HasIndex(e => e.Category);

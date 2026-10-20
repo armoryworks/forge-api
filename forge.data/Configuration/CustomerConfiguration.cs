@@ -21,6 +21,7 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Ignore(e => e.IsDeleted);
         // Phase 3 H2 / WU-12: IActiveAware contract member — pure compute.
         builder.Ignore(e => e.IsActiveForNewTransactions);
+        builder.Property(e => e.Version).HasDefaultValue(1u);
 
         builder.Property(e => e.Name).HasMaxLength(200);
         builder.Property(e => e.CompanyName).HasMaxLength(200);

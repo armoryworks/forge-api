@@ -11,5 +11,6 @@ public record MasterScheduleDetailResponseModel(
     DateTimeOffset PeriodEnd,
     int CreatedByUserId,
     DateTimeOffset CreatedAt,
-    List<MasterScheduleLineResponseModel> Lines
+    List<MasterScheduleLineResponseModel> Lines,
+    uint RowVersion = 0
 );

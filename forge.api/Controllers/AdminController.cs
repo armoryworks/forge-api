@@ -397,7 +397,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<EmployeeProfileResponseModel>> UpdateEmployeeProfile(
         int userId, [FromBody] AdminUpdateEmployeeProfileRequestModel data, CancellationToken ct)
     {
-        var result = await mediator.Send(new AdminUpdateEmployeeProfileCommand(userId, data), ct);
+        var result = await mediator.Send(new AdminUpdateEmployeeProfileCommand(userId, data, Request.Headers.IfMatch.ToString()), ct);
         return Ok(result);
     }
 

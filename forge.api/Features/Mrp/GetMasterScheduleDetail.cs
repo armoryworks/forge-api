@@ -38,7 +38,8 @@ public class GetMasterScheduleDetailHandler(AppDbContext db)
                 l.Quantity,
                 l.DueDate,
                 l.Notes
-            )).ToList()
+            )).ToList(),
+            schedule.Version
         );
     }
 }

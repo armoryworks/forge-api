@@ -33,7 +33,8 @@ public record CustomerDetailResponseModel(
     // User-settable business number (CUST-#####). Optional default keeps
     // pre-existing positional call sites / fixtures compiling.
     string? CustomerNumber = null,
-    string? Fax = null);
+    string? Fax = null,
+    uint RowVersion = 0);
 
 /// <summary>
 /// Minimal nested address shape returned alongside a customer record. Phase 3 F3.

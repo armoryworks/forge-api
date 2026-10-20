@@ -23,6 +23,11 @@ internal static class ConcurrencyLookup
             nameof(Shipment) => await db.Shipments.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),
             nameof(SalesOrder) => await db.SalesOrders.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),
             nameof(Quote) => await db.Quotes.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),
+            nameof(Vendor) => await db.Vendors.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),
+            nameof(Customer) => await db.Customers.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),
+            nameof(UnitOfMeasure) => await db.UnitsOfMeasure.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),
+            nameof(MasterSchedule) => await db.MasterSchedules.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),
+            nameof(EmployeeProfile) => await db.EmployeeProfiles.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),
             _ => null
         };
     }

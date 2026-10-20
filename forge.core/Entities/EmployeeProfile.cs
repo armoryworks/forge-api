@@ -2,8 +2,11 @@ using Forge.Core.Enums;
 
 namespace Forge.Core.Entities;
 
-public class EmployeeProfile : BaseAuditableEntity
+public class EmployeeProfile : BaseAuditableEntity, IConcurrencyVersioned
 {
+    /// <summary>Optimistic-locking version. See IConcurrencyVersioned.</summary>
+    public uint Version { get; set; }
+
     // Phase 3 / WU-19 / F9: nullable so an Employee can exist with no User
     // account (HR onboards before IT provisions access).
     public int? UserId { get; set; }

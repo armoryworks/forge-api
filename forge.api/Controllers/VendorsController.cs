@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Vendors;
 using Forge.Core.Models;
+using Forge.Api.Concurrency;
+using Forge.Core.Entities;
 
 namespace Forge.Api.Controllers;
 
@@ -59,6 +61,7 @@ public class VendorsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [IfMatch(typeof(Vendor))]
     public async Task<IActionResult> UpdateVendor(int id, UpdateVendorRequestModel request)
     {
         await mediator.Send(new UpdateVendorCommand(
@@ -72,6 +75,7 @@ public class VendorsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [IfMatch(typeof(Vendor))]
     public async Task<IActionResult> DeleteVendor(int id)
     {
         await mediator.Send(new DeleteVendorCommand(id));

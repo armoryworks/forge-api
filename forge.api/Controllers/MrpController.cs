@@ -8,6 +8,8 @@ using Forge.Api.Capabilities;
 using Forge.Api.Features.Mrp;
 using Forge.Core.Enums;
 using Forge.Core.Models;
+using Forge.Api.Concurrency;
+using Forge.Core.Entities;
 
 namespace Forge.Api.Controllers;
 
@@ -150,6 +152,7 @@ public class MrpController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("master-schedules/{id:int}")]
+    [IfMatch(typeof(MasterSchedule))]
     public async Task<ActionResult<MasterScheduleDetailResponseModel>> UpdateMasterSchedule(int id, [FromBody] UpdateMasterScheduleRequest request)
     {
         var result = await mediator.Send(new UpdateMasterScheduleCommand(

@@ -2,8 +2,11 @@ using Forge.Core.Enums;
 
 namespace Forge.Core.Entities;
 
-public class UnitOfMeasure : BaseEntity
+public class UnitOfMeasure : BaseEntity, IConcurrencyVersioned
 {
+    /// <summary>Optimistic-locking version. See IConcurrencyVersioned.</summary>
+    public uint Version { get; set; }
+
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string? Symbol { get; set; }
