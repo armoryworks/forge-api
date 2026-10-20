@@ -139,6 +139,50 @@ public class ShipShipmentInventoryReliefTests : IDisposable
     }
 
     /// <summary>
+    /// A line short of free stock does not block the ship or the lines after it: it is left unrelieved
+    /// and logged on the shipment, while a stocked line is still relieved.
+    /// </summary>
+    [Fact]
+    public async Task ShipShipment_ShortLine_ShipsRelievesTheOthersAndLogsIt()
+    {
+        var customer = new Customer { Name = "Short line customer" };
+        _db.Customers.Add(customer);
+        var shortPart = new Part { PartNumber = "P-SHORT-SHIP", Description = "Short" };
+        var stocked = new Part { PartNumber = "P-STOCK-SHIP", Description = "Stocked" };
+        _db.Parts.AddRange(shortPart, stocked);
+        await _db.SaveChangesAsync();
+        var so = new SalesOrder { OrderNumber = "SO-SHORT-SHIP", CustomerId = customer.Id, Status = SalesOrderStatus.Confirmed };
+        _db.SalesOrders.Add(so);
+        await _db.SaveChangesAsync();
+        var stockedBin = new BinContent
+        {
+            EntityType = "part", EntityId = stocked.Id, Quantity = 5m, Status = BinContentStatus.Stored, PlacedAt = DateTimeOffset.UtcNow,
+        };
+        _db.BinContents.Add(stockedBin);
+        var shipment = new Shipment
+        {
+            ShipmentNumber = "SH-SHORT-SHIP",
+            SalesOrderId = so.Id,
+            Status = ShipmentStatus.Pending,
+            Lines =
+            [
+                new ShipmentLine { PartId = shortPart.Id, Quantity = 4m },
+                new ShipmentLine { PartId = stocked.Id, Quantity = 2m },
+            ],
+        };
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+
+        await _sp.GetRequiredService<IMediator>().Send(new ShipShipmentCommand(shipment.Id));
+
+        _db.ChangeTracker.Clear();
+        (await _db.Shipments.FindAsync(shipment.Id))!.Status.Should().Be(ShipmentStatus.Shipped);
+        (await _db.BinContents.FindAsync(stockedBin.Id))!.Quantity.Should().Be(3m);
+        _db.ActivityLogs.Count(a => a.EntityType == "Shipment" && a.EntityId == shipment.Id
+            && a.Action == "inventory_not_relieved").Should().Be(1);
+    }
+
+    /// <summary>
     /// Relief leaves an audit trail: exactly one bin_movements row (reason = Ship) per shipped line.
     /// This is the SQL-probe INV-SH2 expressed as a unit test.
     /// </summary>
