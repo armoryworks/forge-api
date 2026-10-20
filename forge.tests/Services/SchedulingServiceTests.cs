@@ -434,6 +434,25 @@ public class SchedulingServiceTests
     }
 
     [Fact]
+    public async Task Schedule_PredecessorOverlap_ShortSuccessorDoesNotFinishBeforeThePredecessor()
+    {
+        var mill = await SeedWorkCenterAsync();
+        var lathe = await SeedWorkCenterAsync();
+        var (part, first) = await SeedPartAsync(mill, estimatedMs: 60000);
+        first.OverlapPercent = 50;
+        _db.Operations.Add(new Operation { PartId = part.Id, StepNumber = 20, Title = "Deburr", WorkCenterId = lathe.Id, EstimatedMs = 10000 });
+        await _db.SaveChangesAsync();
+        await SeedJobAsync(part, 180m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var ops = await _db.ScheduledOperations.OrderBy(so => so.SequenceNumber).ToListAsync();
+        ops[0].ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 5, 11, 0, 0, TimeSpan.Zero));
+        ops[1].ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, 10, 30, 0, TimeSpan.Zero));
+        ops[1].ScheduledEnd.Should().Be(ops[0].ScheduledEnd);
+    }
+
+    [Fact]
     public async Task Schedule_SuccessorPastTheEndOfTheShift_MovesToTheNextDay()
     {
         var mill = await SeedWorkCenterAsync();

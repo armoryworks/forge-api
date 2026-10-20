@@ -177,18 +177,32 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                     decimal totalHours = setupHours + runHours;
 
                     // Apply overlap from previous operation
+                    DateTimeOffset? overlappedPredecessorEnd = null;
                     if (previousStart is { } prevStart && previousEnd is { } prevEnd && cursor == prevEnd
                         && i > 0 && operations[i - 1].OverlapPercent > 0)
                     {
                         var overlapFraction = Math.Min(operations[i - 1].OverlapPercent, 100m) / 100m;
                         var overlapStart = prevEnd.AddHours(-(prevEnd - prevStart).TotalHours * (double)overlapFraction);
                         cursor = overlapStart > prevStart ? overlapStart : prevStart;
+                        overlappedPredecessorEnd = prevEnd;
                     }
 
                     var notBefore = cursor ?? capacity.MidnightUtc(parameters.ScheduleFrom);
                     var earliest = notBefore > run.RunDate ? notBefore : run.RunDate;
                     var slot = FindAvailableSlot(
                         wcId, earliest, totalHours, capacity, laneFill, parameters.ScheduleTo);
+
+                    if (overlappedPredecessorEnd is { } mustNotEndBefore && slot is { } early && early.End < mustNotEndBefore)
+                    {
+                        slot = FindAvailableSlot(
+                            wcId, earliest + (mustNotEndBefore - early.End), totalHours, capacity, laneFill, parameters.ScheduleTo);
+                        if (slot is { } shifted && shifted.End < mustNotEndBefore)
+                        {
+                            var afterPredecessor = mustNotEndBefore > run.RunDate ? mustNotEndBefore : run.RunDate;
+                            slot = FindAvailableSlot(
+                                wcId, afterPredecessor, totalHours, capacity, laneFill, parameters.ScheduleTo);
+                        }
+                    }
 
                     if (slot is not (var lane, var start, var end, var allocations))
                     {
