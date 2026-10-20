@@ -87,8 +87,7 @@ public sealed partial class SourceStandardsRatchetTests
             {
                 var n = File.ReadLines(full)
                     .Where(line => !line.TrimStart().StartsWith("//", StringComparison.Ordinal))
-                    .Where(line => !line.Contains("string.Create(", StringComparison.Ordinal)
-                        && !line.Contains("string.Format(", StringComparison.Ordinal))
+                    .Where(line => !line.Contains("string.Create(", StringComparison.Ordinal))
                     .Sum(line => ProviderlessCurrencyFormatRe().Matches(line).Count);
                 if (n > 0) current[rel] = n;
             }
