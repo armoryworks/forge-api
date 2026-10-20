@@ -132,7 +132,7 @@ public class UpdateCustomerCommercialTermsTests
             CancellationToken.None);
 
         (await db.Customers.SingleAsync()).DefaultCreditTerms.Should().Be(CreditTerms.Net45);
-        (await db.ActivityLogs.SingleAsync(a => a.Action == "updated")).Description.Should().Contain("defaultCreditTerms");
+        (await db.ActivityLogs.SingleAsync(a => a.Action == "updated")).Description.Should().Contain("default credit terms");
     }
 
     [Fact]

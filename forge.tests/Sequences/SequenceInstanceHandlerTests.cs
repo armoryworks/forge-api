@@ -74,6 +74,7 @@ public class SequenceInstanceHandlerTests
             [new("cut", "Cut", null, 0)], [], []);
         var def = await new CreateSequenceDefinitionHandler(f.Db).Handle(new CreateSequenceDefinitionCommand(model), default);
         await new PublishSequenceDefinitionHandler(f.Db, f.Clock).Handle(new PublishSequenceDefinitionCommand(def.Id, U), default);
+        await f.EnsureJobAsync(7);
 
         var started = await new StartSequenceInstanceHandler(f.Db, f.Evaluation, f.Clock)
             .Handle(new StartSequenceInstanceCommand(new StartSequenceRequestModel(def.Id, null, "JOB", 7), U), default);

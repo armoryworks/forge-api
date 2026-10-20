@@ -41,7 +41,10 @@ public class PortalSupplierNameTests : IDisposable
         var customer = new Customer { Name = "Buyer Co" };
         _db.Customers.Add(customer);
         await _db.SaveChangesAsync();
-        _db.Contacts.Add(new Contact { CustomerId = customer.Id, FirstName = "Pat", LastName = "Buyer", Email = ContactEmail });
+        var contact = new Contact { CustomerId = customer.Id, FirstName = "Pat", LastName = "Buyer", Email = ContactEmail };
+        _db.Contacts.Add(contact);
+        await _db.SaveChangesAsync();
+        _db.CustomerPortalAccesses.Add(new CustomerPortalAccess { CustomerId = customer.Id, ContactId = contact.Id });
         await _db.SaveChangesAsync();
     }
 
