@@ -4,10 +4,12 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
+using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Inventory;
 
@@ -34,15 +36,18 @@ public class SetOnHandQuantityCommandValidator : AbstractValidator<SetOnHandQuan
 /// The quantity is the location total across every lot held there. Creates the bin
 /// content when none exists yet (opening stock / found inventory); otherwise a rise
 /// lands on the un-lotted content (or the newest lot when all stock is lotted) and a
-/// drop draws down un-lotted content first, then the oldest lots. Operational only —
-/// writes BinMovement audit rows carrying the mandatory reason + optional PO/vendor
-/// provenance, and never posts to a general ledger (see
+/// drop draws down un-lotted content first, then the oldest lots. Writes BinMovement
+/// audit rows carrying the mandatory reason + optional PO/vendor provenance, and posts
+/// each movement as an inventory adjustment when CAP-ACCT-FULLGL is on, so the ledger
+/// and valuation store follow the bins (see
 /// docs/delivery/in-progress/inventory-override/design.md).
 /// </summary>
 public class SetOnHandQuantityHandler(
     IInventoryRepository repo,
     IHttpContextAccessor httpContext,
-    IClock clock)
+    IClock clock,
+    AppDbContext db,
+    IInventoryAdjustmentPostingService posting)
     : IRequestHandler<SetOnHandQuantityCommand>
 {
     public async Task Handle(SetOnHandQuantityCommand request, CancellationToken cancellationToken)
@@ -66,6 +71,11 @@ public class SetOnHandQuantityHandler(
 
         var rows = await repo.GetActiveBinContentsByPartLocationAsync(data.PartId, locationId, cancellationToken);
         var auditNote = BuildNote(data);
+        var movements = new List<(BinMovement Movement, decimal Delta)>();
+
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
 
         if (rows.Count == 0)
         {
@@ -81,7 +91,7 @@ public class SetOnHandQuantityHandler(
                 PlacedAt = now,
                 Notes = data.Notes,
             }, cancellationToken);
-            await AddAdjustmentAsync(data.PartId, locationId, data.Quantity, null, userId, now, auditNote, cancellationToken);
+            await AddAdjustmentAsync(data.PartId, locationId, data.Quantity, null, userId, now, auditNote, movements, cancellationToken);
         }
         else
         {
@@ -96,24 +106,33 @@ public class SetOnHandQuantityHandler(
             if (delta < 0)
             {
                 foreach (var (row, taken) in BinContentDrawDown.Take(rows, -delta, userId, now))
-                    await AddAdjustmentAsync(data.PartId, locationId, -taken, row.LotNumber, userId, now, auditNote, cancellationToken);
+                    await AddAdjustmentAsync(data.PartId, locationId, -taken, row.LotNumber, userId, now, auditNote, movements, cancellationToken);
             }
             else
             {
                 var target = rows.FirstOrDefault(r => r.LotNumber is null)
                     ?? rows.OrderByDescending(r => r.PlacedAt).ThenByDescending(r => r.Id).First();
                 target.Quantity += delta;
-                await AddAdjustmentAsync(data.PartId, locationId, delta, target.LotNumber, userId, now, auditNote, cancellationToken);
+                await AddAdjustmentAsync(data.PartId, locationId, delta, target.LotNumber, userId, now, auditNote, movements, cancellationToken);
             }
         }
 
         await repo.SaveChangesAsync(cancellationToken);
+
+        foreach (var (movement, delta) in movements)
+            await posting.PostAdjustmentAsync(new InventoryAdjustmentPosting(
+                "BinMovement", movement.Id, data.PartId, delta,
+                DateOnly.FromDateTime(now.UtcDateTime), userId, "on-hand override"), cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
     }
 
-    private Task AddAdjustmentAsync(
+    private async Task AddAdjustmentAsync(
         int partId, int locationId, decimal delta, string? lotNumber, int userId, DateTimeOffset now, string note,
-        CancellationToken ct)
-        => repo.AddMovementAsync(new BinMovement
+        List<(BinMovement Movement, decimal Delta)> movements, CancellationToken ct)
+    {
+        var movement = new BinMovement
         {
             EntityType = "part",
             EntityId = partId,
@@ -125,7 +144,10 @@ public class SetOnHandQuantityHandler(
             MovedAt = now,
             Reason = BinMovementReason.Adjustment,
             Notes = note,
-        }, ct);
+        };
+        await repo.AddMovementAsync(movement, ct);
+        movements.Add((movement, delta));
+    }
 
     private static string BuildNote(SetOnHandQuantityRequestModel d)
     {

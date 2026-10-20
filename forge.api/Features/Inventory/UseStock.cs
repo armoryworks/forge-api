@@ -4,11 +4,13 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Quality;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Inventory;
 
@@ -34,12 +36,16 @@ public class UseStockCommandValidator : AbstractValidator<UseStockCommand>
 /// is used. Stock is drawn from un-lotted content first, then the oldest lots, so a
 /// location holding several lots is used as one total. The amount used can never
 /// drop on-hand below what is reserved (S-RI1), nor below zero. Writes a BinMovement
-/// (Reason = Issue) per row drawn as the audit trail; never posts to a ledger.
+/// (Reason = Issue) per row drawn as the audit trail, and posts each one as an
+/// inventory adjustment when CAP-ACCT-FULLGL is on, so the ledger and valuation store
+/// follow the bins.
 /// </summary>
 public class UseStockHandler(
     IInventoryRepository repo,
     IHttpContextAccessor httpContext,
-    IClock clock)
+    IClock clock,
+    AppDbContext db,
+    IInventoryAdjustmentPostingService posting)
     : IRequestHandler<UseStockCommand>
 {
     public async Task Handle(UseStockCommand request, CancellationToken cancellationToken)
@@ -85,9 +91,13 @@ public class UseStockHandler(
                 $"({reserved} of {onHand} on hand are reserved).");
 
         var note = BuildNote(data);
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        var movements = new List<BinMovement>();
         foreach (var (row, taken) in BinContentDrawDown.Take(rows, data.Quantity, userId, now))
         {
-            await repo.AddMovementAsync(new BinMovement
+            var movement = new BinMovement
             {
                 EntityType = "part",
                 EntityId = data.PartId,
@@ -99,10 +109,20 @@ public class UseStockHandler(
                 MovedAt = now,
                 Reason = BinMovementReason.Issue,
                 Notes = note,
-            }, cancellationToken);
+            };
+            await repo.AddMovementAsync(movement, cancellationToken);
+            movements.Add(movement);
         }
 
         await repo.SaveChangesAsync(cancellationToken);
+
+        foreach (var movement in movements)
+            await posting.PostAdjustmentAsync(new InventoryAdjustmentPosting(
+                "BinMovement", movement.Id, data.PartId, -movement.Quantity,
+                DateOnly.FromDateTime(movement.MovedAt.UtcDateTime), userId, "manual use"), cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
     }
 
     private static string BuildNote(UseStockRequestModel d)

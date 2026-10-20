@@ -2,10 +2,12 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Inventory;
 
@@ -22,7 +24,12 @@ public class PlaceBinContentCommandValidator : AbstractValidator<PlaceBinContent
     }
 }
 
-public class PlaceBinContentHandler(IInventoryRepository repo, IHttpContextAccessor httpContext) : IRequestHandler<PlaceBinContentCommand, BinContentResponseModel>
+public class PlaceBinContentHandler(
+    IInventoryRepository repo,
+    IHttpContextAccessor httpContext,
+    AppDbContext db,
+    IInventoryAdjustmentPostingService posting)
+    : IRequestHandler<PlaceBinContentCommand, BinContentResponseModel>
 {
     public async Task<BinContentResponseModel> Handle(PlaceBinContentCommand request, CancellationToken cancellationToken)
     {
@@ -34,6 +41,10 @@ public class PlaceBinContentHandler(IInventoryRepository repo, IHttpContextAcces
             throw new InvalidOperationException("Can only place items in bin-level locations.");
 
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
 
         var content = new BinContent
         {
@@ -64,6 +75,14 @@ public class PlaceBinContentHandler(IInventoryRepository repo, IHttpContextAcces
         };
 
         await repo.AddMovementAsync(movement, cancellationToken);
+
+        if (data.JobId is null && string.Equals(data.EntityType, "part", StringComparison.OrdinalIgnoreCase))
+            await posting.PostAdjustmentAsync(new InventoryAdjustmentPosting(
+                "BinMovement", movement.Id, data.EntityId, data.Quantity,
+                DateOnly.FromDateTime(movement.MovedAt.UtcDateTime), userId, "bin placement"), cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
         return new BinContentResponseModel(
             content.Id, content.LocationId, location.Name, location.Name,

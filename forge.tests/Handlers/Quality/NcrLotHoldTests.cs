@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Inventory;
 using Forge.Api.Features.Jobs;
 using Forge.Api.Features.Mobile;
@@ -465,7 +466,7 @@ public class NcrLotHoldTests : IDisposable
         var held = await StockAsync(_binA, HeldLot, 10, daysAgo: 5);
         var other = await StockAsync(_binA, OtherLot, 4, daysAgo: 1);
         var ncr = await RaiseNcrAsync();
-        var handler = new UseStockHandler(new InventoryRepository(_db), _accessor, _clock);
+        var handler = new UseStockHandler(new InventoryRepository(_db), _accessor, _clock, _db, Mock.Of<IInventoryAdjustmentPostingService>());
         UseStockCommand Use(decimal qty) => new(new UseStockRequestModel(_part.Id, _binA.Id, qty, null, null));
 
         var refused = () => handler.Handle(Use(6), CancellationToken.None);
@@ -589,7 +590,7 @@ public class NcrLotHoldTests : IDisposable
         await StockAsync(_binA, HeldLot, 3, daysAgo: 5);
         await StockAsync(_binA, OtherLot, 4, daysAgo: 1);
         await RaiseNcrAsync();
-        var handler = new UseStockHandler(new InventoryRepository(_db), _accessor, _clock);
+        var handler = new UseStockHandler(new InventoryRepository(_db), _accessor, _clock, _db, Mock.Of<IInventoryAdjustmentPostingService>());
 
         var act = () => handler.Handle(
             new UseStockCommand(new UseStockRequestModel(_part.Id, _binA.Id, 20, null, null)), CancellationToken.None);
