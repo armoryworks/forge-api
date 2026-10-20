@@ -1,10 +1,16 @@
+using System.Globalization;
+using System.Text.Json;
+
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
+using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
+using Serilog;
 
 namespace Forge.Api.Features.Accounting;
 
@@ -26,6 +32,12 @@ namespace Forge.Api.Features.Accounting;
 /// tests — the boundary is treated as not-yet-wired and posting proceeds
 /// (CAP-ACCT-FULLGL is OFF so no command site reaches the engine in production).
 /// </para>
+/// <para>
+/// Every entry the engine writes — a post, a maker-checker submit and approval,
+/// and a reversal — records an <c>audit_log_entries</c> row through the optional
+/// <see cref="ISystemAuditWriter"/>, so the posting audit trail does not depend
+/// on each caller remembering to write one. Idempotent replays write no row.
+/// </para>
 /// </summary>
 public sealed class ForgeGlPostingEngine(
     AppDbContext db,
@@ -37,7 +49,8 @@ public sealed class ForgeGlPostingEngine(
     // unit tests that exercise posting mechanics without an identity context;
     // the production DI registration always supplies a real authorizer, whose
     // own default-deny is the fail-safe.
-    IGlBoundaryAuthorizer? authorizer = null) : IPostingEngine
+    IGlBoundaryAuthorizer? authorizer = null,
+    ISystemAuditWriter? auditWriter = null) : IPostingEngine
 {
     public Task<JournalEntry> PostAsync(PostingRequest request, int postedByUserId, CancellationToken ct = default)
         => PostInternalAsync(request, postedByUserId, JournalEntryStatus.Posted, applyBalances: true, ct);
@@ -220,6 +233,9 @@ public sealed class ForgeGlPostingEngine(
             applyBalances: applyBalances);
 
         await db.SaveChangesAsync(ct);
+        await TryAuditAsync(
+            status == JournalEntryStatus.PendingApproval ? "GlJournalSubmitted" : "GlJournalPosted",
+            entry, postedByUserId, reason: null, ct);
         return entry;
     }
 
@@ -259,6 +275,7 @@ public sealed class ForgeGlPostingEngine(
 
         await ApplyToLedgerBalancesAsync(entry, entry.FiscalPeriodId, ct);
         await db.SaveChangesAsync(ct);
+        await TryAuditAsync("GlJournalApproved", entry, approvedByUserId, reason: null, ct);
         return entry;
     }
 
@@ -358,7 +375,57 @@ public sealed class ForgeGlPostingEngine(
         original.ReversedByEntry = reversal;
 
         await db.SaveChangesAsync(ct);
+        await TryAuditAsync("GlJournalReversed", reversal, reversedByUserId, reason, ct);
         return reversal;
+    }
+
+    private async Task TryAuditAsync(
+        string action, JournalEntry entry, int actorUserId, string? reason, CancellationToken ct)
+    {
+        if (auditWriter is null)
+            return;
+
+        try
+        {
+            var details = JsonSerializer.Serialize(new
+            {
+                before = (object?)null,
+                after = new
+                {
+                    journalEntryId = entry.Id,
+                    entryNumber = entry.EntryNumber,
+                    bookId = entry.BookId,
+                    status = entry.Status.ToString(),
+                    source = entry.Source.ToString(),
+                    sourceType = entry.SourceType,
+                    sourceId = entry.SourceId,
+                    entryDate = entry.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    reversalOfEntryId = entry.ReversalOfEntryId,
+                    postedBy = entry.PostedBy,
+                    approvedBy = entry.ApprovedBy,
+                },
+                reason,
+            });
+
+            await auditWriter.WriteAsync(
+                action: action,
+                userId: actorUserId,
+                entityType: nameof(JournalEntry),
+                entityId: null,
+                details: details,
+                ct: ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            foreach (var pending in db.ChangeTracker.Entries<AuditLogEntry>()
+                         .Where(e => e.State == EntityState.Added)
+                         .ToList())
+                pending.State = EntityState.Detached;
+
+            Log.Warning(ex,
+                "GL posting audit write {Action} failed for entry {EntryId}; the posting itself was saved.",
+                action, entry.Id);
+        }
     }
 
     private async Task<GlAccount> ResolveLineAccountAsync(
