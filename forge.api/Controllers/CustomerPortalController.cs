@@ -3,7 +3,6 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.CustomerPortal;
@@ -37,7 +36,6 @@ public class CustomerPortalController(IMediator mediator, IConfiguration config)
 {
     [HttpPost("auth/request-link")]
     [AllowAnonymous]
-    [EnableRateLimiting(PortalAuthRateLimit.PolicyName)]
     public async Task<ActionResult<RequestMagicLinkResult>> RequestLink([FromBody] RequestMagicLinkRequest request)
     {
         var result = await mediator.Send(
@@ -47,7 +45,6 @@ public class CustomerPortalController(IMediator mediator, IConfiguration config)
 
     [HttpPost("auth/exchange")]
     [AllowAnonymous]
-    [EnableRateLimiting(PortalAuthRateLimit.PolicyName)]
     public async Task<ActionResult<PortalSessionResponseModel>> Exchange([FromBody] ExchangeRequest request)
     {
         var result = await mediator.Send(new ExchangeMagicLinkCommand(request.Token));
@@ -127,6 +124,8 @@ public class CustomerPortalController(IMediator mediator, IConfiguration config)
     private ActionResult<List<T>> PortalListResult<T>(PortalList<T> list)
     {
         Response.Headers[PortalReadRules.TotalCountHeader] = list.TotalCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (list.ExternalAccounting)
+            Response.Headers[PortalReadRules.ExternalAccountingHeader] = "true";
         return Ok(list.Items);
     }
 

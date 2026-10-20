@@ -14,13 +14,18 @@ namespace Forge.Api.Features.CustomerPortal;
 /// <see cref="ClockStateRules.IsOverdue"/>). Orders and quotes carry no
 /// currency of their own, so they are labelled with the customer's
 /// DefaultCurrency, else the active book's functional currency — the
-/// currency CreateInvoice gives a new invoice.
+/// currency CreateInvoice gives a new invoice. A list that is empty because
+/// an external accounting provider owns the data says so with
+/// <see cref="ExternalAccountingHeader"/>, so the portal can point the
+/// customer there instead of showing an empty list.
 /// </summary>
 public static class PortalReadRules
 {
     public const int ListCap = 200;
 
     public const string TotalCountHeader = "X-Total-Count";
+
+    public const string ExternalAccountingHeader = "X-External-Accounting";
 
     public static async Task<int> TotalCountAsync<T>(IQueryable<T> scope, int fetched, CancellationToken ct)
         => fetched < ListCap ? fetched : await scope.CountAsync(ct);
@@ -61,4 +66,4 @@ public static class PortalReadRules
     }
 }
 
-public record PortalList<T>(List<T> Items, int TotalCount);
+public record PortalList<T>(List<T> Items, int TotalCount, bool ExternalAccounting = false);

@@ -12,7 +12,8 @@ namespace Forge.Api.Features.CustomerPortal;
 /// Phase 1q — portal invoice list. ⚡ Standalone Financial: returns
 /// an empty list when an external accounting provider is connected, so
 /// the customer doesn't see partial / divergent invoice data — the
-/// integrated provider's portal is the source of truth in that mode.
+/// integrated provider's portal is the source of truth in that mode. That
+/// empty list is flagged as <see cref="PortalList{T}.ExternalAccounting"/>.
 /// </summary>
 public record GetPortalInvoicesQuery(int CustomerId) : IRequest<PortalList<PortalInvoiceListItem>>;
 
@@ -22,7 +23,7 @@ public class GetPortalInvoicesHandler(AppDbContext db, IAccountingService accoun
     public async Task<PortalList<PortalInvoiceListItem>> Handle(GetPortalInvoicesQuery request, CancellationToken ct)
     {
         var standalone = string.Equals(accounting.ProviderId, "mock", StringComparison.OrdinalIgnoreCase);
-        if (!standalone) return new([], 0);
+        if (!standalone) return new([], 0, ExternalAccounting: true);
 
         var scope = db.Invoices.AsNoTracking()
             .Where(i => i.CustomerId == request.CustomerId && i.Status != InvoiceStatus.Draft);
@@ -41,7 +42,7 @@ public class GetPortalInvoicesHandler(AppDbContext db, IAccountingService accoun
             Status: i.Status.ToString(),
             InvoiceDate: i.InvoiceDate,
             DueDate: i.DueDate,
-            Total: i.Total,
+            Total: Math.Round(i.Total, 2, MidpointRounding.AwayFromZero),
             AmountPaid: i.AmountPaid,
             Balance: i.Status == InvoiceStatus.Voided ? 0m : i.BalanceDue,
             CurrencyCode: i.Currency?.Code)).ToList(), totalCount);

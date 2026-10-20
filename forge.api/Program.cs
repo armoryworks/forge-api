@@ -1331,7 +1331,7 @@ try
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials()
-                .WithExposedHeaders(PortalReadRules.TotalCountHeader);
+                .WithExposedHeaders(PortalReadRules.TotalCountHeader, PortalReadRules.ExternalAccountingHeader);
         });
     });
 
@@ -1418,8 +1418,9 @@ try
                     QueueLimit = 0,
                 });
         });
-        options.AddPolicy(PortalAuthRateLimit.PolicyName, ctx =>
-            PortalAuthRateLimit.Partition(ctx, builder.Environment.IsDevelopment()));
+        options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
+            options.GlobalLimiter,
+            PortalAuthRateLimit.Create(builder.Environment.IsDevelopment()));
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     });
 

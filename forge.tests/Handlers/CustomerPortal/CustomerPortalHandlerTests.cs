@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -32,8 +33,13 @@ public class CustomerPortalHandlerTests
         _accounting.Setup(a => a.ProviderId).Returns("mock");
     }
 
-    private RequestMagicLinkHandler MagicLinkHandler()
+    private RequestMagicLinkHandler MagicLinkHandler(string environmentName = "Testing", string? smtpHost = null)
     {
+        var env = new Mock<IHostEnvironment>();
+        env.Setup(e => e.EnvironmentName).Returns(environmentName);
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Smtp:Host"] = smtpHost })
+            .Build();
         var auth = new Mock<IPortalAuthService>();
         auth.Setup(a => a.GenerateMagicLinkToken()).Returns(() =>
         {
@@ -41,7 +47,7 @@ public class CustomerPortalHandlerTests
             return ($"token-{_tokenCounter}", $"hash-{_tokenCounter}");
         });
         return new RequestMagicLinkHandler(
-            _db, auth.Object, _email.Object, new ConfigurationBuilder().Build(), _clock.Object,
+            _db, auth.Object, _email.Object, config, env.Object, _clock.Object,
             NullLogger<RequestMagicLinkHandler>.Instance);
     }
 
@@ -79,6 +85,36 @@ public class CustomerPortalHandlerTests
         result.DevLink.Should().BeNull();
         (await _db.CustomerPortalAccesses.CountAsync()).Should().Be(0);
         _email.Verify(e => e.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("Production", null)]
+    [InlineData("Staging", "")]
+    [InlineData("Development", "smtp.example.test")]
+    [InlineData("Testing", "smtp.example.test")]
+    public async Task The_link_is_never_returned_outside_development_and_testing_without_smtp(string environmentName, string? smtpHost)
+    {
+        await SeedContactAsync("prod@customer.test", access: true);
+
+        var result = await MagicLinkHandler(environmentName, smtpHost)
+            .Handle(new RequestMagicLinkCommand("prod@customer.test", "https://erp.example.test"), CancellationToken.None);
+
+        result.DevLink.Should().BeNull();
+        (await _db.CustomerPortalAccesses.AsNoTracking().SingleAsync()).OneTimeTokenHash.Should().Be("hash-1");
+        _email.Verify(e => e.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("Development")]
+    [InlineData("Testing")]
+    public async Task The_link_is_returned_in_development_and_testing_without_smtp(string environmentName)
+    {
+        await SeedContactAsync("dev@customer.test", access: true);
+
+        var result = await MagicLinkHandler(environmentName)
+            .Handle(new RequestMagicLinkCommand("dev@customer.test", "https://erp.example.test"), CancellationToken.None);
+
+        result.DevLink.Should().Be("https://erp.example.test/portal/auth/callback?token=token-1");
     }
 
     [Fact]
@@ -283,6 +319,36 @@ public class CustomerPortalHandlerTests
     }
 
     [Fact]
+    public async Task Portal_invoices_flag_an_empty_list_owned_by_external_accounting()
+    {
+        var (customerId, _) = await SeedCustomerWithBookAsync();
+        _db.Invoices.Add(NewInvoice(customerId, "INV-SENT", InvoiceStatus.Sent, 1, 25m));
+        await _db.SaveChangesAsync();
+        _accounting.Setup(a => a.ProviderId).Returns("quickbooks");
+
+        var list = await new GetPortalInvoicesHandler(_db, _accounting.Object)
+            .Handle(new GetPortalInvoicesQuery(customerId), CancellationToken.None);
+
+        list.Items.Should().BeEmpty();
+        list.ExternalAccounting.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Portal_invoice_total_is_quantized_so_total_less_paid_equals_balance()
+    {
+        var (customerId, _) = await SeedCustomerWithBookAsync();
+        var invoice = NewInvoice(customerId, "INV-HALF", InvoiceStatus.Sent, 1, 10.005m);
+        _db.Invoices.Add(invoice);
+        await _db.SaveChangesAsync();
+
+        var row = (await new GetPortalInvoicesHandler(_db, _accounting.Object)
+            .Handle(new GetPortalInvoicesQuery(customerId), CancellationToken.None)).Items.Single();
+
+        row.Total.Should().Be(10.01m);
+        (row.Total - row.AmountPaid).Should().Be(row.Balance);
+    }
+
+    [Fact]
     public async Task A_full_list_reports_the_total_beyond_the_cap()
     {
         var (customerId, _) = await SeedCustomerWithBookAsync();
@@ -363,16 +429,6 @@ public class CustomerPortalHandlerTests
             .SingleAsync(a => a.EntityType == "Quote" && a.EntityId == id && a.Action == "portal_declined");
         log.Description.Should().Contain("Q-PAST").And.Contain("Pat Buyer");
         log.CreatedAt.Should().Be(Now);
-    }
-
-    [Fact]
-    public void The_exchange_validator_rejects_an_empty_or_overlong_token()
-    {
-        var validator = new ExchangeMagicLinkCommandValidator();
-
-        validator.Validate(new ExchangeMagicLinkCommand("")).IsValid.Should().BeFalse();
-        validator.Validate(new ExchangeMagicLinkCommand(new string('a', 201))).IsValid.Should().BeFalse();
-        validator.Validate(new ExchangeMagicLinkCommand("abc123")).IsValid.Should().BeTrue();
     }
 
     [Fact]

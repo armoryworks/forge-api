@@ -20,9 +20,11 @@ namespace Forge.Api.Features.CustomerPortal;
 /// that information enables enumeration of which of a company's contacts
 /// have portal access.
 ///
-/// In dev / mock-SMTP mode the link is also returned in the response so
-/// the developer can drive the flow without a working mailbox. In prod
-/// (real SMTP) the response carries no link.
+/// In the Development and Testing environments with no SMTP host configured,
+/// the link is also returned in the response so the developer can drive the
+/// flow without a working mailbox. Any other environment never returns the
+/// link, even without SMTP: it would hand a working sign-in to anyone who
+/// knows a contact's email, and a non-null link would reveal the match.
 /// </summary>
 public record RequestMagicLinkCommand(string Email, string PortalBaseUrl) : IRequest<RequestMagicLinkResult>;
 
@@ -45,6 +47,7 @@ public class RequestMagicLinkHandler(
     IPortalAuthService portalAuth,
     IEmailService email,
     IConfiguration config,
+    IHostEnvironment env,
     IClock clock,
     ILogger<RequestMagicLinkHandler> logger)
     : IRequestHandler<RequestMagicLinkCommand, RequestMagicLinkResult>
@@ -113,13 +116,13 @@ public class RequestMagicLinkHandler(
             logger.LogWarning(ex, "Portal magic-link email send failed for {Email}", request.Email);
         }
 
-        // Dev-mode convenience: when the SMTP mock or no SMTP is configured,
-        // return the link in the response so the integrator can complete
-        // the flow end-to-end without setting up a real mailbox.
-        var smtpHost = config["Smtp:Host"];
-        var devLink = string.IsNullOrWhiteSpace(smtpHost) ? link : null;
+        var devLink = ReturnsDevLink(env, config) ? link : null;
 
         logger.LogInformation("Portal magic-link issued to contact {ContactId}", contact.Id);
         return new RequestMagicLinkResult(devLink);
     }
+
+    public static bool ReturnsDevLink(IHostEnvironment env, IConfiguration config)
+        => (env.IsDevelopment() || env.IsEnvironment("Testing"))
+            && string.IsNullOrWhiteSpace(config["Smtp:Host"]);
 }
