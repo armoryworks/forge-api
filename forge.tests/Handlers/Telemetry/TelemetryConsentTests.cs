@@ -82,8 +82,7 @@ public class TelemetryConsentTests
         await new RecordTelemetryConsentHandler(db, new StubMediator(db), new FixedClock())
             .Handle(new RecordTelemetryConsentCommand(false, "owner@shop.com", "10.0.0.5", "Firefox"), default);
 
-        var audit = await db.AuditLogEntries.SingleAsync();
-        audit.Action.Should().Be(TelemetrySettingKeys.ConsentAuditAction);
+        var audit = await db.AuditLogEntries.SingleAsync(a => a.Action == TelemetrySettingKeys.ConsentAuditAction);
         audit.Details.Should().Contain("declined");
         audit.IpAddress.Should().Be("10.0.0.5");
     }

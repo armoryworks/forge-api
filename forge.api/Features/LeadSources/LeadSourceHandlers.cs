@@ -63,13 +63,16 @@ public class CreateLeadSourceHandler(AppDbContext db) : IRequestHandler<CreateLe
             IsActive = true,
             QualityScore = 50,
         };
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
         db.LeadSources.Add(s);
+        await db.SaveChangesAsync(ct);
 
         db.LogActivityAt("lead-source-created",
             $"Created lead source '{s.Name}' ({s.Code}).",
-            ("LeadSource", 0));
+            ("LeadSource", s.Id));
 
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
 
         return new LeadSourceResponseModel(
             s.Id, s.Name, s.Code, s.Description, s.QualityScore, s.LastScoredAt,

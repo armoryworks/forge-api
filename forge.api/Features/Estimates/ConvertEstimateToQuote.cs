@@ -43,6 +43,7 @@ public class ConvertEstimateToQuoteHandler(
     AppDbContext db,
     IQuoteRepository quoteRepo,
     IPartRepository partRepo,
+    IBusinessIdentifierService identifiers,
     // AUDIT-19-S1 pattern: optional/null-default so isolated unit-test constructions stay valid; DI supplies it.
     Forge.Api.Services.CustomerPriceResolver? priceResolver = null,
     Forge.Api.Services.TaxOverrideGuard? taxGuard = null)
@@ -157,6 +158,7 @@ public class ConvertEstimateToQuoteHandler(
         estimate.Status = QuoteStatus.ConvertedToQuote;
         estimate.ConvertedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
+        await identifiers.IssueAsync(BusinessEntityType.Quote, quote.Id, quote.QuoteNumber!, ct);
 
         // Audit trail on both transactional entities (quote.Id is assigned by the save above).
         var resolutionSummary = eliminated + replaced > 0

@@ -30,7 +30,7 @@ public class ConvertEstimateToQuoteHandlerTests
         _partRepo.Setup(r => r.FindAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((int id, CancellationToken _) => _db.Parts.FirstOrDefault(p => p.Id == id));
         _handler = new ConvertEstimateToQuoteHandler(
-            _db, _quoteRepo.Object, _partRepo.Object, new CustomerPriceResolver(_db, new SystemClock(), new Forge.Integrations.MockCurrencyService(Microsoft.Extensions.Logging.Abstractions.NullLogger<Forge.Integrations.MockCurrencyService>.Instance)));
+            _db, _quoteRepo.Object, _partRepo.Object, Mock.Of<IBusinessIdentifierService>(), new CustomerPriceResolver(_db, new SystemClock(), new Forge.Integrations.MockCurrencyService(Microsoft.Extensions.Logging.Abstractions.NullLogger<Forge.Integrations.MockCurrencyService>.Instance)));
     }
 
     private async Task<(Customer Customer, Quote Estimate)> SeedEstimateAsync(params QuoteLine[] lines)

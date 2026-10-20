@@ -47,7 +47,7 @@ public sealed class ConvertAutoPoSuggestionPostgresTests(PostgresFixture fixture
         await using (var db = fixture.CreateContext())
         {
             var handler = new ConvertAutoPoSuggestionHandler(
-                db, new PurchaseOrderRepository(db), Mock.Of<IBarcodeService>());
+                db, new PurchaseOrderRepository(db), Mock.Of<IBarcodeService>(), Mock.Of<IBusinessIdentifierService>());
             poId = await handler.Handle(new ConvertAutoPoSuggestionCommand(suggestionId, UserId: 0), CancellationToken.None);
         }
 

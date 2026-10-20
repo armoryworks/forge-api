@@ -8,7 +8,8 @@ namespace Forge.Api.Features.AutoPo;
 public class PurchaseOrderGenerator(
     AppDbContext db,
     IPurchaseOrderRepository poRepo,
-    IBarcodeService barcodeService)
+    IBarcodeService barcodeService,
+    IBusinessIdentifierService identifiers)
 {
     public async Task<PurchaseOrder> GeneratePurchaseOrder(
         int vendorId,
@@ -52,6 +53,7 @@ public class PurchaseOrderGenerator(
 
         await barcodeService.CreateBarcodeAsync(
             BarcodeEntityType.PurchaseOrder, po.Id, po.PONumber, ct);
+        await identifiers.IssueAsync(BusinessEntityType.PurchaseOrder, po.Id, po.PONumber, ct);
 
         return po;
     }

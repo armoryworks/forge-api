@@ -1,9 +1,13 @@
 using FluentAssertions;
+using Moq;
 
 using Forge.Api.Features.SalesOrders;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Integrations;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.SalesOrders;
@@ -36,7 +40,7 @@ public class CreateAddendumOrderHandlerTests
     {
         var parent = await SeedParentAsync();
 
-        var result = await new CreateAddendumOrderHandler(_db)
+        var result = await new CreateAddendumOrderHandler(_db, Mock.Of<IBusinessIdentifierService>())
             .Handle(new CreateAddendumOrderCommand(parent.Id), CancellationToken.None);
 
         result.OrderNumber.Should().Be("SO-00042-A1");
@@ -54,10 +58,25 @@ public class CreateAddendumOrderHandlerTests
     }
 
     [Fact]
+    public async Task Addendum_number_is_registered_with_the_caller_as_actor()
+    {
+        var parent = await SeedParentAsync();
+        _db.CurrentUserId = 12;
+
+        var result = await new CreateAddendumOrderHandler(_db, new BusinessIdentifierService(_db, new SystemClock()))
+            .Handle(new CreateAddendumOrderCommand(parent.Id), CancellationToken.None);
+
+        var identifier = _db.BusinessIdentifiers.Single(b => b.EntityType == BusinessEntityType.SalesOrder && b.EntityId == result.Id);
+        identifier.Value.Should().Be("SO-00042-A1");
+        _db.AuditLogEntries.Should().Contain(a =>
+            a.Action == "BusinessIdentifierCreated" && a.EntityId == identifier.Id && a.UserId == 12);
+    }
+
+    [Fact]
     public async Task Second_addendum_increments_the_sequence()
     {
         var parent = await SeedParentAsync();
-        var handler = new CreateAddendumOrderHandler(_db);
+        var handler = new CreateAddendumOrderHandler(_db, Mock.Of<IBusinessIdentifierService>());
         await handler.Handle(new CreateAddendumOrderCommand(parent.Id), CancellationToken.None);
 
         var second = await handler.Handle(new CreateAddendumOrderCommand(parent.Id), CancellationToken.None);
@@ -72,7 +91,7 @@ public class CreateAddendumOrderHandlerTests
     {
         var parent = await SeedParentAsync(status);
 
-        var act = () => new CreateAddendumOrderHandler(_db)
+        var act = () => new CreateAddendumOrderHandler(_db, Mock.Of<IBusinessIdentifierService>())
             .Handle(new CreateAddendumOrderCommand(parent.Id), CancellationToken.None);
 
         (await act.Should().ThrowAsync<InvalidOperationException>())
@@ -83,7 +102,7 @@ public class CreateAddendumOrderHandlerTests
     public async Task Rejects_addendum_of_an_addendum()
     {
         var parent = await SeedParentAsync();
-        var handler = new CreateAddendumOrderHandler(_db);
+        var handler = new CreateAddendumOrderHandler(_db, Mock.Of<IBusinessIdentifierService>());
         var first = await handler.Handle(new CreateAddendumOrderCommand(parent.Id), CancellationToken.None);
 
         // Confirm the addendum so it passes the status gate, then try to chain.

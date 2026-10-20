@@ -55,7 +55,7 @@ public sealed class MaintenanceJobPostgresTests(PostgresFixture fixture)
         }
 
         await using var db = fixture.CreateContext();
-        var handler = new CreateMaintenanceJobHandler(db, new JobRepository(db, new Forge.Integrations.SystemClock()));
+        var handler = new CreateMaintenanceJobHandler(db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBusinessIdentifierService>());
 
         var jobId = await handler.Handle(new CreateMaintenanceJobCommand(scheduleId), CancellationToken.None);
 
@@ -93,7 +93,7 @@ public sealed class MaintenanceJobPostgresTests(PostgresFixture fixture)
 
         await using var db = fixture.CreateContext();
         var handler = new SchedulePreventiveMaintenanceHandler(
-            db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IPredictiveMaintenanceService>());
+            db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBusinessIdentifierService>(), Mock.Of<IPredictiveMaintenanceService>());
 
         await handler.Handle(new SchedulePreventiveMaintenanceCommand(predictionId), CancellationToken.None);
 
@@ -106,7 +106,7 @@ public sealed class MaintenanceJobPostgresTests(PostgresFixture fixture)
 
         await using var again = fixture.CreateContext();
         var repeat = new SchedulePreventiveMaintenanceHandler(
-            again, new JobRepository(again, new Forge.Integrations.SystemClock()), Mock.Of<IPredictiveMaintenanceService>());
+            again, new JobRepository(again, new Forge.Integrations.SystemClock()), Mock.Of<IBusinessIdentifierService>(), Mock.Of<IPredictiveMaintenanceService>());
         var act = () => repeat.Handle(new SchedulePreventiveMaintenanceCommand(predictionId), CancellationToken.None);
         await act.Should().ThrowAsync<InvalidOperationException>();
     }

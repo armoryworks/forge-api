@@ -27,6 +27,7 @@ public class ExplodeJobBomHandler(
     AppDbContext db,
     IJobRepository jobRepo,
     IBarcodeService barcodeService,
+    IBusinessIdentifierService identifiers,
     IHubContext<BoardHub> boardHub,
     IPartSourcingResolver sourcingResolver) : IRequestHandler<ExplodeJobBomCommand, BomExplosionResponseModel>
 {
@@ -249,6 +250,7 @@ public class ExplodeJobBomHandler(
 
             await barcodeService.CreateBarcodeAsync(
                 BarcodeEntityType.Job, childJob.Id, childJob.JobNumber, ct);
+            await identifiers.IssueAsync(BusinessEntityType.Job, childJob.Id, childJob.JobNumber, ct);
 
             await boardHub.Clients.Group($"board:{parentJob.TrackTypeId}")
                 .SendAsync("jobCreated", new BoardJobCreatedEvent(

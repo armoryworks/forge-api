@@ -71,6 +71,7 @@ public class CreateRetailOrderHandler(
     ISalesChannelResolver channelResolver,
     ISalesOrderRepository orderRepo,
     IBarcodeService barcodeService,
+    IBusinessIdentifierService identifiers,
     IClock clock)
     : IRequestHandler<CreateRetailOrderCommand, CreateRetailOrderResult>
 {
@@ -138,6 +139,7 @@ public class CreateRetailOrderHandler(
 
         await orderRepo.AddAsync(order, ct);
         await orderRepo.SaveChangesAsync(ct);
+        await identifiers.IssueAsync(BusinessEntityType.SalesOrder, order.Id, order.OrderNumber, ct);
 
         await barcodeService.CreateBarcodeAsync(
             BarcodeEntityType.SalesOrder, order.Id, order.OrderNumber, ct);

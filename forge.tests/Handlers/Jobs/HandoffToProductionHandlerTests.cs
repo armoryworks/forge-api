@@ -25,7 +25,7 @@ public class HandoffToProductionHandlerTests
         _jobRepo.Setup(r => r.AddAsync(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
             .Callback<Job, CancellationToken>((job, _) => _db.Jobs.Add(job))
             .Returns(Task.CompletedTask);
-        _handler = new HandoffToProductionHandler(_db, _jobRepo.Object);
+        _handler = new HandoffToProductionHandler(_db, _jobRepo.Object, Mock.Of<IBusinessIdentifierService>());
     }
 
     [Fact]

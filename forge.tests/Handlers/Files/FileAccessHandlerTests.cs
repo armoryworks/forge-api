@@ -8,7 +8,9 @@ using Forge.Api.Authorization;
 using Forge.Api.Features.Files;
 using Forge.Api.Middleware;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Data.Context;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Files;
@@ -25,6 +27,7 @@ public class FileAccessHandlerTests
     private readonly Mock<IFileRepository> _fileRepo = new();
     private readonly Mock<IStorageService> _storage = new();
     private readonly Mock<IClock> _clock = new();
+    private readonly AppDbContext _db = TestDbContextFactory.Create();
 
     private static IHttpContextAccessor As(params string[] roles) => new HttpContextAccessor
     {
@@ -90,7 +93,7 @@ public class FileAccessHandlerTests
     public async Task Delete_refuses_someone_elses_file_to_a_non_supervisor()
     {
         Stored("jobs", uploadedById: 9);
-        var handler = new DeleteFileHandler(_fileRepo.Object, Resolver(), As("Engineer"), _clock.Object);
+        var handler = new DeleteFileHandler(_fileRepo.Object, _db, Resolver(), As("Engineer"), _clock.Object);
 
         var act = () => handler.Handle(new DeleteFileCommand(42), CancellationToken.None);
 
@@ -104,7 +107,7 @@ public class FileAccessHandlerTests
         var file = Stored("jobs", uploadedById: CallerId);
         var now = new DateTimeOffset(2026, 10, 19, 12, 0, 0, TimeSpan.Zero);
         _clock.Setup(c => c.UtcNow).Returns(now);
-        var handler = new DeleteFileHandler(_fileRepo.Object, Resolver(), As("Engineer"), _clock.Object);
+        var handler = new DeleteFileHandler(_fileRepo.Object, _db, Resolver(), As("Engineer"), _clock.Object);
 
         await handler.Handle(new DeleteFileCommand(42), CancellationToken.None);
 
@@ -116,10 +119,39 @@ public class FileAccessHandlerTests
     public async Task Delete_refuses_a_supervisor_outside_the_records_roles()
     {
         Stored("assets", uploadedById: 9);
-        var handler = new DeleteFileHandler(_fileRepo.Object, Resolver(), As("OfficeManager"), _clock.Object);
+        var handler = new DeleteFileHandler(_fileRepo.Object, _db, Resolver(), As("OfficeManager"), _clock.Object);
 
         var act = () => handler.Handle(new DeleteFileCommand(42), CancellationToken.None);
 
         await act.Should().ThrowAsync<ForbiddenException>();
+    }
+
+    [Theory]
+    [InlineData(AcceptanceStatus.Accepted)]
+    [InlineData(AcceptanceStatus.Pending)]
+    public async Task Delete_refuses_the_uploader_when_a_live_attestation_holds_the_file(AcceptanceStatus status)
+    {
+        Stored("jobs", uploadedById: CallerId);
+        _db.Attestations.Add(new Attestation { SalesOrderId = 3, Status = status, FileAttachmentId = 42 });
+        await _db.SaveChangesAsync();
+        var handler = new DeleteFileHandler(_fileRepo.Object, _db, Resolver(), As("Admin"), _clock.Object);
+
+        var act = () => handler.Handle(new DeleteFileCommand(42), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        _fileRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Delete_allows_a_file_held_only_by_a_superseded_attestation()
+    {
+        var file = Stored("jobs", uploadedById: CallerId);
+        _db.Attestations.Add(new Attestation { SalesOrderId = 3, Status = AcceptanceStatus.Superseded, FileAttachmentId = 42 });
+        await _db.SaveChangesAsync();
+        var handler = new DeleteFileHandler(_fileRepo.Object, _db, Resolver(), As("Engineer"), _clock.Object);
+
+        await handler.Handle(new DeleteFileCommand(42), CancellationToken.None);
+
+        file.DeletedAt.Should().NotBeNull();
     }
 }

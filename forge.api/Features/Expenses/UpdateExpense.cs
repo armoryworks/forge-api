@@ -3,6 +3,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Forge.Api.Features.Approvals;
+using Forge.Api.Middleware;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -46,6 +47,12 @@ public class UpdateExpenseHandler(
         var settings = await mediator.Send(new GetExpenseSettingsQuery(), cancellationToken);
         ExpensePolicyEnforcement.Enforce(data.Amount, data.Description, data.ReceiptFileId, settings);
 
+        var receipt = int.TryParse(data.ReceiptFileId, out var receiptId) && receiptId > 0
+            ? await fileRepo.FindAsync(receiptId, cancellationToken)
+            : null;
+        if (receipt is { EntityType: "expenses", EntityId: 0 } && receipt.UploadedById != userId)
+            throw new ForbiddenException("That receipt was uploaded by someone else.");
+
         expense.Amount = data.Amount;
         expense.Category = data.Category.Trim();
         expense.Description = data.Description.Trim();
@@ -70,14 +77,10 @@ public class UpdateExpenseHandler(
         await repo.SaveChangesAsync(cancellationToken);
 
         // Re-associate a pre-uploaded receipt (EntityId=0) with this expense row.
-        if (int.TryParse(data.ReceiptFileId, out var receiptId) && receiptId > 0)
+        if (receipt is { EntityType: "expenses", EntityId: 0 })
         {
-            var attachment = await fileRepo.FindAsync(receiptId, cancellationToken);
-            if (attachment is not null && attachment.EntityType == "expenses" && attachment.EntityId == 0)
-            {
-                attachment.EntityId = expense.Id;
-                await fileRepo.SaveChangesAsync(cancellationToken);
-            }
+            receipt.EntityId = expense.Id;
+            await fileRepo.SaveChangesAsync(cancellationToken);
         }
 
         if (wasRevision)

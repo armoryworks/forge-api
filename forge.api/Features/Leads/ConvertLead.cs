@@ -60,7 +60,9 @@ public class ConvertLeadCommandValidator : AbstractValidator<ConvertLeadCommand>
 public class ConvertLeadHandler(
     ILeadRepository leadRepo,
     AppDbContext db,
-    IMediator mediator) : IRequestHandler<ConvertLeadCommand, ConvertLeadResponseModel>
+    IMediator mediator,
+    ICustomerRepository customerRepo,
+    IBusinessIdentifierService identifiers) : IRequestHandler<ConvertLeadCommand, ConvertLeadResponseModel>
 {
     public async Task<ConvertLeadResponseModel> Handle(ConvertLeadCommand request, CancellationToken cancellationToken)
     {
@@ -89,6 +91,7 @@ public class ConvertLeadHandler(
         // Customer.SourceLead pair set below.
         var customer = new Customer
         {
+            CustomerNumber = await customerRepo.GenerateNextCustomerNumberAsync(cancellationToken),
             // Individuals have no company — fall back to the contact so the
             // customer is never created nameless. CompanyName stays null for
             // an individual rather than echoing the person's name.
@@ -114,6 +117,7 @@ public class ConvertLeadHandler(
 
         db.Customers.Add(customer);
         await db.SaveChangesAsync(cancellationToken);
+        await identifiers.IssueAsync(BusinessEntityType.Customer, customer.Id, customer.CustomerNumber!, cancellationToken);
 
         // Create contact if contact name is available. Defensive name parse:
         // handles "First Last", "First Middle Last" (last word = last name),

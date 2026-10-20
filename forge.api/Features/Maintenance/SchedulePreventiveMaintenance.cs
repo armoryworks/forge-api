@@ -13,6 +13,7 @@ public record SchedulePreventiveMaintenanceCommand(int Id) : IRequest;
 public class SchedulePreventiveMaintenanceHandler(
     AppDbContext db,
     IJobRepository jobRepo,
+    IBusinessIdentifierService identifiers,
     IPredictiveMaintenanceService predMaintService)
     : IRequestHandler<SchedulePreventiveMaintenanceCommand>
 {
@@ -45,5 +46,6 @@ public class SchedulePreventiveMaintenanceHandler(
         prediction.PreventiveMaintenanceJob = job;
         prediction.Status = MaintenancePredictionStatus.MaintenanceScheduled;
         await db.SaveChangesAsync(cancellationToken);
+        await identifiers.IssueAsync(BusinessEntityType.Job, job.Id, job.JobNumber, cancellationToken);
     }
 }

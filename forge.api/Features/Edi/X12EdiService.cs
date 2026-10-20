@@ -39,6 +39,7 @@ public sealed class X12EdiService(
     ISalesOrderRepository salesOrderRepo,
     IEdiTransportFactory transportFactory,
     IEdiPartNumberMapService partNumberMap,
+    IBusinessIdentifierService identifiers,
     IClock clock) : IEdiService
 {
     // ── Inbound ───────────────────────────────────────────────────────────
@@ -182,6 +183,7 @@ public sealed class X12EdiService(
 
             db.SalesOrders.Add(salesOrder);
             await db.SaveChangesAsync(ct); // assign the SO id for linkage + activity
+            await identifiers.IssueAsync(BusinessEntityType.SalesOrder, salesOrder.Id, salesOrder.OrderNumber, ct);
 
             transaction.Status = EdiTransactionStatus.Applied;
             transaction.RelatedEntityType = "SalesOrder";

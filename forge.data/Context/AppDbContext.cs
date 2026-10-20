@@ -8,6 +8,7 @@ using Forge.Core.Entities.Calendar;
 using Forge.Core.Entities.Compliance;
 using Forge.Core.Entities.Regulatory;
 using Forge.Core.Interfaces;
+using Forge.Core.Settings;
 
 namespace Forge.Data.Context;
 
@@ -737,10 +738,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
                     log.EntityId = entity.Id;
                     ActivityLogs.Add(log);
                 }
-                foreach (var (entity, auditLog) in pendingAuditAdded)
+                foreach (var pending in pendingAuditAdded)
                 {
-                    auditLog.EntityId = entity.Id;
-                    AuditLogEntries.Add(auditLog);
+                    var entity = pending.Entry.Entity;
+                    var values = BuildEntitySnapshot(pending.Entry, useCurrentValues: true);
+                    pending.Log.EntityId = pending.Child?.ParentId(entity) ?? entity.Id;
+                    pending.Log.Details = SafeSerialize(pending.Child is null ? values : new { lineId = entity.Id, values });
+                    AuditLogEntries.Add(pending.Log);
                 }
                 await base.SaveChangesAsync(cancellationToken);
             }
@@ -780,7 +784,36 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
         // Phase 4 Phase-F — DiscoveryRun is itself an audit row. The bulk
         // toggle it triggers writes its own AuditLogEntry per capability.
         typeof(DiscoveryRun),
+        typeof(IntegrationOutboxEntry),
     };
+
+    private sealed record ChildAuditLink(string ParentType, Func<BaseEntity, int> ParentId);
+
+    private sealed record PendingAudit(
+        Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<BaseEntity> Entry, AuditLogEntry Log, ChildAuditLink? Child);
+
+    private static readonly Dictionary<Type, ChildAuditLink> AuditedChildTypes = new()
+    {
+        [typeof(SalesOrderLine)] = new(nameof(SalesOrder), e => ((SalesOrderLine)e).SalesOrderId),
+        [typeof(PurchaseOrderLine)] = new(nameof(PurchaseOrder), e => ((PurchaseOrderLine)e).PurchaseOrderId),
+        [typeof(InvoiceLine)] = new(nameof(Invoice), e => ((InvoiceLine)e).InvoiceId),
+        [typeof(ShipmentLine)] = new(nameof(Shipment), e => ((ShipmentLine)e).ShipmentId),
+        [typeof(JobPart)] = new(nameof(Job), e => ((JobPart)e).JobId),
+        [typeof(PaymentApplication)] = new(nameof(Payment), e => ((PaymentApplication)e).PaymentId),
+        [typeof(VendorPaymentApplication)] = new(nameof(VendorPayment), e => ((VendorPaymentApplication)e).VendorPaymentId),
+    };
+
+    private static readonly HashSet<Type> AuditedPlainTypes = new()
+    {
+        typeof(ExchangeRate),
+    };
+
+    private const string RedactedValue = "[redacted]";
+
+    private static readonly string[] SecretPropertyMarkers = ["Token", "Secret", "Password", "ApiKey", "PrivateKey", "Encrypted", "Protected"];
+
+    private static readonly string[] SecretSettingKeyMarkers =
+        ["token", "secret", "password", "api-key", "api_key", "apikey", "private-key", "private_key"];
 
     // Properties excluded from field-level change tracking
     private static readonly HashSet<string> AuditExcludedProperties = new()
@@ -801,71 +834,73 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
         List<ActivityLog> readyLogs,
         List<(BaseAuditableEntity entity, ActivityLog log)> pendingAdded,
         List<AuditLogEntry> readyAuditLogs,
-        List<(BaseAuditableEntity entity, AuditLogEntry auditLog)> pendingAuditAdded
+        List<PendingAudit> pendingAuditAdded
     ) CaptureAuditEntries()
     {
         var readyLogs = new List<ActivityLog>();
         var pendingAdded = new List<(BaseAuditableEntity, ActivityLog)>();
         var readyAuditLogs = new List<AuditLogEntry>();
-        var pendingAuditAdded = new List<(BaseAuditableEntity, AuditLogEntry)>();
+        var pendingAuditAdded = new List<PendingAudit>();
 
         var userId = GetCurrentUserId();
+        var auditUid = userId ?? 0;
         var ipAddress = CurrentIpAddress;
         var userAgent = CurrentUserAgent;
         var now = _clock.UtcNow;
 
         // Per-request collected field changes (for synthesised system-wide
         // "<Entity>Updated" rows that summarise the diff in one entry).
-        // entityType+entityId -> list of (FieldName, OldValue, NewValue)
-        var modifiedDiffs = new Dictionary<(string entityType, int entityId), List<(string Field, string Old, string New)>>();
+        var modifiedDiffs = new Dictionary<BaseEntity, (string EntityType, ChildAuditLink? Child, List<(string Field, string Old, string New)> Diffs)>(
+            ReferenceEqualityComparer.Instance);
 
-        foreach (var entry in ChangeTracker.Entries<BaseAuditableEntity>())
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
         {
-            if (AuditExcludedTypes.Contains(entry.Entity.GetType()))
+            var clrType = entry.Entity.GetType();
+            if (AuditExcludedTypes.Contains(clrType))
                 continue;
 
-            var entityType = entry.Entity.GetType().Name;
+            var auditable = entry.Entity as BaseAuditableEntity;
+            AuditedChildTypes.TryGetValue(clrType, out var child);
+            if (auditable is null && child is null && !AuditedPlainTypes.Contains(clrType))
+                continue;
+
+            var entityType = clrType.Name;
 
             switch (entry.State)
             {
                 case EntityState.Added:
                 {
-                    var log = new ActivityLog
+                    if (auditable is not null)
                     {
-                        EntityType = entityType,
-                        EntityId = 0, // populated after save
-                        UserId = userId,
-                        Action = "Created",
-                        Description = $"{FormatEntityTypeName(entityType)} created",
-                        CreatedAt = now,
-                    };
-                    pendingAdded.Add((entry.Entity, log));
-
-                    // System-wide audit log row (only if we have an authenticated actor;
-                    // seed/system operations skip the audit log).
-                    if (userId is int auditUid)
-                    {
-                        var auditLog = new AuditLogEntry
+                        var log = new ActivityLog
                         {
-                            UserId = auditUid,
-                            Action = $"{entityType}Created",
                             EntityType = entityType,
                             EntityId = 0, // populated after save
-                            Details = SafeSerialize(BuildEntitySnapshot(entry, useCurrentValues: true)),
-                            IpAddress = ipAddress,
-                            UserAgent = userAgent,
+                            UserId = userId,
+                            Action = "Created",
+                            Description = $"{FormatEntityTypeName(entityType)} created",
                             CreatedAt = now,
                         };
-                        pendingAuditAdded.Add((entry.Entity, auditLog));
+                        pendingAdded.Add((auditable, log));
                     }
+
+                    var auditLog = new AuditLogEntry
+                    {
+                        UserId = auditUid,
+                        Action = $"{entityType}Created",
+                        EntityType = child?.ParentType ?? entityType,
+                        EntityId = 0, // populated after save
+                        IpAddress = ipAddress,
+                        UserAgent = userAgent,
+                        CreatedAt = now,
+                    };
+                    pendingAuditAdded.Add(new PendingAudit(entry, auditLog, child));
                     break;
                 }
 
-                case EntityState.Modified:
+                case EntityState.Deleted:
                 {
-                    // Check for soft delete
-                    var deletedAtProp = entry.Property(nameof(BaseAuditableEntity.DeletedAt));
-                    if (deletedAtProp.IsModified && deletedAtProp.CurrentValue != null && deletedAtProp.OriginalValue == null)
+                    if (auditable is not null)
                     {
                         readyLogs.Add(new ActivityLog
                         {
@@ -876,12 +911,44 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
                             Description = $"{FormatEntityTypeName(entityType)} deleted",
                             CreatedAt = now,
                         });
+                    }
 
-                        if (userId is int delUid)
+                    var values = BuildEntitySnapshot(entry, useCurrentValues: false);
+                    readyAuditLogs.Add(new AuditLogEntry
+                    {
+                        UserId = auditUid,
+                        Action = $"{entityType}Deleted",
+                        EntityType = child?.ParentType ?? entityType,
+                        EntityId = child?.ParentId(entry.Entity) ?? entry.Entity.Id,
+                        Details = SafeSerialize(child is null ? values : new { lineId = entry.Entity.Id, values }),
+                        IpAddress = ipAddress,
+                        UserAgent = userAgent,
+                        CreatedAt = now,
+                    });
+                    break;
+                }
+
+                case EntityState.Modified:
+                {
+                    // Check for soft delete
+                    if (auditable is not null)
+                    {
+                        var deletedAtProp = entry.Property(nameof(BaseAuditableEntity.DeletedAt));
+                        if (deletedAtProp.IsModified && deletedAtProp.CurrentValue != null && deletedAtProp.OriginalValue == null)
                         {
+                            readyLogs.Add(new ActivityLog
+                            {
+                                EntityType = entityType,
+                                EntityId = entry.Entity.Id,
+                                UserId = userId,
+                                Action = "Deleted",
+                                Description = $"{FormatEntityTypeName(entityType)} deleted",
+                                CreatedAt = now,
+                            });
+
                             readyAuditLogs.Add(new AuditLogEntry
                             {
-                                UserId = delUid,
+                                UserId = auditUid,
                                 Action = $"{entityType}Deleted",
                                 EntityType = entityType,
                                 EntityId = entry.Entity.Id,
@@ -890,8 +957,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
                                 UserAgent = userAgent,
                                 CreatedAt = now,
                             });
+                            break;
                         }
-                        break;
                     }
 
                     // Capture field-level changes
@@ -906,26 +973,34 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
                         var newVal = FormatPropertyValue(prop.CurrentValue);
                         if (oldVal == newVal) continue;
 
-                        readyLogs.Add(new ActivityLog
+                        if (IsRedacted(entry, prop))
                         {
-                            EntityType = entityType,
-                            EntityId = entry.Entity.Id,
-                            UserId = userId,
-                            Action = "FieldChanged",
-                            Description = $"{FormatPropertyName(prop.Metadata.Name)} changed from \"{oldVal}\" to \"{newVal}\"",
-                            FieldName = prop.Metadata.Name,
-                            OldValue = oldVal,
-                            NewValue = newVal,
-                            CreatedAt = now,
-                        });
-
-                        var key = (entityType, entry.Entity.Id);
-                        if (!modifiedDiffs.TryGetValue(key, out var list))
-                        {
-                            list = new List<(string, string, string)>();
-                            modifiedDiffs[key] = list;
+                            oldVal = RedactFormatted(oldVal);
+                            newVal = RedactFormatted(newVal);
                         }
-                        list.Add((prop.Metadata.Name, oldVal, newVal));
+
+                        if (auditable is not null)
+                        {
+                            readyLogs.Add(new ActivityLog
+                            {
+                                EntityType = entityType,
+                                EntityId = entry.Entity.Id,
+                                UserId = userId,
+                                Action = "FieldChanged",
+                                Description = $"{FormatPropertyName(prop.Metadata.Name)} changed from \"{oldVal}\" to \"{newVal}\"",
+                                FieldName = prop.Metadata.Name,
+                                OldValue = oldVal,
+                                NewValue = newVal,
+                                CreatedAt = now,
+                            });
+                        }
+
+                        if (!modifiedDiffs.TryGetValue(entry.Entity, out var pending))
+                        {
+                            pending = (entityType, child, new List<(string, string, string)>());
+                            modifiedDiffs[entry.Entity] = pending;
+                        }
+                        pending.Diffs.Add((prop.Metadata.Name, oldVal, newVal));
                     }
                     break;
                 }
@@ -935,37 +1010,34 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
         // Emit one system-wide AuditLogEntry per modified entity (collapsing
         // per-field ActivityLog rows into a single audit row with a JSON diff
         // payload — better signal for compliance/security review).
-        if (userId is int updUid)
+        foreach (var (entity, (entityType, child, diffs)) in modifiedDiffs)
         {
-            foreach (var ((entityType, entityId), diffs) in modifiedDiffs)
+            if (diffs.Count == 0) continue;
+            var changes = diffs.Select(d => new
             {
-                if (diffs.Count == 0) continue;
-                var details = SafeSerialize(diffs.Select(d => new
-                {
-                    field = d.Field,
-                    oldValue = d.Old,
-                    newValue = d.New,
-                }));
+                field = d.Field,
+                oldValue = d.Old,
+                newValue = d.New,
+            }).ToList();
 
-                readyAuditLogs.Add(new AuditLogEntry
-                {
-                    UserId = updUid,
-                    Action = $"{entityType}Updated",
-                    EntityType = entityType,
-                    EntityId = entityId,
-                    Details = details,
-                    IpAddress = ipAddress,
-                    UserAgent = userAgent,
-                    CreatedAt = now,
-                });
-            }
+            readyAuditLogs.Add(new AuditLogEntry
+            {
+                UserId = auditUid,
+                Action = $"{entityType}Updated",
+                EntityType = child?.ParentType ?? entityType,
+                EntityId = child?.ParentId(entity) ?? entity.Id,
+                Details = SafeSerialize(child is null ? changes : new { lineId = entity.Id, changes }),
+                IpAddress = ipAddress,
+                UserAgent = userAgent,
+                CreatedAt = now,
+            });
         }
 
         return (readyLogs, pendingAdded, readyAuditLogs, pendingAuditAdded);
     }
 
     private static Dictionary<string, object?> BuildEntitySnapshot(
-        Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<BaseAuditableEntity> entry,
+        Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<BaseEntity> entry,
         bool useCurrentValues)
     {
         var snapshot = new Dictionary<string, object?>(StringComparer.Ordinal);
@@ -974,6 +1046,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
             if (AuditExcludedProperties.Contains(prop.Metadata.Name)) continue;
             if (prop.Metadata.IsShadowProperty()) continue;
             var value = useCurrentValues ? prop.CurrentValue : prop.OriginalValue;
+            if (IsRedacted(entry, prop) && value is string text && text.Length > 0)
+            {
+                snapshot[prop.Metadata.Name] = RedactedValue;
+                continue;
+            }
             snapshot[prop.Metadata.Name] = value switch
             {
                 DateTimeOffset dto => dto.ToString("yyyy-MM-dd HH:mm:ssK"),
@@ -983,6 +1060,26 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
         }
         return snapshot;
     }
+
+    private static bool IsRedacted(
+        Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<BaseEntity> entry,
+        Microsoft.EntityFrameworkCore.ChangeTracking.PropertyEntry prop)
+    {
+        if (prop.Metadata.ClrType != typeof(string)) return false;
+        var name = prop.Metadata.Name;
+        if (name.EndsWith("Hash", StringComparison.Ordinal)
+            || SecretPropertyMarkers.Any(m => name.Contains(m, StringComparison.Ordinal)))
+            return true;
+        return entry.Entity is SystemSetting setting
+            && name == nameof(SystemSetting.Value)
+            && IsSecretSettingKey(setting.Key);
+    }
+
+    private static bool IsSecretSettingKey(string key)
+        => SecretSettingKeyMarkers.Any(m => key.Contains(m, StringComparison.OrdinalIgnoreCase))
+            || SettingDescriptorCatalog.FindByKey(key)?.IsSecret == true;
+
+    private static string RedactFormatted(string value) => value.Length == 0 ? value : RedactedValue;
 
     private static string? SafeSerialize(object? value)
     {

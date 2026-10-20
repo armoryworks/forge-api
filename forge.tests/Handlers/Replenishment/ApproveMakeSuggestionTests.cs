@@ -78,11 +78,11 @@ public class ApproveMakeSuggestionTests
         FixedNow, FixedNow);
 
     private ApproveSuggestionHandler ApproveHandler() => new(
-        _db, new PurchaseOrderRepository(_db), Mock.Of<IBarcodeService>(),
+        _db, new PurchaseOrderRepository(_db), Mock.Of<IBarcodeService>(), Mock.Of<IBusinessIdentifierService>(),
         new PartSourcingResolver(_db), _mediator.Object, new FixedClock());
 
     private ApproveBulkSuggestionsHandler BulkHandler() => new(
-        _db, new PurchaseOrderRepository(_db), Mock.Of<IBarcodeService>(),
+        _db, new PurchaseOrderRepository(_db), Mock.Of<IBarcodeService>(), Mock.Of<IBusinessIdentifierService>(),
         new PartSourcingResolver(_db), _mediator.Object, new FixedClock());
 
     private async Task SeedTrackAsync()

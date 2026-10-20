@@ -198,7 +198,7 @@ public class PartRevisionStampTests
         jobRepo.Setup(r => r.AddAsync(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
             .Callback<Job, CancellationToken>((job, _) => children.Add(job))
             .Returns(Task.CompletedTask);
-        var handler = new ExplodeJobBomHandler(_db, jobRepo.Object, Mock.Of<IBarcodeService>(), BoardHub(), new PartSourcingResolver(_db));
+        var handler = new ExplodeJobBomHandler(_db, jobRepo.Object, Mock.Of<IBarcodeService>(), Mock.Of<IBusinessIdentifierService>(), BoardHub(), new PartSourcingResolver(_db));
 
         await handler.Handle(new ExplodeJobBomCommand(parent.Id), CancellationToken.None);
 

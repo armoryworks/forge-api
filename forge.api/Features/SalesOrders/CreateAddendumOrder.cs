@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
@@ -28,7 +29,7 @@ public class CreateAddendumOrderValidator : AbstractValidator<CreateAddendumOrde
     }
 }
 
-public class CreateAddendumOrderHandler(AppDbContext db)
+public class CreateAddendumOrderHandler(AppDbContext db, IBusinessIdentifierService identifiers)
     : IRequestHandler<CreateAddendumOrderCommand, SalesOrderListItemModel>
 {
     public async Task<SalesOrderListItemModel> Handle(
@@ -78,6 +79,7 @@ public class CreateAddendumOrderHandler(AppDbContext db)
             ("SalesOrder", parent.Id));
 
         await db.SaveChangesAsync(cancellationToken);
+        await identifiers.IssueAsync(BusinessEntityType.SalesOrder, addendum.Id, addendum.OrderNumber, cancellationToken);
 
         return new SalesOrderListItemModel(
             addendum.Id, addendum.OrderNumber, addendum.CustomerId, parent.Customer.Name,

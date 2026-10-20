@@ -3,6 +3,7 @@ using System.Text;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Moq;
 
 using Forge.Api.Features.Communications;
 using Forge.Core.Entities;
@@ -38,6 +39,7 @@ public class ApproveDraftFromCommunicationTests
 
         _handler = new ApproveDraftFromCommunicationHandler(
             _db, new SalesOrderRepository(_db), new NoopBarcodeService(),
+            Mock.Of<IBusinessIdentifierService>(),
             new FixedClock(DateTimeOffset.Parse("2026-08-15T14:30:00Z")));
     }
 

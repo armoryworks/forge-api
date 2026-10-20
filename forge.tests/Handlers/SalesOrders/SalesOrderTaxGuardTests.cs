@@ -222,7 +222,7 @@ public class SalesOrderTaxGuardTests
         var quoteRepo = new Mock<IQuoteRepository>();
         quoteRepo.Setup(r => r.GenerateNextQuoteNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("QUO-0009");
         var handler = new ConvertEstimateToQuoteHandler(
-            _db, quoteRepo.Object, Mock.Of<IPartRepository>(), taxGuard: Guard());
+            _db, quoteRepo.Object, Mock.Of<IPartRepository>(), Mock.Of<IBusinessIdentifierService>(), taxGuard: Guard());
 
         var result = await handler.Handle(new ConvertEstimateToQuoteCommand(estimate.Id), CancellationToken.None);
 

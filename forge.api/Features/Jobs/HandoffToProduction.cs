@@ -18,7 +18,8 @@ public class HandoffToProductionValidator : AbstractValidator<HandoffToProductio
     }
 }
 
-public class HandoffToProductionHandler(AppDbContext db, IJobRepository jobRepo) : IRequestHandler<HandoffToProductionCommand, int>
+public class HandoffToProductionHandler(AppDbContext db, IJobRepository jobRepo, IBusinessIdentifierService identifiers)
+    : IRequestHandler<HandoffToProductionCommand, int>
 {
     public async Task<int> Handle(HandoffToProductionCommand request, CancellationToken ct)
     {
@@ -83,6 +84,7 @@ public class HandoffToProductionHandler(AppDbContext db, IJobRepository jobRepo)
         });
 
         await db.SaveChangesAsync(ct);
+        await identifiers.IssueAsync(BusinessEntityType.Job, prodJob.Id, prodJob.JobNumber, ct);
 
         return prodJob.Id;
     }
