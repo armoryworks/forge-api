@@ -63,6 +63,9 @@ public class CreateQcInspectionHandler(AppDbContext db, IHttpContextAccessor htt
         if (PositiveOrNull(data.PartId) is int part && !await db.Parts.AnyAsync(p => p.Id == part, cancellationToken))
             failures.Add(new ValidationFailure("partId", "Pick a part that exists.") { AttemptedValue = part });
 
+        if (jobId is null && productionRunId is null && partId is null && string.IsNullOrWhiteSpace(data.LotNumber))
+            failures.Add(new ValidationFailure("subject", "Pick what is being inspected: a work order, part, lot or production run."));
+
         if (failures.Count > 0)
             throw new ValidationException(failures);
 

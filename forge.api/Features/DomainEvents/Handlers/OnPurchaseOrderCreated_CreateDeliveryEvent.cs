@@ -2,6 +2,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Data;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
@@ -32,6 +33,11 @@ public class OnPurchaseOrderCreated_CreateDeliveryEvent(
             return;
         }
 
+        var eventTypeId = await db.CalendarEventTypes
+            .Where(t => t.Key == SeedData.PoDeliveryEventTypeKey)
+            .Select(t => (int?)t.Id)
+            .FirstOrDefaultAsync(ct);
+
         var title = $"PO-{po.PONumber} Expected Delivery from {po.Vendor.CompanyName}";
 
         db.Events.Add(new Event
@@ -41,6 +47,7 @@ public class OnPurchaseOrderCreated_CreateDeliveryEvent(
             StartTime = po.ExpectedDeliveryDate.Value,
             EndTime = po.ExpectedDeliveryDate.Value,
             EventType = EventType.Other,
+            EventTypeId = eventTypeId,
             IsAllDay = true,
             IsSystemGenerated = true,
             CreatedByUserId = notification.UserId,

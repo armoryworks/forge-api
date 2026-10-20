@@ -22,6 +22,7 @@ internal static class ConcurrencyLookup
             nameof(Payment) => await db.Payments.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),
             nameof(Shipment) => await db.Shipments.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),
             nameof(SalesOrder) => await db.SalesOrders.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),
+            nameof(NonConformance) => await db.NonConformances.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),
             nameof(Quote) => await db.Quotes.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),
             nameof(Vendor) => await db.Vendors.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),
             nameof(Customer) => await db.Customers.AsNoTracking().Where(e => e.Id == id).Select(e => (uint?)e.Version).FirstOrDefaultAsync(ct),

@@ -65,6 +65,8 @@ public static partial class SeedData
         // ── 2c-i. ComplianceOfficer read-visibility grants (compliance-calendar A-2) ──
         await SeedComplianceOfficerVisibilityAsync(db);
 
+        await SeedOperationalCalendarGroupsAsync(db);
+
         // ── 2d. Per-industry compliance profiles (regulated-parts-safety C-1) ──
         await SeedComplianceProfilesAsync(db);
 

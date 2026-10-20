@@ -9,7 +9,7 @@ public interface INcrCapaService
     Task<string> GenerateCapaNumberAsync(CancellationToken ct);
     Task<CorrectiveAction> CreateCapaFromNcrAsync(int ncrId, int ownerId, CancellationToken ct);
     Task<CorrectiveAction> AdvanceCapaPhaseAsync(int capaId, CancellationToken ct);
-    Task<bool> CanAdvanceCapaAsync(int capaId, CancellationToken ct);
+    Task<IReadOnlyList<string>> GetCapaAdvanceBlockersAsync(int capaId, CancellationToken ct);
     Task ScheduleEffectivenessCheckAsync(int capaId, DateTimeOffset checkDate, CancellationToken ct);
     Task<NcrCostSummary> CalculateNcrCostsAsync(int ncrId, CancellationToken ct);
 }

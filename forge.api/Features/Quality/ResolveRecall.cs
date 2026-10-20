@@ -1,3 +1,4 @@
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +12,17 @@ using Forge.Data.Extensions;
 namespace Forge.Api.Features.Quality;
 
 public record ResolveRecallCommand(int Id, ResolveRecallRequestModel Data) : IRequest<RecallDetailResponseModel>;
+
+public class ResolveRecallValidator : AbstractValidator<ResolveRecallCommand>
+{
+    public ResolveRecallValidator()
+    {
+        RuleFor(x => x.Data.ResolutionNotes)
+            .NotEmpty()
+            .WithMessage("Resolution notes are required to resolve a recall")
+            .MaximumLength(2000);
+    }
+}
 
 public class ResolveRecallHandler(AppDbContext db, IClock clock) : IRequestHandler<ResolveRecallCommand, RecallDetailResponseModel>
 {

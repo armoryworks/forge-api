@@ -44,7 +44,7 @@ public class CreateQcInspectionHandlerTests
         await _db.SaveChangesAsync();
 
         var data = new CreateQcInspectionRequestModel(
-            null, null, template.Id, null, "Looks good");
+            null, null, template.Id, "LOT-002", "Looks good");
 
         var command = new CreateQcInspectionCommand(data);
 

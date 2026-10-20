@@ -2,6 +2,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Data;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
@@ -33,6 +34,11 @@ public class OnSalesOrderConfirmed_CreateDeliveryMilestones(
             return;
         }
 
+        var eventTypeId = await db.CalendarEventTypes
+            .Where(t => t.Key == SeedData.SoDeliveryEventTypeKey)
+            .Select(t => (int?)t.Id)
+            .FirstOrDefaultAsync(ct);
+
         var deliveryDate = so.RequestedDeliveryDate.Value;
 
         foreach (var line in so.Lines)
@@ -47,6 +53,7 @@ public class OnSalesOrderConfirmed_CreateDeliveryMilestones(
                 StartTime = deliveryDate,
                 EndTime = deliveryDate,
                 EventType = EventType.Other,
+                EventTypeId = eventTypeId,
                 IsAllDay = true,
                 IsSystemGenerated = true,
                 CreatedByUserId = notification.UserId,

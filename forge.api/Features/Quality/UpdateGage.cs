@@ -1,3 +1,4 @@
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Models;
@@ -6,6 +7,18 @@ using Forge.Data.Context;
 namespace Forge.Api.Features.Quality;
 
 public record UpdateGageCommand(int Id, UpdateGageRequestModel Request) : IRequest<GageResponseModel>;
+
+public class UpdateGageValidator : AbstractValidator<UpdateGageCommand>
+{
+    public UpdateGageValidator()
+    {
+        RuleFor(x => x.Request.Description).NotEmpty().MaximumLength(500).When(x => x.Request.Description != null);
+        RuleFor(x => x.Request.CalibrationIntervalDays)
+            .InclusiveBetween(1, CreateGageValidator.MaxCalibrationIntervalDays)
+            .When(x => x.Request.CalibrationIntervalDays.HasValue);
+        RuleFor(x => x.Request.Status).IsInEnum().When(x => x.Request.Status.HasValue);
+    }
+}
 
 public class UpdateGageHandler(AppDbContext db) : IRequestHandler<UpdateGageCommand, GageResponseModel>
 {

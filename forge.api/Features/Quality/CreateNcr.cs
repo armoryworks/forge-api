@@ -23,6 +23,7 @@ public class CreateNcrValidator : AbstractValidator<CreateNcrCommand>
         RuleFor(x => x.Request.Description).NotEmpty().MaximumLength(4000);
         RuleFor(x => x.Request.AffectedQuantity).GreaterThan(0);
         RuleFor(x => x.Request.DefectiveQuantity)
+            .GreaterThanOrEqualTo(0)
             .LessThanOrEqualTo(x => x.Request.AffectedQuantity)
             .When(x => x.Request.DefectiveQuantity.HasValue);
     }

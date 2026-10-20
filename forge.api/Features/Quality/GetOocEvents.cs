@@ -50,6 +50,13 @@ public class GetOocEventsHandler(AppDbContext db)
                 .ToDictionaryAsync(u => u.Id, u => u.LastName + ", " + u.FirstName, cancellationToken)
             : new Dictionary<int, string>();
 
+        var capaIds = events.Where(e => e.CapaId.HasValue).Select(e => e.CapaId!.Value).Distinct().ToList();
+        var capaNumbers = capaIds.Count > 0
+            ? await db.CorrectiveActions.AsNoTracking()
+                .Where(c => capaIds.Contains(c.Id))
+                .ToDictionaryAsync(c => c.Id, c => c.CapaNumber, cancellationToken)
+            : new Dictionary<int, string>();
+
         return events.Select(e => new SpcOocEventResponseModel
         {
             Id = e.Id,
@@ -68,6 +75,7 @@ public class GetOocEventsHandler(AppDbContext db)
             AcknowledgedAt = e.AcknowledgedAt,
             AcknowledgmentNotes = e.AcknowledgmentNotes,
             CapaId = e.CapaId,
+            CapaNumber = e.CapaId.HasValue ? capaNumbers.GetValueOrDefault(e.CapaId.Value) : null,
         }).ToList();
     }
 }

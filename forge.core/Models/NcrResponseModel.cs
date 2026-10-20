@@ -45,4 +45,5 @@ public record NcrResponseModel
     public int? VendorId { get; init; }
     public string? VendorName { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
+    public uint RowVersion { get; init; }
 }

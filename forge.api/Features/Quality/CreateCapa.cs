@@ -13,11 +13,13 @@ public record CreateCapaCommand(CreateCapaRequestModel Request) : IRequest<CapaR
 
 public class CreateCapaValidator : AbstractValidator<CreateCapaCommand>
 {
-    public CreateCapaValidator()
+    public CreateCapaValidator(AppDbContext db)
     {
         RuleFor(x => x.Request.Title).NotEmpty().MaximumLength(500);
         RuleFor(x => x.Request.ProblemDescription).NotEmpty().MaximumLength(4000);
-        RuleFor(x => x.Request.OwnerId).GreaterThan(0);
+        RuleFor(x => x.Request.OwnerId).GreaterThan(0)
+            .MustAsync((id, ct) => db.Users.AnyAsync(u => u.Id == id, ct))
+            .WithMessage("Owner must be an existing user");
         RuleFor(x => x.Request.Priority).InclusiveBetween(1, 5);
     }
 }

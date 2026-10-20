@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -76,6 +77,7 @@ public class GetCapaByIdHandler(AppDbContext db)
             CompletedTaskCount = c.Tasks.Count(t => t.Status == CapaTaskStatus.Completed),
             RelatedNcrCount = c.RelatedNcrs.Count,
             CreatedAt = c.CreatedAt,
+            AdvanceBlockers = NcrCapaService.GetAdvanceBlockers(c),
         };
     }
 }

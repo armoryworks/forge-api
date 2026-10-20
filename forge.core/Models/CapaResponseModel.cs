@@ -45,4 +45,5 @@ public record CapaResponseModel
     public int CompletedTaskCount { get; init; }
     public int RelatedNcrCount { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
+    public IReadOnlyList<string> AdvanceBlockers { get; init; } = [];
 }

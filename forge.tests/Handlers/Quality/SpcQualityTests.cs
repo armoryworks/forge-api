@@ -250,6 +250,7 @@ public class SpcQualityTests : IDisposable
 
         var capa = await _db.CorrectiveActions.AsNoTracking().SingleAsync();
         result.CapaId.Should().Be(capa.Id);
+        result.CapaNumber.Should().Be(capa.CapaNumber);
         result.Status.Should().Be(nameof(SpcOocStatus.CapaCreated));
         capa.SourceType.Should().Be(CapaSourceType.SpcOoc);
         capa.SourceEntityType.Should().Be("SpcOocEvent");
@@ -262,5 +263,38 @@ public class SpcQualityTests : IDisposable
         var again = await handler.Handle(new CreateCapaFromOocCommand(ooc.Id), CancellationToken.None);
         again.CapaId.Should().Be(capa.Id);
         (await _db.CorrectiveActions.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task RecalculateLimits_ReflagsStoredSubgroups_WithoutTouchingOocEvents()
+    {
+        var characteristic = await CharacteristicAsync();
+        var means = new[] { 10.00m, 10.01m, 9.99m, 10.00m, 10.02m, 9.98m, 10.00m, 10.30m };
+        for (var i = 0; i < means.Length; i++)
+        {
+            _db.SpcMeasurements.Add(new SpcMeasurement
+            {
+                CharacteristicId = characteristic.Id,
+                SubgroupNumber = i + 1,
+                MeasuredAt = Now,
+                ValuesJson = JsonSerializer.Serialize(new[] { means[i] - 0.01m, means[i], means[i] + 0.01m, means[i], means[i] }),
+                Mean = means[i],
+                StdDev = 0.007m,
+                Range = 0.02m,
+                IsOutOfControl = i == 2,
+                OocRuleViolated = i == 2 ? "Stale" : null,
+            });
+        }
+        await _db.SaveChangesAsync();
+
+        await new RecalculateControlLimitsHandler(_db, _spc)
+            .Handle(new RecalculateControlLimitsCommand(characteristic.Id, 1, 7), CancellationToken.None);
+
+        var stored = await _db.SpcMeasurements.AsNoTracking().OrderBy(m => m.SubgroupNumber).ToListAsync();
+        stored.Last().IsOutOfControl.Should().BeTrue("subgroup 8 sits far beyond the recalculated limits");
+        stored.Last().OocRuleViolated.Should().NotBeNullOrEmpty();
+        stored[2].IsOutOfControl.Should().BeFalse("a stale flag inside the new limits is cleared");
+        stored[2].OocRuleViolated.Should().BeNull();
+        (await _db.SpcOocEvents.CountAsync()).Should().Be(0, "recalculating only re-flags the chart");
     }
 }

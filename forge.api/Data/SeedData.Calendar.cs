@@ -181,4 +181,89 @@ public static partial class SeedData
         if (db.ChangeTracker.HasChanges())
             await db.SaveChangesAsync();
     }
+
+    /// <summary>Event-type key for the system-generated purchase-order expected-delivery event.</summary>
+    public const string PoDeliveryEventTypeKey = "po-delivery";
+
+    /// <summary>Event-type key for the system-generated sales-order line delivery milestone.</summary>
+    public const string SoDeliveryEventTypeKey = "so-delivery";
+
+    /// <summary>Event-type key for the system-generated job due-date event.</summary>
+    public const string JobDueEventTypeKey = "job-due";
+
+    /// <summary>
+    /// Seeds the default-hidden operational Super-Groups (purchasing, sales, production) that
+    /// carry the system-generated PO delivery, SO delivery and job due-date events, grants each
+    /// one to the roles its source controller admits, and moves already-generated events off the
+    /// default-visible "other" type onto them. Idempotent; safe every boot. Runs after
+    /// <see cref="SeedCalendarTaxonomyAsync"/> so the legacy backfill has already run.
+    /// </summary>
+    public static async Task SeedOperationalCalendarGroupsAsync(AppDbContext db)
+    {
+        var groups = new (string Key, string Name, string Color, int Order, string TypeKey, string TypeName, string[] Roles, string TitlePattern)[]
+        {
+            ("purchasing", "Purchasing", "#64748b", 40, PoDeliveryEventTypeKey, "PO expected delivery",
+                ["Manager", "OfficeManager", "Procurement"], "PO-% Expected Delivery from %"),
+            ("sales", "Sales", "#2563eb", 50, SoDeliveryEventTypeKey, "Sales order delivery",
+                ["Manager", "OfficeManager", "PM"], "% Line % Delivery: %"),
+            ("production", "Production", "#0f766e", 60, JobDueEventTypeKey, "Job due date",
+                ["Manager", "PM", "Engineer", "ProductionWorker", "OfficeManager"], "Job Due: %"),
+        };
+
+        foreach (var g in groups)
+        {
+            if (!await db.CalendarSuperGroups.AnyAsync(x => x.Key == g.Key))
+            {
+                db.CalendarSuperGroups.Add(new CalendarSuperGroup
+                {
+                    Key = g.Key,
+                    Name = g.Name,
+                    Color = g.Color,
+                    DefaultVisible = false,
+                    SortOrder = g.Order,
+                    IsSystem = true,
+                });
+            }
+        }
+        await db.SaveChangesAsync();
+
+        var groupIds = await db.CalendarSuperGroups.ToDictionaryAsync(x => x.Key, x => x.Id);
+
+        foreach (var g in groups)
+        {
+            var gid = groupIds[g.Key];
+            if (!await db.CalendarEventTypes.AnyAsync(x => x.Key == g.TypeKey))
+            {
+                db.CalendarEventTypes.Add(new CalendarEventType
+                {
+                    SuperGroupId = gid,
+                    Key = g.TypeKey,
+                    Name = g.TypeName,
+                    SortOrder = g.Order,
+                    IsSystem = true,
+                });
+            }
+
+            var granted = await db.CalendarSuperGroupRoleVisibilities
+                .Where(v => v.SuperGroupId == gid)
+                .Select(v => v.Role)
+                .ToListAsync();
+            foreach (var role in g.Roles.Except(granted))
+                db.CalendarSuperGroupRoleVisibilities.Add(new CalendarSuperGroupRoleVisibility { SuperGroupId = gid, Role = role });
+        }
+        await db.SaveChangesAsync();
+
+        foreach (var g in groups)
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                "UPDATE events SET event_type_id = nt.id " +
+                "FROM calendar_event_types nt, calendar_event_types ot " +
+                "WHERE nt.key = {0} AND ot.key = 'other' " +
+                "AND events.event_type_id = ot.id " +
+                "AND events.is_system_generated " +
+                "AND lower(events.event_type) = 'other' " +
+                "AND events.title LIKE {1}",
+                g.TypeKey, g.TitlePattern);
+        }
+    }
 }

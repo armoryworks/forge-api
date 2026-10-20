@@ -74,6 +74,7 @@ public class GetNcrByIdHandler(AppDbContext db)
             VendorId = n.VendorId,
             VendorName = n.Vendor?.CompanyName,
             CreatedAt = n.CreatedAt,
+            RowVersion = n.Version,
         };
     }
 }
