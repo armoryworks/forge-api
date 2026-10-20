@@ -41,6 +41,15 @@ public class CompleteSetupHandler(
         var user = users.FirstOrDefault()
             ?? throw new InvalidOperationException("Invalid or expired setup token");
 
+        var policyErrors = new List<IdentityError>();
+        foreach (var validator in userManager.PasswordValidators)
+        {
+            var check = await validator.ValidateAsync(userManager, user, request.Password);
+            if (!check.Succeeded) policyErrors.AddRange(check.Errors);
+        }
+        if (policyErrors.Count > 0)
+            throw PasswordRejected(policyErrors);
+
         // Set password
         var removeResult = await userManager.RemovePasswordAsync(user);
         if (!removeResult.Succeeded && user.PasswordHash != null)
@@ -48,10 +57,7 @@ public class CompleteSetupHandler(
 
         var addResult = await userManager.AddPasswordAsync(user, request.Password);
         if (!addResult.Succeeded)
-        {
-            var errors = string.Join("; ", addResult.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"Password requirements not met: {errors}");
-        }
+            throw PasswordRejected(addResult.Errors);
 
         // Update profile if provided
         if (!string.IsNullOrEmpty(request.FirstName))
@@ -90,4 +96,7 @@ public class CompleteSetupHandler(
                 user.Initials, user.AvatarColor, roles.ToArray(), false, enrollment.GraceEndsAt),
             MfaEnrollmentRequired: enrollment.Hold);
     }
+
+    private static ValidationException PasswordRejected(IEnumerable<IdentityError> errors) =>
+        new(errors.Select(e => new FluentValidation.Results.ValidationFailure(nameof(CompleteSetupCommand.Password), e.Description)));
 }
