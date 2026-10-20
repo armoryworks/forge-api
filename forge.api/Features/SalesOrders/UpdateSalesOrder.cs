@@ -91,8 +91,16 @@ public class UpdateSalesOrderHandler(
 
         var oldDeliveryDate = order.RequestedDeliveryDate;
 
-        if (request.ShippingAddressId.HasValue) order.ShippingAddressId = request.ShippingAddressId;
-        if (request.BillingAddressId.HasValue) order.BillingAddressId = request.BillingAddressId;
+        if (request.ShippingAddressId is int shippingId && shippingId != order.ShippingAddressId)
+        {
+            await EnsureAddressUsableAsync(order.CustomerId, shippingId, AddressType.Shipping, "shippingAddressId", cancellationToken);
+            order.ShippingAddressId = shippingId;
+        }
+        if (request.BillingAddressId is int billingId && billingId != order.BillingAddressId)
+        {
+            await EnsureAddressUsableAsync(order.CustomerId, billingId, AddressType.Billing, "billingAddressId", cancellationToken);
+            order.BillingAddressId = billingId;
+        }
         if (request.CreditTerms != null) order.CreditTerms = Enum.Parse<CreditTerms>(request.CreditTerms, true);
         if (request.RequestedDeliveryDate.HasValue) order.RequestedDeliveryDate = request.RequestedDeliveryDate;
         if (request.CustomerPO != null) order.CustomerPO = request.CustomerPO;
@@ -134,6 +142,13 @@ public class UpdateSalesOrderHandler(
                     cancellationToken);
             }
         }
+    }
+
+    private async Task EnsureAddressUsableAsync(
+        int customerId, int id, AddressType addressType, string fieldPath, CancellationToken ct)
+    {
+        var address = await db.CustomerAddresses.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id, ct);
+        SalesOrderAddressRules.EnsureUsable(address, id, customerId, addressType, fieldPath);
     }
 
     private async Task<bool> ManualOrderNumbersAllowedAsync(CancellationToken ct)

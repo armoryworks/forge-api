@@ -325,4 +325,99 @@ public class CreateCustomerReturnHandlerTests
 
         supply.Should().NotContainKey(part.Id);
     }
+
+    private CreateCustomerReturnHandler Handler(Data.Context.AppDbContext db) =>
+        new(db, _mediator.Object, _httpContext, _jobRepo.Object, _identifiers.Object);
+
+    private static async Task<SalesOrderLine> LinkToShippedLineAsync(
+        Data.Context.AppDbContext db, Job job, int customerId, decimal shipped)
+    {
+        var order = new SalesOrder { OrderNumber = "SO-00077", CustomerId = customerId };
+        var line = new SalesOrderLine { Description = "Bracket", Quantity = 10, ShippedQuantity = shipped, UnitPrice = 5, LineNumber = 1 };
+        order.Lines.Add(line);
+        db.SalesOrders.Add(order);
+        await db.SaveChangesAsync();
+        job.SalesOrderLineId = line.Id;
+        await db.SaveChangesAsync();
+        return line;
+    }
+
+    [Fact]
+    public async Task Handle_JobOfAnotherCustomer_IsRejected()
+    {
+        var (_, job, db) = await SeedTestDataAsync();
+        using var _ = db;
+        var other = new Customer { Name = "Other Co" };
+        db.Customers.Add(other);
+        await db.SaveChangesAsync();
+
+        var act = () => Handler(db).Handle(new CreateCustomerReturnCommand(
+            other.Id, job.Id, "Wrong size", null, DateTime.UtcNow, false), CancellationToken.None);
+
+        await act.Should().ThrowAsync<FluentValidation.ValidationException>();
+        (await db.CustomerReturns.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Handle_JobOwnedOnlyThroughItsSalesOrder_ChecksTheOrderCustomer()
+    {
+        var (customer, job, db) = await SeedTestDataAsync();
+        using var _ = db;
+        job.CustomerId = null;
+        await LinkToShippedLineAsync(db, job, customer.Id, shipped: 10);
+        var other = new Customer { Name = "Other Co" };
+        db.Customers.Add(other);
+        await db.SaveChangesAsync();
+
+        var act = () => Handler(db).Handle(new CreateCustomerReturnCommand(
+            other.Id, job.Id, "Wrong size", null, DateTime.UtcNow, false), CancellationToken.None);
+
+        await act.Should().ThrowAsync<FluentValidation.ValidationException>();
+    }
+
+    [Fact]
+    public async Task Handle_JobWithNoKnownOwner_IsAccepted()
+    {
+        var (customer, job, db) = await SeedTestDataAsync();
+        using var _ = db;
+        job.CustomerId = null;
+        await db.SaveChangesAsync();
+
+        var result = await Handler(db).Handle(new CreateCustomerReturnCommand(
+            customer.Id, job.Id, "Stock build came back", null, DateTime.UtcNow, false), CancellationToken.None);
+
+        result.CustomerId.Should().Be(customer.Id);
+    }
+
+    [Fact]
+    public async Task Handle_QuantityAboveShippedLessEarlierReturns_IsRejected()
+    {
+        var (customer, job, db) = await SeedTestDataAsync();
+        using var _ = db;
+        await LinkToShippedLineAsync(db, job, customer.Id, shipped: 6);
+
+        await Handler(db).Handle(new CreateCustomerReturnCommand(
+            customer.Id, job.Id, "First batch", null, DateTime.UtcNow, false, 4m), CancellationToken.None);
+
+        var tooMany = () => Handler(db).Handle(new CreateCustomerReturnCommand(
+            customer.Id, job.Id, "Second batch", null, DateTime.UtcNow, false, 3m), CancellationToken.None);
+        await tooMany.Should().ThrowAsync<FluentValidation.ValidationException>()
+            .WithMessage("*Only 2 can be returned*");
+
+        var rest = await Handler(db).Handle(new CreateCustomerReturnCommand(
+            customer.Id, job.Id, "Second batch", null, DateTime.UtcNow, false, 2m), CancellationToken.None);
+        rest.Id.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task Handle_QuantityOnJobWithoutSalesOrderLine_IsNotCapped()
+    {
+        var (customer, job, db) = await SeedTestDataAsync();
+        using var _ = db;
+
+        var result = await Handler(db).Handle(new CreateCustomerReturnCommand(
+            customer.Id, job.Id, "Wrong size", null, DateTime.UtcNow, false, 500m), CancellationToken.None);
+
+        result.Id.Should().BeGreaterThan(0);
+    }
 }

@@ -46,7 +46,7 @@ public static class GetSalesChannelById
                 ECommerceIntegrationId = c.ECommerceIntegrationId,
                 IsRetail = c.ChannelType == Core.Enums.SalesChannelType.DirectRetail
                     || c.ChannelType == Core.Enums.SalesChannelType.Marketplace,
-                OrderCount = c.SalesOrders.Count,
+                OrderCount = c.SalesOrders.Count + (c.IsDefault ? db.SalesOrders.Count(so => so.ChannelId == null) : 0),
                 ListingCount = c.Listings.Count,
                 CreatedAt = c.CreatedAt,
             })

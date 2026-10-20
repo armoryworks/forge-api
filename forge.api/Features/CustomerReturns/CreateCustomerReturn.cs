@@ -1,4 +1,5 @@
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -52,8 +53,25 @@ public class CreateCustomerReturnHandler(
             .ThenInclude(t => t.Stages)
             .Include(j => j.JobParts)
             .Include(j => j.SalesOrderLine)
+            .ThenInclude(l => l!.SalesOrder)
             .FirstOrDefaultAsync(j => j.Id == request.OriginalJobId, ct)
             ?? throw new KeyNotFoundException($"Job {request.OriginalJobId} not found");
+
+        var jobCustomerId = originalJob.CustomerId ?? originalJob.SalesOrderLine?.SalesOrder?.CustomerId;
+        if (jobCustomerId is int ownerId && ownerId != request.CustomerId)
+            throw Rejected("originalJobId", request.OriginalJobId,
+                $"Job {originalJob.JobNumber} belongs to a different customer.");
+
+        if (request.Quantity is decimal quantity && originalJob.SalesOrderLine is { } soLine)
+        {
+            var alreadyReturned = await db.CustomerReturns
+                .Where(r => r.OriginalJob!.SalesOrderLineId == soLine.Id && r.Quantity != null)
+                .SumAsync(r => r.Quantity!.Value, ct);
+            var returnable = soLine.ShippedQuantity - alreadyReturned;
+            if (quantity > returnable)
+                throw Rejected("quantity", quantity,
+                    $"Only {Math.Max(0m, returnable):0.####} can be returned: {soLine.ShippedQuantity:0.####} shipped, {alreadyReturned:0.####} already returned.");
+        }
 
         // Generate next return number
         var lastNumber = await db.CustomerReturns
@@ -149,4 +167,7 @@ public class CreateCustomerReturnHandler(
             customerReturn.Status.ToString(), customerReturn.Reason,
             customerReturn.ReturnDate, customerReturn.CreatedAt);
     }
+
+    private static ValidationException Rejected(string fieldPath, object attemptedValue, string message) =>
+        new(new[] { new ValidationFailure(fieldPath, message) { AttemptedValue = attemptedValue } });
 }

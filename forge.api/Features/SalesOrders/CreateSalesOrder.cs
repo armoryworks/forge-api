@@ -1,5 +1,4 @@
 using FluentValidation;
-using FluentValidation.Results;
 using MediatR;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
@@ -162,12 +161,7 @@ public class CreateSalesOrderHandler(
         if (suppliedId is int id)
         {
             var address = await addressRepo.FindAsync(id, ct);
-            if (address is null || address.CustomerId != customerId)
-                throw AddressRejected(fieldPath, id, $"Address {id} does not belong to this customer.");
-            if (!address.IsActive)
-                throw AddressRejected(fieldPath, id, $"Address {id} is inactive.");
-            if (address.AddressType != addressType && address.AddressType != AddressType.Both)
-                throw AddressRejected(fieldPath, id, $"Address {id} is a {address.AddressType} address, not a {addressType} address.");
+            SalesOrderAddressRules.EnsureUsable(address, id, customerId, addressType, fieldPath);
             return id;
         }
 
@@ -178,9 +172,6 @@ public class CreateSalesOrderHandler(
         return (defaults.FirstOrDefault(a => a.AddressType == typeName)
             ?? defaults.FirstOrDefault(a => a.AddressType == nameof(AddressType.Both)))?.Id;
     }
-
-    private static ValidationException AddressRejected(string fieldPath, int id, string message) =>
-        new(new[] { new ValidationFailure(fieldPath, message) { AttemptedValue = id } });
 
     private async Task<bool> ManualOrderNumbersAllowedAsync(CancellationToken ct)
     {

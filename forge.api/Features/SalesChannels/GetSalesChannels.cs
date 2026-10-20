@@ -52,7 +52,7 @@ public class GetSalesChannelsHandler(AppDbContext db)
                 ECommerceIntegrationId = c.ECommerceIntegrationId,
                 IsRetail = c.ChannelType == SalesChannelType.DirectRetail
                     || c.ChannelType == SalesChannelType.Marketplace,
-                OrderCount = c.SalesOrders.Count,
+                OrderCount = c.SalesOrders.Count + (c.IsDefault ? db.SalesOrders.Count(so => so.ChannelId == null) : 0),
                 ListingCount = c.Listings.Count,
                 CreatedAt = c.CreatedAt,
             })

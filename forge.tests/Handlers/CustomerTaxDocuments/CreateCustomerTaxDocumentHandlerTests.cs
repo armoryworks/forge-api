@@ -99,13 +99,31 @@ public class CreateCustomerTaxDocumentHandlerTests
     }
 
     [Fact]
-    public void Validator_requires_two_char_state_and_known_certificate_type()
+    public async Task Blank_state_is_stored_as_no_state()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.CurrentUserId = 7;
+        db.Customers.Add(Customer());
+        db.FileAttachments.Add(CustomerFile());
+        await db.SaveChangesAsync();
+
+        var result = await new CreateCustomerTaxDocumentHandler(db)
+            .Handle(Command() with { StateCode = " " }, CancellationToken.None);
+
+        result.StateCode.Should().BeNull();
+        db.CustomerTaxDocuments.Single().StateCode.Should().BeNull();
+    }
+
+    [Fact]
+    public void Validator_allows_no_state_or_a_two_letter_state_and_requires_known_certificate_type()
     {
         var validator = new CreateCustomerTaxDocumentValidator();
 
         validator.Validate(Command()).IsValid.Should().BeTrue();
         validator.Validate(Command() with { StateCode = "CAL" }).IsValid.Should().BeFalse();
-        validator.Validate(Command() with { StateCode = "" }).IsValid.Should().BeFalse();
+        validator.Validate(Command() with { StateCode = "C1" }).IsValid.Should().BeFalse();
+        validator.Validate(Command() with { StateCode = "" }).IsValid.Should().BeTrue("multistate certificates have no state");
+        validator.Validate(Command() with { StateCode = null }).IsValid.Should().BeTrue("multistate certificates have no state");
         validator.Validate(Command() with { CertificateType = "Bogus" }).IsValid.Should().BeFalse();
     }
 }

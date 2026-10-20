@@ -99,6 +99,13 @@ internal static class PriceListEntryImportClassifier
                 baseCurrency, raw.Notes,
                 BulkImportRowAction.Error, "unitPrice must be >= 0");
         }
+        if (unitPrice >= 100_000_000_000_000m)
+        {
+            return new BulkImportRowPreview(
+                raw.LineNumber, raw.PartNumber, null, null, unitPrice, 1,
+                baseCurrency, raw.Notes,
+                BulkImportRowAction.Error, "unitPrice must be less than 100,000,000,000,000");
+        }
 
         // 3. Optional minQuantity (default 1). Entity stores int, so we
         // coerce decimals up by truncation rather than fail — matches the

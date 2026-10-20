@@ -70,13 +70,15 @@ public class ConvertLeadHandlerTests
     [Fact]
     public async Task Handle_NumbersTheCustomerAndRegistersTheIdentifier()
     {
+        _db.Customers.Add(new Customer { Name = "Earlier", CustomerNumber = "CUST-00009" });
+        await _db.SaveChangesAsync();
         var lead = await SeedLead();
 
         var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, new ConvertLeadRequestModel(CreateJob: false)), CancellationToken.None);
 
         var customer = await _db.Customers.FirstAsync(c => c.Id == result.CustomerId);
-        customer.CustomerNumber.Should().StartWith("CUST");
-        _identifiers.Verify(i => i.IssueAsync(BusinessEntityType.Customer, customer.Id, customer.CustomerNumber!, It.IsAny<CancellationToken>()), Times.Once);
+        customer.CustomerNumber.Should().Be("CUST-00010");
+        _identifiers.Verify(i => i.IssueAsync(BusinessEntityType.Customer, customer.Id, "CUST-00010", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

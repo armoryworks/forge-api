@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Validation;
 using Forge.Api.Workflows;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -37,7 +38,11 @@ public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
 {
     public UpdateCustomerValidator()
     {
-        RuleFor(x => x.Name).MaximumLength(200).When(x => x.Name is not null);
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(200).When(x => x.Name is not null);
+        RuleFor(x => x.Name)
+            .Must(VisibleText.HasVisibleContent)
+            .When(x => !string.IsNullOrEmpty(x.Name))
+            .WithMessage("'Name' must contain visible (non-whitespace) characters.");
         RuleFor(x => x.CompanyName).MaximumLength(200).When(x => x.CompanyName is not null);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Phone).MaximumLength(50).When(x => x.Phone is not null);

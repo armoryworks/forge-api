@@ -5,6 +5,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Services;
 
 namespace Forge.Api.Features.Customers;
 
@@ -25,44 +26,12 @@ public class GetCreditRiskReportHandler(AppDbContext db) : IRequestHandler<GetCr
 
         var customerIds = customers.Select(c => c.Id).ToList();
 
-        // Batch: open AR balances per customer
-        var invoiceData = await db.Invoices
-            .AsNoTracking()
-            .Where(i => customerIds.Contains(i.CustomerId)
-                && i.Status != InvoiceStatus.Paid
-                && i.Status != InvoiceStatus.Voided)
-            .GroupBy(i => i.CustomerId)
-            .Select(g => new
-            {
-                CustomerId = g.Key,
-                Balance = g.Sum(i => i.Lines.Sum(l => l.Quantity * l.UnitPrice)
-                    + i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice) * i.TaxRate
-                    - i.PaymentApplications.Sum(pa => pa.Amount)),
-            })
-            .ToListAsync(ct);
-
-        var arByCustomer = invoiceData.ToDictionary(x => x.CustomerId, x => x.Balance);
-
-        // Batch: pending sales order totals per customer
-        var orderData = await db.SalesOrders
-            .AsNoTracking()
-            .Where(so => customerIds.Contains(so.CustomerId)
-                && so.Status != SalesOrderStatus.Cancelled
-                && so.Status != SalesOrderStatus.Completed)
-            .GroupBy(so => so.CustomerId)
-            .Select(g => new
-            {
-                CustomerId = g.Key,
-                Total = g.Sum(so => so.Lines.Sum(l => l.Quantity * l.UnitPrice) * (1 + so.TaxRate)),
-            })
-            .ToListAsync(ct);
-
-        var ordersByCustomer = orderData.ToDictionary(x => x.CustomerId, x => x.Total);
+        var exposures = await CustomerCreditExposure.ForCustomersAsync(db, customerIds, ct);
 
         var results = customers.Select(c =>
         {
-            var openAr = arByCustomer.GetValueOrDefault(c.Id);
-            var pendingOrders = ordersByCustomer.GetValueOrDefault(c.Id);
+            var openAr = exposures[c.Id].OpenArBalance;
+            var pendingOrders = exposures[c.Id].PendingOrdersTotal;
             var totalExposure = openAr + pendingOrders;
             var availableCredit = (c.CreditLimit ?? 0) - totalExposure;
             var utilization = c.CreditLimit > 0

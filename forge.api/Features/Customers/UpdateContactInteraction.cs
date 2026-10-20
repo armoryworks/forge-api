@@ -24,6 +24,7 @@ public class UpdateContactInteractionValidator : AbstractValidator<UpdateContact
     {
         RuleFor(x => x.Subject).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Body).MaximumLength(4000);
+        RuleFor(x => x.DurationMinutes).InclusiveBetween(0, 1440).When(x => x.DurationMinutes.HasValue);
         RuleFor(x => x.Type).NotEmpty().Must(t => Enum.TryParse<InteractionType>(t, true, out _))
             .WithMessage("Invalid interaction type");
     }

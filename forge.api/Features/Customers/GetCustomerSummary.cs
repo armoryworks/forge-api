@@ -1,15 +1,16 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Services;
 
 namespace Forge.Api.Features.Customers;
 
 public record GetCustomerSummaryQuery(int Id) : IRequest<CustomerSummaryResponseModel>;
 
-public class GetCustomerSummaryHandler(AppDbContext db)
+public class GetCustomerSummaryHandler(AppDbContext db, IClock clock)
     : IRequestHandler<GetCustomerSummaryQuery, CustomerSummaryResponseModel>
 {
     public async Task<CustomerSummaryResponseModel> Handle(GetCustomerSummaryQuery request, CancellationToken ct)
@@ -37,20 +38,17 @@ public class GetCustomerSummaryHandler(AppDbContext db)
             .CountAsync(j => j.CustomerId == request.Id && j.DeletedAt == null
                 && !j.IsArchived, ct);
 
-        var openInvoiceData = await db.Invoices
-            .Where(i => i.CustomerId == request.Id && i.DeletedAt == null
-                && (i.Status == InvoiceStatus.Sent || i.Status == InvoiceStatus.PartiallyPaid || i.Status == InvoiceStatus.Overdue))
-            .Select(i => new
-            {
-                Total = i.Lines.Sum(l => l.Quantity * l.UnitPrice)
-                    + i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice) * i.TaxRate
-            })
-            .ToListAsync(ct);
+        var exposure = await CustomerCreditExposure.ForCustomerAsync(db, request.Id, ct);
 
-        var ytdRevenue = await db.Payments
-            .Where(p => p.CustomerId == request.Id && p.DeletedAt == null
-                && p.PaymentDate.Year == DateTimeOffset.UtcNow.Year)
-            .SumAsync(p => (decimal?)p.Amount ?? 0, ct);
+        var yearStart = new DateTimeOffset(clock.UtcNow.Year, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var ytdRevenue = await db.Invoices
+            .Where(i => i.CustomerId == request.Id
+                && i.Status != InvoiceStatus.Draft
+                && i.Status != InvoiceStatus.Voided
+                && i.InvoiceDate >= yearStart
+                && i.InvoiceDate < yearStart.AddYears(1))
+            .SelectMany(i => i.Lines)
+            .SumAsync(l => (decimal?)(l.Quantity * l.UnitPrice) ?? 0m, ct);
 
         return new CustomerSummaryResponseModel(
             customer.Id,
@@ -69,8 +67,8 @@ public class GetCustomerSummaryHandler(AppDbContext db)
             quoteCount,
             orderCount,
             activeJobCount,
-            openInvoiceData.Count,
-            openInvoiceData.Sum(i => i.Total),
+            exposure.OpenInvoiceCount,
+            exposure.OpenArBalance,
             ytdRevenue,
             customer.IsFdaRegulated,
             customer.IsAerospace,

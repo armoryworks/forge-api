@@ -82,6 +82,21 @@ public class PriceListEntryBulkImportTests
     }
 
     [Fact]
+    public async Task Preview_UnitPriceBeyondColumnPrecision_ReturnsErrorRow()
+    {
+        var csv = "partNumber,unitPrice\nPART-001,100000000000000\nPART-002,99999999999999.9999\n";
+        var handler = new PreviewPriceListEntryImportHandler(_db, _repo, _currency.Object);
+
+        var result = await handler.Handle(
+            new PreviewPriceListEntryImportCommand(_priceListId, MakeCsv(csv)),
+            CancellationToken.None);
+
+        result.Rows[0].Action.Should().Be(BulkImportRowAction.Error);
+        result.Rows[0].ErrorMessage.Should().Contain("unitPrice");
+        result.Rows[1].Action.Should().Be(BulkImportRowAction.Add);
+    }
+
+    [Fact]
     public async Task Preview_UnknownPartNumber_ReturnsErrorRow()
     {
         var csv = "partNumber,unitPrice\nPART-DOES-NOT-EXIST,5.00\n";

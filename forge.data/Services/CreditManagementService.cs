@@ -17,35 +17,9 @@ public class CreditManagementService(AppDbContext db) : ICreditManagementService
             .FirstOrDefaultAsync(c => c.Id == customerId, ct)
             ?? throw new KeyNotFoundException($"Customer {customerId} not found");
 
-        var openArBalance = await db.Invoices
-            .AsNoTracking()
-            .Where(i => i.CustomerId == customerId
-                && i.Status != InvoiceStatus.Paid
-                && i.Status != InvoiceStatus.Voided)
-            .Select(i => new
-            {
-                LineTotal = i.Lines.Sum(l => l.Quantity * l.UnitPrice),
-                TaxableLineTotal = i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice),
-                TaxRate = i.TaxRate,
-                Paid = i.PaymentApplications.Sum(pa => pa.Amount),
-            })
-            .ToListAsync(ct);
-
-        var arBalance = openArBalance.Sum(i => i.LineTotal + i.TaxableLineTotal * i.TaxRate - i.Paid);
-
-        var pendingOrders = await db.SalesOrders
-            .AsNoTracking()
-            .Where(so => so.CustomerId == customerId
-                && so.Status != SalesOrderStatus.Cancelled
-                && so.Status != SalesOrderStatus.Completed)
-            .Select(so => new
-            {
-                LineTotal = so.Lines.Sum(l => l.Quantity * l.UnitPrice),
-                TaxRate = so.TaxRate,
-            })
-            .ToListAsync(ct);
-
-        var pendingTotal = pendingOrders.Sum(so => so.LineTotal * (1 + so.TaxRate));
+        var exposure = await CustomerCreditExposure.ForCustomerAsync(db, customerId, ct);
+        var arBalance = exposure.OpenArBalance;
+        var pendingTotal = exposure.PendingOrdersTotal;
         var totalExposure = arBalance + pendingTotal;
         var availableCredit = (customer.CreditLimit ?? 0) - totalExposure;
         var utilizationPercent = customer.CreditLimit > 0

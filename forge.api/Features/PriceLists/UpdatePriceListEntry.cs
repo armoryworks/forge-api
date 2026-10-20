@@ -16,7 +16,8 @@ public class UpdatePriceListEntryValidator : AbstractValidator<UpdatePriceListEn
 {
     public UpdatePriceListEntryValidator()
     {
-        RuleFor(x => x.UnitPrice).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.UnitPrice).GreaterThanOrEqualTo(0).LessThan(100_000_000_000_000m)
+            .WithMessage("Unit price must be between 0 and 99,999,999,999,999.9999.");
         RuleFor(x => x.MinQuantity).GreaterThan(0);
         RuleFor(x => x.Currency).NotEmpty().Length(3);
         RuleFor(x => x.Notes).MaximumLength(2000);

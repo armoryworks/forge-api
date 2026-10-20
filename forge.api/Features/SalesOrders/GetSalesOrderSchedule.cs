@@ -30,12 +30,13 @@ public class GetSalesOrderScheduleHandler(AppDbContext db, BackwardSchedulingSer
         {
             var schedule = await scheduler.CalculateSchedule(line.Id, cancellationToken);
 
-            var isAtRisk = schedule.PoOrderBy < now
+            var isShipped = line.IsFullyShipped;
+            var isAtRisk = !isShipped && (schedule.PoOrderBy < now
                 || schedule.MaterialsNeededBy < now
                 || schedule.ProductionStartBy < now
                 || schedule.ProductionCompleteBy < now
                 || schedule.QcCompleteBy < now
-                || schedule.ShipBy < now;
+                || schedule.ShipBy < now);
 
             results.Add(new ScheduleMilestoneModel(
                 SalesOrderLineId: line.Id,
@@ -48,7 +49,8 @@ public class GetSalesOrderScheduleHandler(AppDbContext db, BackwardSchedulingSer
                 ProductionStartBy: schedule.ProductionStartBy,
                 MaterialsNeededBy: schedule.MaterialsNeededBy,
                 PoOrderBy: schedule.PoOrderBy,
-                IsAtRisk: isAtRisk));
+                IsAtRisk: isAtRisk,
+                IsShipped: isShipped));
         }
 
         return results;

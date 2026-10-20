@@ -3,9 +3,11 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
+using Forge.Data.Repositories;
 
 namespace Forge.Api.Features.Customers.BulkIntake;
 
@@ -21,7 +23,7 @@ namespace Forge.Api.Features.Customers.BulkIntake;
 public record BulkCustomerIntakeCommand(BulkCustomerIntakeRequest Request, bool Commit)
     : IRequest<BulkCustomerIntakeResponseModel>;
 
-public class BulkCustomerIntakeHandler(AppDbContext db)
+public class BulkCustomerIntakeHandler(AppDbContext db, IBusinessIdentifierService identifiers)
     : IRequestHandler<BulkCustomerIntakeCommand, BulkCustomerIntakeResponseModel>
 {
     public async Task<BulkCustomerIntakeResponseModel> Handle(BulkCustomerIntakeCommand request, CancellationToken ct)
@@ -102,8 +104,15 @@ public class BulkCustomerIntakeHandler(AppDbContext db)
 
         if (request.Commit && toCreate.Count > 0)
         {
+            var numbers = await CustomerRepository.NextCustomerNumbersAsync(db, toCreate.Count, ct);
+            for (var i = 0; i < toCreate.Count; i++)
+                toCreate[i].CustomerNumber = numbers[i];
+
             db.Customers.AddRange(toCreate);
             await db.SaveChangesAsync(ct);
+
+            foreach (var customer in toCreate)
+                await identifiers.IssueAsync(BusinessEntityType.Customer, customer.Id, customer.CustomerNumber!, ct);
 
             using var created = toCreate.GetEnumerator();
             for (var i = 0; i < results.Count; i++)

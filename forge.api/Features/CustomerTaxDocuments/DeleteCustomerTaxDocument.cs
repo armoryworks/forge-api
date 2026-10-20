@@ -22,7 +22,7 @@ public class DeleteCustomerTaxDocumentHandler(AppDbContext db, IClock clock)
 
         db.LogActivityAt(
             "tax-document-removed",
-            $"Removed {document.CertificateType} tax certificate ({document.StateCode})",
+            $"Removed {document.CertificateType} tax certificate{(document.StateCode is null ? "" : $" ({document.StateCode})")}",
             ("Customer", document.CustomerId));
 
         await db.SaveChangesAsync(cancellationToken);

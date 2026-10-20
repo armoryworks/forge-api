@@ -12,7 +12,7 @@ namespace Forge.Api.Features.CustomerTaxDocuments;
 public record CreateCustomerTaxDocumentCommand(
     int CustomerId,
     int FileAttachmentId,
-    string StateCode,
+    string? StateCode,
     string CertificateType,
     string? CertificateNumber,
     DateTimeOffset? ExpirationDate) : IRequest<CustomerTaxDocumentResponseModel>;
@@ -25,8 +25,10 @@ public class CreateCustomerTaxDocumentValidator : AbstractValidator<CreateCustom
     {
         RuleFor(x => x.CustomerId).GreaterThan(0);
         RuleFor(x => x.FileAttachmentId).GreaterThan(0);
-        RuleFor(x => x.StateCode).NotEmpty().Length(2)
-            .WithMessage("State code must be a 2-character state abbreviation.");
+        RuleFor(x => x.StateCode)
+            .Must(code => System.Text.RegularExpressions.Regex.IsMatch(code!.Trim(), "^[A-Za-z]{2}$"))
+            .When(x => !string.IsNullOrWhiteSpace(x.StateCode))
+            .WithMessage("State code must be a 2-letter state abbreviation.");
         RuleFor(x => x.CertificateType)
             .Must(t => CertificateTypes.Contains(t))
             .WithMessage("Certificate type must be one of: Resale, Exemption, DirectPay, Other.");
@@ -57,7 +59,7 @@ public class CreateCustomerTaxDocumentHandler(AppDbContext db)
         {
             CustomerId = request.CustomerId,
             FileAttachmentId = request.FileAttachmentId,
-            StateCode = request.StateCode.Trim().ToUpperInvariant(),
+            StateCode = string.IsNullOrWhiteSpace(request.StateCode) ? null : request.StateCode.Trim().ToUpperInvariant(),
             CertificateType = request.CertificateType,
             CertificateNumber = request.CertificateNumber,
             ExpirationDate = request.ExpirationDate,
@@ -70,7 +72,7 @@ public class CreateCustomerTaxDocumentHandler(AppDbContext db)
         // gates downstream quote pricing, so it logs on the customer.
         db.LogActivityAt(
             "tax-document-added",
-            $"Added {document.CertificateType} tax certificate ({document.StateCode}) — pending verification",
+            $"Added {document.CertificateType} tax certificate{(document.StateCode is null ? "" : $" ({document.StateCode})")} — pending verification",
             ("Customer", request.CustomerId));
 
         await db.SaveChangesAsync(cancellationToken);
