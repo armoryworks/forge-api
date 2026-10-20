@@ -355,7 +355,7 @@ public class DisposeJobHandlerTests
         job.Disposition.Should().Be(JobDisposition.Scrap);
         job.DispositionNotes.Should().Be("bore out of tolerance");
         job.ActivityLogs.Should().ContainSingle()
-            .Which.Description.Should().Be("Released from hold (was: check the bore) and disposed as Scrap.");
+            .Which.Description.Should().Be("Released from hold (was: check the bore) and disposed as scrap.");
         _jobRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 

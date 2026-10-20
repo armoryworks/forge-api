@@ -1,8 +1,11 @@
+using System.Globalization;
+
 using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Data;
+using Forge.Api.Features.Terminology;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
@@ -11,6 +14,7 @@ namespace Forge.Api.Features.DomainEvents.Handlers;
 
 public class OnSalesOrderConfirmed_CreateDeliveryMilestones(
     AppDbContext db,
+    ITerminologyLabels terminology,
     ILogger<OnSalesOrderConfirmed_CreateDeliveryMilestones> logger)
     : INotificationHandler<SalesOrderConfirmedEvent>
 {
@@ -40,6 +44,7 @@ public class OnSalesOrderConfirmed_CreateDeliveryMilestones(
             .FirstOrDefaultAsync(ct);
 
         var deliveryDate = so.RequestedDeliveryDate.Value;
+        var salesOrderTerm = (await terminology.GetAsync(ct)).Singular("sales_order");
 
         foreach (var line in so.Lines)
         {
@@ -49,7 +54,7 @@ public class OnSalesOrderConfirmed_CreateDeliveryMilestones(
             db.Events.Add(new Event
             {
                 Title = title.Length > 200 ? title[..200] : title,
-                Description = $"Delivery milestone for Sales Order {so.OrderNumber}, Line {line.LineNumber}. Quantity: {line.Quantity}.",
+                Description = $"Delivery milestone for {salesOrderTerm} {so.OrderNumber}, Line {line.LineNumber}. Quantity: {line.Quantity.ToString("0.####", CultureInfo.InvariantCulture)}.",
                 StartTime = deliveryDate,
                 EndTime = deliveryDate,
                 EventType = EventType.Other,

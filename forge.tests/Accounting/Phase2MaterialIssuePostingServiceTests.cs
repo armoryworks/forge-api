@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.Terminology;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums;
@@ -156,6 +157,26 @@ public class Phase2MaterialIssuePostingServiceTests
         var store = await db.Set<InventoryValuation>().SingleAsync(v => v.PartId == issue.PartId);
         store.OnHandQuantity.Should().Be(6m);   // 10 − 4
         store.TotalValue.Should().Be(30m);       // 50 − 20
+    }
+
+    [Fact]
+    public async Task Issue_MemoNamesTheWorkOrderNumberInTheInstallTerm()
+    {
+        using var db = await SeedAsync();
+        db.TerminologyEntries.Add(new TerminologyEntry { Key = "entity_job", Label = "Work Order" });
+        db.Jobs.Add(new Job { Id = 555, JobNumber = "J-4", Title = "Bracket run" });
+        await db.SaveChangesAsync();
+        var issueId = await AddIssueAsync(db, InventoryClass.Raw, 3m, 7m);
+        var partNumber = (await db.Set<MaterialIssue>().Include(i => i.Part).SingleAsync(i => i.Id == issueId)).Part.PartNumber;
+        var service = new MaterialIssuePostingService(
+            db, Engine(db), new FakeCapabilities(true), valuation: new InventoryValuationService(db),
+            terminology: new TerminologyLabels(db));
+
+        await service.PostMaterialIssueAsync(issueId, EntryDate, issuedByUserId: 7);
+
+        var entry = await db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines).SingleAsync();
+        entry.Memo.Should().Be($"Material issue — Work Order J-4, {partNumber}");
+        entry.Lines.Should().OnlyContain(l => l.Description == $"Material issue — Work Order J-4 {partNumber} x3");
     }
 
     [Fact]

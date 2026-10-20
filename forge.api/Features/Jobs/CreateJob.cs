@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -68,6 +69,7 @@ public class CreateJobHandler(
     ISystemSettingRepository systemSettings,
     IBusinessIdentifierService identifiers,
     ICapabilitySnapshotProvider capabilities,
+    ITerminologyLabels terminology,
     IStandardCostResolver? standardCost = null) : IRequestHandler<CreateJobCommand, JobDetailResponseModel>
 {
     // System setting that gates caller-supplied job numbers. Stored as "true"/"false".
@@ -166,12 +168,13 @@ public class CreateJobHandler(
             await JobEstimates.SnapshotAsync(db, standardCost, job, quantity ?? 1m, cancellationToken);
         }
 
+        var jobTerm = (await terminology.GetAsync(cancellationToken)).Singular("job");
         job.ActivityLogs.Add(new JobActivityLog
         {
             Action = ActivityAction.Created,
             Description = request.SalesOrderLineId is int linkedLineId
-                ? $"Job {jobNumber} created (linked to SO line #{linkedLineId})."
-                : $"Job {jobNumber} created.",
+                ? $"{jobTerm} {jobNumber} created (linked to SO line #{linkedLineId})."
+                : $"{jobTerm} {jobNumber} created.",
         });
 
         await jobRepo.AddAsync(job, cancellationToken);

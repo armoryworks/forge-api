@@ -362,6 +362,7 @@ try
     builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
     builder.Services.AddScoped<ITerminologyRepository, TerminologyRepository>();
     builder.Services.AddScoped<TerminologySpanishTranslator>();
+    builder.Services.AddScoped<ITerminologyLabels, TerminologyLabels>();
     builder.Services.AddScoped<II18nTranslationService, AiI18nTranslationService>();
     builder.Services.AddScoped<IReportRepository, ReportRepository>();
     builder.Services.AddScoped<ISankeyReportRepository, SankeyReportRepository>();

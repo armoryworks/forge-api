@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
 using Forge.Api.Services;
 using Forge.Core.Entities;
@@ -29,7 +30,8 @@ public class ExplodeJobBomHandler(
     IBarcodeService barcodeService,
     IBusinessIdentifierService identifiers,
     IHubContext<BoardHub> boardHub,
-    IPartSourcingResolver sourcingResolver) : IRequestHandler<ExplodeJobBomCommand, BomExplosionResponseModel>
+    IPartSourcingResolver sourcingResolver,
+    ITerminologyLabels? terminology = null) : IRequestHandler<ExplodeJobBomCommand, BomExplosionResponseModel>
 {
     private const string AutoReserveNotePrefix = "Auto-reserved via BOM explosion for job";
 
@@ -55,6 +57,7 @@ public class ExplodeJobBomHandler(
             ?? throw new KeyNotFoundException($"Part {parentJob.PartId.Value} not found.");
 
         var bomLines = await LoadBomLinesAsync(parentJob, part, ct);
+        var jobTerm = (await terminology.GetOrDefaultsAsync(ct)).Singular("job");
 
         if (bomLines.Count == 0)
             throw new InvalidOperationException(await EmptyBomMessageAsync(parentJob, part, ct));
@@ -151,7 +154,7 @@ public class ExplodeJobBomHandler(
                     childJob.ActivityLogs.Add(new JobActivityLog
                     {
                         Action = ActivityAction.Created,
-                        Description = $"Job {jobNumber} created from the BOM of job {parentJob.JobNumber}.",
+                        Description = $"{jobTerm} {jobNumber} created from the BOM of {TermLabels.Lower(jobTerm)} {parentJob.JobNumber}.",
                     });
 
                     newChildJobs.Add((childJob, childPart, required));

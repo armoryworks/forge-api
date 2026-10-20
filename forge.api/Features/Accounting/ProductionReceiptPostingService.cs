@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
@@ -62,7 +63,8 @@ public sealed class ProductionReceiptPostingService(
     ICapabilitySnapshotProvider capabilities,
     ISystemAuditWriter? auditWriter = null,
     IInventoryValuationService? valuation = null,
-    IProductionVariancePostingService? conversion = null) : IProductionReceiptPostingService
+    IProductionVariancePostingService? conversion = null,
+    ITerminologyLabels? terminology = null) : IProductionReceiptPostingService
 {
     private const string FullGlCapability = "CAP-ACCT-FULLGL";
 
@@ -122,7 +124,8 @@ public sealed class ProductionReceiptPostingService(
             await conversion.AbsorbConversionToDateAsync(run.JobId, run.Id, entryDate, receivedByUserId, ct);
 
         var partLabel = run.Part?.PartNumber ?? $"part {run.PartId}";
-        var desc = $"Production receipt — run {run.RunNumber} (job {run.JobId}) {partLabel} x{run.ReceivedQuantity}";
+        var jobLabel = await JobMemoLabel.ResolveAsync(db, terminology, run.JobId, ct);
+        var desc = $"Production receipt — run {run.RunNumber} ({jobLabel}) {partLabel} x{run.ReceivedQuantity}";
 
         var request = new PostingRequest
         {
@@ -149,7 +152,7 @@ public sealed class ProductionReceiptPostingService(
         if (valuation is not null)
             await valuation.ApplyReceiptAsync(book.Id, run.PartId, run.ReceivedQuantity, fgValue, ct);
 
-        await TryAuditAsync(run, entry, fgValue, receivedByUserId, ct);
+        await TryAuditAsync(run, jobLabel, entry, fgValue, receivedByUserId, ct);
     }
 
     /// <summary>True for perpetual-stocked inventory classes (the ones backed by an INVENTORY_* account).</summary>
@@ -173,7 +176,7 @@ public sealed class ProductionReceiptPostingService(
         part.ManualCostOverride ?? part.CurrentCostCalculation?.ResultAmount;
 
     private async Task TryAuditAsync(
-        ProductionRun run, JournalEntry entry, decimal fgValue, int actorUserId, CancellationToken ct)
+        ProductionRun run, string jobLabel, JournalEntry entry, decimal fgValue, int actorUserId, CancellationToken ct)
     {
         if (auditWriter is null)
             return;
@@ -195,7 +198,7 @@ public sealed class ProductionReceiptPostingService(
                     receivedQuantity = run.ReceivedQuantity,
                     fgValue = fgValue.ToString(CultureInfo.InvariantCulture),
                 },
-                reason = $"Production receipt — run {run.RunNumber} (job {run.JobId}) FG / WIP posting.",
+                reason = $"Production receipt — run {run.RunNumber} ({jobLabel}) FG / WIP posting.",
             });
 
             await auditWriter.WriteAsync(

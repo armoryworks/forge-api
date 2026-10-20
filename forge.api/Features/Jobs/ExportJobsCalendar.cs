@@ -4,13 +4,14 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Terminology;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Jobs;
 
 public record ExportJobsCalendarQuery(int? AssigneeId, int? TrackTypeId) : IRequest<byte[]>;
 
-public class ExportJobsCalendarHandler(AppDbContext db) : IRequestHandler<ExportJobsCalendarQuery, byte[]>
+public class ExportJobsCalendarHandler(AppDbContext db, ITerminologyLabels? terminology = null) : IRequestHandler<ExportJobsCalendarQuery, byte[]>
 {
     public async Task<byte[]> Handle(ExportJobsCalendarQuery request, CancellationToken ct)
     {
@@ -27,6 +28,7 @@ public class ExportJobsCalendarHandler(AppDbContext db) : IRequestHandler<Export
 
         var jobs = await query.OrderBy(j => j.DueDate).ToListAsync(ct);
 
+        var jobTerm = (await terminology.GetOrDefaultsAsync(ct)).Singular("job");
         var sb = new StringBuilder();
         sb.AppendLine("BEGIN:VCALENDAR");
         sb.AppendLine("VERSION:2.0");
@@ -43,7 +45,7 @@ public class ExportJobsCalendarHandler(AppDbContext db) : IRequestHandler<Export
             sb.AppendLine($"DTEND;VALUE=DATE:{dueDate.AddDays(1):yyyyMMdd}");
             sb.AppendLine($"SUMMARY:{EscapeIcs(job.Title)}");
 
-            var desc = $"Job #{job.Id}";
+            var desc = $"{jobTerm} {job.JobNumber}";
             if (job.Customer != null)
                 desc += $"\\nCustomer: {job.Customer.Name}";
             if (job.CurrentStage != null)

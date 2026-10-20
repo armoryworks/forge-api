@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Moq;
 using Forge.Api.Features.Jobs;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -44,7 +45,8 @@ public class CreateJobHandlerTests
             new NoOpCloudFolderAutoCreator(),
             Mock.Of<ISystemSettingRepository>(),
             Mock.Of<IBusinessIdentifierService>(),
-            StubCapabilitySnapshotProvider.Off);
+            StubCapabilitySnapshotProvider.Off,
+            new TerminologyLabels(_db));
     }
 
     /// <summary>Test-only no-op folder auto-creator.</summary>

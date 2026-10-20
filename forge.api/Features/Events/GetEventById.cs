@@ -52,6 +52,6 @@ public class GetEventByIdHandler(AppDbContext db, ICalendarVisibilityService vis
             evt.CreatedAt, evt.EventTypeId, evt.CalendarEventType?.SuperGroupId,
             evt.Status?.ToString(), evt.OwnerUserId, evt.IsBlocking, evt.AcknowledgedAt,
             evt.WaivedReason, evt.CompletedByUserId, evt.CompletedAt,
-            evt.EvidenceUrl, evt.EvidenceDocumentSetId);
+            evt.EvidenceUrl, evt.EvidenceDocumentSetId, evt.IsSystemGenerated);
     }
 }

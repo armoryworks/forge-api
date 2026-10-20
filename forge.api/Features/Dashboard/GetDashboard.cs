@@ -119,7 +119,8 @@ public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db, ICl
                 j.DueDate!.Value.ToString(j.DueDate.Value.Year == today.Year ? "MMM d" : "MMM d, yyyy"),
                 j.JobNumber,
                 j.Title,
-                j.DueDate.Value.Date < today))
+                j.DueDate.Value.Date < today,
+                DateOnly.FromDateTime(j.DueDate.Value.Date)))
             .ToList();
 
         // KPIs
@@ -146,7 +147,8 @@ public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db, ICl
             overdueCount,
             0,
             hoursLabel,
-            totalHoursValue > 0 ? "up" : "neutral");
+            totalHoursValue > 0 ? "up" : "neutral",
+            totalHoursValue);
 
         return empty with
         {

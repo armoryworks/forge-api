@@ -1,13 +1,15 @@
 using MediatR;
+using Forge.Api.Features.Terminology;
 using Forge.Core.Models;
 
 namespace Forge.Api.Features.Reports;
 
 public record GetReportEntitiesQuery : IRequest<List<ReportEntityDefinitionModel>>;
 
-public class GetReportEntitiesHandler : IRequestHandler<GetReportEntitiesQuery, List<ReportEntityDefinitionModel>>
+public class GetReportEntitiesHandler(ITerminologyLabels terminology)
+    : IRequestHandler<GetReportEntitiesQuery, List<ReportEntityDefinitionModel>>
 {
-    public Task<List<ReportEntityDefinitionModel>> Handle(GetReportEntitiesQuery request, CancellationToken cancellationToken)
+    public async Task<List<ReportEntityDefinitionModel>> Handle(GetReportEntitiesQuery request, CancellationToken cancellationToken)
     {
         var entities = new List<ReportEntityDefinitionModel>
         {
@@ -611,6 +613,13 @@ public class GetReportEntitiesHandler : IRequestHandler<GetReportEntitiesQuery, 
             }),
         };
 
-        return Task.FromResult(entities);
+        var terms = await terminology.GetAsync(cancellationToken);
+        return entities
+            .Select(e => e with
+            {
+                Label = terms.Substitute(e.Label),
+                Fields = e.Fields.Select(f => f with { Label = terms.Substitute(f.Label) }).ToList(),
+            })
+            .ToList();
     }
 }

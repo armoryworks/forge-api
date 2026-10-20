@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Moq;
 
 using Forge.Api.Features.ScheduledTasks;
+using Forge.Api.Features.Terminology;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -32,7 +33,7 @@ public class RunScheduledTaskHandlerTests
         var clock = new Mock<IClock>();
         clock.Setup(c => c.UtcNow).Returns(now);
 
-        var jobId = await new RunScheduledTaskHandler(db, jobRepo.Object, identifiers.Object, clock.Object)
+        var jobId = await new RunScheduledTaskHandler(db, jobRepo.Object, identifiers.Object, clock.Object, new TerminologyLabels(db))
             .Handle(new RunScheduledTaskCommand(task.Id), CancellationToken.None);
 
         var job = await db.Jobs.Include(j => j.ActivityLogs).SingleAsync(j => j.Id == jobId);

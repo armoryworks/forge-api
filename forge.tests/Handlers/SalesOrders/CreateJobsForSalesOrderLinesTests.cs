@@ -7,6 +7,7 @@ using Moq;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.SalesOrders;
 using Forge.Api.Features.SalesOrders.Acceptance;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -43,7 +44,7 @@ public class CreateJobsForSalesOrderLinesTests
 
     private CreateJobsForSalesOrderLinesHandler Handler() => new(
         _db, _jobRepo.Object, _barcodes.Object, _identifiers.Object, _boardHub.Object, _acceptanceGate.Object,
-        _mediator.Object, _folders.Object);
+        _mediator.Object, _folders.Object, new TerminologyLabels(_db));
 
     private void SeedTrack(bool withOrderConfirmedStage = true)
     {
@@ -148,7 +149,24 @@ public class CreateJobsForSalesOrderLinesTests
         var activity = await _db.ActivityLogs.SingleAsync(a => a.Action == "jobs_auto_created");
         activity.EntityType.Should().Be("SalesOrder");
         activity.EntityId.Should().Be(so.Id);
-        activity.Description.Should().Contain("2 job(s)").And.Contain("line 2 (no part on this line)");
+        activity.Description.Should().Contain("2 jobs created").And.Contain("line 2 (no part on this line)");
+    }
+
+    [Fact]
+    public async Task Activity_text_uses_the_install_term_and_the_singular_for_one_job()
+    {
+        SeedTrack();
+        AddPart(900, "CW-1001", ProcurementSource.Make);
+        _db.TerminologyEntries.Add(new TerminologyEntry { Key = "entity_job", Label = "Work Order" });
+        var so = await SeedOrderAsync(Line(601, 1, 900, 50m));
+
+        await Handler().Handle(new CreateJobsForSalesOrderLinesCommand(so.Id, FromConfirmation: true), CancellationToken.None);
+
+        var activity = await _db.ActivityLogs.SingleAsync(a => a.Action == "jobs_auto_created");
+        activity.Description.Should().StartWith($"1 work order created for Sales Order {so.OrderNumber}.");
+        var job = await _db.Jobs.Include(j => j.ActivityLogs).SingleAsync();
+        job.ActivityLogs.Should().ContainSingle()
+            .Which.Description.Should().StartWith($"Work Order {job.JobNumber} created from Sales Order {so.OrderNumber}");
     }
 
     [Fact]

@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Data.Context;
@@ -12,7 +13,8 @@ namespace Forge.Api.Features.DomainEvents.Handlers;
 public class OnJobStageChanged_NotifyTeam(
     AppDbContext db,
     IHubContext<NotificationHub> notificationHub,
-    ILogger<OnJobStageChanged_NotifyTeam> logger)
+    ILogger<OnJobStageChanged_NotifyTeam> logger,
+    ITerminologyLabels? terminology = null)
     : INotificationHandler<JobStageChangedEvent>
 {
     public async Task Handle(JobStageChangedEvent notification, CancellationToken ct)
@@ -54,6 +56,7 @@ public class OnJobStageChanged_NotifyTeam(
         // Don't notify the user who moved the job
         recipientIds.Remove(notification.UserId);
 
+        var jobTerm = (await terminology.GetOrDefaultsAsync(ct)).Singular("job");
         foreach (var userId in recipientIds)
         {
             db.Notifications.Add(new Notification
@@ -62,8 +65,8 @@ public class OnJobStageChanged_NotifyTeam(
                 Type = "job_entered_qc",
                 Severity = "info",
                 Source = "kanban",
-                Title = "Job Entered QC",
-                Message = $"Job {job.JobNumber} — {job.Title} has entered {toStage.Name}.",
+                Title = $"{jobTerm} Entered QC",
+                Message = $"{jobTerm} {job.JobNumber} — {job.Title} has entered {toStage.Name}.",
                 EntityType = "Job",
                 EntityId = job.Id,
                 SenderId = notification.UserId,

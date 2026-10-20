@@ -1,6 +1,6 @@
 namespace Forge.Api.Features.Terminology;
 
-public sealed record TerminologyTerm(string Id, string PluralId)
+public sealed record TerminologyTerm(string Id, string PluralId, string DefaultSingular, string DefaultPlural)
 {
     public string SingularKey => $"entity_{Id}";
 
