@@ -12,9 +12,9 @@ namespace Forge.Api.Features.Scanner;
 /// Lot-aware reads and writes of a part's bin contents for the scanner handlers. A bin can hold one
 /// active row per lot plus an un-lotted row, so the scanner treats the location as one total: draws come
 /// from un-lotted content first, then the oldest lots, and stock put back lands on the row for its lot.
-/// A reversal's removal starts with the row for the lot it undoes and does not protect reserved units,
-/// because it takes back stock that an earlier scan put there. Issues and moves draw only stock that is not on
-/// quality hold, and issues to a job also skip expired lots.
+/// A reversal's removal takes back only the free units of the lot it undoes (any lot for a scan that recorded no
+/// movements) and refuses, before changing anything, when they fall short. Issues and moves draw only stock that
+/// is not on quality hold, and issues to a job also skip expired lots.
 /// </summary>
 public static class ScanBinStock
 {
@@ -93,25 +93,19 @@ public static class ScanBinStock
     }
 
     public static async Task RemoveAsync(
-        AppDbContext db, int partId, int locationId, string? lotNumber, decimal quantity,
+        AppDbContext db, int partId, int locationId, string? lotNumber, bool anyLot, decimal quantity,
         int userId, DateTimeOffset now, CancellationToken ct)
     {
-        var rows = await ActiveRowsAsync(db, partId, locationId, ct);
-        var remaining = quantity;
-        foreach (var row in rows.OrderBy(r => r.LotNumber != lotNumber))
-        {
-            if (remaining <= 0)
-                break;
-            var take = Math.Min(row.Quantity, remaining);
-            row.Quantity -= take;
-            remaining -= take;
-            if (row.Quantity <= 0)
-            {
-                row.Quantity = 0;
-                row.RemovedAt = now;
-                row.RemovedBy = userId;
-            }
-        }
+        var rows = (await ActiveRowsAsync(db, partId, locationId, ct))
+            .Where(bc => anyLot || bc.LotNumber == lotNumber)
+            .ToList();
+        var free = rows.Sum(bc => bc.Quantity - bc.ReservedQuantity);
+        if (free < quantity)
+            throw new InvalidOperationException(
+                $"Cannot reverse this scan: it put {quantity} at the location" +
+                (anyLot || lotNumber is null ? "" : $" in lot {lotNumber}") +
+                $", but only {free} of it is still there and not reserved.");
+        BinContentDrawDown.Take(rows, quantity, userId, now);
     }
 
     private static bool IsActiveRow(BinContent bc, int partId, int locationId)

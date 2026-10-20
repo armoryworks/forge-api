@@ -34,14 +34,14 @@ internal static class LotShipmentResolver
         var shipmentLineIds = await db.ShipmentLines
             .AsNoTracking()
             .Where(sl => sl.SalesOrderLineId != null && salesOrderLineIds.Contains(sl.SalesOrderLineId.Value)
-                && !shipMovements.Any(m => m.EntityId == sl.Id
+                && !shipMovements.Any(m => (m.ShipmentLineId ?? m.EntityId) == sl.Id
                     && m.LotNumber != null && exactLotNumbers.Contains(m.LotNumber)))
             .Select(sl => sl.Id)
             .ToListAsync(ct);
         if (shipmentLineIds.Count == 0)
             return [];
 
-        var movements = shipMovements.Where(m => shipmentLineIds.Contains(m.EntityId));
+        var movements = shipMovements.Where(m => shipmentLineIds.Contains(m.ShipmentLineId ?? m.EntityId));
         var relieved = await ResolveAsync(db, movements, isApproximate: true, ct);
         var unrelieved = await UnrelievedLinesAsync(db, shipmentLineIds, ct);
         return [.. relieved, .. unrelieved];
@@ -56,7 +56,7 @@ internal static class LotShipmentResolver
             .Where(sl => shipmentLineIds.Contains(sl.Id) && sl.Quantity > 0
                 && sl.Shipment.ShippedDate != null
                 && sl.Shipment.Status != ShipmentStatus.Cancelled
-                && !shipMovements.Any(m => m.EntityId == sl.Id))
+                && !shipMovements.Any(m => (m.ShipmentLineId ?? m.EntityId) == sl.Id))
             .Select(sl => new LotShipmentRow(
                 sl.ShipmentId,
                 sl.Shipment.ShipmentNumber,
@@ -73,13 +73,14 @@ internal static class LotShipmentResolver
     private static IQueryable<BinMovement> ShipMovements(AppDbContext db) =>
         db.BinMovements
             .AsNoTracking()
-            .Where(m => m.Reason == BinMovementReason.Ship && m.EntityType == ShipmentLineEntityType);
+            .Where(m => m.Reason == BinMovementReason.Ship
+                && (m.EntityType == ShipmentLineEntityType || m.ShipmentLineId != null));
 
     private static async Task<List<LotShipmentRow>> ResolveAsync(
         AppDbContext db, IQueryable<BinMovement> shipMovements, bool isApproximate, CancellationToken ct)
     {
         var movements = await shipMovements
-            .Select(m => new { m.Id, ShipmentLineId = m.EntityId, m.LotNumber, m.Quantity })
+            .Select(m => new { m.Id, ShipmentLineId = m.ShipmentLineId ?? m.EntityId, m.LotNumber, m.Quantity })
             .ToListAsync(ct);
         if (movements.Count == 0)
             return [];
@@ -97,7 +98,7 @@ internal static class LotShipmentResolver
             .Select(m =>
             {
                 var reversed = reversedQuantities.TryGetValue(m.Id, out var r) ? r : 0m;
-                var shipped = -m.Quantity - Math.Sign(-m.Quantity) * reversed;
+                var shipped = Math.Abs(m.Quantity) - reversed;
                 return new { m.ShipmentLineId, m.LotNumber, Shipped = shipped };
             })
             .GroupBy(m => new { m.ShipmentLineId, m.LotNumber })

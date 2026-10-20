@@ -4,7 +4,6 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
-using Forge.Api.Features.Quality;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -78,23 +77,11 @@ public class ShipShipmentHandler(
             httpContext?.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
             out var uid) ? uid : 0;
 
-        // Relieve on-hand inventory before flipping status. Backorder-tolerant: a stock shortfall is
-        // soft-logged rather than blocking the ship (the relief service's documented caller option) — stock
-        // that was never tracked, or backordered lines, must still be shippable. Relief is idempotent per
-        // line (InventoryRelievedAt guard), so a later re-ship won't double-decrement.
-        if (relief is not null)
-        {
-            try
-            {
-                await relief.RelieveShipmentAsync(shipment, userId, cancellationToken);
-            }
-            catch (InvalidOperationException ex) when (ex is not QualityHoldException)
-            {
-                logger?.LogWarning(ex,
-                    "Inventory relief shortfall shipping shipment {ShipmentId}; shipping anyway (backorder).",
-                    shipment.Id);
-            }
-        }
+        if (relief is not null
+            && await relief.RelieveShipmentAsync(shipment, userId, cancellationToken) is { Count: > 0 } shortLines)
+            logger?.LogWarning(
+                "Shipping shipment {ShipmentId} with {Count} line(s) not relieved for want of free stock (backorder).",
+                shipment.Id, shortLines.Count);
 
         shipment.Status = ShipmentStatus.Shipped;
         shipment.ShippedDate = DateTimeOffset.UtcNow;

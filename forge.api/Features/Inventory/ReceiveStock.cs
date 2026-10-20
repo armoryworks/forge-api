@@ -4,10 +4,12 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
+using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Inventory;
 
@@ -33,11 +35,15 @@ public class ReceiveStockCommandValidator : AbstractValidator<ReceiveStockComman
 /// pipeline but needs no PO, so a clerk can record "stock arrived" in one step. It
 /// is additive — it bumps an existing bin or opens a new one. When no location is
 /// supplied (single-location mode) the default location is used. Writes a
-/// BinMovement (Reason = Receive) as the audit trail; never posts to a ledger.
+/// BinMovement (Reason = Receive) as the audit trail, and posts it as an inventory
+/// adjustment when CAP-ACCT-FULLGL is on, so the ledger and valuation store follow
+/// the bins.
 /// </summary>
 public class ReceiveStockHandler(
     IInventoryRepository repo,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    AppDbContext db,
+    IInventoryAdjustmentPostingService posting)
     : IRequestHandler<ReceiveStockCommand>
 {
     public async Task Handle(ReceiveStockCommand request, CancellationToken cancellationToken)
@@ -63,6 +69,10 @@ public class ReceiveStockHandler(
         }
 
         var lot = string.IsNullOrWhiteSpace(data.LotNumber) ? null : data.LotNumber.Trim();
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         var existing = await repo.FindActiveBinContentByPartLocationLotAsync(
             data.PartId, locationId, lot, BinContentStatus.Stored, cancellationToken);
         if (existing is null)
@@ -85,7 +95,7 @@ public class ReceiveStockHandler(
             existing.Quantity += data.Quantity;
         }
 
-        await repo.AddMovementAsync(new BinMovement
+        var movement = new BinMovement
         {
             EntityType = "part",
             EntityId = data.PartId,
@@ -97,9 +107,17 @@ public class ReceiveStockHandler(
             MovedAt = now,
             Reason = BinMovementReason.Receive,
             Notes = BuildNote(data),
-        }, cancellationToken);
+        };
+        await repo.AddMovementAsync(movement, cancellationToken);
 
         await repo.SaveChangesAsync(cancellationToken);
+
+        await posting.PostAdjustmentAsync(new InventoryAdjustmentPosting(
+            "BinMovement", movement.Id, data.PartId, data.Quantity,
+            DateOnly.FromDateTime(movement.MovedAt.UtcDateTime), userId, "manual receipt"), cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
     }
 
     private static string BuildNote(ReceiveStockRequestModel d)

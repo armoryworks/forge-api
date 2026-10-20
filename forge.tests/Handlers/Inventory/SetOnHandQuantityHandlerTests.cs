@@ -4,11 +4,13 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Moq;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Inventory;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Inventory;
 
@@ -28,7 +30,8 @@ public class SetOnHandQuantityHandlerTests
         _clock.Setup(c => c.UtcNow).Returns(Now);
         _repo.Setup(r => r.FindLocationAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StorageLocation { Id = 5, Name = "A1" });
-        _handler = new SetOnHandQuantityHandler(_repo.Object, accessor.Object, _clock.Object);
+        _handler = new SetOnHandQuantityHandler(_repo.Object, accessor.Object, _clock.Object,
+            TestDbContextFactory.Create(), Mock.Of<IInventoryAdjustmentPostingService>());
     }
 
     private static SetOnHandQuantityCommand Cmd(decimal qty, string reason = "Opening stock", int? po = null, int? vendor = null)

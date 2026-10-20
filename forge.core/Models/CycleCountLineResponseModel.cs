@@ -6,7 +6,7 @@ public record CycleCountLineResponseModel(
     string EntityType,
     int EntityId,
     string EntityName,
-    int ExpectedQuantity,
-    int ActualQuantity,
-    int Variance,
+    decimal ExpectedQuantity,
+    decimal ActualQuantity,
+    decimal Variance,
     string? Notes);

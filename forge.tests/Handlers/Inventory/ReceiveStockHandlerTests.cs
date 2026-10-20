@@ -4,11 +4,13 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Moq;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Inventory;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Inventory;
 
@@ -27,7 +29,8 @@ public class ReceiveStockHandlerTests
             .ReturnsAsync(new StorageLocation { Id = 5, Name = "A1" });
         _repo.Setup(r => r.PartExistsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        _handler = new ReceiveStockHandler(_repo.Object, accessor.Object);
+        _handler = new ReceiveStockHandler(_repo.Object, accessor.Object,
+            TestDbContextFactory.Create(), Mock.Of<IInventoryAdjustmentPostingService>());
     }
 
     private static ReceiveStockCommand Cmd(decimal qty, int? location = 5, string? reason = null, string? lot = null)

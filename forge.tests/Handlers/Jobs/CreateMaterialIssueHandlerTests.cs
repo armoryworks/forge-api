@@ -170,6 +170,104 @@ public class CreateMaterialIssueHandlerTests : IDisposable
     }
 
     [Fact]
+    public async Task Handle_IssueAndReturnByBin_WritePositiveMovementsInTheirDirection()
+    {
+        var (job, part) = await SeedAsync();
+        var bin = await BinAsync();
+        var row = await StockAsync(part, bin, 10m, "L-1");
+
+        await _handler.Handle(Command(job, part, 4m) with { BinContentId = row.Id }, CancellationToken.None);
+        await _handler.Handle(
+            Command(job, part, 1m) with { BinContentId = row.Id, IssueType = MaterialIssueType.Return },
+            CancellationToken.None);
+
+        var movements = await _db.BinMovements.AsNoTracking().OrderBy(m => m.Id).ToListAsync();
+        movements.Select(m => (m.EntityType, m.EntityId, m.Quantity, m.FromLocationId, m.ToLocationId, m.Reason, m.LotNumber))
+            .Should().Equal(
+                ("part", part.Id, 4m, (int?)bin.Id, (int?)null, (BinMovementReason?)BinMovementReason.Issue, "L-1"),
+                ("part", part.Id, 1m, (int?)null, (int?)bin.Id, (BinMovementReason?)BinMovementReason.Return, "L-1"));
+        (await OnHandAsync(part, bin)).Should().Be(7m);
+    }
+
+    [Fact]
+    public async Task Handle_ScrapAndReturnByLocation_WritePositiveMovementsInTheirDirection()
+    {
+        var (job, part) = await SeedAsync();
+        var bin = await BinAsync();
+        await StockAsync(part, bin, 10m, "L-1");
+
+        await _handler.Handle(
+            Command(job, part, 2m) with { StorageLocationId = bin.Id, LotNumber = "L-1", IssueType = MaterialIssueType.Scrap },
+            CancellationToken.None);
+        await _handler.Handle(
+            Command(job, part, 5m) with { StorageLocationId = bin.Id, LotNumber = "L-1", IssueType = MaterialIssueType.Return },
+            CancellationToken.None);
+
+        var movements = await _db.BinMovements.AsNoTracking().OrderBy(m => m.Id).ToListAsync();
+        movements.Select(m => (m.Quantity, m.FromLocationId, m.ToLocationId, m.Reason)).Should().Equal(
+            (2m, (int?)bin.Id, (int?)null, (BinMovementReason?)BinMovementReason.Issue),
+            (5m, (int?)null, (int?)bin.Id, (BinMovementReason?)BinMovementReason.Return));
+    }
+
+    [Fact]
+    public async Task Handle_IssueThatEmptiesABin_MarksItRemoved()
+    {
+        var (job, part) = await SeedAsync();
+        var bin = await BinAsync();
+        var emptied = await StockAsync(part, bin, 3m, "L-1");
+        var partial = await StockAsync(part, bin, 5m, "L-2");
+
+        await _handler.Handle(Command(job, part, 3m) with { BinContentId = emptied.Id }, CancellationToken.None);
+        await _handler.Handle(Command(job, part, 2m) with { BinContentId = partial.Id }, CancellationToken.None);
+
+        var emptiedAfter = await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == emptied.Id);
+        emptiedAfter.Quantity.Should().Be(0m);
+        emptiedAfter.RemovedAt.Should().NotBeNull();
+        emptiedAfter.RemovedBy.Should().Be(1);
+        (await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == partial.Id)).RemovedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_IssueOrScrapFromARemovedBin_IsRefusedAndWritesNothing()
+    {
+        var (job, part) = await SeedAsync();
+        var bin = await BinAsync();
+        var row = await StockAsync(part, bin, 6m, "L-1");
+        row.RemovedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync();
+
+        foreach (var type in new[] { MaterialIssueType.Issue, MaterialIssueType.Scrap })
+        {
+            var act = () => _handler.Handle(
+                Command(job, part, 2m) with { BinContentId = row.Id, IssueType = type }, CancellationToken.None);
+            await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*removed*");
+        }
+
+        (await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == row.Id)).Quantity.Should().Be(6m);
+        (await _db.MaterialIssues.AnyAsync()).Should().BeFalse();
+        (await _db.BinMovements.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Handle_IssueFromAChosenBin_TakesOnlyItsUnreservedUnits()
+    {
+        var (job, part) = await SeedAsync();
+        var bin = await BinAsync();
+        var row = await StockAsync(part, bin, 10m, "L-1");
+        row.ReservedQuantity = 7m;
+        await _db.SaveChangesAsync();
+
+        var tooMuch = () => _handler.Handle(Command(job, part, 4m) with { BinContentId = row.Id }, CancellationToken.None);
+        await tooMuch.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Available: 3*");
+
+        await _handler.Handle(Command(job, part, 3m) with { BinContentId = row.Id }, CancellationToken.None);
+        var after = await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == row.Id);
+        after.Quantity.Should().Be(7m);
+        after.ReservedQuantity.Should().Be(7m);
+        after.RemovedAt.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Handle_BinOfAnotherPart_IsRefused()
     {
         var (job, part) = await SeedAsync();

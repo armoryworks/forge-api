@@ -5,11 +5,13 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Moq;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Inventory;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Inventory;
 
@@ -33,7 +35,8 @@ public class AdjustStockHandlerTests
 
         _httpContextAccessor.Setup(a => a.HttpContext).Returns(httpContext);
 
-        _handler = new AdjustStockHandler(_inventoryRepo.Object, _httpContextAccessor.Object);
+        _handler = new AdjustStockHandler(_inventoryRepo.Object, _httpContextAccessor.Object,
+            TestDbContextFactory.Create(), Mock.Of<IInventoryAdjustmentPostingService>());
     }
 
     [Fact]

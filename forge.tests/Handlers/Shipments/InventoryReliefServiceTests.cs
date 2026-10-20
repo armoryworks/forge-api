@@ -18,7 +18,7 @@ namespace Forge.Tests.Handlers.Shipments;
 ///   - INV-INV1a: bins never go negative
 ///   - Idempotency: double-call is a safe no-op
 ///   - FIFO ordering across bins
-///   - Insufficient-stock throws (never-negative guard)
+///   - Insufficient stock leaves the line unrelieved and logged (never-negative guard)
 /// </summary>
 public class InventoryReliefServiceTests : IDisposable
 {
@@ -124,11 +124,15 @@ public class InventoryReliefServiceTests : IDisposable
         binAfter!.Quantity.Should().Be(15m, "bin must decrease by exactly the shipped quantity");
 
         // Assert — BinMovement with reason=Ship created
+        var shipmentLineId = loaded.Lines.First().Id;
         var movements = await _db.BinMovements
-            .Where(bm => bm.Reason == BinMovementReason.Ship && bm.EntityType == "ShipmentLine")
+            .Where(bm => bm.Reason == BinMovementReason.Ship
+                && bm.EntityType == "part" && bm.EntityId == part.Id && bm.ShipmentLineId == shipmentLineId)
             .ToListAsync();
         movements.Should().HaveCount(1, "exactly one Ship movement per shipment line");
-        movements[0].Quantity.Should().Be(-5m, "movement quantity is negative (outbound)");
+        movements[0].Quantity.Should().Be(5m, "movement quantity is positive, out of the bin's location");
+        movements[0].FromLocationId.Should().Be(bin.LocationId);
+        movements[0].ToLocationId.Should().BeNull();
 
         // Assert — idempotency stamp set
         var lineAfter = await _db.Set<ShipmentLine>().FindAsync(loaded.Lines.First().Id);
@@ -218,16 +222,15 @@ public class InventoryReliefServiceTests : IDisposable
     // ── INV-INV1a: never-negative — throws when stock insufficient ───────────
 
     [Fact]
-    public async Task RelieveShipment_InsufficientStock_Throws_NeverNegative()
+    public async Task RelieveShipment_InsufficientStock_LeavesTheLineUnrelievedAndLogsIt_NeverNegative()
     {
-        // Arrange
         var (_, so, part) = await SeedSpineAsync("P-INSUFF-001", 20m);
         var soLine = so.Lines.First();
 
-        _db.BinContents.Add(MakeBin(part.Id, 3m));   // only 3 in stock
+        _db.BinContents.Add(MakeBin(part.Id, 3m));
         await _db.SaveChangesAsync();
 
-        var shipment = MakeShipment(so.Id, soLine.Id, 10m);  // wants 10
+        var shipment = MakeShipment(so.Id, soLine.Id, 10m);
         _db.Shipments.Add(shipment);
         await _db.SaveChangesAsync();
 
@@ -235,15 +238,136 @@ public class InventoryReliefServiceTests : IDisposable
             .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
             .FirstAsync(s => s.Id == shipment.Id);
 
-        // Act & Assert
-        var act = () => _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*Insufficient stock*INV-INV1a*");
+        var shortLines = await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
 
-        // Assert — bin untouched (transaction rolled back conceptually — in-memory no SaveChanges on throw)
+        shortLines.Should().Equal(loaded.Lines.Single().Id);
         _db.ChangeTracker.Clear();
-        var bin = await _db.BinContents.FirstAsync();
-        bin.Quantity.Should().Be(3m, "bin must not be decremented when stock check fails");
+        (await _db.BinContents.FirstAsync()).Quantity.Should().Be(3m, "bin must not be decremented when stock is short");
+        (await _db.ShipmentLines.SingleAsync(l => l.ShipmentId == shipment.Id)).InventoryRelievedAt.Should().BeNull();
+        (await _db.BinMovements.AnyAsync()).Should().BeFalse();
+        var log = await _db.ActivityLogs.SingleAsync(a => a.EntityType == "Shipment" && a.EntityId == shipment.Id
+            && a.Action == "inventory_not_relieved");
+        log.Description.Should().Contain("10 needed, 3 free");
+    }
+
+    [Fact]
+    public async Task RelieveShipment_AShortLine_DoesNotStopTheLinesAfterIt()
+    {
+        var (_, so, shortPart) = await SeedSpineAsync("P-SHORT-001", 10m);
+        var stocked = new Part { PartNumber = "P-STOCKED-001", Name = "Stocked" };
+        _db.Parts.Add(stocked);
+        await _db.SaveChangesAsync();
+        _db.BinContents.AddRange(MakeBin(shortPart.Id, 3m), MakeBin(stocked.Id, 5m));
+        var shipment = new Shipment
+        {
+            ShipmentNumber = "SH-TWO-LINES",
+            SalesOrderId = so.Id,
+            Status = ShipmentStatus.Pending,
+            Lines =
+            [
+                new ShipmentLine { PartId = shortPart.Id, Quantity = 10m },
+                new ShipmentLine { PartId = stocked.Id, Quantity = 2m },
+            ],
+        };
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+        var loaded = await _db.Shipments
+            .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
+            .FirstAsync(s => s.Id == shipment.Id);
+
+        var shortLines = await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
+
+        _db.ChangeTracker.Clear();
+        var lines = await _db.ShipmentLines.Where(l => l.ShipmentId == shipment.Id).OrderBy(l => l.Id).ToListAsync();
+        shortLines.Should().Equal(lines[0].Id);
+        lines[0].InventoryRelievedAt.Should().BeNull();
+        lines[1].InventoryRelievedAt.Should().NotBeNull();
+        (await _db.BinContents.SingleAsync(b => b.EntityId == stocked.Id)).Quantity.Should().Be(3m);
+        (await _db.BinContents.SingleAsync(b => b.EntityId == shortPart.Id)).Quantity.Should().Be(3m);
+    }
+
+    [Fact]
+    public async Task RelieveShipment_LeavesStockReservedForAnotherOrderAlone()
+    {
+        var (_, so, part) = await SeedSpineAsync("P-OTHERRES-001", 5m);
+        var soLine = so.Lines.First();
+        var bin = MakeBin(part.Id, 10m);
+        bin.ReservedQuantity = 8m;
+        _db.BinContents.Add(bin);
+        var shipment = MakeShipment(so.Id, soLine.Id, 5m);
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+        var loaded = await _db.Shipments
+            .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
+            .FirstAsync(s => s.Id == shipment.Id);
+
+        var shortLines = await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
+
+        shortLines.Should().ContainSingle();
+        _db.ChangeTracker.Clear();
+        var binAfter = await _db.BinContents.FindAsync(bin.Id);
+        binAfter!.Quantity.Should().Be(10m);
+        binAfter.ReservedQuantity.Should().Be(8m);
+    }
+
+    [Fact]
+    public async Task RelieveShipment_TwoLinesOfOneOrderLine_ReleaseItsReservationOnce()
+    {
+        var (_, so, part) = await SeedSpineAsync("P-TWOLINES-001", 5m);
+        var soLine = so.Lines.First();
+        var bin = MakeBin(part.Id, 10m);
+        bin.ReservedQuantity = 10m;
+        _db.BinContents.Add(bin);
+        await _db.SaveChangesAsync();
+        _db.Reservations.AddRange(
+            new Reservation { PartId = part.Id, BinContentId = bin.Id, SalesOrderLineId = soLine.Id, Quantity = 5m },
+            new Reservation { PartId = part.Id, BinContentId = bin.Id, Quantity = 5m });
+        var shipment = MakeShipment(so.Id, soLine.Id, 3m);
+        shipment.Lines.Add(new ShipmentLine { SalesOrderLineId = soLine.Id, Quantity = 2m });
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+        var loaded = await _db.Shipments
+            .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
+            .FirstAsync(s => s.Id == shipment.Id);
+
+        var shortLines = await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
+
+        shortLines.Should().BeEmpty();
+        _db.ChangeTracker.Clear();
+        var binAfter = await _db.BinContents.FindAsync(bin.Id);
+        binAfter!.Quantity.Should().Be(5m);
+        binAfter.ReservedQuantity.Should().Be(5m);
+    }
+
+    [Fact]
+    public async Task RelieveShipment_DrawsTheLinesOwnReservationFirst()
+    {
+        var (_, so, part) = await SeedSpineAsync("P-OWNRES-001", 5m);
+        var soLine = so.Lines.First();
+        var older = MakeBin(part.Id, 10m, DateTimeOffset.UtcNow.AddDays(-3));
+        var reserved = MakeBin(part.Id, 6m, DateTimeOffset.UtcNow.AddDays(-1));
+        reserved.ReservedQuantity = 6m;
+        _db.BinContents.AddRange(older, reserved);
+        await _db.SaveChangesAsync();
+        _db.Reservations.Add(new Reservation
+        {
+            PartId = part.Id, BinContentId = reserved.Id, SalesOrderLineId = soLine.Id, Quantity = 6m,
+        });
+        var shipment = MakeShipment(so.Id, soLine.Id, 5m);
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+        var loaded = await _db.Shipments
+            .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
+            .FirstAsync(s => s.Id == shipment.Id);
+
+        var shortLines = await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
+
+        shortLines.Should().BeEmpty();
+        _db.ChangeTracker.Clear();
+        (await _db.BinContents.FindAsync(older.Id))!.Quantity.Should().Be(10m);
+        var reservedAfter = await _db.BinContents.FindAsync(reserved.Id);
+        reservedAfter!.Quantity.Should().Be(1m);
+        reservedAfter.ReservedQuantity.Should().Be(0m);
     }
 
     // ── Line with no PartId and no SalesOrderLine — skipped gracefully ────────
@@ -295,6 +419,71 @@ public class InventoryReliefServiceTests : IDisposable
         // Assert — nothing created
         var movements = await _db.BinMovements.ToListAsync();
         movements.Should().BeEmpty("no bin movement for a part-less line");
+    }
+
+    [Fact]
+    public async Task RelieveShipment_BinDrawnToZero_IsMarkedRemoved_PartialBinStaysLive()
+    {
+        var (_, so, part) = await SeedSpineAsync("P-REMOVED-001", 30m);
+        var soLine = so.Lines.First();
+
+        var emptied = MakeBin(part.Id, 4m, DateTimeOffset.UtcNow.AddDays(-2));
+        var partial = MakeBin(part.Id, 10m, DateTimeOffset.UtcNow.AddDays(-1));
+        _db.BinContents.AddRange(emptied, partial);
+        await _db.SaveChangesAsync();
+
+        var shipment = MakeShipment(so.Id, soLine.Id, 7m);
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+
+        var loaded = await _db.Shipments
+            .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
+            .FirstAsync(s => s.Id == shipment.Id);
+
+        await _svc.RelieveShipmentAsync(loaded, userId: 7, CancellationToken.None);
+
+        _db.ChangeTracker.Clear();
+        var emptiedAfter = await _db.BinContents.FindAsync(emptied.Id);
+        var partialAfter = await _db.BinContents.FindAsync(partial.Id);
+        emptiedAfter!.RemovedAt.Should().NotBeNull("a bin drawn to zero is marked removed");
+        emptiedAfter.RemovedBy.Should().Be(7);
+        partialAfter!.RemovedAt.Should().BeNull("a partially drawn bin stays live");
+        partialAfter.Quantity.Should().Be(7m);
+    }
+
+    [Fact]
+    public async Task RelieveShipment_BinHoldingTheLineReservation_IsMarkedRemovedOnceReleased()
+    {
+        var (_, so, part) = await SeedSpineAsync("P-RESERVED-001", 5m);
+        var soLine = so.Lines.First();
+
+        var bin = MakeBin(part.Id, 5m);
+        bin.ReservedQuantity = 5m;
+        _db.BinContents.Add(bin);
+        await _db.SaveChangesAsync();
+
+        _db.Reservations.Add(new Reservation
+        {
+            PartId = part.Id,
+            BinContentId = bin.Id,
+            SalesOrderLineId = soLine.Id,
+            Quantity = 5m,
+        });
+        var shipment = MakeShipment(so.Id, soLine.Id, 5m);
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+
+        var loaded = await _db.Shipments
+            .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
+            .FirstAsync(s => s.Id == shipment.Id);
+
+        await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
+
+        _db.ChangeTracker.Clear();
+        var binAfter = await _db.BinContents.FindAsync(bin.Id);
+        binAfter!.Quantity.Should().Be(0m);
+        binAfter.ReservedQuantity.Should().Be(0m);
+        binAfter.RemovedAt.Should().NotBeNull("the reservation is released before the empty bin is judged");
     }
 
     public void Dispose() => _db.Dispose();

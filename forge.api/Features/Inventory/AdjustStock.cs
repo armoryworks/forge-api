@@ -4,10 +4,12 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
+using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Inventory;
 
@@ -25,7 +27,9 @@ public class AdjustStockCommandValidator : AbstractValidator<AdjustStockCommand>
 
 public class AdjustStockHandler(
     IInventoryRepository repo,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    AppDbContext db,
+    IInventoryAdjustmentPostingService posting)
     : IRequestHandler<AdjustStockCommand>
 {
     public async Task Handle(AdjustStockCommand request, CancellationToken cancellationToken)
@@ -43,7 +47,14 @@ public class AdjustStockHandler(
                 $"Cannot adjust this bin to {data.NewQuantity}: {content.ReservedQuantity} unit(s) are reserved. " +
                 "Release the reservation first.");
 
-        var delta = data.NewQuantity - (int)content.Quantity;
+        var delta = data.NewQuantity - content.Quantity;
+        if (delta == 0)
+            throw new InvalidOperationException(
+                "The new quantity equals the quantity on hand; there is nothing to adjust.");
+
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
 
         content.Quantity = data.NewQuantity;
 
@@ -72,5 +83,13 @@ public class AdjustStockHandler(
 
         await repo.AddMovementAsync(movement, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);
+
+        if (string.Equals(content.EntityType, "part", StringComparison.OrdinalIgnoreCase))
+            await posting.PostAdjustmentAsync(new InventoryAdjustmentPosting(
+                "BinMovement", movement.Id, content.EntityId, delta,
+                DateOnly.FromDateTime(movement.MovedAt.UtcDateTime), userId, "stock adjustment"), cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
     }
 }

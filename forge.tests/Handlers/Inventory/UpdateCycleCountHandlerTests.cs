@@ -88,4 +88,64 @@ public class UpdateCycleCountHandlerTests
         (await db.BinContents.SingleAsync(b => b.Id == binContentId)).Quantity.Should().Be(2000m);
         db.JournalEntries.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Approve_ABinThatMovedSinceTheCount_IsRefusedAndChangesNothing()
+    {
+        var (db, count, binContentId) = await SeedAsync();
+        using var _ = db;
+        var line = count.Lines.Single();
+        (await db.BinContents.SingleAsync(b => b.Id == binContentId)).Quantity = 1990m;
+        await db.SaveChangesAsync();
+
+        var act = () => Handler(db).Handle(new UpdateCycleCountCommand(count.Id,
+            new UpdateCycleCountRequestModel("Approved", null, [new UpdateCycleCountLineModel(line.Id, 1998, null)])), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*changed from 2000 to 1990*");
+        db.ChangeTracker.Clear();
+        (await db.BinContents.SingleAsync(b => b.Id == binContentId)).Quantity.Should().Be(1990m);
+        db.BinMovements.Should().BeEmpty();
+        db.JournalEntries.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Approve_AnUntouchedLineOnAFractionalBin_KeepsTheFraction()
+    {
+        var db = TestDbContextFactory.Create();
+        using var _ = db;
+        await InventoryLedgerTestBook.SeedAsync(db);
+        var part = new Part { PartNumber = "WIRE-2", Description = "Wire", InventoryClass = InventoryClass.Raw, ManualCostOverride = 1m };
+        var bin = new StorageLocation { Name = "W1", LocationType = LocationType.Bin, IsActive = true };
+        db.Parts.Add(part);
+        db.StorageLocations.Add(bin);
+        await db.SaveChangesAsync();
+        var content = new BinContent { LocationId = bin.Id, EntityType = "part", EntityId = part.Id, Quantity = 12.75m, PlacedAt = DateTimeOffset.UtcNow };
+        db.BinContents.Add(content);
+        await db.SaveChangesAsync();
+        var created = await new CreateCycleCountHandler(new InventoryRepository(db), UserAccessor(7))
+            .Handle(new CreateCycleCountCommand(new CreateCycleCountRequestModel(bin.Id, null)), CancellationToken.None);
+
+        created.Lines.Single().ExpectedQuantity.Should().Be(12.75m);
+        await Handler(db).Handle(new UpdateCycleCountCommand(created.Id,
+            new UpdateCycleCountRequestModel("Approved", null, null)), CancellationToken.None);
+
+        (await db.BinContents.SingleAsync(b => b.Id == content.Id)).Quantity.Should().Be(12.75m);
+        db.BinMovements.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Approve_AFractionalCount_MovesAndPostsTheFraction()
+    {
+        var (db, count, binContentId) = await SeedAsync();
+        using var _ = db;
+        var line = count.Lines.Single();
+
+        await Handler(db).Handle(new UpdateCycleCountCommand(count.Id,
+            new UpdateCycleCountRequestModel("Approved", null, [new UpdateCycleCountLineModel(line.Id, 1997.5m, null)])), CancellationToken.None);
+
+        (await db.BinContents.SingleAsync(b => b.Id == binContentId)).Quantity.Should().Be(1997.5m);
+        db.BinMovements.Should().ContainSingle(m => m.Quantity == 2.5m && m.FromLocationId != null);
+        (await LinesAsync(db, $"Inventory:CycleCountLine:{line.Id}:ADJUST")).Should().HaveCount(2);
+        (await db.InventoryValuations.SingleAsync()).OnHandQuantity.Should().Be(1997.5m);
+    }
 }
