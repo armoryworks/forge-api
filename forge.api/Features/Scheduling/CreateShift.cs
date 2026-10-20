@@ -20,6 +20,9 @@ public class CreateShiftValidator : AbstractValidator<CreateShiftCommand>
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
         RuleFor(x => x.BreakMinutes).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.BreakMinutes)
+            .Must((x, breakMinutes) => ShiftHours.Net(x.StartTime, x.EndTime, breakMinutes) > 0)
+            .WithMessage("The break must be shorter than the shift.");
     }
 }
 

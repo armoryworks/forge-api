@@ -1,3 +1,5 @@
+using FluentValidation;
+
 using MediatR;
 
 using Forge.Core.Entities;
@@ -13,6 +15,18 @@ public record UpdateShiftCommand(
     TimeOnly EndTime,
     int BreakMinutes,
     bool IsActive) : IRequest<ShiftResponseModel>;
+
+public class UpdateShiftValidator : AbstractValidator<UpdateShiftCommand>
+{
+    public UpdateShiftValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.BreakMinutes).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.BreakMinutes)
+            .Must((x, breakMinutes) => ShiftHours.Net(x.StartTime, x.EndTime, breakMinutes) > 0)
+            .WithMessage("The break must be shorter than the shift.");
+    }
+}
 
 public class UpdateShiftHandler(AppDbContext db) : IRequestHandler<UpdateShiftCommand, ShiftResponseModel>
 {
