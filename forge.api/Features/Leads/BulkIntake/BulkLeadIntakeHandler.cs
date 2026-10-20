@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -44,6 +46,10 @@ public class BulkLeadIntakeHandler(AppDbContext db, IClock clock)
     : IRequestHandler<BulkLeadIntakeCommand, BulkLeadIntakeResponseModel>
 {
     private const int MinPhoneDigits = 7;
+    private const int MaxPhoneLength = 50;
+    private static readonly Regex PhoneShape = new(
+        @"^\+?[0-9 ().\-/]+(\s*(x|ext\.?)\s*[0-9]+)?$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     public async Task<BulkLeadIntakeResponseModel> Handle(BulkLeadIntakeCommand request, CancellationToken ct)
     {
@@ -269,8 +275,14 @@ public class BulkLeadIntakeHandler(AppDbContext db, IClock clock)
             if (at <= 0 || at == email.Length - 1 || at != email.LastIndexOf('@'))
                 return $"'{email}' is not a valid email address";
         }
-        if (!string.IsNullOrWhiteSpace(row.Phone) && DigitsOnly(row.Phone).Length < MinPhoneDigits)
-            return $"'{row.Phone.Trim()}' is not a valid phone number (needs at least {MinPhoneDigits} digits)";
+        if (!string.IsNullOrWhiteSpace(row.Phone))
+        {
+            var phone = row.Phone.Trim();
+            if (phone.Length > MaxPhoneLength || !PhoneShape.IsMatch(phone))
+                return $"'{phone}' is not a valid phone number (use digits and common punctuation, at most {MaxPhoneLength} characters)";
+            if (DigitsOnly(phone).Length < MinPhoneDigits)
+                return $"'{phone}' is not a valid phone number (needs at least {MinPhoneDigits} digits)";
+        }
         return null;
     }
 

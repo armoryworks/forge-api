@@ -45,7 +45,8 @@ public class GetCustomerSummaryHandler(AppDbContext db, IClock clock)
             .Where(i => i.CustomerId == request.Id
                 && i.Status != InvoiceStatus.Draft
                 && i.Status != InvoiceStatus.Voided
-                && i.InvoiceDate >= yearStart)
+                && i.InvoiceDate >= yearStart
+                && i.InvoiceDate < yearStart.AddYears(1))
             .SelectMany(i => i.Lines)
             .SumAsync(l => (decimal?)(l.Quantity * l.UnitPrice) ?? 0m, ct);
 

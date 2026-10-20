@@ -159,6 +159,8 @@ public class CustomerCreditExposureTests
         db.Invoices.Add(InvoiceFor(customer.Id, 800m, InvoiceStatus.Voided, invoiceDate: thisYear));
         db.Invoices.Add(InvoiceFor(customer.Id, 300m, InvoiceStatus.Paid, paid: 300m,
             invoiceDate: new DateTimeOffset(2025, 12, 31, 0, 0, 0, TimeSpan.Zero)));
+        db.Invoices.Add(InvoiceFor(customer.Id, 400m, InvoiceStatus.Paid, paid: 400m,
+            invoiceDate: new DateTimeOffset(2027, 1, 5, 0, 0, 0, TimeSpan.Zero)));
         await db.SaveChangesAsync();
 
         var clock = Mock.Of<IClock>(c => c.UtcNow == new DateTimeOffset(2026, 10, 19, 12, 0, 0, TimeSpan.Zero));

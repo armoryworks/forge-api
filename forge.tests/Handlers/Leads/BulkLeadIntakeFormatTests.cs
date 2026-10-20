@@ -23,7 +23,10 @@ public class BulkLeadIntakeFormatTests
         [
             Row("bad-email", "not-an-email", null),
             Row("bad-phone", null, "12-34"),
+            Row("letters-phone", null, "call 5550102000"),
+            Row("long-phone", null, new string('5', 51)),
             Row("good", "buyer@example.com", "(555) 010-2000"),
+            Row("good-ext", "ext@example.com", "+1 555-010-2001 ext. 12"),
         ]);
 
         var result = await new BulkLeadIntakeHandler(db, clock)
@@ -32,6 +35,9 @@ public class BulkLeadIntakeFormatTests
         result.Results.Single(r => r.ExternalRowKey == "bad-email").Status.Should().Be(BulkLeadIntakeRowStatus.Invalid);
         result.Results.Single(r => r.ExternalRowKey == "bad-email").Reason.Should().Contain("email");
         result.Results.Single(r => r.ExternalRowKey == "bad-phone").Status.Should().Be(BulkLeadIntakeRowStatus.Invalid);
+        result.Results.Single(r => r.ExternalRowKey == "letters-phone").Status.Should().Be(BulkLeadIntakeRowStatus.Invalid);
+        result.Results.Single(r => r.ExternalRowKey == "long-phone").Status.Should().Be(BulkLeadIntakeRowStatus.Invalid);
         result.Results.Single(r => r.ExternalRowKey == "good").Status.Should().Be(BulkLeadIntakeRowStatus.Created);
+        result.Results.Single(r => r.ExternalRowKey == "good-ext").Status.Should().Be(BulkLeadIntakeRowStatus.Created);
     }
 }
