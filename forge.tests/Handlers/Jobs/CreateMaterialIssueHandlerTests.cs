@@ -228,6 +228,46 @@ public class CreateMaterialIssueHandlerTests : IDisposable
     }
 
     [Fact]
+    public async Task Handle_IssueOrScrapFromARemovedBin_IsRefusedAndWritesNothing()
+    {
+        var (job, part) = await SeedAsync();
+        var bin = await BinAsync();
+        var row = await StockAsync(part, bin, 6m, "L-1");
+        row.RemovedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync();
+
+        foreach (var type in new[] { MaterialIssueType.Issue, MaterialIssueType.Scrap })
+        {
+            var act = () => _handler.Handle(
+                Command(job, part, 2m) with { BinContentId = row.Id, IssueType = type }, CancellationToken.None);
+            await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*removed*");
+        }
+
+        (await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == row.Id)).Quantity.Should().Be(6m);
+        (await _db.MaterialIssues.AnyAsync()).Should().BeFalse();
+        (await _db.BinMovements.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Handle_IssueFromAChosenBin_TakesOnlyItsUnreservedUnits()
+    {
+        var (job, part) = await SeedAsync();
+        var bin = await BinAsync();
+        var row = await StockAsync(part, bin, 10m, "L-1");
+        row.ReservedQuantity = 7m;
+        await _db.SaveChangesAsync();
+
+        var tooMuch = () => _handler.Handle(Command(job, part, 4m) with { BinContentId = row.Id }, CancellationToken.None);
+        await tooMuch.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Available: 3*");
+
+        await _handler.Handle(Command(job, part, 3m) with { BinContentId = row.Id }, CancellationToken.None);
+        var after = await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == row.Id);
+        after.Quantity.Should().Be(7m);
+        after.ReservedQuantity.Should().Be(7m);
+        after.RemovedAt.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Handle_BinOfAnotherPart_IsRefused()
     {
         var (job, part) = await SeedAsync();

@@ -153,8 +153,11 @@ public class CreateMaterialIssueHandler(
         // Decrement bin quantity for Issue, increment for Return
         if (request.IssueType == MaterialIssueType.Issue || request.IssueType == MaterialIssueType.Scrap)
         {
-            if (bin.Quantity < request.Quantity)
-                throw new InvalidOperationException($"Insufficient quantity in bin. Available: {bin.Quantity}, Requested: {request.Quantity}");
+            if (bin.RemovedAt is not null)
+                throw new InvalidOperationException($"BinContent {binContentId} has been removed and holds no stock.");
+            var free = bin.Quantity - bin.ReservedQuantity;
+            if (free < request.Quantity)
+                throw new InvalidOperationException($"Insufficient quantity in bin. Available: {free}, Requested: {request.Quantity}");
             bin.Quantity -= request.Quantity;
             if (bin.Quantity == 0 && bin.ReservedQuantity == 0)
             {
