@@ -122,7 +122,8 @@ public class PurchaseOrderRepository(AppDbContext db) : IPurchaseOrderRepository
                             < po.Vendor.MinOrderAmount.Value,
                     po.OriginSource.ToString(),
                     null,
-                    po.OriginReference),
+                    po.OriginReference,
+                    po.Lines.Count(l => l.ReceivedQuantity + l.CancelledShortCloseQuantity >= l.OrderedQuantity)),
                 po.OriginUserId,
             })
             .ToListAsync(ct);

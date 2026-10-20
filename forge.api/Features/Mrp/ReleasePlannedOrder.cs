@@ -76,7 +76,7 @@ public class ReleasePlannedOrderHandler(
             po.Lines.Add(new PurchaseOrderLine
             {
                 PartId = order.PartId,
-                Description = order.Part?.Description ?? "",
+                Description = PurchaseOrderLine.ClipDescription(order.Part?.Description),
                 OrderedQuantity = orderedQuantity,
                 UnitPrice = unitPrice,
                 MrpPlannedOrderId = order.Id,

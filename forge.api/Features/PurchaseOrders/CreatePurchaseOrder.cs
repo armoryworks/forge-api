@@ -182,7 +182,7 @@ public class CreatePurchaseOrderHandler(
             {
                 PartId = line.PartId,
                 // Part-less lines validated Description NotEmpty above.
-                Description = line.Description ?? part?.Description ?? part?.Name ?? string.Empty,
+                Description = line.Description ?? PurchaseOrderLine.ClipDescription(part?.Description ?? part?.Name),
                 OrderedQuantity = line.Quantity,
                 UnitPrice = line.UnitPrice,
                 Notes = line.Notes,

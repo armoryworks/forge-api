@@ -26,12 +26,14 @@ public class UpdateVendorPartValidator : AbstractValidator<UpdateVendorPartComma
         RuleFor(x => x.Body.VendorPartNumber).MaximumLength(100);
         RuleFor(x => x.Body.ManufacturerName).MaximumLength(200);
         RuleFor(x => x.Body.VendorMpn).MaximumLength(100);
-        RuleFor(x => x.Body.CountryOfOrigin).MaximumLength(2);
+        RuleFor(x => x.Body.CountryOfOrigin)
+            .Matches("^\\s*([A-Za-z]{2})?\\s*$")
+            .WithMessage("Country of origin must be a two-letter ISO country code.");
         RuleFor(x => x.Body.HtsCode).MaximumLength(20);
         RuleFor(x => x.Body.Notes).MaximumLength(2000);
         RuleFor(x => x.Body.LeadTimeDays).GreaterThanOrEqualTo(0).When(x => x.Body.LeadTimeDays.HasValue);
         RuleFor(x => x.Body.MinOrderQty).GreaterThanOrEqualTo(0).When(x => x.Body.MinOrderQty.HasValue);
-        RuleFor(x => x.Body.PackSize).GreaterThanOrEqualTo(0).When(x => x.Body.PackSize.HasValue);
+        RuleFor(x => x.Body.PackSize).GreaterThan(0).When(x => x.Body.PackSize.HasValue);
     }
 }
 

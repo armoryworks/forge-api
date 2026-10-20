@@ -1,3 +1,4 @@
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,6 +8,14 @@ using Forge.Data.Context;
 namespace Forge.Api.Features.PurchaseOrders;
 
 public record UpdatePurchaseOrderReleaseCommand(int PurchaseOrderId, int ReleaseNumber, UpdatePurchaseOrderReleaseRequestModel Request) : IRequest;
+
+public class UpdatePurchaseOrderReleaseValidator : AbstractValidator<UpdatePurchaseOrderReleaseCommand>
+{
+    public UpdatePurchaseOrderReleaseValidator()
+    {
+        RuleFor(x => x.Request.Quantity).GreaterThan(0);
+    }
+}
 
 public class UpdatePurchaseOrderReleaseHandler(AppDbContext db) : IRequestHandler<UpdatePurchaseOrderReleaseCommand>
 {
@@ -29,7 +38,12 @@ public class UpdatePurchaseOrderReleaseHandler(AppDbContext db) : IRequestHandle
         if (request.Request.Quantity.HasValue && request.Request.Quantity.Value != oldQuantity)
         {
             var po = release.PurchaseOrder;
-            po.BlanketReleasedQuantity = (po.BlanketReleasedQuantity ?? 0) - oldQuantity + request.Request.Quantity.Value;
+            var releasedAfter = (po.BlanketReleasedQuantity ?? 0) - oldQuantity + request.Request.Quantity.Value;
+            if (po.BlanketTotalQuantity is decimal total && releasedAfter > total)
+                throw new InvalidOperationException(
+                    $"Release quantity {request.Request.Quantity.Value:0.####} exceeds the blanket remaining "
+                    + $"{total - ((po.BlanketReleasedQuantity ?? 0) - oldQuantity):0.####} of {total:0.####}.");
+            po.BlanketReleasedQuantity = releasedAfter;
         }
 
         await db.SaveChangesAsync(cancellationToken);

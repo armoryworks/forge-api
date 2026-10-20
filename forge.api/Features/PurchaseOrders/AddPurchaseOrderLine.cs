@@ -57,7 +57,7 @@ public class AddPurchaseOrderLineHandler(
         }
 
         var description = string.IsNullOrWhiteSpace(data.Description)
-            ? part?.Description ?? part?.Name ?? string.Empty
+            ? PurchaseOrderLine.ClipDescription(part?.Description ?? part?.Name)
             : data.Description.Trim();
 
         po.Lines.Add(new PurchaseOrderLine

@@ -228,6 +228,24 @@ public class VendorBankingTests
     // ─────────────────────── Batches ───────────────────────
 
     [Fact]
+    public async Task Batches_RejectAnEffectiveEntryDateInThePast()
+    {
+        var (db, accounts, batches, _) = CreateHarness();
+        var vendorId = await AddVendorAsync(db);
+        var payment = await AddAchPaymentAsync(db, vendorId, 500m);
+        await VerifiedAccountAsync(accounts, batches, db, vendorId);
+
+        var payments = () => batches.CreateAsync([payment.Id], new DateOnly(2026, 6, 11), userId: 1);
+        await payments.Should().ThrowAsync<InvalidOperationException>().WithMessage("*in the past*");
+
+        var prenotes = () => batches.CreatePrenoteBatchAsync(new DateOnly(2026, 6, 11), userId: 1);
+        await prenotes.Should().ThrowAsync<InvalidOperationException>().WithMessage("*in the past*");
+
+        var today = await batches.CreateAsync([payment.Id], new DateOnly(2026, 6, 12), userId: 1);
+        today.EntryCount.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Eligibility_RequiresPayableAccount_AndExcludesBatched()
     {
         var (db, accounts, batches, _) = CreateHarness();

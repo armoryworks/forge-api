@@ -128,9 +128,9 @@ public class ExpenseRepository(AppDbContext db) : IExpenseRepository
         Dictionary<int, int> pendingApprovals)
     {
         var userName = users.TryGetValue(e.UserId, out var user)
-            ? $"{user.FirstName} {user.LastName}" : "Unknown";
+            ? $"{user.LastName}, {user.FirstName}" : "Unknown";
         var approvedByName = e.ApprovedBy.HasValue && users.TryGetValue(e.ApprovedBy.Value, out var approver)
-            ? $"{approver.FirstName} {approver.LastName}" : null;
+            ? $"{approver.LastName}, {approver.FirstName}" : null;
         var promotedBill = promotedBills.TryGetValue(e.Id, out var bill)
             ? bill
             : ((int BillId, string BillNumber)?)null;

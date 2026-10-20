@@ -56,6 +56,9 @@ public class SendPurchaseOrderEmailHandler(
         if (po.Status == PurchaseOrderStatus.Cancelled)
             throw new InvalidOperationException("Cancelled purchase orders cannot be emailed.");
 
+        if (po.Status == PurchaseOrderStatus.Draft)
+            throw new InvalidOperationException("Submit the purchase order before emailing it to the vendor.");
+
         var to = string.IsNullOrWhiteSpace(request.To) ? po.Vendor.Email?.Trim() : request.To.Trim();
         if (string.IsNullOrWhiteSpace(to))
             throw new ValidationException(new[]

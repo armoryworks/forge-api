@@ -20,7 +20,7 @@ public class GetRecurringExpensesHandler(AppDbContext db) : IRequestHandler<GetR
 
         var users = await db.Users
             .AsNoTracking()
-            .ToDictionaryAsync(u => u.Id, u => $"{u.FirstName} {u.LastName}".Trim(), cancellationToken);
+            .ToDictionaryAsync(u => u.Id, u => $"{u.LastName}, {u.FirstName}".Trim(' ', ','), cancellationToken);
 
         var items = await query
             .OrderBy(r => r.NextOccurrenceDate)

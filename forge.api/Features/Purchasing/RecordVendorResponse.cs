@@ -23,7 +23,14 @@ public class RecordVendorResponseValidator : AbstractValidator<RecordVendorRespo
     {
         RuleFor(x => x.RfqId).GreaterThan(0);
         RuleFor(x => x.VendorId).GreaterThan(0);
+        RuleFor(x => x.UnitPrice).GreaterThanOrEqualTo(0).LessThan(MaxAmount);
+        RuleFor(x => x.LeadTimeDays).InclusiveBetween(0, 3650);
+        RuleFor(x => x.MinimumOrderQuantity).GreaterThan(0).LessThan(MaxAmount);
+        RuleFor(x => x.ToolingCost).GreaterThanOrEqualTo(0).LessThan(MaxAmount);
+        RuleFor(x => x.Notes).MaximumLength(2000);
     }
+
+    private const decimal MaxAmount = 100_000_000_000_000m;
 }
 
 public class RecordVendorResponseHandler(AppDbContext db, IClock clock)

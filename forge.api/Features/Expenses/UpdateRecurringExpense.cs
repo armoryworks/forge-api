@@ -49,7 +49,7 @@ public class UpdateRecurringExpenseHandler(AppDbContext db) : IRequestHandler<Up
         return new RecurringExpenseResponseModel(
             entity.Id,
             entity.UserId,
-            $"{user.FirstName} {user.LastName}".Trim(),
+            $"{user.LastName}, {user.FirstName}".Trim(' ', ','),
             entity.Amount,
             entity.Category,
             entity.Classification,

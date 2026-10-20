@@ -71,7 +71,7 @@ public class GetPurchaseOrderByIdHandler(
             po.IsBlanket,
             po.BlanketTotalQuantity,
             po.BlanketReleasedQuantity,
-            po.BlanketRemainingQuantity,
+            BlanketRemaining(po),
             po.BlanketExpirationDate,
             po.AgreedUnitPrice,
             po.Lines.Select(l => new PurchaseOrderLineResponseModel(
@@ -174,4 +174,7 @@ public class GetPurchaseOrderByIdHandler(
             .Select(l => l.ParentId!.Value)
             .Distinct()
             .ToList();
+
+    public static decimal? BlanketRemaining(PurchaseOrder po) =>
+        po.BlanketTotalQuantity - Math.Max(po.BlanketReleasedQuantity ?? 0m, po.Lines.Sum(l => l.ReceivedQuantity));
 }

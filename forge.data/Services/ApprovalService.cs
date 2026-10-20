@@ -1,11 +1,10 @@
-using System.Text.Json;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Core.Models;
 using Forge.Data.Context;
 
 namespace Forge.Data.Services;
@@ -385,33 +384,34 @@ public class ApprovalService(AppDbContext db, ILogger<ApprovalService> logger) :
             .Include(w => w.Steps)
             .Where(w => w.IsActive && w.EntityType == entityType)
             .OrderByDescending(w => w.CreatedAt)
+            .ThenByDescending(w => w.Id)
             .ToListAsync(ct);
 
+        var candidates = new List<(ApprovalWorkflow Workflow, decimal? Threshold)>();
+        var malformed = new List<ApprovalWorkflow>();
         foreach (var workflow in workflows)
         {
-            if (string.IsNullOrEmpty(workflow.ActivationConditionsJson))
-                return workflow;
-
-            try
-            {
-                var conditions = JsonSerializer.Deserialize<ActivationConditions>(
-                    workflow.ActivationConditionsJson,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                if (conditions?.AmountGreaterThan.HasValue == true
-                    && amount.HasValue
-                    && amount.Value <= conditions.AmountGreaterThan.Value)
-                    continue;
-
-                return workflow;
-            }
-            catch
-            {
-                return workflow;
-            }
+            if (ApprovalActivationConditions.TryParse(workflow.ActivationConditionsJson, out var threshold))
+                candidates.Add((workflow, threshold));
+            else
+                malformed.Add(workflow);
         }
 
-        return null;
+        var match = candidates
+            .OrderBy(c => c.Threshold.HasValue ? 0 : 1)
+            .ThenByDescending(c => c.Threshold ?? 0m)
+            .Where(c => !c.Threshold.HasValue || !amount.HasValue || amount.Value > c.Threshold.Value)
+            .Select(c => c.Workflow)
+            .FirstOrDefault();
+        if (match != null)
+            return match;
+
+        var fallback = malformed.FirstOrDefault();
+        if (fallback != null)
+            logger.LogWarning(
+                "Approval workflow {WorkflowId} has unsupported activation conditions {Conditions}; using it as the catch-all for {EntityType} because no other workflow matched",
+                fallback.Id, fallback.ActivationConditionsJson, entityType);
+        return fallback;
     }
 
     private async Task<ApprovalRequest> GetRequestWithDetailsAsync(int requestId, CancellationToken ct)
@@ -427,10 +427,5 @@ public class ApprovalService(AppDbContext db, ILogger<ApprovalService> logger) :
     {
         if (request.Status != ApprovalRequestStatus.Pending && request.Status != ApprovalRequestStatus.Escalated)
             throw new InvalidOperationException($"Cannot act on approval request with status '{request.Status}'.");
-    }
-
-    private sealed class ActivationConditions
-    {
-        public decimal? AmountGreaterThan { get; set; }
     }
 }

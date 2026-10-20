@@ -273,6 +273,27 @@ public class Phase2ApHandlerTests
     }
 
     [Fact]
+    public async Task PoMatchedBill_LinesStoreTheGrniKeyWhateverTheCallerSends()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: true);
+        var (poId, poLineId) = await AddReceivedPoLineAsync(db, vendorId, poUnitPrice: 10m, receivedQty: 5m);
+
+        var cmd = new CreateVendorBillCommand(vendorId, "V-GRNI", poId,
+            new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 2, 14, 0, 0, 0, TimeSpan.Zero),
+            0m, null,
+            [
+                new CreateVendorBillLineModel(null, "Part A", 2m, 10m, "OPERATING_EXPENSE", poLineId),
+                new CreateVendorBillLineModel(null, "Part A again", 1m, 10m, null, poLineId),
+            ]);
+        var bill = await h.CreateBill.Handle(cmd, CancellationToken.None);
+
+        (await db.Set<VendorBillLine>().Where(l => l.VendorBillId == bill.Id).Select(l => l.AccountDeterminationKey).ToListAsync())
+            .Should().AllBe("GRNI");
+    }
+
+    [Fact]
     public async Task PoMatchedBill_LineMissingPoLineRef_Throws()
     {
         var (db, vendorId) = await SeedAsync();
