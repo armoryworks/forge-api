@@ -7,4 +7,5 @@ public record JobOperationsResponseModel(
     bool AllOperationsComplete,
     decimal? EstimatedRemainingMinutes,
     DateTimeOffset ServerNow,
-    List<JobOperationRowResponseModel> Operations);
+    List<JobOperationRowResponseModel> Operations,
+    decimal? TargetQuantity = null);

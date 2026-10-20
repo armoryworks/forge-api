@@ -51,6 +51,8 @@ public static class OperationTimeMath
         return JobBuildQuantity(quantity, job.SalesOrderLine?.Quantity);
     }
 
+    public static decimal JobTargetQuantity(Job job) => job.TargetQuantity ?? JobBuildQuantity(job);
+
     public static decimal JobBuildQuantity(decimal jobPartQuantity, decimal? salesOrderLineQuantity) =>
         jobPartQuantity > 0m ? jobPartQuantity
         : salesOrderLineQuantity > 0m ? salesOrderLineQuantity.Value

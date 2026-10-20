@@ -98,6 +98,7 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
         // read surface light. Loaders that need to expand these resolve
         // ReferenceData / Quote independently.
         builder.Property(e => e.RetainerHours).HasPrecision(10, 2);
+        builder.Property(e => e.TargetQuantity).HasPrecision(18, 4);
         builder.Property(e => e.RetainerBalanceHours).HasPrecision(10, 2);
 
         builder.HasIndex(e => e.EngagementTypeId);

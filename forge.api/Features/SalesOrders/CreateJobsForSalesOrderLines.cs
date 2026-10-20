@@ -10,6 +10,7 @@ using Forge.Api.Features.SalesOrders.Acceptance;
 using Forge.Api.Features.Shipments;
 using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -128,14 +129,16 @@ public class CreateJobsForSalesOrderLinesHandler(
         foreach (var line in toCreate)
         {
             var partId = line.PartId!.Value;
-            var quantity = JobQuantityRules.Fit(SalesOrderShipping.OpenToShip(so, line));
+            var target = JobQuantityRules.Fit(SalesOrderShipping.OpenToShip(so, line));
+            var quantity = await ProductionQuantityPlan.StartForPartAsync(db, partId, target, cancellationToken);
             var jobNumber = await jobRepo.GenerateNextJobNumberAsync(cancellationToken);
 
             var job = new Job
             {
                 JobNumber = jobNumber,
-                Title = JobTitle(so, line, quantity),
-                Description = $"Created from Sales Order {so.OrderNumber}, Line {line.LineNumber}. Qty: {FormatQuantity(quantity)}.",
+                Title = JobTitle(so, line, target),
+                Description = $"Created from Sales Order {so.OrderNumber}, Line {line.LineNumber}. Qty: {FormatQuantity(target)}.",
+                TargetQuantity = target,
                 TrackTypeId = track.Id,
                 CurrentStageId = startStage.Id,
                 SalesOrderLineId = line.Id,

@@ -294,7 +294,8 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
                 j.BoardPosition,
                 making?.PartNumber,
                 making?.Quantity,
-                CreatedAt: j.CreatedAt);
+                CreatedAt: j.CreatedAt,
+                TargetQuantity: j.TargetQuantity);
         }).ToList();
     }
 
@@ -367,7 +368,8 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
             buildQuantity > 0m ? buildQuantity
                 : job.SalesOrderLine?.Quantity > 0m ? job.SalesOrderLine.Quantity
                 : job.PartId.HasValue ? 1m
-                : null);
+                : null,
+            job.TargetQuantity);
     }
 
     public async Task<Job?> FindAsync(int id, CancellationToken ct)

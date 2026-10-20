@@ -8,6 +8,7 @@ using Forge.Api.Capabilities;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -122,6 +123,13 @@ public class CreateJobHandler(
                         nameof(CreateJobCommand.PartId), CreateJobCommandValidator.QuantityNeedsPartMessage)]);
         }
 
+        decimal? targetQuantity = null;
+        if (request.SalesOrderLineId.HasValue && partId is int planPartId && quantity is decimal demand)
+        {
+            targetQuantity = demand;
+            quantity = await ProductionQuantityPlan.StartForPartAsync(db, planPartId, demand, cancellationToken);
+        }
+
         var firstStage = await ResolveInitialStageAsync(request, cancellationToken);
 
         var jobNumber = await ResolveJobNumberAsync(request, cancellationToken);
@@ -141,6 +149,7 @@ public class CreateJobHandler(
             BoardPosition = maxPosition + 1,
             PartId = partId,
             SalesOrderLineId = request.SalesOrderLineId,
+            TargetQuantity = targetQuantity,
         };
 
         // Phase 3 H4 / WU-20 — if this job is being released against a

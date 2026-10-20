@@ -72,12 +72,12 @@ public class GetAssignableSalesOrderLinesHandler(AppDbContext db, ISalesOrderAcc
                 AssignedJobCount = l.Jobs.Count(j => !j.IsArchived && j.Disposition == null),
                 OnJobsInProgress = l.Jobs
                     .Where(j => !j.IsArchived && j.Disposition == null && j.CompletedDate == null)
-                    .SelectMany(j => j.JobParts.Where(jp => jp.PartId == j.PartId))
-                    .Sum(jp => (decimal?)jp.Quantity) ?? 0m,
+                    .SelectMany(j => j.JobParts.Where(jp => jp.PartId == j.PartId).Select(jp => j.TargetQuantity ?? jp.Quantity))
+                    .Sum(q => (decimal?)q) ?? 0m,
                 OnCompletedJobs = l.Jobs
                     .Where(j => !j.IsArchived && j.Disposition == null && j.CompletedDate != null)
-                    .SelectMany(j => j.JobParts.Where(jp => jp.PartId == j.PartId))
-                    .Sum(jp => (decimal?)jp.Quantity) ?? 0m,
+                    .SelectMany(j => j.JobParts.Where(jp => jp.PartId == j.PartId).Select(jp => j.TargetQuantity ?? jp.Quantity))
+                    .Sum(q => (decimal?)q) ?? 0m,
                 l.SalesOrder.RequestedDeliveryDate,
             })
             .Take(100)

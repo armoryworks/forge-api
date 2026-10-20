@@ -62,6 +62,6 @@ public static class ReplenishmentPlanning
             .GroupBy(j => j.PartId!.Value)
             .ToDictionary(
                 g => g.Key,
-                g => (g.Sum(OperationTimeMath.JobBuildQuantity), g.Min(j => j.DueDate)));
+                g => (g.Sum(OperationTimeMath.JobTargetQuantity), g.Min(j => j.DueDate)));
     }
 }

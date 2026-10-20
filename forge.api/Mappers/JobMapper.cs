@@ -60,6 +60,7 @@ public static partial class JobMapper
             RowVersion: job.Version,
             SalesOrderId: job.SalesOrderLine?.SalesOrderId,
             SalesOrderNumber: job.SalesOrderLine?.SalesOrder?.OrderNumber,
-            PartRevision: job.PartRevision);
+            PartRevision: job.PartRevision,
+            TargetQuantity: job.TargetQuantity);
     }
 }

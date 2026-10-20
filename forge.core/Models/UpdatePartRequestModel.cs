@@ -74,4 +74,5 @@ public record UpdatePartRequestModel(
     // User-settable human-readable identifier. Only honored when the
     // `parts.allow_manual_numbers` setting is on; uniqueness-validated
     // (excluding this part) before it replaces the current number. Null = no change.
-    string? PartNumber = null);
+    string? PartNumber = null,
+    decimal? ExpectedYieldPercent = null);

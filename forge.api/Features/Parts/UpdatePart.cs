@@ -34,6 +34,10 @@ public class UpdatePartCommandValidator : AbstractValidator<UpdatePartCommand>
         RuleFor(x => x.Data.WeightDisplayUnit).MaximumLength(8).When(x => x.Data.WeightDisplayUnit is not null);
         RuleFor(x => x.Data.DimensionDisplayUnit).MaximumLength(8).When(x => x.Data.DimensionDisplayUnit is not null);
         RuleFor(x => x.Data.VolumeDisplayUnit).MaximumLength(8).When(x => x.Data.VolumeDisplayUnit is not null);
+        RuleFor(x => x.Data.ExpectedYieldPercent)
+            .Must(y => y < 0m || (y > 0m && y <= 100m && decimal.Round(y.Value, 2) == y))
+            .WithMessage("Expected yield must be more than 0 and at most 100 percent, with up to 2 decimal places.")
+            .When(x => x.Data.ExpectedYieldPercent.HasValue);
     }
 }
 
@@ -121,6 +125,8 @@ public class UpdatePartHandler(
             part.MinimumOrderQuantity = data.MinimumOrderQuantity.Value < 0 ? null : data.MinimumOrderQuantity.Value;
         if (data.OrderMultiple.HasValue)
             part.OrderMultiple = data.OrderMultiple.Value < 0 ? null : data.OrderMultiple.Value;
+        if (data.ExpectedYieldPercent.HasValue)
+            part.ExpectedYieldPercent = data.ExpectedYieldPercent.Value < 0 ? null : data.ExpectedYieldPercent.Value;
         if (data.PlanningFenceDays.HasValue)
             part.PlanningFenceDays = data.PlanningFenceDays.Value < 0 ? null : data.PlanningFenceDays.Value;
         if (data.DemandFenceDays.HasValue)

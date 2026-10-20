@@ -122,6 +122,12 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
         var quantity = OperationTimeMath.JobBuildQuantity(job);
         var routing = (job.Part?.Operations ?? []).OrderBy(o => o.StepNumber).ThenBy(o => o.Id).ToList();
         var routingIds = routing.Select(o => o.Id).ToHashSet();
+        var target = Math.Min(OperationTimeMath.JobTargetQuantity(job), quantity);
+        var plannedInputs = ProductionQuantityPlan.PlannedStepInputs(target, routing.Select(o => o.ScrapFactor).ToList());
+        var plannedByOperation = routing
+            .Select((op, index) => (op.Id, Planned: Math.Min(plannedInputs[index], quantity)))
+            .GroupBy(p => p.Id)
+            .ToDictionary(g => g.Key, g => g.First().Planned);
 
         var rows = await db.JobOperations
             .AsNoTracking()
@@ -189,6 +195,7 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
                 Status = status,
                 CompletedQuantity = completed,
                 ScrapQuantity = scrap,
+                PlannedQuantity = op is not null ? plannedByOperation.GetValueOrDefault(op.Id) : null,
                 StartedAt = row?.StartedAt,
                 CompletedAt = row?.CompletedAt,
                 CompletedByName = row?.CompletedById is int by && users.TryGetValue(by, out var completer)
@@ -230,12 +237,13 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
             .ToList();
 
         var routingRows = operations.Where(o => o.IsRoutingStep).ToList();
-        var allComplete = routingRows.Count > 0 && routingRows.All(o => IsClosed(o.Status));
+        var targetReached = routingRows.Count > 0 && routingRows[^1].CompletedQuantity >= target;
+        var allComplete = routingRows.Count > 0 && (targetReached || routingRows.All(o => IsClosed(o.Status)));
         decimal? remaining = job.CompletedDate.HasValue
             ? 0m
             : routingRows.Count == 0 ? null : routingRows.Sum(o => o.RemainingMinutes);
 
-        return new JobOperationsResponseModel(jobId, quantity, tracking, allComplete, remaining, now, operations);
+        return new JobOperationsResponseModel(jobId, quantity, tracking, allComplete, remaining, now, operations, target);
     }
 
     public async Task<IReadOnlyDictionary<int, JobOperationSummaryResponseModel>> SummarizeAsync(

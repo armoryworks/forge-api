@@ -131,6 +131,7 @@ public class ClonePartHandler(
         FixedOrderQuantity = source.FixedOrderQuantity,
         MinimumOrderQuantity = source.MinimumOrderQuantity,
         OrderMultiple = source.OrderMultiple,
+        ExpectedYieldPercent = source.ExpectedYieldPercent,
         PlanningFenceDays = source.PlanningFenceDays,
         DemandFenceDays = source.DemandFenceDays,
         IsMrpPlanned = source.IsMrpPlanned,

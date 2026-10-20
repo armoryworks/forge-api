@@ -249,4 +249,48 @@ public class CreateJobSoDefaultsTests
         validator.Validate(new CreateJobCommand("No line", null, 1, null, null, null, null, Quantity: 3m))
             .IsValid.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task A_job_for_an_order_line_starts_extra_pieces_for_the_part_yield_and_keeps_the_line_as_target()
+    {
+        var (line, part) = await SeedLineAsync(300m);
+        part.ExpectedYieldPercent = 95m;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(ForLine(line.Id), CancellationToken.None);
+
+        _created!.TargetQuantity.Should().Be(300m);
+        _created.JobParts.Should().ContainSingle().Which.Quantity.Should().Be(316m);
+    }
+
+    [Fact]
+    public async Task A_job_without_an_order_line_keeps_the_typed_quantity_and_no_target()
+    {
+        var part = new Part { Id = 600, PartNumber = "40-1700M", ExpectedYieldPercent = 80m };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(new CreateJobCommand("Manual", null, 1, null, null, null, null, PartId: 600, Quantity: 50m), CancellationToken.None);
+
+        _created!.TargetQuantity.Should().BeNull();
+        _created.JobParts.Should().ContainSingle().Which.Quantity.Should().Be(50m);
+    }
+
+    [Fact]
+    public async Task Overage_on_an_earlier_job_does_not_shrink_the_line_remaining_for_the_next_job()
+    {
+        var (line, _) = await SeedLineAsync(300m);
+        var earlier = new Job
+        {
+            JobNumber = "JOB-EARLY", Title = "Earlier", TrackTypeId = 1, CurrentStageId = StageId,
+            PartId = 600, SalesOrderLineId = line.Id, TargetQuantity = 100m,
+        };
+        earlier.JobParts.Add(new JobPart { PartId = 600, Quantity = 106m });
+        _db.Jobs.Add(earlier);
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(ForLine(line.Id), CancellationToken.None);
+
+        _created!.TargetQuantity.Should().Be(200m);
+    }
 }

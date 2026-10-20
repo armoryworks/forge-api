@@ -42,7 +42,7 @@ public static class SalesOrderLineDefaultQuantity
                 && j.Id != excludeJobId)
             .SelectMany(j => j.JobParts
                 .Where(jp => jp.PartId == j.PartId)
-                .Select(jp => new { jp.Quantity, Completed = j.CompletedDate != null }))
+                .Select(jp => new { Quantity = j.TargetQuantity ?? jp.Quantity, Completed = j.CompletedDate != null }))
             .ToListAsync(ct);
 
         return JobQuantityRules.Fit(Math.Max(1m, Remaining(

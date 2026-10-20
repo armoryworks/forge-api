@@ -372,4 +372,33 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
         (await verify.MrpPlannedOrders.SingleAsync(o => o.Id == plannedOrderId)).Status
             .Should().Be(MrpPlannedOrderStatus.Planned);
     }
+
+    [Fact]
+    public async Task ReleaseToJob_StartsExtraPiecesForThePartYield_AndKeepsThePlannedQuantityAsTarget()
+    {
+        int orderId;
+        await using (var seed = fixture.CreateContext())
+        {
+            var track = new TrackType { Name = "MRP-YIELD Track", Code = Unique("mrp-yld"), IsActive = true };
+            seed.TrackTypes.Add(track);
+            await seed.SaveChangesAsync();
+            seed.JobStages.Add(new JobStage { TrackTypeId = track.Id, Name = "Stage 1", Code = "s1", SortOrder = 1, IsActive = true });
+            var part = new Part { PartNumber = Unique("MRP-YLD"), Description = "Molded cap", ExpectedYieldPercent = 80m };
+            seed.Parts.Add(part);
+            await seed.SaveChangesAsync();
+            var order = await SeedPlannedPurchaseAsync(seed, part.Id, 40m);
+            order.OrderType = MrpOrderType.Manufacture;
+            await seed.SaveChangesAsync();
+            orderId = order.Id;
+        }
+
+        ReleasePlannedOrderResult result;
+        await using (var db = fixture.CreateContext())
+            result = await Handler(db).Handle(new ReleasePlannedOrderCommand(orderId), CancellationToken.None);
+
+        await using var verify = fixture.CreateContext();
+        var job = await verify.Jobs.Include(j => j.JobParts).SingleAsync(j => j.Id == result.CreatedJobId);
+        job.TargetQuantity.Should().Be(40m);
+        job.JobParts.Should().ContainSingle().Which.Quantity.Should().Be(50m);
+    }
 }

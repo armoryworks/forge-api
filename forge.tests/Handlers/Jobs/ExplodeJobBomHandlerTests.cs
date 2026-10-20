@@ -96,6 +96,37 @@ public class ExplodeJobBomHandlerTests
     }
 
     [Fact]
+    public async Task Handle_MakeBomLine_StartsExtraChildPiecesForTheChildYield_AndKeepsTheRequirementAsTarget()
+    {
+        var (_, stage, parentPart, parentJob) = await SeedBaseEntitiesAsync();
+        var childPart = new Part { PartNumber = "CHILD-YLD", Description = "Child Widget", ExpectedYieldPercent = 50m };
+        _dbContext.Parts.Add(childPart);
+        await _dbContext.SaveChangesAsync();
+        _dbContext.BOMLines.Add(new BOMLine
+        {
+            ParentPartId = parentPart.Id,
+            ChildPartId = childPart.Id,
+            Quantity = 2,
+            SourceType = BOMSourceType.Make,
+            SortOrder = 1,
+        });
+        await _dbContext.SaveChangesAsync();
+        _jobRepo.Setup(r => r.GenerateNextJobNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("JOB-0009");
+        _jobRepo.Setup(r => r.GetMaxBoardPositionAsync(stage.Id, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        Job? child = null;
+        _jobRepo.Setup(r => r.AddAsync(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
+            .Callback<Job, CancellationToken>((job, _) => child = job)
+            .Returns(Task.CompletedTask);
+
+        var result = await _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
+
+        result.CreatedJobs.Should().ContainSingle().Which.Quantity.Should().Be(2);
+        child!.TargetQuantity.Should().Be(2);
+        _dbContext.JobParts.Local.Should().ContainSingle(jp => jp.PartId == childPart.Id)
+            .Which.Quantity.Should().Be(4);
+    }
+
+    [Fact]
     public async Task Handle_BuyBomLine_TakesVendorAndLeadTimeFromTheSourcingResolver()
     {
         var (_, _, parentPart, parentJob) = await SeedBaseEntitiesAsync();

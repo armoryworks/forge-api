@@ -347,7 +347,8 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
             part.InspectionSkipAfterN,
             resolved.UnitPrice,
             resolved.Currency,
-            resolved.Source.ToString());
+            resolved.Source.ToString(),
+            ExpectedYieldPercent: part.ExpectedYieldPercent);
     }
 
     public Task<Part?> FindAsync(int id, CancellationToken ct)

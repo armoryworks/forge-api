@@ -35,4 +35,5 @@ public record JobListResponseModel(
     IReadOnlyList<int>? InProgressSteps = null,
     int? RunningTimerCount = null,
     decimal? EstimatedRemainingMinutes = null,
-    DateTimeOffset? CreatedAt = null);
+    DateTimeOffset? CreatedAt = null,
+    decimal? TargetQuantity = null);

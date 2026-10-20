@@ -393,4 +393,35 @@ public class CreateJobsForSalesOrderLinesTests
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("no acceptance");
         (await _db.Jobs.CountAsync()).Should().Be(0);
     }
+
+    [Fact]
+    public async Task A_confirmed_line_starts_the_routing_overage_and_keeps_the_open_quantity_as_target()
+    {
+        SeedTrack();
+        AddPart(900, "CW-1001", ProcurementSource.Make);
+        _db.Operations.AddRange(
+            new Operation { PartId = 900, StepNumber = 10, Title = "Mold", ScrapFactor = 0.02m },
+            new Operation { PartId = 900, StepNumber = 20, Title = "Trim", ScrapFactor = 0.05m });
+        var so = await SeedOrderAsync(Line(601, 1, 900, 300m));
+
+        await Handler().Handle(new CreateJobsForSalesOrderLinesCommand(so.Id), CancellationToken.None);
+
+        var job = await _db.Jobs.Include(j => j.JobParts).SingleAsync();
+        job.TargetQuantity.Should().Be(300m);
+        job.JobParts.Should().ContainSingle().Which.Quantity.Should().Be(322m);
+        job.Title.Should().Contain("300");
+    }
+
+    [Fact]
+    public async Task A_part_without_yield_or_scrap_starts_exactly_the_open_quantity()
+    {
+        SeedTrack();
+        AddPart(900, "CW-1001", ProcurementSource.Make, withRouting: true);
+        var so = await SeedOrderAsync(Line(601, 1, 900, 300m));
+
+        await Handler().Handle(new CreateJobsForSalesOrderLinesCommand(so.Id), CancellationToken.None);
+
+        var job = await _db.Jobs.Include(j => j.JobParts).SingleAsync();
+        job.JobParts.Should().ContainSingle().Which.Quantity.Should().Be(300m);
+    }
 }

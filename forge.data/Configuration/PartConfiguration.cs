@@ -106,6 +106,7 @@ public class PartConfiguration : IEntityTypeConfiguration<Part>
         builder.Property(e => e.FixedOrderQuantity).HasPrecision(18, 4);
         builder.Property(e => e.MinimumOrderQuantity).HasPrecision(18, 4);
         builder.Property(e => e.OrderMultiple).HasPrecision(18, 4);
+        builder.Property(e => e.ExpectedYieldPercent).HasPrecision(5, 2);
         builder.Property(e => e.IsMrpPlanned).HasDefaultValue(false);
 
         builder.HasIndex(e => e.PreferredVendorId);

@@ -122,6 +122,7 @@ public class ExplodeJobBomHandler(
                         ParentJobId = parentJob.Id,
                         Priority = parentJob.Priority,
                         DueDate = parentJob.DueDate,
+                        TargetQuantity = required,
                     };
 
                     await jobRepo.AddAsync(childJob, ct);
@@ -148,7 +149,7 @@ public class ExplodeJobBomHandler(
                     {
                         Job = childJob,
                         PartId = childPart.Id,
-                        Quantity = required,
+                        Quantity = await ProductionQuantityPlan.StartForPartAsync(db, childPart.Id, required, ct),
                     });
 
                     childJob.ActivityLogs.Add(new JobActivityLog

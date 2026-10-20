@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Jobs;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -127,13 +128,15 @@ public class ReleasePlannedOrderHandler(
                 StartDate = order.StartDate,
                 DueDate = order.DueDate,
                 MrpPlannedOrderId = order.Id,
+                TargetQuantity = order.Quantity,
             };
+            var startQuantity = await ProductionQuantityPlan.StartForPartAsync(db, order.PartId, order.Quantity, cancellationToken);
             job.JobParts.Add(new JobPart
             {
                 PartId = order.PartId,
-                Quantity = order.Quantity,
+                Quantity = startQuantity,
             });
-            await JobEstimates.SnapshotAsync(db, standardCost, job, order.Quantity, cancellationToken);
+            await JobEstimates.SnapshotAsync(db, standardCost, job, startQuantity, cancellationToken);
             job.ActivityLogs.Add(new JobActivityLog
             {
                 Action = ActivityAction.Created,

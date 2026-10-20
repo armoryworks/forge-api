@@ -24,6 +24,7 @@ public class Job : BaseAuditableEntity, IConcurrencyVersioned
     public int? ParentJobId { get; set; }
     public int? SalesOrderLineId { get; set; }
     public int? MrpPlannedOrderId { get; set; }
+    public decimal? TargetQuantity { get; set; }
 
     // Phase 3 H4 / WU-20 — pin the BOM revision the job was released
     // against, so historical reconstruction reads through Job →

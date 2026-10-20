@@ -202,6 +202,7 @@ public class Part : BaseAuditableEntity, IActiveAware
     public decimal? FixedOrderQuantity { get; set; }
     public decimal? MinimumOrderQuantity { get; set; }
     public decimal? OrderMultiple { get; set; }
+    public decimal? ExpectedYieldPercent { get; set; }
     public int? PlanningFenceDays { get; set; }
     public int? DemandFenceDays { get; set; }
     public bool IsMrpPlanned { get; set; }
