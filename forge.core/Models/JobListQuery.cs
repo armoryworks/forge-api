@@ -29,6 +29,9 @@ public record JobListQuery : PagedQuery
     /// <summary>Show archived jobs (default false).</summary>
     public bool IsArchived { get; init; }
 
+    /// <summary>Show archived and unarchived jobs together; overrides <see cref="IsArchived"/> when <c>true</c>.</summary>
+    public bool? IncludeArchived { get; init; }
+
     /// <summary>Restrict to jobs that are neither completed nor disposed.</summary>
     public bool ActiveOnly { get; init; }
 

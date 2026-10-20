@@ -65,7 +65,10 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
         var q = db.Jobs
             .Include(j => j.CurrentStage)
             .Include(j => j.Customer)
-            .Where(j => j.IsArchived == query.IsArchived);
+            .AsQueryable();
+
+        if (query.IncludeArchived != true)
+            q = q.Where(j => j.IsArchived == query.IsArchived);
 
         // — Filters —
         if (query.TrackTypeId.HasValue)
@@ -136,6 +139,7 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
             "createdat"   => desc ? q.OrderByDescending(j => j.CreatedAt)          : q.OrderBy(j => j.CreatedAt),
             "updatedat"   => desc ? q.OrderByDescending(j => j.UpdatedAt)          : q.OrderBy(j => j.UpdatedAt),
             "id"          => desc ? q.OrderByDescending(j => j.Id)                 : q.OrderBy(j => j.Id),
+            _ when !string.IsNullOrWhiteSpace(query.Q) => OrderByJobRelevance(q, query.Q.Trim().ToLower()),
             _ => q.OrderByDescending(j => j.CreatedAt),
         };
         ordered = ordered.ThenBy(j => j.Id);
@@ -160,6 +164,14 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
             query.EffectivePage,
             query.EffectivePageSize);
     }
+
+    private static IOrderedQueryable<Job> OrderByJobRelevance(IQueryable<Job> q, string term) =>
+        q.OrderBy(j =>
+                j.JobNumber.ToLower() == term ? 0
+                : j.JobNumber.ToLower().StartsWith(term) ? 1
+                : j.Part != null && j.Part.PartNumber.ToLower() == term ? 2
+                : 3)
+            .ThenByDescending(j => j.CreatedAt);
 
     private Expression<Func<Job, bool>> RoutingVisitsTeam(int teamId) =>
         j => db.Operations.Any(o => o.PartId == j.PartId

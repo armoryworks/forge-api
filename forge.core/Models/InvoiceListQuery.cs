@@ -13,4 +13,7 @@ public record InvoiceListQuery : PagedQuery
 
     /// <summary>Lifecycle status (Draft / Sent / PartiallyPaid / Paid / Void).</summary>
     public InvoiceStatus? Status { get; init; }
+
+    /// <summary>Restrict to open invoices — not Draft or Voided, with a balance due above zero.</summary>
+    public bool? OpenOnly { get; init; }
 }

@@ -91,6 +91,7 @@ public class CustomerRepository(AppDbContext db) : ICustomerRepository
             "createdat"   => desc ? q.OrderByDescending(c => c.CreatedAt)   : q.OrderBy(c => c.CreatedAt),
             "updatedat"   => desc ? q.OrderByDescending(c => c.UpdatedAt)   : q.OrderBy(c => c.UpdatedAt),
             "id"          => desc ? q.OrderByDescending(c => c.Id)          : q.OrderBy(c => c.Id),
+            _ when !string.IsNullOrWhiteSpace(query.Q) => OrderByCustomerRelevance(q, query.Q.Trim().ToLower()),
             _ => q.OrderByDescending(c => c.CreatedAt),
         };
         // Stable secondary sort by id so page boundaries don't shuffle when
@@ -125,6 +126,15 @@ public class CustomerRepository(AppDbContext db) : ICustomerRepository
             query.EffectivePage,
             query.EffectivePageSize);
     }
+
+    private static IOrderedQueryable<Customer> OrderByCustomerRelevance(IQueryable<Customer> q, string term) =>
+        q.OrderBy(c =>
+                c.CustomerNumber != null && c.CustomerNumber.ToLower() == term ? 0
+                : c.Name.ToLower() == term ? 1
+                : c.CustomerNumber != null && c.CustomerNumber.ToLower().StartsWith(term) ? 2
+                : c.Name.ToLower().StartsWith(term) ? 3
+                : 4)
+            .ThenBy(c => c.Name);
 
     public async Task<Customer?> FindAsync(int id, CancellationToken ct)
     {
