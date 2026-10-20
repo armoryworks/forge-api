@@ -2,6 +2,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Terminology;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
@@ -19,7 +20,8 @@ namespace Forge.Api.Features.DomainEvents.Handlers;
 /// </summary>
 public class OnJobStageChanged_UpdateSoStatus(
     AppDbContext db,
-    ILogger<OnJobStageChanged_UpdateSoStatus> logger)
+    ILogger<OnJobStageChanged_UpdateSoStatus> logger,
+    ITerminologyLabels? terminology = null)
     : INotificationHandler<JobStageChangedEvent>
 {
     private static readonly HashSet<string> ProductionStageNames = new(StringComparer.OrdinalIgnoreCase)
@@ -52,13 +54,14 @@ public class OnJobStageChanged_UpdateSoStatus(
         if (salesOrder.Status != SalesOrderStatus.Confirmed || !isProductionStage) return;
 
         salesOrder.Status = SalesOrderStatus.InProduction;
+        var jobTerm = TermLabels.Lower((await terminology.GetOrDefaultsAsync(ct)).Singular("job"));
         db.ActivityLogs.Add(new ActivityLog
         {
             EntityType = "SalesOrder",
             EntityId = salesOrderId,
             UserId = notification.UserId,
             Action = "status_changed",
-            Description = $"Status changed to In Production (job {job.JobNumber} entered {toStage.Name}).",
+            Description = $"Status changed to In Production ({jobTerm} {job.JobNumber} entered {toStage.Name}).",
         });
 
         await db.SaveChangesAsync(ct);

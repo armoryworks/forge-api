@@ -4,8 +4,10 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Capabilities;
+using Forge.Api.Extensions;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Jobs.ProductionRuns;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -45,7 +47,8 @@ public class DisposeJobHandler(
     IClock clock,
     ICapabilitySnapshotProvider capabilities,
     AppDbContext db,
-    IProductionVariancePostingService jobCostPosting) : IRequestHandler<DisposeJobCommand, JobDetailResponseModel>
+    IProductionVariancePostingService jobCostPosting,
+    ITerminologyLabels? terminology = null) : IRequestHandler<DisposeJobCommand, JobDetailResponseModel>
 {
     public const string ProductionHistoryMessage =
         "This work order has production history (lots, material, or received stock). Reverse those first.";
@@ -102,7 +105,7 @@ public class DisposeJobHandler(
                 FieldName = "Disposition",
                 OldValue = JobDisposition.HoldForReview.ToString(),
                 NewValue = disposition.ToString(),
-                Description = $"Released from hold (was: {Excerpt(job.DispositionNotes)}) and disposed as {disposition}.",
+                Description = $"Released from hold (was: {Excerpt(job.DispositionNotes)}) and disposed as {TermLabels.Lower(disposition.ToSentence())}.",
             });
         }
 
@@ -115,14 +118,15 @@ public class DisposeJobHandler(
 
         if (!releasingHold || disposition == JobDisposition.EnteredInError)
         {
+            var jobTerm = (await terminology.GetOrDefaultsAsync(cancellationToken)).Singular("job");
             job.ActivityLogs.Add(new JobActivityLog
             {
                 Action = disposition == JobDisposition.EnteredInError
                     ? ActivityAction.Archived
                     : ActivityAction.StatusChanged,
                 Description = disposition == JobDisposition.EnteredInError
-                    ? $"Job {job.JobNumber} marked as entered in error and removed from the board."
-                    : $"Job {job.JobNumber} disposed as {disposition}.",
+                    ? $"{jobTerm} {job.JobNumber} marked as entered in error and removed from the board."
+                    : $"{jobTerm} {job.JobNumber} disposed as {TermLabels.Lower(disposition.ToSentence())}.",
             });
         }
 
@@ -163,13 +167,14 @@ public class DisposeJobHandler(
             request.UserId,
             ct);
 
+        var jobLabel = TermLabels.Lower((await terminology.GetOrDefaultsAsync(ct)).Singular("job"));
         if (capitalization.Capitalized > 0m)
         {
             job.ActivityLogs.Add(new JobActivityLog
             {
                 UserId = request.UserId,
                 Action = ActivityAction.StatusChanged,
-                Description = $"Capitalized {capitalization.Capitalized:N2} of work in process from job {job.JobNumber} as a fixed asset.",
+                Description = $"Capitalized {capitalization.Capitalized:N2} of work in process from {jobLabel} {job.JobNumber} as a fixed asset.",
             });
         }
 
@@ -178,7 +183,7 @@ public class DisposeJobHandler(
             Name = job.Title,
             AssetType = AssetType.Tooling,
             Status = AssetStatus.Active,
-            Notes = $"Capitalized from job {job.JobNumber}",
+            Notes = $"Capitalized from {jobLabel} {job.JobNumber}",
             SourceJobId = job.Id,
             SourcePartId = jobPart?.PartId,
             AcquisitionCost = capitalization.Capitalized > 0m ? capitalization.Capitalized : null,

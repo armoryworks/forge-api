@@ -11,6 +11,12 @@ public interface ITerminologyLabels
     Task<TermLabels> GetAsync(CancellationToken ct);
 }
 
+public static class TerminologyLabelsExtensions
+{
+    public static async Task<TermLabels> GetOrDefaultsAsync(this ITerminologyLabels? labels, CancellationToken ct) =>
+        labels is null ? TermLabels.Defaults : await labels.GetAsync(ct);
+}
+
 public class TerminologyLabels(AppDbContext db) : ITerminologyLabels
 {
     private TermLabels? _labels;

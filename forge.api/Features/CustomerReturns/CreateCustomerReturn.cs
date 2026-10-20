@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -39,7 +40,8 @@ public class CreateCustomerReturnHandler(
     IMediator mediator,
     IHttpContextAccessor httpContext,
     IJobRepository jobRepo,
-    IBusinessIdentifierService identifiers)
+    IBusinessIdentifierService identifiers,
+    ITerminologyLabels? terminology = null)
     : IRequestHandler<CreateCustomerReturnCommand, CustomerReturnListItemModel>
 {
     public async Task<CustomerReturnListItemModel> Handle(CreateCustomerReturnCommand request, CancellationToken ct)
@@ -113,10 +115,11 @@ public class CreateCustomerReturnHandler(
                     Quantity = request.Quantity ?? OperationTimeMath.JobBuildQuantity(originalJob),
                 });
             }
+            var jobTerm = TermLabels.Lower((await terminology.GetOrDefaultsAsync(ct)).Singular("job"));
             reworkJob.ActivityLogs.Add(new JobActivityLog
             {
                 Action = ActivityAction.Created,
-                Description = $"Rework job {reworkJobNumber} created for RMA {returnNumber}.",
+                Description = $"Rework {jobTerm} {reworkJobNumber} created for RMA {returnNumber}.",
             });
             db.Jobs.Add(reworkJob);
             await db.SaveChangesAsync(ct);

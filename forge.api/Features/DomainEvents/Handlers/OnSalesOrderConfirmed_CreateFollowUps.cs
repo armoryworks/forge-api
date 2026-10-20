@@ -2,6 +2,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Terminology;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -12,7 +13,8 @@ namespace Forge.Api.Features.DomainEvents.Handlers;
 public class OnSalesOrderConfirmed_CreateFollowUps(
     AppDbContext db,
     IClock clock,
-    ILogger<OnSalesOrderConfirmed_CreateFollowUps> logger)
+    ILogger<OnSalesOrderConfirmed_CreateFollowUps> logger,
+    ITerminologyLabels? terminology = null)
     : INotificationHandler<SalesOrderConfirmedEvent>
 {
     public async Task Handle(SalesOrderConfirmedEvent notification, CancellationToken ct)
@@ -57,10 +59,12 @@ public class OnSalesOrderConfirmed_CreateFollowUps(
         if (linesWithoutJobs.Count > 0)
         {
             var now = clock.UtcNow;
+            var terms = await terminology.GetOrDefaultsAsync(ct);
+            var jobsTerm = TermLabels.Lower(terms.Plural("job"));
             db.FollowUpTasks.Add(new FollowUpTask
             {
-                Title = $"Create jobs for {so.OrderNumber}",
-                Description = $"{linesWithoutJobs.Count} line(s) in Sales Order {so.OrderNumber} need production jobs created.",
+                Title = $"Create {jobsTerm} for {so.OrderNumber}",
+                Description = $"{linesWithoutJobs.Count} line(s) in {terms.Singular("sales_order")} {so.OrderNumber} need production {jobsTerm} created.",
                 AssignedToUserId = assigneeId,
                 DueDate = now.AddDays(1),
                 SourceEntityType = "SalesOrder",

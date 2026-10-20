@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -15,7 +16,8 @@ public class OnPurchaseOrderReceived_CheckMaterialReady(
     AppDbContext db,
     IClock clock,
     IHubContext<NotificationHub> notificationHub,
-    ILogger<OnPurchaseOrderReceived_CheckMaterialReady> logger)
+    ILogger<OnPurchaseOrderReceived_CheckMaterialReady> logger,
+    ITerminologyLabels? terminology = null)
     : INotificationHandler<PurchaseOrderReceivedEvent>
 {
     public async Task Handle(PurchaseOrderReceivedEvent notification, CancellationToken ct)
@@ -106,10 +108,12 @@ public class OnPurchaseOrderReceived_CheckMaterialReady(
 
         if (assigneeId == 0) return;
 
+        var terms = await terminology.GetOrDefaultsAsync(ct);
+
         db.FollowUpTasks.Add(new FollowUpTask
         {
-            Title = $"Materials ready for JOB-{jobNumber}",
-            Description = $"All purchase orders for Job {jobNumber} have been fully received. Production can begin.",
+            Title = $"Materials ready for {terms.Singular("job")} {jobNumber}",
+            Description = $"All {TermLabels.Lower(terms.Plural("purchase_order"))} for {terms.Singular("job")} {jobNumber} have been fully received. Production can begin.",
             AssignedToUserId = assigneeId,
             DueDate = clock.UtcNow.AddDays(1),
             SourceEntityType = "Job",
@@ -126,7 +130,7 @@ public class OnPurchaseOrderReceived_CheckMaterialReady(
             Severity = "info",
             Source = "purchasing",
             Title = "Materials Ready",
-            Message = $"All materials for JOB-{jobNumber} are now available.",
+            Message = $"All materials for {terms.Singular("job")} {jobNumber} are now available.",
             EntityType = "Job",
             EntityId = po.JobId.Value,
             SenderId = notification.UserId,
