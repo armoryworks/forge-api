@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 
+using Forge.Api.Validation;
 using Forge.Core.Entities.Costing;
 using Forge.Core.Enums;
 using Forge.Core.Models.Costing;
@@ -25,6 +26,8 @@ public class CreateCostingCostCenterValidator : AbstractValidator<CreateCostingC
     {
         RuleFor(x => x.Code).NotEmpty().MaximumLength(32);
         RuleFor(x => x.Name).NotEmpty().MaximumLength(128);
+        RuleFor(x => x.Sqft).GreaterThanOrEqualTo(0m).FitsNumeric(18, 4).When(x => x.Sqft.HasValue);
+        RuleFor(x => x.Headcount).GreaterThanOrEqualTo(0m).FitsNumeric(18, 4).When(x => x.Headcount.HasValue);
     }
 }
 

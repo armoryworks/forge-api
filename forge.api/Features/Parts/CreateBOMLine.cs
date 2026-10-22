@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Forge.Api.Services;
+using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -16,7 +17,7 @@ public class CreateBOMLineCommandValidator : AbstractValidator<CreateBOMLineComm
     {
         RuleFor(x => x.ParentPartId).GreaterThan(0);
         RuleFor(x => x.Data.ChildPartId).GreaterThan(0);
-        RuleFor(x => x.Data.Quantity).GreaterThan(0);
+        RuleFor(x => x.Data.Quantity).GreaterThan(0).FitsNumeric(18, 4);
     }
 }
 

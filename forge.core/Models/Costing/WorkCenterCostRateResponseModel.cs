@@ -11,4 +11,6 @@ public record WorkCenterCostRateResponseModel(
     decimal MachineOhVarRate,
     decimal MachineOhFixedRate,
     DateTime? FrozenAt,
-    string? FrozenBy);
+    string? FrozenBy,
+    string? WorkCenterCode = null,
+    string? WorkCenterName = null);

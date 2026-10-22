@@ -17,4 +17,7 @@ public record UpdateAssetRequestModel(
     int? ToolLifeExpectancy,
     int? CurrentShotCount,
     int? SourceJobId,
-    int? SourcePartId);
+    int? SourcePartId,
+    decimal? AcquisitionCost = null,
+    DepreciationMethod? DepreciationMethod = null,
+    int? WorkCenterId = null);
