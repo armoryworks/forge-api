@@ -19,6 +19,12 @@ public static class NumericColumnRules
     public static IRuleBuilderOptions<T, decimal?> FitsNumeric<T>(this IRuleBuilder<T, decimal?> rule, int precision, int scale)
         => rule.PrecisionScale(precision, scale, true).WithMessage(Message(precision, scale));
 
+    /// <summary>
+    /// The largest operation estimate, in milliseconds, whose per-piece minutes still fit the job step's
+    /// <c>est_run_minutes_each numeric(14, 6)</c> column.
+    /// </summary>
+    public static readonly long MaxOperationEstimatedMs = (long)decimal.Floor(MaxValue(14, 6) * 60000m);
+
     /// <summary>The largest value a <c>numeric(precision, scale)</c> column holds.</summary>
     public static decimal MaxValue(int precision, int scale)
         => Pow10(precision - scale) - 1m / Pow10(scale);

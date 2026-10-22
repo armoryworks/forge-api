@@ -13,9 +13,9 @@ namespace Forge.Tests.Handlers.Assets;
 
 public class UpdateAssetHandlerTests
 {
-    private static UpdateAssetRequestModel Patch(decimal? cost = null, DepreciationMethod? method = null, int? workCenterId = null) => new(
+    private static UpdateAssetRequestModel Patch(decimal? cost = null, DepreciationMethod? method = null, int? workCenterId = null, string? glAccount = null) => new(
         null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-        AcquisitionCost: cost, DepreciationMethod: method, WorkCenterId: workCenterId);
+        AcquisitionCost: cost, DepreciationMethod: method, WorkCenterId: workCenterId, GlAccount: glAccount);
 
     private static async Task<(AppDbContext Db, Asset Asset, WorkCenter WorkCenter)> SeedAsync()
     {
@@ -95,5 +95,83 @@ public class UpdateAssetHandlerTests
 
         new CreateAssetCommandValidator().Validate(new CreateAssetCommand(data))
             .Errors.Should().ContainSingle(e => e.PropertyName == "Data.AcquisitionCost");
+    }
+
+    private static async Task PostDepreciationAsync(AppDbContext db, int assetId)
+    {
+        var fixedAsset = new Forge.Core.Entities.Accounting.FixedAsset
+        {
+            Name = "Press 1", Cost = 1200m, UsefulLifeMonths = 12, LinkedAssetId = assetId,
+            AssetGlAccountId = 1, AccumulatedDepreciationGlAccountId = 2, DepreciationExpenseGlAccountId = 3,
+        };
+        db.Add(fixedAsset);
+        await db.SaveChangesAsync();
+        db.Add(new Forge.Core.Entities.Accounting.DepreciationEntry
+        {
+            FixedAssetId = fixedAsset.Id, PeriodMonth = new DateOnly(2026, 9, 1), Amount = 100m, JournalEntryId = 1,
+        });
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Handle_CorrectsTheGlAccount_BeforeDepreciationHasPosted()
+    {
+        var (db, asset, _) = await SeedAsync();
+        using var __ = db;
+        var handler = new UpdateAssetHandler(new AssetRepository(db), db);
+
+        var result = await handler.Handle(new UpdateAssetCommand(asset.Id, Patch(glAccount: " 1510 ")), CancellationToken.None);
+
+        result.GlAccount.Should().Be("1510");
+    }
+
+    [Fact]
+    public async Task Handle_ClearsTheGlAccount_WhenSentBlank()
+    {
+        var (db, asset, _) = await SeedAsync();
+        using var __ = db;
+        var handler = new UpdateAssetHandler(new AssetRepository(db), db);
+
+        var result = await handler.Handle(new UpdateAssetCommand(asset.Id, Patch(glAccount: "")), CancellationToken.None);
+
+        result.GlAccount.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_RejectsAGlAccountChange_OnceDepreciationHasPosted()
+    {
+        var (db, asset, _) = await SeedAsync();
+        using var __ = db;
+        await PostDepreciationAsync(db, asset.Id);
+        var handler = new UpdateAssetHandler(new AssetRepository(db), db);
+
+        var act = () => handler.Handle(new UpdateAssetCommand(asset.Id, Patch(glAccount: "1510")), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>())
+            .Which.Errors.Should().ContainSingle(e => e.PropertyName == "glAccount");
+        db.ChangeTracker.Clear();
+        (await db.Assets.FindAsync(asset.Id))!.GlAccount.Should().Be("1500");
+    }
+
+    [Fact]
+    public async Task Handle_AllowsResendingTheSameGlAccount_AfterDepreciation()
+    {
+        var (db, asset, _) = await SeedAsync();
+        using var __ = db;
+        await PostDepreciationAsync(db, asset.Id);
+        var handler = new UpdateAssetHandler(new AssetRepository(db), db);
+
+        var result = await handler.Handle(new UpdateAssetCommand(asset.Id, Patch(cost: 20m, glAccount: "1500")), CancellationToken.None);
+
+        result.GlAccount.Should().Be("1500");
+        result.AcquisitionCost.Should().Be(20m);
+    }
+
+    [Fact]
+    public void Validator_RejectsAGlAccountLongerThanTheColumn()
+    {
+        var result = new UpdateAssetCommandValidator().Validate(new UpdateAssetCommand(1, Patch(glAccount: new string('1', 101))));
+
+        result.Errors.Should().ContainSingle(e => e.PropertyName == "Data.GlAccount");
     }
 }

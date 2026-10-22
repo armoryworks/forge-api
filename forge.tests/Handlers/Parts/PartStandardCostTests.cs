@@ -56,7 +56,7 @@ public class PartStandardCostTests
     }
 
     [Fact]
-    public void From_PrefersTheOverride_AndKeepsTheCalculationForContext()
+    public void From_OverrideIsTheCostOfRecord_AndKeepsTheCalculationForContext()
     {
         var part = NewPart(manualOverride: 12m);
         part.CurrentCostCalculation = NewCalc(1, 10.5m);
@@ -66,6 +66,25 @@ public class PartStandardCostTests
         model.Amount.Should().Be(12m);
         model.Source.Should().Be(PartStandardCostModel.OverrideSource);
         model.CalculatedAmount.Should().Be(10.5m);
+        model.MaterialCost.Should().Be(7.5m);
+        model.LaborCost.Should().Be(3m);
+        model.OverheadCost.Should().Be(1.5m);
+        (model.MaterialCost + model.LaborCost + model.OverheadCost).Should().Be(model.Amount);
+    }
+
+    [Fact]
+    public void From_ZeroOverride_IsAZeroStandard()
+    {
+        var part = NewPart(manualOverride: 0m);
+        part.CurrentCostCalculation = NewCalc(1, 10.5m);
+
+        var model = PartStandardCostModel.From(part)!;
+
+        model.Amount.Should().Be(0m);
+        model.Source.Should().Be(PartStandardCostModel.OverrideSource);
+        model.MaterialCost.Should().Be(0m);
+        model.LaborCost.Should().Be(0m);
+        model.OverheadCost.Should().Be(0m);
     }
 
     [Fact]

@@ -3,10 +3,11 @@ using Forge.Core.Entities;
 namespace Forge.Core.Models;
 
 /// <summary>
-/// The standard unit cost the books carry for a part: <c>ManualCostOverride</c> when set, otherwise
-/// the current cost calculation's result (the same precedence as the standard-cost resolver).
-/// <see cref="Source"/> says which one it is; the calculation's amount, date and element breakdown
-/// ride along whenever a current calculation exists, even under an override.
+/// The standard unit cost the books carry for a part, by <see cref="PartStandardCostRule"/>: an explicit
+/// <c>ManualCostOverride</c> is the cost of record when set, otherwise the current cost calculation's result.
+/// <see cref="Source"/> says which one it is. The calculation's amount and date ride along whenever a current
+/// calculation exists, even under an override; the element breakdown is the one postings use, reconciled to
+/// the override when one is set.
 /// </summary>
 public record PartStandardCostModel(
     decimal Amount,
@@ -29,17 +30,19 @@ public record PartStandardCostModel(
     /// </summary>
     public static PartStandardCostModel? From(Part part)
     {
-        var calc = part.CurrentCostCalculation;
-        if (part.ManualCostOverride is null && calc is null)
+        if (PartStandardCostRule.CostOfRecord(part) is not decimal amount)
             return null;
 
+        var calc = part.CurrentCostCalculation;
+        var overrideWins = PartStandardCostRule.OverrideIsCostOfRecord(part);
+        var elements = PartStandardCostRule.CalculationElements(part);
         return new PartStandardCostModel(
-            part.ManualCostOverride ?? calc!.ResultAmount,
-            part.ManualCostOverride.HasValue ? OverrideSource : CalculationSource,
+            amount,
+            overrideWins ? OverrideSource : CalculationSource,
             calc?.ResultAmount,
             calc?.CalculatedAt,
-            calc?.Inputs?.DirectMaterialCost,
-            calc?.Inputs?.DirectLaborCost,
-            calc?.Inputs?.OverheadAmount);
+            overrideWins ? elements?.Material : calc?.Inputs?.DirectMaterialCost,
+            overrideWins ? elements?.Labor : calc?.Inputs?.DirectLaborCost,
+            overrideWins ? elements?.Overhead : calc?.Inputs?.OverheadAmount);
     }
 }

@@ -27,6 +27,7 @@ public class UpdateAssetCommandValidator : AbstractValidator<UpdateAssetCommand>
             .When(x => x.Data.AcquisitionCost.HasValue);
         RuleFor(x => x.Data.DepreciationMethod).IsInEnum().When(x => x.Data.DepreciationMethod.HasValue);
         RuleFor(x => x.Data.WorkCenterId).GreaterThan(0).When(x => x.Data.WorkCenterId.HasValue);
+        RuleFor(x => x.Data.GlAccount).MaximumLength(100).When(x => x.Data.GlAccount is not null);
     }
 }
 
@@ -71,6 +72,20 @@ public class UpdateAssetHandler(IAssetRepository repo, AppDbContext db) : IReque
             if (!await db.WorkCenters.AnyAsync(w => w.Id == workCenterId, cancellationToken))
                 throw new ValidationException([new ValidationFailure("workCenterId", $"Work center {workCenterId} not found.")]);
             asset.WorkCenterId = workCenterId;
+        }
+        if (data.GlAccount is not null)
+        {
+            var glAccount = string.IsNullOrWhiteSpace(data.GlAccount) ? null : data.GlAccount.Trim();
+            if (glAccount != asset.GlAccount)
+            {
+                var depreciationPosted = await db.DepreciationEntries.AnyAsync(
+                    e => db.FixedAssets.Any(f => f.Id == e.FixedAssetId && f.LinkedAssetId == asset.Id),
+                    cancellationToken);
+                if (depreciationPosted)
+                    throw new ValidationException([new ValidationFailure("glAccount",
+                        "The GL account cannot change after depreciation has posted for this asset.")]);
+                asset.GlAccount = glAccount;
+            }
         }
 
         await repo.SaveChangesAsync(cancellationToken);

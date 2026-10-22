@@ -10,15 +10,15 @@ namespace Forge.Tests.Handlers.Parts;
 
 public class NumericColumnLimitTests
 {
-    private static CreateOperationRequestModel CreateOp(decimal? setup = null, decimal? lot = null, decimal? turnDays = null) => new(
+    private static CreateOperationRequestModel CreateOp(decimal? setup = null, decimal? lot = null, decimal? turnDays = null, long? estimatedMs = null) => new(
         StepNumber: 1, Title: "Mill", Instructions: null, WorkCenterId: null,
-        EstimatedMs: null, IsQcCheckpoint: false, QcCriteria: null, ReferencedOperationId: null,
+        EstimatedMs: estimatedMs, IsQcCheckpoint: false, QcCriteria: null, ReferencedOperationId: null,
         IsSubcontract: turnDays.HasValue ? true : null, SubcontractVendorId: turnDays.HasValue ? 7 : null,
         SubcontractTurnTimeDays: turnDays, SetupMinutes: setup, RunMinutesLot: lot);
 
-    private static UpdateOperationRequestModel UpdateOp(decimal? setup = null, decimal? lot = null) => new(
+    private static UpdateOperationRequestModel UpdateOp(decimal? setup = null, decimal? lot = null, long? estimatedMs = null) => new(
         StepNumber: null, Title: null, Instructions: null, WorkCenterId: null,
-        EstimatedMs: null, IsQcCheckpoint: null, QcCriteria: null,
+        EstimatedMs: estimatedMs, IsQcCheckpoint: null, QcCriteria: null,
         ReferencedOperationId: null, SetupMinutes: setup, RunMinutesLot: lot);
 
     private static CreateCostingCostCenterCommand CostCenter(decimal? sqft, decimal? headcount = null)
@@ -112,5 +112,51 @@ public class NumericColumnLimitTests
     {
         new CreateCostingCostCenterValidator().Validate(CostCenter(0m, 0m)).IsValid.Should().BeTrue();
         new CreateCostingCostCenterValidator().Validate(CostCenter(null)).IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void MaxOperationEstimatedMs_IsTheLargestEstimateWhosePerPieceMinutesFitTheJobStep()
+    {
+        var max = NumericColumnRules.MaxOperationEstimatedMs;
+
+        (max / 60000m).Should().BeLessThanOrEqualTo(NumericColumnRules.MaxValue(14, 6));
+        ((max + 1) / 60000m).Should().BeGreaterThan(NumericColumnRules.MaxValue(14, 6));
+    }
+
+    [Theory]
+    [InlineData(-1L)]
+    [InlineData(long.MaxValue)]
+    public void CreateOperation_RejectsEstimatedMsOutOfRange(long estimatedMs)
+    {
+        var result = new CreateOperationValidator().Validate(new CreateOperationCommand(1, CreateOp(estimatedMs: estimatedMs)));
+
+        result.Errors.Should().ContainSingle(e => e.PropertyName == "Data.EstimatedMs");
+    }
+
+    [Fact]
+    public void CreateOperation_AcceptsEstimatedMsAtTheBounds()
+    {
+        var validator = new CreateOperationValidator();
+
+        validator.Validate(new CreateOperationCommand(1, CreateOp(estimatedMs: 0L))).IsValid.Should().BeTrue();
+        validator.Validate(new CreateOperationCommand(1, CreateOp(estimatedMs: NumericColumnRules.MaxOperationEstimatedMs))).IsValid.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(-1L)]
+    [InlineData(long.MaxValue)]
+    public void UpdateOperation_RejectsEstimatedMsOutOfRange(long estimatedMs)
+    {
+        var result = new UpdateOperationValidator().Validate(new UpdateOperationCommand(1, 2, UpdateOp(estimatedMs: estimatedMs)));
+
+        result.Errors.Should().ContainSingle(e => e.PropertyName == "Data.EstimatedMs");
+    }
+
+    [Fact]
+    public void UpdateOperation_AcceptsEstimatedMsAtTheMaximum()
+    {
+        new UpdateOperationValidator()
+            .Validate(new UpdateOperationCommand(1, 2, UpdateOp(estimatedMs: NumericColumnRules.MaxOperationEstimatedMs)))
+            .IsValid.Should().BeTrue();
     }
 }
