@@ -59,6 +59,7 @@ public class CreateClockEventTimerTests
     public async Task Handle_NamesTheUserLikeEveryOtherScreen(string? given, string? surname, string email, string expected)
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
         var claims = new List<Claim> { new(ClaimTypes.Email, email) };
         if (given is not null)
             claims.Add(new Claim(ClaimTypes.GivenName, given));

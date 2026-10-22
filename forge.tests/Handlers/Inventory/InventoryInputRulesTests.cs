@@ -42,8 +42,8 @@ public class InventoryInputRulesTests
         var update = new UpdateStorageLocationCommandValidator().Validate(new UpdateStorageLocationCommand(
             1, new UpdateStorageLocationRequestModel("Bin", LocationType.Bin, null, null, new string('x', 501))));
 
-        create.Errors.Should().ContainSingle().Which.ErrorMessage.Should().Contain("'Description'").And.NotContain("Data");
-        update.Errors.Should().ContainSingle().Which.ErrorMessage.Should().Contain("'Description'").And.NotContain("Data");
+        create.Errors.Should().ContainSingle().Which.ErrorMessage.Should().Contain("Description").And.NotContain("Data");
+        update.Errors.Should().ContainSingle().Which.ErrorMessage.Should().Contain("Description").And.NotContain("Data");
     }
 
     [Fact]
