@@ -19,6 +19,8 @@ public static class AccountingSettings
 
     public const string AgingBucketDaysKey = "accounting.aging.bucket-days";
 
+    public const string Form1099ThresholdKey = "accounting.1099.threshold";
+
     public static IReadOnlyList<SettingDescriptor> Descriptors =>
     [
         // QuickBooks Online (the existing primary)
@@ -83,11 +85,19 @@ public static class AccountingSettings
         // ── Aging report ladder (AR / AP / GRNI) ──
         new(AgingBucketDaysKey, Group, "Aging Buckets (days)", SettingDataType.String,
             Description: "Comma-separated ascending bucket upper bounds for the AR/AP/GRNI aging "
-                + "reports; an open-ended final bucket is added automatically. The default 30,60,90 "
-                + "is the standard ladder (0-30 / 31-60 / 61-90 / 91+).",
+                + "reports; an open-ended final bucket is added automatically, and AR/AP also lead with "
+                + "a Current (not yet due) bucket. The default 30,60,90 is the standard ladder "
+                + "(0-30 / 31-60 / 61-90 / 91+; Current / 1-30 / ... for AR and AP).",
             DefaultValue: "30,60,90",
             ValidationPattern: @"^\d+(,\d+)*$",
             SortOrder: 800),
+
+        new(Form1099ThresholdKey, Group, "1099 Reporting Threshold", SettingDataType.String,
+            Description: "Overrides the IRS 1099-NEC/MISC reporting threshold for tax years after 2026, once the "
+                + "IRS publishes an inflation-indexed amount. Earlier years always use the statutory amounts: $600 "
+                + "through 2025, $2,000 for 2026. Leave blank to keep $2,000.",
+            ValidationPattern: @"^\d+(\.\d{1,2})?$",
+            SortOrder: 810),
     ];
 
     /// <summary>Common Mode + ClientId + ClientSecret triplet used by

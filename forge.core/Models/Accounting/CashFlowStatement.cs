@@ -6,11 +6,11 @@ namespace Forge.Core.Models.Accounting;
 /// <para>Built entirely from the ledger by the double-entry identity: the change in the cash account(s)
 /// equals the negative of the change in every other account, so <see cref="NetChangeInCash"/> reconciles to
 /// the actual cash-account movement (<see cref="ActualCashChange"/>) by construction.</para>
-/// <para><b>Classification (ratify):</b> until accounts carry an explicit cash-flow tag, the split is by
-/// account type — non-cash <b>Asset</b> + <b>Liability</b> changes are Operating (working capital), <b>Equity</b>
-/// changes (excluding the year-end income roll, which is already in net income) are Financing, and Investing
-/// is empty (there are no long-term-asset accounts yet; tag them when fixed assets / long-term debt arrive in
-/// Phase 4+).</para>
+/// <para><b>Classification:</b> an account's explicit cash-flow tag wins (the seeded fixed-asset account is
+/// tagged Investing); an untagged account splits by type — non-cash <b>Asset</b> + <b>Liability</b> changes are
+/// Operating (working capital), <b>Equity</b> changes (excluding the year-end income roll, which is already in
+/// net income) are Financing. Conversion (opening-balance) entries are balances brought forward, not activity:
+/// they count in <see cref="BeginningCash"/>.</para>
 /// </summary>
 public sealed class CashFlowStatement
 {
@@ -36,6 +36,15 @@ public sealed class CashFlowStatement
 
     /// <summary>The actual movement of the cash account(s) over the window (the reconciliation target).</summary>
     public decimal ActualCashChange { get; init; }
+
+    /// <summary>
+    /// Cash on hand at the start of the window: postings dated before it plus the conversion (opening-balance)
+    /// entries, which are balances brought forward and so are not counted as activity in the window.
+    /// </summary>
+    public decimal BeginningCash { get; init; }
+
+    /// <summary><see cref="BeginningCash"/> + <see cref="ActualCashChange"/>: the cash balance at the window's end.</summary>
+    public decimal EndingCash { get; init; }
 
     public decimal RoundingTolerance { get; init; }
     public bool IsReconciled => Math.Abs(NetChangeInCash - ActualCashChange) <= RoundingTolerance;

@@ -37,13 +37,13 @@ public sealed class ApAgingService(AppDbContext db, IClock clock, Forge.Core.Set
 {
     // accounting.aging.bucket-days (admin-editable; default = the standard 30/60/90 ladder).
     // Loaded per call by LoadBucketsAsync; null settings (isolated tests) keep the standard ladder.
-    private IReadOnlyList<(int From, int? To, string Label)> BucketDefs = AgingBuckets.Standard;
+    private IReadOnlyList<(int From, int? To, string Label)> BucketDefs = AgingBuckets.WithCurrent(AgingBuckets.Standard);
 
     private async Task LoadBucketsAsync(CancellationToken ct)
     {
         if (settings is not null)
-            BucketDefs = AgingBuckets.Parse(
-                await settings.GetStringAsync(Forge.Core.Settings.AccountingSettings.AgingBucketDaysKey, ct));
+            BucketDefs = AgingBuckets.WithCurrent(AgingBuckets.Parse(
+                await settings.GetStringAsync(Forge.Core.Settings.AccountingSettings.AgingBucketDaysKey, ct)));
     }
 
     public async Task<ApAging> GetApAgingAsync(int bookId, DateOnly? asOfDate = null, CancellationToken ct = default)

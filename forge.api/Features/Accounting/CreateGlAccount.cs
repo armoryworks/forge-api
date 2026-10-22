@@ -36,6 +36,10 @@ public class CreateGlAccountValidator : AbstractValidator<CreateGlAccountCommand
     {
         RuleFor(x => x.BookId).GreaterThan(0);
         RuleFor(x => x.AccountNumber).NotEmpty().MaximumLength(20);
+        RuleFor(x => x.AccountNumber)
+            .Must(n => GlAccountRules.AccountNumberPattern.IsMatch(n.Trim()))
+            .When(x => !string.IsNullOrWhiteSpace(x.AccountNumber))
+            .WithMessage("Account number may contain only letters, digits, dots and dashes.");
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
     }
 }
@@ -45,10 +49,6 @@ public class CreateGlAccountHandler(AppDbContext db)
 {
     public async Task<GlAccountAdminModel> Handle(CreateGlAccountCommand request, CancellationToken ct)
     {
-        if (GlAccountRules.ExpectedNormalBalance(request.AccountType) != request.NormalBalance)
-            throw new InvalidOperationException(
-                $"A {request.AccountType} account must have a {GlAccountRules.ExpectedNormalBalance(request.AccountType)} normal balance.");
-
         var number = request.AccountNumber.Trim();
         if (await db.GlAccounts.AnyAsync(a => a.BookId == request.BookId && a.AccountNumber == number, ct))
             throw FieldValidation.Fail("accountNumber", $"Account number '{number}' already exists in this book.");

@@ -144,7 +144,52 @@ public class BudgetVsActualTests
         result.TotalBudget.Should().Be(1450m);
         result.TotalActual.Should().Be(1300m);
         result.TotalVariance.Should().Be(-150m);
+
+        revenue.IsIncome.Should().BeTrue();
+        rent.IsIncome.Should().BeFalse();
+        result.TotalBudgetIncome.Should().Be(1200m);
+        result.TotalBudgetExpense.Should().Be(250m);
+        result.TotalActualIncome.Should().Be(1000m);
+        result.TotalActualExpense.Should().Be(300m);
+        result.NetBudget.Should().Be(950m);
+        result.NetActual.Should().Be(700m);
+        result.NetVariance.Should().Be(-250m);
+        revenue.IsFavorable.Should().BeFalse();
+        rent.IsFavorable.Should().BeFalse();
     }
+
+    [Theory]
+    [InlineData(0, 2026, null)]
+    [InlineData(1, 0, null)]
+    [InlineData(1, 2026, 0)]
+    [InlineData(1, 2026, 13)]
+    [InlineData(1, 2026, 14)]
+    public void BudgetVsActualValidator_RejectsMissingOrOutOfRangeParameters(int bookId, int year, int? month)
+    {
+        var result = new GetBudgetVsActualValidator().Validate(new GetBudgetVsActualQuery(bookId, year, month));
+
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void BudgetVsActualValidator_AcceptsAFullYearOrAMonth()
+    {
+        var validator = new GetBudgetVsActualValidator();
+
+        validator.Validate(new GetBudgetVsActualQuery(1, 2026)).IsValid.Should().BeTrue();
+        validator.Validate(new GetBudgetVsActualQuery(1, 2026, 12)).IsValid.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(true, 1200, 1000, false)]
+    [InlineData(true, 1000, 1200, true)]
+    [InlineData(false, 250, 300, false)]
+    [InlineData(false, 300, 250, true)]
+    [InlineData(true, -100, -150, false)]
+    [InlineData(true, -100, -50, true)]
+    public void Line_IsFavorable_FollowsTheAccountType(bool isIncome, int budget, int actual, bool favorable)
+        => new BudgetVsActualLine { IsIncome = isIncome, BudgetAmount = budget, ActualAmount = actual }
+            .IsFavorable.Should().Be(favorable);
 
     [Fact]
     public async Task BudgetVsActual_BudgetedAccountWithNoActual_ReadsActualZero_AndResolvesAccountName()
@@ -161,6 +206,8 @@ public class BudgetVsActualTests
         // Name/number resolved via the GlAccounts fallback lookup (no P&L line existed).
         supplies.AccountNumber.Should().Be("61000");
         supplies.AccountName.Should().Be("Shop Supplies");
+        supplies.IsIncome.Should().BeFalse();
+        result.TotalBudgetExpense.Should().Be(500m);
     }
 
     [Fact]

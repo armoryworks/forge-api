@@ -55,6 +55,7 @@ public class SeedAccountingKeyedAccountTests
             .SingleAsync(r => r.BookId == book.Id && r.Key == "FIXED_ASSETS");
         fixedAssets.GlAccount.AccountNumber.Should().Be("15000");
         fixedAssets.GlAccount.AccountType.Should().Be(AccountType.Asset);
+        fixedAssets.GlAccount.CashFlowCategory.Should().Be(CashFlowCategory.Investing);
 
         var gainLoss = await db.AccountDeterminationRules.Include(r => r.GlAccount)
             .SingleAsync(r => r.BookId == book.Id && r.Key == "GAIN_LOSS_ON_DISPOSAL");
@@ -75,6 +76,23 @@ public class SeedAccountingKeyedAccountTests
 
         (await db.AccountDeterminationRules.SingleAsync(r => r.Key == "FIXED_ASSETS")).GlAccountId.Should().Be(existing.Id);
         (await db.GlAccounts.CountAsync(a => a.AccountNumber == "15000")).Should().Be(1);
+        existing.CashFlowCategory.Should().Be(CashFlowCategory.Investing);
+    }
+
+    [Fact]
+    public async Task ExistingCashFlowCategory_IsNotOverwritten()
+    {
+        using var db = TestDbContextFactory.Create();
+        var book = await SeedBookAsync(db);
+        var existing = Account(book.Id, "15000", "Machinery and equipment at cost", AccountType.Asset, NormalBalance.Debit);
+        existing.CashFlowCategory = CashFlowCategory.Operating;
+        db.GlAccounts.Add(existing);
+        await db.SaveChangesAsync();
+
+        await SeedData.SeedAccountingAsync(db);
+        await SeedData.SeedAccountingAsync(db);
+
+        existing.CashFlowCategory.Should().Be(CashFlowCategory.Operating);
     }
 
     [Fact]

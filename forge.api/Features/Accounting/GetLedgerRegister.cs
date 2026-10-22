@@ -11,7 +11,8 @@ namespace Forge.Api.Features.Accounting;
 /// Read-only GL register for a book — the time-ordered journal with per-line account labels and
 /// drill-back refs, feeding the §5A ledger-view UI. DARK behind <c>CAP-ACCT-FULLGL</c>. Newest first,
 /// paginated (default 25 / max 100), optionally filtered by date range, entry status, and account.
-/// This is a read seam only: it never touches <c>IPostingEngine</c> and never writes.
+/// With no status filter, never-posted <c>Draft</c> entries (where a rejected entry lands) are left out;
+/// <c>Status = Draft</c> lists them. This is a read seam only: it never touches <c>IPostingEngine</c> and never writes.
 /// </summary>
 [RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetLedgerRegisterQuery(
@@ -40,7 +41,9 @@ public class GetLedgerRegisterHandler(AppDbContext db)
 
         if (request.FromDate is { } from) q = q.Where(e => e.EntryDate >= from);
         if (request.ToDate is { } to) q = q.Where(e => e.EntryDate <= to);
-        if (request.Status is { } status) q = q.Where(e => e.Status == status);
+        q = request.Status is { } status
+            ? q.Where(e => e.Status == status)
+            : q.Where(e => e.Status != JournalEntryStatus.Draft);
         if (request.GlAccountId is { } accountId) q = q.Where(e => e.Lines.Any(l => l.GlAccountId == accountId));
 
         var totalCount = await q.CountAsync(ct);
@@ -63,6 +66,19 @@ public class GetLedgerRegisterHandler(AppDbContext db)
                 .Select(a => new { a.Id, a.AccountNumber, a.Name })
                 .ToListAsync(ct))
             .ToDictionary(a => a.Id, a => (a.AccountNumber, a.Name));
+
+        var linkedIds = entries
+            .SelectMany(e => new[] { e.ReversalOfEntryId, e.ReversedByEntryId })
+            .OfType<long>()
+            .Distinct()
+            .ToList();
+        var entryNumberById = linkedIds.Count == 0
+            ? []
+            : await db.JournalEntries
+                .AsNoTracking()
+                .Where(e => linkedIds.Contains(e.Id))
+                .Select(e => new { e.Id, e.EntryNumber })
+                .ToDictionaryAsync(e => e.Id, e => e.EntryNumber, ct);
 
         var data = entries.Select(e => new LedgerRegisterEntry(
                 e.Id,
@@ -92,7 +108,10 @@ public class GetLedgerRegisterHandler(AppDbContext db)
                             l.Id, l.LineNumber, l.GlAccountId, number, name,
                             l.Debit, l.Credit, l.Description, l.JobId, l.CostCenterId);
                     })
-                    .ToList()))
+                    .ToList(),
+                e.ReversalOfEntryId is long ofId && entryNumberById.TryGetValue(ofId, out var ofNumber) ? ofNumber : null,
+                e.ReversedByEntryId is long byId && entryNumberById.TryGetValue(byId, out var byNumber) ? byNumber : null,
+                e.PostedBy))
             .ToList();
 
         var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
@@ -100,7 +119,10 @@ public class GetLedgerRegisterHandler(AppDbContext db)
     }
 }
 
-/// <summary>One journal entry in the register, with the drill-back refs the ledger UI navigates by.</summary>
+/// <summary>
+/// One journal entry in the register, with the drill-back refs the ledger UI navigates by; the reversal links
+/// carry the linked entries' numbers for display beside their ids, and <c>PostedBy</c> is the submitting user.
+/// </summary>
 public record LedgerRegisterEntry(
     long Id,
     long EntryNumber,
@@ -113,7 +135,10 @@ public record LedgerRegisterEntry(
     long? ReversalOfEntryId,
     long? ReversedByEntryId,
     DateTimeOffset? PostedAt,
-    IReadOnlyList<LedgerRegisterLine> Lines);
+    IReadOnlyList<LedgerRegisterLine> Lines,
+    long? ReversalOfEntryNumber = null,
+    long? ReversedByEntryNumber = null,
+    int? PostedBy = null);
 
 /// <summary>One posting line, with its account labelled and debit/credit kept as separate non-negative amounts.</summary>
 public record LedgerRegisterLine(

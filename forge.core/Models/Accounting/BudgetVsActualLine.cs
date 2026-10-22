@@ -15,9 +15,19 @@ public sealed class BudgetVsActualLine
     public string AccountNumber { get; init; } = string.Empty;
     public string AccountName { get; init; } = string.Empty;
 
+    /// <summary><c>true</c> for an Income account, <c>false</c> for an Expense account.</summary>
+    public bool IsIncome { get; init; }
+
     public decimal BudgetAmount { get; init; }
     public decimal ActualAmount { get; init; }
 
     public decimal? Variance => StatementVariance.Variance(ActualAmount, BudgetAmount);
+
+    /// <summary>
+    /// Whether actual is on the good side of budget: at or above it for an Income account, at or below it for
+    /// an Expense account. The amounts are signed in statement direction, so a contra account (e.g. sales
+    /// returns under Income) is judged by its type like any other.
+    /// </summary>
+    public bool IsFavorable => IsIncome ? ActualAmount >= BudgetAmount : ActualAmount <= BudgetAmount;
     public decimal? VariancePercent => StatementVariance.Percent(ActualAmount, BudgetAmount);
 }
