@@ -375,6 +375,82 @@ public class WorkflowRunLifecycleTests(CapabilityTestWebApplicationFactory facto
     }
 
     [Fact]
+    public async Task SaveSkippedSteps_KeepsThemOnTheMaterializedRun_InDefinitionOrder()
+    {
+        var client = AuthenticatedClient();
+        var run = await StartRunAsync(client, """{"procurementSource":"Make","inventoryClass":"Subassembly"}""");
+        var basics = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/step",
+            new PatchWorkflowStepRequestModel("basics", JsonDocument.Parse("""{"name":"Skip keeper"}""").RootElement));
+        basics.EnsureSuccessStatusCode();
+
+        var resp = await client.PutAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/skipped-steps",
+            new SaveWorkflowSkippedStepsRequestModel(["alternates", "quality"]));
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var reloaded = (await client.GetFromJsonAsync<WorkflowRunResponseModel>($"/api/v1/workflows/{run.Id}"))!;
+        reloaded.EntityId.Should().NotBeNull();
+        reloaded.DraftPayload!["skippedStepIds"]!.AsArray().Select(n => n!.GetValue<string>())
+            .Should().Equal("quality", "alternates");
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        (await db.AuditLogEntries
+            .CountAsync(a => a.EntityType == "WorkflowRun" && a.EntityId == run.Id && a.Action == "WorkflowSkippedStepsSaved"))
+            .Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SaveSkippedSteps_EmptyList_ClearsThem_AndLeavesTheTypedTextAlone()
+    {
+        var client = AuthenticatedClient();
+        var run = await StartRunAsync(client, "{}");
+        await client.PutAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/draft",
+            new SaveWorkflowDraftRequestModel(JsonDocument.Parse("""{"name":"Typed"}""").RootElement));
+        (await client.PutAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/skipped-steps",
+            new SaveWorkflowSkippedStepsRequestModel(["quality"]))).EnsureSuccessStatusCode();
+
+        var resp = await client.PutAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/skipped-steps",
+            new SaveWorkflowSkippedStepsRequestModel([]));
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var updated = (await resp.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+        updated.DraftPayload!["skippedStepIds"].Should().BeNull();
+        updated.DraftPayload!["typed"]!["name"]!.GetValue<string>().Should().Be("Typed");
+    }
+
+    [Fact]
+    public async Task SaveSkippedSteps_RejectsAStepOutsideTheDefinition()
+    {
+        var client = AuthenticatedClient();
+        var run = await StartRunAsync(client, "{}");
+
+        var resp = await client.PutAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/skipped-steps",
+            new SaveWorkflowSkippedStepsRequestModel(["not-a-step"]));
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task SaveSkippedSteps_OnAnAbandonedRun_Returns409()
+    {
+        var client = AuthenticatedClient();
+        var run = await StartRunAsync(client, "{}");
+        (await client.PostAsJsonAsync($"/api/v1/workflows/{run.Id}/abandon", new AbandonWorkflowRequestModel("user")))
+            .EnsureSuccessStatusCode();
+
+        var resp = await client.PutAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/skipped-steps",
+            new SaveWorkflowSkippedStepsRequestModel(["quality"]));
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
     public async Task Mode_Toggle_PersistsChange()
     {
         var client = AuthenticatedClient();
@@ -1025,6 +1101,7 @@ public class WorkflowRunLifecycleTests(CapabilityTestWebApplicationFactory facto
         foreach (var call in new Func<Task<HttpResponseMessage>>[]
         {
             () => client.PutAsJsonAsync($"/api/v1/workflows/{runId}/draft", new SaveWorkflowDraftRequestModel(Json("""{"companyName":"x"}"""))),
+            () => client.PutAsJsonAsync($"/api/v1/workflows/{runId}/skipped-steps", new SaveWorkflowSkippedStepsRequestModel(["identity"])),
             () => client.PatchAsJsonAsync($"/api/v1/workflows/{runId}/jump", new JumpWorkflowRequestModel("identity")),
             () => client.PatchAsJsonAsync($"/api/v1/workflows/{runId}/mode", new SetWorkflowModeRequestModel("express")),
             () => client.PostAsync($"/api/v1/workflows/{runId}/complete", null),
