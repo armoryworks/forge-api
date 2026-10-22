@@ -67,8 +67,40 @@ public class GetEntityPreviewHandlerTests
         result.Subtitle.Should().Be("Acme Corp");
         result.Fields.Should().Contain(f => f.Label == "Status" && f.Value == "Confirmed");
         result.Fields.Should().Contain(f => f.Key == "status" && f.Kind == "enum" && f.RawValue == "Confirmed");
-        result.Fields.Should().Contain(f => f.Key == "total" && f.Kind == "money" && f.RawValue == "0");
+        result.Fields.Should().Contain(f => f.Key == "total" && f.Kind == "money" && f.RawValue == "0" && f.Value == "$0.00");
         result.Links.Should().Contain(l => l.Type == "customer" && l.Id == customer.Id);
+    }
+
+    [Fact]
+    public async Task Invoice_InForeignCurrency_FormatsTheTotalWithSymbolAndCode()
+    {
+        _db.Currencies.AddRange(
+            new Currency { Code = "USD", Name = "US Dollar", Symbol = "$", DecimalPlaces = 2, IsBaseCurrency = true },
+            new Currency { Code = "CAD", Name = "Canadian Dollar", Symbol = "$", DecimalPlaces = 2 });
+        var customer = new Customer { Name = "Acme Corp", CustomerNumber = "CUST-1", IsActive = true };
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync();
+        var invoice = new Invoice
+        {
+            InvoiceNumber = "INV-3001",
+            CustomerId = customer.Id,
+            CurrencyId = _db.Currencies.Single(c => c.Code == "CAD").Id,
+            Status = InvoiceStatus.Sent,
+            Lines = { new InvoiceLine { LineNumber = 1, Description = "Bracket", Quantity = 2m, UnitPrice = 617.25m } },
+        };
+        _db.Invoices.Add(invoice);
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new GetEntityPreviewQuery("invoice", invoice.Id), CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.Fields.Should().ContainSingle(f => f.Key == "total").Which.Should().BeEquivalentTo(new
+        {
+            Kind = "money",
+            Value = "$1,234.50 CAD",
+            RawValue = "1234.50",
+            Currency = "CAD",
+        });
     }
 
     [Fact]

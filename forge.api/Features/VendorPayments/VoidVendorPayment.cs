@@ -94,9 +94,10 @@ public class VoidVendorPaymentHandler(
 
         // Drop the applications so each bill's computed balance reopens.
         var affectedBillIds = payment.Applications.Select(a => a.VendorBillId).Distinct().ToList();
+        var paymentMoney = await MoneyFormat.ForVendorPaymentAsync(db, payment.Id, cancellationToken);
         var appliedTo = string.Join(", ", payment.Applications
             .OrderBy(a => a.Id)
-            .Select(a => $"{a.VendorBill?.BillNumber ?? $"Bill {a.VendorBillId}"} ({a.Amount:C})"));
+            .Select(a => $"{a.VendorBill?.BillNumber ?? $"Bill {a.VendorBillId}"} ({paymentMoney.Format(a.Amount)})"));
         foreach (var app in payment.Applications.ToList())
             db.Remove(app);
 
