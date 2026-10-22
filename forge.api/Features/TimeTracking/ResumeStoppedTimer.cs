@@ -30,6 +30,11 @@ public class ResumeStoppedTimerHandler(
         if (stoppedEntries.Count == 0)
             return null;
 
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        await db.AcquireAdvisoryLockAsync("time-entries.timer", request.UserId.ToString(), cancellationToken);
+
         var openGeneral = await repo.GetActiveTimerAsync(request.UserId, cancellationToken) is not null;
         var openOperationIds = (await repo.GetOpenTimersAsync(request.UserId, cancellationToken))
             .Where(t => t.JobOperationId.HasValue)
@@ -58,6 +63,9 @@ public class ResumeStoppedTimerHandler(
             return null;
 
         await db.SaveChangesAsync(cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
         TimeEntryResponseModel? first = null;
         foreach (var resumed in resumedEntries)

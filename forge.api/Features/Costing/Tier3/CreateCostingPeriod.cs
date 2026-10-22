@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities.Costing;
 using Forge.Core.Enums;
@@ -27,10 +28,21 @@ public class CreateCostingPeriodHandler(AppDbContext db)
 {
     public async Task<CostingPeriodResponseModel> Handle(CreateCostingPeriodCommand request, CancellationToken ct)
     {
+        var start = DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc);
+        var end = DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc);
+
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(ct)
+            : null;
+        await db.AcquireAdvisoryLockAsync("costing-periods.create", string.Empty, ct);
+
+        if (await db.CostingPeriods.AnyAsync(p => p.StartDate == start && p.EndDate == end, ct))
+            throw new InvalidOperationException("A costing period with these dates already exists.");
+
         var period = new CostingPeriod
         {
-            StartDate = DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc),
-            EndDate = DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc),
+            StartDate = start,
+            EndDate = end,
             Status = CostingPeriodStatus.Open,
         };
         db.CostingPeriods.Add(period);
@@ -39,6 +51,9 @@ public class CreateCostingPeriodHandler(AppDbContext db)
         db.LogActivityAt("created", $"Opened costing period {period.StartDate:MM/dd/yyyy}–{period.EndDate:MM/dd/yyyy}",
             ("CostingPeriod", period.Id));
         await db.SaveChangesAsync(ct);
+
+        if (tx is not null)
+            await tx.CommitAsync(ct);
 
         return new CostingPeriodResponseModel(
             period.Id, period.StartDate, period.EndDate, period.Status.ToString(), period.FrozenAt, period.ClosedAt);

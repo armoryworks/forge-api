@@ -8,6 +8,7 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 using Forge.Data.Services;
 
 namespace Forge.Api.Services;
@@ -26,12 +27,6 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
     private async Task<ScheduleRunResponseModel> RunSchedulerAsync(ScheduleParameters parameters, bool isSimulation, CancellationToken ct)
     {
-        // Check for concurrent runs
-        var hasRunning = await db.ScheduleRuns
-            .AnyAsync(r => r.Status == ScheduleRunStatus.Running, ct);
-        if (hasRunning)
-            throw new InvalidOperationException("A scheduling run is already in progress.");
-
         var run = new ScheduleRun
         {
             RunDate = clock.UtcNow,
@@ -40,8 +35,25 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
             RunByUserId = parameters.RunByUserId ?? 0,
             ParametersJson = SerializeParameters(parameters, isSimulation),
         };
-        db.ScheduleRuns.Add(run);
-        await db.SaveChangesAsync(ct);
+
+        await using (var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(ct)
+            : null)
+        {
+            await db.AcquireAdvisoryLockAsync("schedule-runs.running", string.Empty, ct);
+
+            // Check for concurrent runs
+            var hasRunning = await db.ScheduleRuns
+                .AnyAsync(r => r.Status == ScheduleRunStatus.Running, ct);
+            if (hasRunning)
+                throw new InvalidOperationException("A scheduling run is already in progress.");
+
+            db.ScheduleRuns.Add(run);
+            await db.SaveChangesAsync(ct);
+
+            if (tx is not null)
+                await tx.CommitAsync(ct);
+        }
 
         try
         {

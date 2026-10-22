@@ -32,8 +32,17 @@ public class UpsertOverheadPoolBudgetHandler(AppDbContext db)
 {
     public async Task<OverheadPoolBudgetResponseModel> Handle(UpsertOverheadPoolBudgetCommand request, CancellationToken ct)
     {
-        var budget = await db.OverheadPoolBudgets.FirstOrDefaultAsync(
-            b => b.OverheadCostPoolId == request.OverheadCostPoolId && b.CostingPeriodId == request.CostingPeriodId, ct);
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(ct)
+            : null;
+        await db.AcquireAdvisoryLockAsync(
+            "overhead-pool-budgets.upsert", $"{request.OverheadCostPoolId}:{request.CostingPeriodId}", ct);
+
+        var budget = await db.OverheadPoolBudgets
+            .Where(b => b.OverheadCostPoolId == request.OverheadCostPoolId && b.CostingPeriodId == request.CostingPeriodId)
+            .OrderByDescending(b => b.UpdatedAt)
+            .ThenByDescending(b => b.Id)
+            .FirstOrDefaultAsync(ct);
 
         if (budget is null)
         {
@@ -53,6 +62,9 @@ public class UpsertOverheadPoolBudgetHandler(AppDbContext db)
             $"Set overhead budget: {budget.BudgetAmount:0.00} over {budget.BudgetDriverQty:0.####} → rate {budget.DerivedRate:0.######}",
             ("OverheadCostPool", budget.OverheadCostPoolId), ("CostingPeriod", budget.CostingPeriodId));
         await db.SaveChangesAsync(ct);
+
+        if (tx is not null)
+            await tx.CommitAsync(ct);
 
         return new OverheadPoolBudgetResponseModel(
             budget.Id, budget.OverheadCostPoolId, budget.CostingPeriodId,
