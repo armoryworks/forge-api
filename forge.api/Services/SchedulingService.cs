@@ -7,6 +7,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Routing;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
 using Forge.Data.Services;
@@ -131,30 +132,35 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
             // 5. Schedule each job's operations
             int scheduledCount = 0;
             var newOps = new List<ScheduledOperation>();
+            var predecessorsByPart = await LoadPredecessorsAsync(jobs, ct);
 
             foreach (var job in jobs)
             {
                 var operations = job.Part!.Operations
                     .OrderBy(o => o.StepNumber)
+                    .ThenBy(o => o.Id)
                     .ToList();
+                var predecessors = predecessorsByPart[job.Part.Id];
 
-                DateTimeOffset? cursor = parameters.Direction == ScheduleDirection.Forward
+                DateTimeOffset? jobStart = parameters.Direction == ScheduleDirection.Forward
                     ? null
                     : ScheduleToStart(parameters.ScheduleTo, capacityLookup, operations, workCenters[0].Id);
 
-                DateTimeOffset? previousStart = null;
-                DateTimeOffset? previousEnd = null;
+                var spans = new Dictionary<int, ScheduledSpan>();
                 var quantity = OperationTimeMath.JobBuildQuantity(job);
 
-                for (int i = 0; i < operations.Count; i++)
+                foreach (var op in operations)
                 {
-                    var op = operations[i];
+                    var predecessorSpans = predecessors.GetValueOrDefault(op.Id, [])
+                        .Select(link => spans.GetValueOrDefault(link.PredecessorOperationId))
+                        .OfType<ScheduledSpan>()
+                        .ToList();
+                    var release = PredecessorRelease.From(predecessorSpans);
 
                     if (lockedByJobOperation.TryGetValue((job.Id, op.Id), out var locked))
                     {
-                        previousStart = locked.Start;
-                        previousEnd = locked.End;
-                        cursor = cursor is { } c && c > locked.End ? c : locked.End;
+                        spans[op.Id] = new ScheduledSpan(
+                            locked.Start, locked.End, predecessorSpans.Count == 0 ? jobStart : release.Finish, op.OverlapPercent);
                         continue;
                     }
 
@@ -188,23 +194,13 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
                     decimal totalHours = setupHours + runHours;
 
-                    // Apply overlap from previous operation
-                    DateTimeOffset? overlappedPredecessorEnd = null;
-                    if (previousStart is { } prevStart && previousEnd is { } prevEnd && cursor == prevEnd
-                        && i > 0 && operations[i - 1].OverlapPercent > 0)
-                    {
-                        var overlapFraction = Math.Min(operations[i - 1].OverlapPercent, 100m) / 100m;
-                        var overlapStart = prevEnd.AddHours(-(prevEnd - prevStart).TotalHours * (double)overlapFraction);
-                        cursor = overlapStart > prevStart ? overlapStart : prevStart;
-                        overlappedPredecessorEnd = prevEnd;
-                    }
-
+                    var cursor = predecessorSpans.Count == 0 ? jobStart : release.NotBefore;
                     var notBefore = cursor ?? capacity.MidnightUtc(parameters.ScheduleFrom);
                     var earliest = notBefore > run.RunDate ? notBefore : run.RunDate;
                     var slot = FindAvailableSlot(
                         wcId, earliest, totalHours, capacity, laneFill, parameters.ScheduleTo);
 
-                    if (overlappedPredecessorEnd is { } mustNotEndBefore && slot is { } early && early.End < mustNotEndBefore)
+                    if (release.MustNotEndBefore is { } mustNotEndBefore && slot is { } early && early.End < mustNotEndBefore)
                     {
                         slot = FindAvailableSlot(
                             wcId, earliest + (mustNotEndBefore - early.End), totalHours, capacity, laneFill, parameters.ScheduleTo);
@@ -221,6 +217,8 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                         conflicts++;
                         logger.LogWarning("No capacity found for Job {JobId} Op {OpId} at WorkCenter {WcId}",
                             job.Id, op.Id, wcId);
+                        if (predecessorSpans.Count > 0)
+                            spans[op.Id] = predecessorSpans.MaxBy(p => p.Floor is { } f && f > p.End ? f : p.End)! with { OverlapPercent = op.OverlapPercent };
                         continue;
                     }
 
@@ -249,9 +247,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                         laneFill[laneKey] = Math.Max(laneFill.GetValueOrDefault(laneKey), filledTo);
                     }
 
-                    previousStart = start;
-                    previousEnd = end;
-                    cursor = end;
+                    spans[op.Id] = new ScheduledSpan(start, end, null, op.OverlapPercent);
                 }
             }
 
@@ -279,6 +275,25 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
             await db.SaveChangesAsync(ct);
             throw;
         }
+    }
+
+    private async Task<Dictionary<int, IReadOnlyDictionary<int, IReadOnlyList<RoutingLink>>>> LoadPredecessorsAsync(
+        List<Job> jobs, CancellationToken ct)
+    {
+        var parts = jobs.Select(j => j.Part!).DistinctBy(p => p.Id).ToList();
+        var operationIds = parts.SelectMany(p => p.Operations.Select(o => o.Id)).ToList();
+        var links = await db.OperationPredecessors
+            .AsNoTracking()
+            .Where(l => operationIds.Contains(l.OperationId))
+            .Select(l => new RoutingLink(l.OperationId, l.PredecessorOperationId, l.Gate))
+            .ToListAsync(ct);
+        var linksByOperation = links.ToLookup(l => l.OperationId);
+
+        return parts.ToDictionary(
+            p => p.Id,
+            p => RoutingPredecessors.Effective(
+                p.Operations.Select(o => new RoutingStep(o.Id, o.StepNumber)).ToList(),
+                p.Operations.SelectMany(o => linksByOperation[o.Id]).ToList()));
     }
 
     private static DateTimeOffset ScheduleToStart(

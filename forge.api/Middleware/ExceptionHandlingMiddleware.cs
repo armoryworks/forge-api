@@ -236,6 +236,40 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
 
             await context.Response.WriteAsJsonAsync(problem);
         }
+        catch (Features.Parts.RoutingGraphInvalidException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status422UnprocessableEntity;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status422UnprocessableEntity,
+                Title = "Routing can't be saved",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = Features.Parts.RoutingGraphInvalidException.Code;
+            problem.Extensions["issues"] = JsonSerializer.SerializeToElement(ex.Issues, CamelCaseEnums);
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
+        catch (Features.Parts.RoutingGraphStaleException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Routing changed",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = Features.Parts.RoutingGraphStaleException.Code;
+            problem.Extensions["version"] = ex.CurrentVersion;
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
         catch (Features.Mobile.ConfirmationRequiredException ex)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
