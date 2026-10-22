@@ -5,7 +5,8 @@ namespace Forge.Api.Validation;
 /// <summary>
 /// The rule arguments a client needs to word a validation error in its own language,
 /// taken from FluentValidation's message placeholders. Only configured limits are passed
-/// (lengths, comparison values, ranges, precision); the submitted value never is.
+/// (lengths, comparison values, ranges, precision); the submitted value never is, nor is the
+/// value of another field a comparison rule checks against.
 /// </summary>
 public static class ValidationErrorParams
 {
@@ -23,9 +24,12 @@ public static class ValidationErrorParams
         var values = failure.FormattedMessagePlaceholderValues;
         if (values is null || values.Count == 0) return null;
 
+        var comparesToField = values.TryGetValue("ComparisonProperty", out var property)
+            && !string.IsNullOrEmpty(property as string);
         var result = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var name in AllowedPlaceholders)
         {
+            if (comparesToField && name == "ComparisonValue") continue;
             if (values.TryGetValue(name, out var value))
                 result[char.ToLowerInvariant(name[0]) + name[1..]] = value;
         }

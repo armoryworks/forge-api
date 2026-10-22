@@ -207,6 +207,20 @@ public sealed class ExceptionHandlingMiddlewareTests
     }
 
     [Fact]
+    public async Task A_comparison_against_another_field_sends_no_comparison_value_param()
+    {
+        var validator = new InlineValidator<DateRangeProbe>();
+        validator.RuleFor(v => v.End).GreaterThanOrEqualTo(v => v.Start);
+        var result = await validator.ValidateAsync(new DateRangeProbe(new DateOnly(2031, 7, 9), new DateOnly(2031, 7, 1)));
+
+        var (_, body) = await Run(new ValidationException(result.Errors));
+
+        var error = body.GetProperty("errors")[0];
+        error.GetProperty("code").GetString().Should().Be("GreaterThanOrEqualValidator");
+        error.GetProperty("params").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
     public async Task A_rule_with_an_explicit_error_code_sends_that_code()
     {
         var validator = new InlineValidator<string>();
@@ -232,4 +246,6 @@ public sealed class ExceptionHandlingMiddlewareTests
 
         body.GetProperty("errors")[0].GetProperty("code").ValueKind.Should().Be(JsonValueKind.Null);
     }
+
+    public sealed record DateRangeProbe(DateOnly Start, DateOnly End);
 }
