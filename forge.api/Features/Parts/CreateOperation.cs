@@ -21,6 +21,7 @@ public class CreateOperationValidator : AbstractValidator<CreateOperationCommand
         RuleFor(x => x.Data.QcCriteria).MaximumLength(1000).When(x => x.Data.QcCriteria is not null);
         RuleFor(x => x.Data.SetupMinutes).GreaterThanOrEqualTo(0m).When(x => x.Data.SetupMinutes.HasValue);
         RuleFor(x => x.Data.RunMinutesLot).GreaterThanOrEqualTo(0m).When(x => x.Data.RunMinutesLot.HasValue);
+        RuleFor(x => x.Data.ScrapFactor).GreaterThanOrEqualTo(0m).LessThan(1m).When(x => x.Data.ScrapFactor.HasValue);
 
         // Phase 3 H5 / WU-13 — when an operation is flagged as subcontract,
         // both vendor + turn time must be present. The active-check on the
@@ -68,6 +69,7 @@ public class CreateOperationHandler(IPartRepository repo, IVendorRepository vend
             EstimatedMs = data.EstimatedMs,
             SetupMinutes = data.SetupMinutes ?? 0m,
             RunMinutesLot = data.RunMinutesLot ?? 0m,
+            ScrapFactor = data.ScrapFactor ?? 0m,
             IsQcCheckpoint = data.IsQcCheckpoint,
             QcCriteria = data.QcCriteria?.Trim(),
             ReferencedOperationId = data.ReferencedOperationId,

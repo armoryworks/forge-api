@@ -96,6 +96,17 @@ public class JobOperationServiceQuantityTests
     }
 
     [Fact]
+    public async Task When_yield_drives_the_start_the_first_step_plans_the_whole_start()
+    {
+        var (db, job, _, _) = await SeedPlannedJobAsync(100m, 112m);
+
+        var built = await Service(db).BuildAsync(job.Id, default);
+
+        built.JobQuantity.Should().Be(112m);
+        built.Operations.Select(o => o.PlannedQuantity).Should().Equal(112m, 105m);
+    }
+
+    [Fact]
     public async Task An_existing_job_without_a_target_never_plans_more_than_its_quantity()
     {
         var (db, job, _, _) = await SeedPlannedJobAsync(null, 300m);

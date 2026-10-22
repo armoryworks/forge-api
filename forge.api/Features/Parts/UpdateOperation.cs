@@ -21,6 +21,7 @@ public class UpdateOperationValidator : AbstractValidator<UpdateOperationCommand
         RuleFor(x => x.Data.QcCriteria).MaximumLength(1000).When(x => x.Data.QcCriteria is not null);
         RuleFor(x => x.Data.SetupMinutes).GreaterThanOrEqualTo(0m).When(x => x.Data.SetupMinutes.HasValue);
         RuleFor(x => x.Data.RunMinutesLot).GreaterThanOrEqualTo(0m).When(x => x.Data.RunMinutesLot.HasValue);
+        RuleFor(x => x.Data.ScrapFactor).GreaterThanOrEqualTo(0m).LessThan(1m).When(x => x.Data.ScrapFactor.HasValue);
 
         // Phase 3 H5 / WU-13 — when toggling op TO subcontract, both fields
         // must be supplied in the same patch. (Resulting-state check in
@@ -59,6 +60,7 @@ public class UpdateOperationHandler(IPartRepository repo, IVendorRepository vend
         if (data.EstimatedMs is not null) operation.EstimatedMs = data.EstimatedMs;
         if (data.SetupMinutes.HasValue) operation.SetupMinutes = data.SetupMinutes.Value;
         if (data.RunMinutesLot.HasValue) operation.RunMinutesLot = data.RunMinutesLot.Value;
+        if (data.ScrapFactor.HasValue) operation.ScrapFactor = data.ScrapFactor.Value;
         if (data.IsQcCheckpoint.HasValue) operation.IsQcCheckpoint = data.IsQcCheckpoint.Value;
         if (data.QcCriteria is not null) operation.QcCriteria = data.QcCriteria.Trim();
         if (data.ReferencedOperationId is not null) operation.ReferencedOperationId = data.ReferencedOperationId == 0 ? null : data.ReferencedOperationId;

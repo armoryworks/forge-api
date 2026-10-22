@@ -24,4 +24,5 @@ public record OperationResponseModel(
     string? SubcontractVendorName = null,
     decimal? SubcontractTurnTimeDays = null,
     decimal SetupMinutes = 0,
-    decimal RunMinutesLot = 0);
+    decimal RunMinutesLot = 0,
+    decimal ScrapFactor = 0);
