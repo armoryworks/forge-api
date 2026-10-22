@@ -56,6 +56,34 @@ public class StaleTimerAlertJobTests
     }
 
     [Fact]
+    public async Task Timers_already_alerted_do_not_crowd_out_new_ones()
+    {
+        await AddSupervisorAsync("Manager");
+        var worker = await _h.AddUserAsync();
+        for (var i = 0; i < 501; i++)
+        {
+            var old = await _h.AddRunningTimerAsync(worker.Id, null, _h.Now.AddHours(-100 + i * 0.01));
+            _h.Db.Notifications.Add(new Forge.Core.Entities.Notification
+            {
+                UserId = worker.Id,
+                Type = StaleTimerAlertJob.NotificationType,
+                Severity = "warning",
+                Source = "time_tracking",
+                Title = "Timer still running",
+                Message = "earlier",
+                EntityType = StaleTimerAlertJob.EntityType,
+                EntityId = old.Id,
+            });
+        }
+        await _h.Db.SaveChangesAsync();
+        var fresh = await _h.AddRunningTimerAsync(worker.Id, null, _h.Now.AddHours(-20));
+
+        await Job().CheckStaleTimersAsync();
+
+        (await _h.Db.Notifications.AsNoTracking().CountAsync(n => n.EntityId == fresh.Id)).Should().Be(1);
+    }
+
+    [Fact]
     public async Task The_threshold_follows_the_setting()
     {
         await AddSupervisorAsync("Manager");

@@ -29,6 +29,7 @@ public class StaleTimerAlertJob(
 
         var stale = await db.TimeEntries.AsNoTracking()
             .Where(t => t.TimerStart != null && t.TimerStop == null && t.TimerStart <= cutoff)
+            .Where(t => !db.Notifications.Any(n => n.Type == NotificationType && n.EntityType == EntityType && n.EntityId == t.Id))
             .Select(t => new
             {
                 t.Id,
@@ -44,16 +45,6 @@ public class StaleTimerAlertJob(
         if (stale.Count == 0)
             return;
 
-        var ids = stale.Select(t => (int?)t.Id).ToList();
-        var alerted = (await db.Notifications.AsNoTracking()
-                .Where(n => n.Type == NotificationType && n.EntityType == EntityType && ids.Contains(n.EntityId))
-                .Select(n => n.EntityId!.Value)
-                .ToListAsync(ct))
-            .ToHashSet();
-        var fresh = stale.Where(t => !alerted.Contains(t.Id)).ToList();
-        if (fresh.Count == 0)
-            return;
-
         var supervisors = await db.UserRoles
             .Join(db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, r.Name })
             .Where(x => SupervisorRoles.Contains(x.Name!))
@@ -62,11 +53,11 @@ public class StaleTimerAlertJob(
             .ToListAsync(ct);
         if (supervisors.Count == 0)
         {
-            logger.LogInformation("[StaleTimerAlert] {Count} stale timer(s) but no manager to tell", fresh.Count);
+            logger.LogInformation("[StaleTimerAlert] {Count} stale timer(s) but no manager to tell", stale.Count);
             return;
         }
 
-        foreach (var timer in fresh)
+        foreach (var timer in stale)
         {
             var what = timer.JobNumber is null
                 ? "a timer"
@@ -91,6 +82,6 @@ public class StaleTimerAlertJob(
 
         await db.SaveChangesAsync(ct);
         logger.LogInformation("[StaleTimerAlert] Alerted {Supervisors} supervisor(s) about {Count} timer(s) running {Hours}+ hours",
-            supervisors.Count, fresh.Count, hours);
+            supervisors.Count, stale.Count, hours);
     }
 }
