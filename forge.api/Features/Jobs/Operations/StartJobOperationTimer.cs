@@ -56,7 +56,7 @@ public class StartJobOperationTimerHandler(
         if (job.IsArchived || job.Disposition.HasValue)
             throw new InvalidOperationException("This work order is closed and can't take time.");
 
-        await ClockStateRules.EnsureNotClockedOutAsync(db, clockEventTypeService, userId, clock.UtcNow, cancellationToken);
+        await ClockStateRules.EnsureNotClockedOutAsync(db, clockEventTypeService, userId, cancellationToken);
 
         var row = await operations.EnsureRowAsync(job, operation, cancellationToken);
         if (JobOperationRules.IsClosed(row.Status))

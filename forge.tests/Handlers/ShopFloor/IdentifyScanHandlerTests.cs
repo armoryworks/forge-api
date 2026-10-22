@@ -176,6 +176,8 @@ public class IdentifyScanHandlerTests
     public async Task Handle_PartBarcode_ReturnsPart()
     {
         // Arrange
+        _db.Parts.Add(new Part { Id = 42, PartNumber = "P-42" });
+        await _db.SaveChangesAsync();
         var barcode = new Barcode
         {
             Value = "BC-PART-42",
@@ -346,6 +348,15 @@ public class IdentifyScanHandlerTests
         var result = await ScanAsync(new Barcode { Value = "BC-J-GONE", EntityType = BarcodeEntityType.Job, JobId = 987654 });
 
         result.Should().Be(new ScanIdentificationResult("unknown"));
+    }
+
+    [Fact]
+    public async Task Handle_PartOrLotBarcodeWhoseRecordIsGone_ReturnsNotFound()
+    {
+        (await ScanAsync(new Barcode { Value = "BC-P-GONE", EntityType = BarcodeEntityType.Part, PartId = 987654 }))
+            .Should().Be(new ScanIdentificationResult("unknown"));
+        (await ScanAsync(new Barcode { Value = "BC-L-GONE", EntityType = BarcodeEntityType.Lot, LotRecordId = 987654 }))
+            .Should().Be(new ScanIdentificationResult("unknown"));
     }
 
     [Fact]

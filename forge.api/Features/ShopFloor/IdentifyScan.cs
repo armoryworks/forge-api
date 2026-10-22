@@ -102,8 +102,11 @@ public class IdentifyScanHandler(
             .Where(p => p.Id == partId)
             .Select(p => new { p.PartNumber, p.Name })
             .FirstOrDefaultAsync(cancellationToken);
-        return new ScanIdentificationResult("part", partId, part?.PartNumber,
-            string.IsNullOrWhiteSpace(part?.Name) ? null : part.Name);
+        if (part is null)
+            return new ScanIdentificationResult("unknown");
+
+        return new ScanIdentificationResult("part", partId, part.PartNumber,
+            string.IsNullOrWhiteSpace(part.Name) ? null : part.Name);
     }
 
     private async Task<ScanIdentificationResult> ResolveLotResult(int? lotId, CancellationToken cancellationToken)
@@ -112,7 +115,9 @@ public class IdentifyScanHandler(
             .Where(l => l.Id == lotId)
             .Select(l => new { l.LotNumber, l.Part.PartNumber })
             .FirstOrDefaultAsync(cancellationToken);
-        return new ScanIdentificationResult("lot", lotId, lot?.LotNumber, lot?.PartNumber);
+        return lot is null
+            ? new ScanIdentificationResult("unknown")
+            : new ScanIdentificationResult("lot", lotId, lot.LotNumber, lot.PartNumber);
     }
 
     private async Task<ScanIdentificationResult> ResolveLocationResult(int? locationId, CancellationToken cancellationToken)

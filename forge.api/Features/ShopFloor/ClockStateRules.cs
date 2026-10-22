@@ -130,10 +130,9 @@ public static class ClockStateRules
         AppDbContext db,
         IClockEventTypeService clockEventTypeService,
         int userId,
-        DateTimeOffset now,
         CancellationToken ct = default)
     {
-        var latest = (await LatestEventsAsync(db, [userId], now, ct: ct)).GetValueOrDefault(userId);
+        var latest = await LatestEventAsync(db, userId, ct);
         if (latest is null)
             return;
 
@@ -180,7 +179,7 @@ public static class ClockStateRules
             return status != StatusOut;
 
         if (string.IsNullOrEmpty(requested.OppositeCode))
-            return false;
+            return true;
 
         var opposite = await clockEventTypeService.GetByCodeAsync(requested.OppositeCode, ct);
         return opposite is not null && opposite.StatusMapping == status;

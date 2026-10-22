@@ -45,6 +45,18 @@ public class ClockTransitionRulesTests
     }
 
     [Fact]
+    public async Task ACustomEventWithNoPairedEvent_IsRecordedInAnyState()
+    {
+        var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-3));
+
+        await Punch(user.Id, "toolbox_talk");
+        await Punch(user.Id, "toolbox_talk");
+
+        (await _h.Db.ClockEvents.CountAsync(e => e.EventTypeCode == "toolbox_talk")).Should().Be(2);
+    }
+
+    [Fact]
     public async Task LunchEnd_WhileOnBreak_IsRefused()
     {
         var user = await _h.AddUserAsync();
@@ -201,15 +213,17 @@ public class ClockTransitionRulesTests
     }
 
     [Fact]
-    public async Task StartTimer_AfterAClockOutOlderThanTheBoardLookback_Starts()
+    public async Task StartTimer_AfterAClockOutOlderThanTheBoardLookback_IsRefused()
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-(ClockStateRules.DefaultLookbackHours + 9)));
         await _h.AddClockEventAsync(user.Id, "ClockOut", _h.Now.AddHours(-(ClockStateRules.DefaultLookbackHours + 1)));
 
-        await TimerHandler(user.Id).Handle(
+        var act = () => TimerHandler(user.Id).Handle(
             new StartTimerCommand(new StartTimerRequestModel(null, null, null)),
             CancellationToken.None);
 
-        (await _h.Db.TimeEntries.CountAsync(t => t.UserId == user.Id)).Should().Be(1);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("You're clocked out*");
+        (await _h.Db.TimeEntries.AnyAsync()).Should().BeFalse();
     }
 }

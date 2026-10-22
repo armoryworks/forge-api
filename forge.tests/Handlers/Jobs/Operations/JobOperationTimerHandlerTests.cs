@@ -62,6 +62,20 @@ public class JobOperationTimerHandlerTests
     }
 
     [Fact]
+    public async Task Start_AfterAClockOutWeeksAgo_IsRefused()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(10m);
+        var user = await _h.Timers.AddUserAsync();
+        await _h.Timers.AddClockEventAsync(user.Id, "ClockIn", _h.Timers.Now.AddDays(-21).AddHours(-8));
+        await _h.Timers.AddClockEventAsync(user.Id, "ClockOut", _h.Timers.Now.AddDays(-21));
+
+        var act = () => StartAsync(user.Id, job.Id, routing[0].Id);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("You're clocked out*");
+        (await _h.Timers.Db.TimeEntries.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Start_ForAUserWhoNeverClocks_Starts()
     {
         var (job, routing) = await _h.AddJobWithRoutingAsync(10m);

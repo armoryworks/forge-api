@@ -76,6 +76,7 @@ public sealed class TimerTestHarness
             new("shift_end", "End Shift", "Out", "ClockIn", "work", false, false, "logout", "#ef4444"),
             new("smoke_break", "Smoke Break", "OnBreak", "ClockIn", "break", true, true, "pause", "#f59e0b"),
             new("return_from_errand", "Back", "In", "smoke_break", "work", true, false, "login", "#22c55e"),
+            new("toolbox_talk", "Toolbox Talk", "OnBreak", null, "work", true, false, "groups", "#64748b"),
         };
         ClockEventTypes.Setup(t => t.GetByCodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string code, CancellationToken _) => definitions.FirstOrDefault(d => d.Code == code));

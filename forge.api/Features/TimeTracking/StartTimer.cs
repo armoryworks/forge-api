@@ -38,7 +38,7 @@ public class StartTimerHandler(
 
         var now = clock.UtcNow;
 
-        await ClockStateRules.EnsureNotClockedOutAsync(db, clockEventTypeService, userId, now, cancellationToken);
+        await ClockStateRules.EnsureNotClockedOutAsync(db, clockEventTypeService, userId, cancellationToken);
 
         var active = await repo.GetActiveTimerAsync(userId, cancellationToken);
         if (active is not null)
