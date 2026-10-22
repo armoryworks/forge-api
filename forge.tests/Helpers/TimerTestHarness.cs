@@ -93,13 +93,15 @@ public sealed class TimerTestHarness
     }
 
     public IHttpContextAccessor SignedIn(int userId, params string[] roles)
+        => SignedInWithClaims(userId, [.. roles.Select(r => new Claim(ClaimTypes.Role, r))]);
+
+    public IHttpContextAccessor SignedInWithClaims(int userId, params Claim[] extraClaims)
     {
         var accessor = new Mock<IHttpContextAccessor>();
         accessor.Setup(h => h.HttpContext).Returns(() => new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(
-                [new Claim(ClaimTypes.NameIdentifier, userId.ToString()), .. roles.Select(r => new Claim(ClaimTypes.Role, r))],
-                "test")),
+                [new Claim(ClaimTypes.NameIdentifier, userId.ToString()), .. extraClaims], "test")),
         });
         return accessor.Object;
     }

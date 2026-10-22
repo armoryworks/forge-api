@@ -30,4 +30,7 @@ public record ReorderSuggestionResponseModel(
     string SupplyType,
     int? ResultingJobId,
     string? ResultingJobNumber,
-    int? LeadTimeDays);
+    int? LeadTimeDays,
+    decimal? ReorderPoint = null,
+    decimal? ReorderQuantity = null,
+    decimal QcHoldQuantity = 0m);

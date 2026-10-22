@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Extensions;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.Inventory;
@@ -96,7 +97,7 @@ public class ReceiveItemsHandler(
         var userId = int.TryParse(
             user?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
             out var uid) ? uid : 0;
-        var receivedBy = user?.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
+        var receivedBy = user?.DisplayName();
 
         var assignedLots = new List<string>();
 

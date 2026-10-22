@@ -5,5 +5,5 @@ public record LowStockAlertModel(
     string PartNumber,
     string Description,
     decimal CurrentStock,
-    decimal MinStockThreshold,
+    decimal? MinStockThreshold,
     decimal? ReorderPoint);

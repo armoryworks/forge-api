@@ -8,6 +8,7 @@ using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Repositories;
 using Forge.Integrations;
 using Forge.Tests.Helpers;
 
@@ -131,11 +132,26 @@ public class InterPlantTransferStockTests
         await ReceiveAsync(s.Db, s.Transfer.Id, [new ReceiveTransferLineRequestModel(s.PartId, 480m)], withPosting: true);
 
         (await OnHandAsync(s.Db, s.DestinationBinId)).Should().Be(480m);
-        s.Db.BinMovements.Should().ContainSingle(m => m.Reason == BinMovementReason.Adjustment && m.Quantity == 20m);
+        s.Db.BinMovements.Should().ContainSingle(m => m.Reason == BinMovementReason.Adjustment
+            && m.Quantity == 20m && m.FromLocationId == s.SourceBinId && m.ToLocationId == null);
         var line = s.Transfer.Lines.Single();
         var journal = await LinesAsync(s.Db, $"Inventory:InterPlantTransferLine:{line.Id}:ADJUST");
         journal.Single(l => l.GlAccountId == WritedownId).Debit.Should().Be(4m);
         journal.Single(l => l.GlAccountId == RawId).Credit.Should().Be(4m);
+    }
+
+    [Fact]
+    public async Task Receive_Short_ShowsTheShortageAsALossInTheMovementHistory()
+    {
+        var s = await SeedAsync();
+        using var _ = s.Db;
+
+        await ShipAsync(s.Db, s.Transfer.Id);
+        await ReceiveAsync(s.Db, s.Transfer.Id, [new ReceiveTransferLineRequestModel(s.PartId, 480m)]);
+
+        var shortage = await s.Db.BinMovements.AsNoTracking().SingleAsync(m => m.Reason == BinMovementReason.Adjustment);
+        var shown = await new InventoryRepository(s.Db).GetMovementsAsync(null, "part", s.PartId, 50, CancellationToken.None);
+        shown.Single(m => m.Id == shortage.Id).Quantity.Should().Be(-20m);
     }
 
     [Fact]

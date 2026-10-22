@@ -107,4 +107,29 @@ public class GetSalesOrderByIdLineJobTests
             [84] = false,
         });
     }
+
+    [Fact]
+    public async Task Lines_report_whether_they_ship_goods()
+    {
+        var customer = new Customer { Id = 5, Name = "Service Co" };
+        _db.Customers.Add(customer);
+        _db.Parts.AddRange(
+            new Part { Id = 51, PartNumber = "P-51", Name = "Bracket" },
+            new Part { Id = 52, PartNumber = "SVC-SETUP", Name = "Setup charge", InventoryClass = InventoryClass.Service });
+        var so = new SalesOrder { Id = 90, OrderNumber = "SO-00090", CustomerId = customer.Id, Customer = customer };
+        so.Lines.Add(new SalesOrderLine { Id = 91, PartId = 51, Description = "Bracket", Quantity = 2m, UnitPrice = 1m, LineNumber = 1 });
+        so.Lines.Add(new SalesOrderLine { Id = 92, PartId = 52, Description = "Setup", Quantity = 1m, UnitPrice = 50m, LineNumber = 2 });
+        _db.SalesOrders.Add(so);
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var userManager = new Mock<UserManager<ApplicationUser>>(
+            Mock.Of<IUserStore<ApplicationUser>>(), null!, null!, null!, null!, null!, null!, null!, null!);
+        var handler = new GetSalesOrderByIdHandler(new SalesOrderRepository(_db), _db, userManager.Object);
+
+        var result = await handler.Handle(new GetSalesOrderByIdQuery(so.Id), CancellationToken.None);
+
+        result.Lines.Single(l => l.Id == 91).ShipsGoods.Should().BeTrue();
+        result.Lines.Single(l => l.Id == 92).ShipsGoods.Should().BeFalse();
+    }
 }

@@ -50,7 +50,8 @@ public class GetShipmentByIdHandler(IShipmentRepository repo)
                 // treating blanks as missing so a part with only a Name still shows.
                 FirstNonBlank(l.SalesOrderLine?.Description, l.Part?.Description, l.Part?.Name),
                 l.Quantity,
-                l.Notes)).ToList(),
+                l.Notes,
+                l.Part?.PartNumber)).ToList(),
             shipment.CreatedAt,
             shipment.UpdatedAt,
             shipment.Invoice?.InvoiceNumber);

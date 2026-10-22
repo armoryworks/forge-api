@@ -15,4 +15,5 @@ public record SalesOrderLineResponseModel(
     bool IsFullyShipped,
     string? Notes,
     List<SalesOrderLineJobModel> Jobs,
-    bool NeedsJob);
+    bool NeedsJob,
+    bool ShipsGoods = true);

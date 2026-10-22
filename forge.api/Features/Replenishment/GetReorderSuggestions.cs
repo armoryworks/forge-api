@@ -71,6 +71,18 @@ public class GetReorderSuggestionsHandler(AppDbContext db, IPartSourcingResolver
             ? new Dictionary<int, PartSourcingValues>()
             : await sourcingResolver.ResolveManyAsync(buyPartIds, cancellationToken);
 
+        var suggestionPartIds = suggestions.Select(s => s.PartId).Distinct().ToList();
+        var qcHoldByPart = suggestionPartIds.Count == 0
+            ? new Dictionary<int, decimal>()
+            : await db.BinContents
+                .Where(bc => bc.EntityType == "part"
+                    && suggestionPartIds.Contains(bc.EntityId)
+                    && bc.RemovedAt == null
+                    && bc.Status == BinContentStatus.QcHold)
+                .GroupBy(bc => bc.EntityId)
+                .Select(g => new { PartId = g.Key, Quantity = g.Sum(bc => bc.Quantity) })
+                .ToDictionaryAsync(x => x.PartId, x => x.Quantity, cancellationToken);
+
         return suggestions.Select(s =>
         {
             var isMake = s.Part.ProcurementSource == ProcurementSource.Make;
@@ -107,7 +119,10 @@ public class GetReorderSuggestionsHandler(AppDbContext db, IPartSourcingResolver
                 isMake ? "Make" : "Buy",
                 s.ResultingJobId,
                 s.ResultingJob?.JobNumber,
-                leadTimeDays);
+                leadTimeDays,
+                s.Part.ReorderPoint,
+                s.Part.ReorderQuantity,
+                qcHoldByPart.GetValueOrDefault(s.PartId));
         }).ToList();
     }
 }

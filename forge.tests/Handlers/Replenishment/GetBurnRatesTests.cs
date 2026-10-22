@@ -118,4 +118,20 @@ public class GetBurnRatesTests
         row.LeadTimeDays.Should().Be(21);
         row.NeedsReorder.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Stock_held_for_inspection_is_not_counted_as_on_hand_or_available()
+    {
+        var part = await SeedPartAsync("QC-BURN", ProcurementSource.Buy);
+        _db.BinContents.Add(new BinContent
+        {
+            EntityType = "part", EntityId = part.Id, Quantity = 330m, LocationId = 1, Status = BinContentStatus.QcHold,
+        });
+        await _db.SaveChangesAsync();
+
+        var row = (await Handler().Handle(new GetBurnRatesQuery(null, false), default)).Single();
+
+        row.OnHand.Should().Be(10m);
+        row.Available.Should().Be(10m);
+    }
 }

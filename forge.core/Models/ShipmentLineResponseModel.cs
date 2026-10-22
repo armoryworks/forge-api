@@ -6,4 +6,5 @@ public record ShipmentLineResponseModel(
     int? PartId,
     string Description,
     decimal Quantity,
-    string? Notes);
+    string? Notes,
+    string? PartNumber = null);

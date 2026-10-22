@@ -112,6 +112,7 @@ public class ReceiveInterPlantTransferHandler(
                     EntityId = line.PartId,
                     Quantity = shortage,
                     LotNumber = line.LotNumber,
+                    FromLocationId = line.FromLocationId,
                     MovedBy = userId,
                     MovedAt = now,
                     Reason = BinMovementReason.Adjustment,
