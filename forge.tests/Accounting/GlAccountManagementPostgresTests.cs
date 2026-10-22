@@ -51,8 +51,9 @@ public sealed class GlAccountManagementPostgresTests(PostgresFixture fixture)
             created.HasPostings.Should().BeFalse();
 
             // Duplicate number in the same book → rejected.
-            await FluentActions.Awaiting(() => handler.Handle(ok, CancellationToken.None))
-                .Should().ThrowAsync<InvalidOperationException>();
+            (await FluentActions.Awaiting(() => handler.Handle(ok, CancellationToken.None))
+                .Should().ThrowAsync<FluentValidation.ValidationException>())
+                .Which.Errors.Should().ContainSingle(e => e.PropertyName == "accountNumber");
         }
     }
 

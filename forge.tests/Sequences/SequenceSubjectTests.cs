@@ -127,7 +127,7 @@ public class SequenceSubjectTests
 
         var act = () => Publish(f, null, maxDwell: minutes);
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*max dwell*");
+        await act.Should().ThrowAsync<ValidationException>().WithMessage("*max dwell*");
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 
 using FluentAssertions;
+using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Moq;
@@ -98,6 +99,42 @@ public class PartRevisionCreatedByTests
 
         result.CreatedByName.Should().BeNull();
         (await _db.PartRevisions.AsNoTracking().SingleAsync()).CreatedBy.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("A")]
+    [InlineData(" a ")]
+    public async Task Create_rejects_the_part_current_revision_as_a_field_error(string revision)
+    {
+        var part = await SeedPartAsync();
+
+        var act = () => HandlerFor(null).Handle(
+            new CreatePartRevisionCommand(part.Id, revision, null, "Same rev", Effective), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>())
+            .Which.Errors.Should().ContainSingle(e => e.PropertyName == "revision");
+        (await _db.PartRevisions.AsNoTracking().CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Create_rejects_a_revision_already_in_history_regardless_of_case()
+    {
+        var part = await SeedPartAsync();
+        await HandlerFor(null).Handle(new CreatePartRevisionCommand(part.Id, "B", null, null, Effective), CancellationToken.None);
+
+        var act = () => HandlerFor(null).Handle(
+            new CreatePartRevisionCommand(part.Id, "b", null, null, Effective), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ValidationException>();
+    }
+
+    [Fact]
+    public void Validator_rejects_a_whitespace_only_reason()
+    {
+        var result = new CreatePartRevisionCommandValidator().Validate(
+            new CreatePartRevisionCommand(1, "B", null, "   ", Effective));
+
+        result.Errors.Should().ContainSingle(e => e.PropertyName == "ChangeReason");
     }
 
     [Fact]

@@ -45,8 +45,8 @@ public class CreateContactHandler(ICustomerRepository repo, AppDbContext db)
         var contact = new Contact
         {
             CustomerId = customer.Id,
-            FirstName = request.FirstName,
-            LastName = request.LastName,
+            FirstName = request.FirstName.Trim(),
+            LastName = request.LastName.Trim(),
             Email = request.Email,
             Phone = request.Phone,
             Mobile = request.Mobile,

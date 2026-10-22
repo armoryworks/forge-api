@@ -24,8 +24,8 @@ public class UpdateContactValidator : AbstractValidator<UpdateContactCommand>
 {
     public UpdateContactValidator()
     {
-        RuleFor(x => x.FirstName).MaximumLength(100).When(x => x.FirstName is not null);
-        RuleFor(x => x.LastName).MaximumLength(100).When(x => x.LastName is not null);
+        RuleFor(x => x.FirstName).NotEmpty().MaximumLength(100).When(x => x.FirstName is not null);
+        RuleFor(x => x.LastName).NotEmpty().MaximumLength(100).When(x => x.LastName is not null);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Phone).MaximumLength(50).When(x => x.Phone is not null);
         RuleFor(x => x.Mobile).MaximumLength(50).When(x => x.Mobile is not null);
@@ -44,14 +44,14 @@ public class UpdateContactHandler(AppDbContext db)
             ?? throw new KeyNotFoundException($"Contact {request.ContactId} not found");
 
         var changedFields = new List<string>();
-        if (request.FirstName is not null && request.FirstName != contact.FirstName)
+        if (request.FirstName is not null && request.FirstName.Trim() != contact.FirstName)
         {
-            contact.FirstName = request.FirstName;
+            contact.FirstName = request.FirstName.Trim();
             changedFields.Add("firstName");
         }
-        if (request.LastName is not null && request.LastName != contact.LastName)
+        if (request.LastName is not null && request.LastName.Trim() != contact.LastName)
         {
-            contact.LastName = request.LastName;
+            contact.LastName = request.LastName.Trim();
             changedFields.Add("lastName");
         }
         if (request.Email is not null && request.Email.NullIfEmpty() != contact.Email)

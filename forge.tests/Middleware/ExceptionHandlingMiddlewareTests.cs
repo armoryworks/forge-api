@@ -56,6 +56,19 @@ public sealed class ExceptionHandlingMiddlewareTests
     }
 
     [Fact]
+    public async Task Wrapped_command_property_names_map_to_the_form_field()
+    {
+        var ex = new ValidationException(new[]
+        {
+            new ValidationFailure("Data.Title", "Title is required."),
+        });
+
+        var (_, body) = await Run(ex);
+
+        body.GetProperty("errors")[0].GetProperty("field").GetString().Should().Be("title");
+    }
+
+    [Fact]
     public async Task Handler_validator_failures_never_echo_the_submitted_value()
     {
         var ex = new ValidationException(new[]

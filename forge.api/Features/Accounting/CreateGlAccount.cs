@@ -7,6 +7,7 @@ using Forge.Core.Enums.Accounting;
 using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
+using Forge.Api.Validation;
 
 namespace Forge.Api.Features.Accounting;
 
@@ -50,7 +51,7 @@ public class CreateGlAccountHandler(AppDbContext db)
 
         var number = request.AccountNumber.Trim();
         if (await db.GlAccounts.AnyAsync(a => a.BookId == request.BookId && a.AccountNumber == number, ct))
-            throw new InvalidOperationException($"Account number '{number}' already exists in this book.");
+            throw FieldValidation.Fail("accountNumber", $"Account number '{number}' already exists in this book.");
 
         if (request.ParentAccountId is int parentId &&
             !await db.GlAccounts.AnyAsync(a => a.Id == parentId && a.BookId == request.BookId, ct))

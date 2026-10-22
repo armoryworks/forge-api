@@ -6,6 +6,7 @@ using Forge.Core.Models;
 using Forge.Core.Sequences;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
+using Forge.Api.Validation;
 
 namespace Forge.Api.Features.Sequences;
 
@@ -29,7 +30,7 @@ public class UpdateSequenceDefinitionHandler(AppDbContext db) : IRequestHandler<
         SequenceDefinitionGraph.Apply(def, request.Model);
 
         var errors = SequenceNetValidator.Validate(def);
-        if (errors.Count > 0) throw new InvalidOperationException("Invalid sequence definition: " + string.Join(" ", errors));
+        if (errors.Count > 0) throw FieldValidation.Fail("steps", "Invalid sequence definition: " + string.Join(" ", errors));
 
         db.LogActivityAt("sequence-definition-updated", $"Sequence definition {def.Code} v{def.Version} updated", ("SequenceDefinition", def.Id));
         await db.SaveChangesAsync(cancellationToken);
