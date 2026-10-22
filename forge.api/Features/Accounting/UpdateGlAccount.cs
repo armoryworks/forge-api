@@ -1,4 +1,5 @@
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -39,8 +40,6 @@ public class UpdateGlAccountValidator : AbstractValidator<UpdateGlAccountCommand
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.AccountNumber!).NotEmpty().MaximumLength(20)
-            .Must(n => GlAccountRules.AccountNumberPattern.IsMatch(n.Trim()))
-            .WithMessage("Account number may contain only letters, digits, dots and dashes.")
             .When(x => x.AccountNumber is not null);
     }
 }
@@ -79,6 +78,13 @@ public class UpdateGlAccountHandler(AppDbContext db)
             if (request.AccountNumber is string num)
             {
                 var trimmed = num.Trim();
+                if (trimmed != account.AccountNumber && !GlAccountRules.AccountNumberPattern.IsMatch(trimmed))
+                    throw new ValidationException(
+                    [
+                        new ValidationFailure(
+                            nameof(UpdateGlAccountCommand.AccountNumber),
+                            "Account number may contain only letters, digits, dots and dashes."),
+                    ]);
                 if (trimmed != account.AccountNumber &&
                     await db.GlAccounts.AnyAsync(a => a.BookId == account.BookId && a.AccountNumber == trimmed && a.Id != account.Id, ct))
                     throw new InvalidOperationException($"Account number '{trimmed}' already exists in this book.");

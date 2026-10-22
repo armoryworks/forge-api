@@ -31,7 +31,7 @@ public class GetBudgetVsActualValidator : AbstractValidator<GetBudgetVsActualQue
     {
         RuleFor(x => x.BookId).GreaterThan(0);
         RuleFor(x => x.FiscalYear).InclusiveBetween(1900, 9999);
-        RuleFor(x => x.PeriodMonth).InclusiveBetween(1, 13)
+        RuleFor(x => x.PeriodMonth).InclusiveBetween(1, 12)
             .When(x => x.PeriodMonth is not null);
     }
 }

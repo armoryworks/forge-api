@@ -1,7 +1,12 @@
 using FluentAssertions;
+using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
+using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums.Accounting;
+using Forge.Data.Context;
+using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Accounting;
 
@@ -40,7 +45,56 @@ public class GlAccountValidatorTests
 
         validator.Validate(Update(null, "Supplies")).IsValid.Should().BeTrue();
         validator.Validate(Update("60100", "Supplies")).IsValid.Should().BeTrue();
-        validator.Validate(Update("60 100", "Supplies")).IsValid.Should().BeFalse();
         validator.Validate(Update(null, "  ")).IsValid.Should().BeFalse();
+        validator.Validate(Update(new string('9', 21), "Supplies")).IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Update_KeepsALegacyNumber_WhenOnlyTheNameChanges()
+    {
+        using var db = await SeedLegacyAccountAsync();
+
+        var updated = await new UpdateGlAccountHandler(db).Handle(
+            Update("60 100_A", "Shop Supplies") with { Id = LegacyId }, CancellationToken.None);
+
+        updated.Name.Should().Be("Shop Supplies");
+        updated.AccountNumber.Should().Be("60 100_A");
+    }
+
+    [Fact]
+    public async Task Update_RejectsAMalformedNumber_WhenTheNumberChanges()
+    {
+        using var db = await SeedLegacyAccountAsync();
+
+        var act = () => new UpdateGlAccountHandler(db).Handle(
+            Update("60 200", "Shop Supplies") with { Id = LegacyId }, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ValidationException>();
+        (await db.GlAccounts.SingleAsync(a => a.Id == LegacyId)).AccountNumber.Should().Be("60 100_A");
+    }
+
+    [Fact]
+    public async Task Update_AcceptsAWellFormedNewNumber()
+    {
+        using var db = await SeedLegacyAccountAsync();
+
+        var updated = await new UpdateGlAccountHandler(db).Handle(
+            Update("60100", "Shop Supplies") with { Id = LegacyId }, CancellationToken.None);
+
+        updated.AccountNumber.Should().Be("60100");
+    }
+
+    private const int LegacyId = 500;
+
+    private static async Task<AppDbContext> SeedLegacyAccountAsync()
+    {
+        var db = TestDbContextFactory.Create();
+        db.Set<GlAccount>().Add(new GlAccount
+        {
+            Id = LegacyId, BookId = 1, AccountNumber = "60 100_A", Name = "Supplies",
+            AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true,
+        });
+        await db.SaveChangesAsync();
+        return db;
     }
 }

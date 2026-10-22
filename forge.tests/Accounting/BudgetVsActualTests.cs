@@ -162,6 +162,7 @@ public class BudgetVsActualTests
     [InlineData(0, 2026, null)]
     [InlineData(1, 0, null)]
     [InlineData(1, 2026, 0)]
+    [InlineData(1, 2026, 13)]
     [InlineData(1, 2026, 14)]
     public void BudgetVsActualValidator_RejectsMissingOrOutOfRangeParameters(int bookId, int year, int? month)
     {
@@ -177,7 +178,6 @@ public class BudgetVsActualTests
 
         validator.Validate(new GetBudgetVsActualQuery(1, 2026)).IsValid.Should().BeTrue();
         validator.Validate(new GetBudgetVsActualQuery(1, 2026, 12)).IsValid.Should().BeTrue();
-        validator.Validate(new GetBudgetVsActualQuery(1, 2026, 13)).IsValid.Should().BeTrue();
     }
 
     [Theory]
