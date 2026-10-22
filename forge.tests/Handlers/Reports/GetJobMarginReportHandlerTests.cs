@@ -198,4 +198,21 @@ public class GetJobMarginReportHandlerTests
         rows["J-2"].Margin.Should().Be(50m);
         rows["J-2"].MarginPercentage.Should().Be(25.0m);
     }
+
+    [Fact]
+    public async Task Labor_cost_uses_the_labor_share_of_overlapping_timers_not_their_elapsed_time()
+    {
+        await SeedOrderAsync(
+            new SalesOrderLine { Id = 1, PartId = 10, Description = "Bracket", Quantity = 10, UnitPrice = 5, LineNumber = 1 });
+        AddJob(1, 1);
+        _db.TimeEntries.AddRange(
+            new TimeEntry { JobId = 1, UserId = 1, Date = new DateOnly(2026, 10, 6), DurationMinutes = 60, LaborMinutes = 15m },
+            new TimeEntry { JobId = 1, UserId = 1, Date = new DateOnly(2026, 10, 6), DurationMinutes = 30 });
+        await _db.SaveChangesAsync();
+
+        var rows = (await new GetJobMarginReportHandler(_db).Handle(new GetJobMarginReportQuery(Start, End), CancellationToken.None))
+            .ToDictionary(r => r.JobNumber);
+
+        rows["J-1"].LaborCost.Should().Be(56.25m);
+    }
 }

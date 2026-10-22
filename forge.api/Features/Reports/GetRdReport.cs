@@ -37,7 +37,7 @@ public class GetRdReportHandler(AppDbContext db)
         var hoursByJob = await db.TimeEntries
             .Where(t => t.JobId.HasValue && jobIds.Contains(t.JobId.Value))
             .GroupBy(t => t.JobId!.Value)
-            .Select(g => new { JobId = g.Key, TotalMinutes = g.Sum(t => t.DurationMinutes) })
+            .Select(g => new { JobId = g.Key, TotalMinutes = g.Sum(t => t.LaborMinutes ?? t.DurationMinutes) })
             .ToDictionaryAsync(g => g.JobId, g => g.TotalMinutes, ct);
 
         return jobs
@@ -46,7 +46,7 @@ public class GetRdReportHandler(AppDbContext db)
                 j.JobNumber,
                 j.Title,
                 j.IterationCount,
-                Math.Round((decimal)hoursByJob.GetValueOrDefault(j.Id, 0) / 60, 1),
+                Math.Round(hoursByJob.GetValueOrDefault(j.Id, 0m) / 60, 1),
                 j.CurrentStage.Name,
                 j.AssigneeId.HasValue ? users.GetValueOrDefault(j.AssigneeId.Value) : null,
                 j.StartDate,

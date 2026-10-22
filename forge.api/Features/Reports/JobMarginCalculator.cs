@@ -54,7 +54,7 @@ public static class JobMarginCalculator
         var timeByJob = await db.TimeEntries
             .Where(t => t.JobId.HasValue && jobIds.Contains(t.JobId.Value))
             .GroupBy(t => t.JobId!.Value)
-            .Select(g => new { JobId = g.Key, TotalMinutes = g.Sum(t => t.DurationMinutes) })
+            .Select(g => new { JobId = g.Key, TotalMinutes = g.Sum(t => t.LaborMinutes ?? t.DurationMinutes) })
             .ToDictionaryAsync(t => t.JobId, t => t.TotalMinutes, ct);
 
         var expensesByJob = await db.Expenses
@@ -68,7 +68,7 @@ public static class JobMarginCalculator
         return jobs.Select(job => new JobMarginRow(
                 job,
                 InvoicedRevenue(job, revenueByOrder),
-                Math.Round((decimal)timeByJob.GetValueOrDefault(job.Id, 0) / 60 * laborRate, 2),
+                Math.Round(timeByJob.GetValueOrDefault(job.Id, 0m) / 60 * laborRate, 2),
                 Math.Round(job.PurchaseOrders.Sum(po => po.Lines.Sum(l => l.OrderedQuantity * l.UnitPrice) * (po.FxRate ?? 1m)), 2),
                 expensesByJob.GetValueOrDefault(job.Id, 0m)))
             .ToList();

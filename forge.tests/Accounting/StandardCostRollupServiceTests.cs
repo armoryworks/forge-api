@@ -4,6 +4,7 @@ using FluentAssertions;
 
 using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Data.Context;
 using Forge.Integrations;
 using Forge.Tests.Helpers;
@@ -45,6 +46,42 @@ public class StandardCostRollupServiceTests
         e.Labor.Should().Be(30m);    // 1.5 × 20
         e.Overhead.Should().Be(12m); // 1.5 × 8
         e.Material.Should().Be(0m, "no BOM components");
+    }
+
+    [Fact]
+    public async Task Rollup_PartlyAttendedOperation_CostsLaborOnAttendedShare_BurdenOnFullHoursForMachineBasis()
+    {
+        using var db = TestDbContextFactory.Create();
+        var partId = await AddPartAsync(db);
+        var machine = new WorkCenter { Name = "Lathe", Code = $"WC-{Guid.NewGuid():N}", LaborCostPerHour = 20m, BurdenRatePerHour = 8m, IsActive = true, BurdenBasis = BurdenBasis.Machine };
+        var bench = new WorkCenter { Name = "Bench", Code = $"WC-{Guid.NewGuid():N}", LaborCostPerHour = 20m, BurdenRatePerHour = 8m, IsActive = true };
+        db.AddRange(machine, bench);
+        await db.SaveChangesAsync();
+        db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Turn", EstimatedMs = 90 * 60_000L, WorkCenterId = machine.Id, LaborAttendancePercent = 20m });
+        db.Add(new Operation { PartId = partId, StepNumber = 2, Title = "Deburr", EstimatedMs = 60 * 60_000L, WorkCenterId = bench.Id, LaborAttendancePercent = 50m });
+        await db.SaveChangesAsync();
+
+        var e = await new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off).RollupAsync(partId);
+
+        e.Labor.Should().Be(16m);
+        e.Overhead.Should().Be(16m);
+    }
+
+    [Fact]
+    public async Task Rollup_FullyAttendedMachineBasis_MatchesLaborBasis()
+    {
+        using var db = TestDbContextFactory.Create();
+        var partId = await AddPartAsync(db);
+        var wc = new WorkCenter { Name = "Mill", Code = $"WC-{Guid.NewGuid():N}", LaborCostPerHour = 20m, BurdenRatePerHour = 8m, IsActive = true, BurdenBasis = BurdenBasis.Machine };
+        db.Add(wc);
+        await db.SaveChangesAsync();
+        db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Op", EstimatedMs = 90 * 60_000L, WorkCenterId = wc.Id });
+        await db.SaveChangesAsync();
+
+        var e = await new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off).RollupAsync(partId);
+
+        e.Labor.Should().Be(30m);
+        e.Overhead.Should().Be(12m);
     }
 
     [Fact]

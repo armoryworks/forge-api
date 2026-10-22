@@ -238,6 +238,75 @@ public class LaborSplitTimerTests
         (await StoredAsync(longOne.Id)).LaborMinutes.Should().Be(45m);
     }
 
+    private async Task MarkStoppedBeforeUpgradeAsync(params int[] ids)
+    {
+        foreach (var entry in await _h.Db.TimeEntries.Where(t => ids.Contains(t.Id)).ToListAsync())
+        {
+            entry.LaborMinutes = null;
+            entry.AllocationMethod = null;
+            entry.AllocatedAt = null;
+        }
+        await _h.Db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task A_notes_only_edit_does_not_re_split_entries_stopped_before_the_upgrade()
+    {
+        var user = await _h.AddUserAsync();
+        var job = await _h.AddJobAsync("J-NOTES");
+        var (shortOne, longOne) = await TwoStoppedSiblingsAsync(user.Id, job.Id);
+        await MarkStoppedBeforeUpgradeAsync(shortOne.Id, longOne.Id);
+
+        await UpdateHandler(user.Id).Handle(
+            new UpdateTimeEntryCommand(shortOne.Id, new UpdateTimeEntryRequestModel(null, null, null, null, "deburred")), CancellationToken.None);
+
+        (await StoredAsync(shortOne.Id)).LaborMinutes.Should().BeNull();
+        (await StoredAsync(shortOne.Id)).AllocationMethod.Should().BeNull();
+        (await StoredAsync(longOne.Id)).LaborMinutes.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_time_edit_re_splits_the_edited_entry_but_leaves_a_sibling_stopped_before_the_upgrade_alone()
+    {
+        var user = await _h.AddUserAsync();
+        var job = await _h.AddJobAsync("J-PRE-UPGRADE");
+        var (shortOne, longOne) = await TwoStoppedSiblingsAsync(user.Id, job.Id);
+        await MarkStoppedBeforeUpgradeAsync(shortOne.Id, longOne.Id);
+
+        await UpdateHandler(user.Id).Handle(
+            new UpdateTimeEntryCommand(shortOne.Id, new UpdateTimeEntryRequestModel(null, null, 10, null, null)), CancellationToken.None);
+
+        (await StoredAsync(shortOne.Id)).LaborMinutes.Should().Be(5m);
+        var sibling = await StoredAsync(longOne.Id);
+        sibling.LaborMinutes.Should().BeNull();
+        sibling.AllocationMethod.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task An_edit_that_only_moves_a_locked_sibling_by_rounding_is_not_refused()
+    {
+        var user = await _h.AddUserAsync();
+        var job = await _h.AddJobAsync("J-ROUNDING");
+        var first = await _h.AddRunningTimerAsync(user.Id, job.Id, _h.Now.AddMinutes(-20));
+        var second = await _h.AddRunningTimerAsync(user.Id, job.Id, _h.Now.AddMinutes(-20));
+        var third = await _h.AddRunningTimerAsync(user.Id, job.Id, _h.Now.AddMinutes(-20));
+        var stopNow = _h.Now;
+        _h.Now = stopNow.AddMinutes(-10);
+        await _h.StopActiveTimerHandler().Handle(new StopActiveTimerCommand(user.Id, _h.Now, TimeEntryId: first.Id), CancellationToken.None);
+        _h.Now = stopNow;
+        await ClockOutAsync(user.Id);
+        var locked = await _h.Db.TimeEntries.SingleAsync(t => t.Id == first.Id);
+        locked.LaborMinutes.Should().Be(3.33m);
+        locked.IsLocked = true;
+        await _h.Db.SaveChangesAsync();
+
+        await UpdateHandler(user.Id).Handle(
+            new UpdateTimeEntryCommand(third.Id, new UpdateTimeEntryRequestModel(null, null, 19, null, null)), CancellationToken.None);
+
+        (await StoredAsync(first.Id)).LaborMinutes.Should().Be(3.33m);
+        (await StoredAsync(third.Id)).LaborMinutes.Should().Be(7.83m);
+    }
+
     [Fact]
     public async Task Deleting_a_timer_gives_its_sibling_the_whole_clocked_time_back()
     {

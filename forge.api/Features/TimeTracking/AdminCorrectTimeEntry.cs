@@ -63,7 +63,7 @@ public class AdminCorrectTimeEntryHandler(
         TimeEntryTimes.Apply(entry, data.StartTime, data.EndTime, data.DurationMinutes);
         if (data.Category is not null) entry.Category = data.Category.Trim();
         if (data.Notes is not null) entry.Notes = data.Notes.Trim();
-        if (laborAllocation is not null)
+        if (laborAllocation is not null && TimeEntryTimes.Span(entry) != before)
             await laborAllocation.ReallocateAsync(entry.UserId, TimeEntryTimes.Spans(before, entry), [entry], cancellationToken);
         if (jobCost is not null && entry.JobId.HasValue)
             await jobCost.PriceTimeEntryAsync(entry, cancellationToken);

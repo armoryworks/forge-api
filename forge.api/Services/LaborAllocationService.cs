@@ -27,6 +27,7 @@ public class LaborAllocationService(
 {
     private static readonly TimeSpan MaxStretch = TimeSpan.FromHours(ClockStateRules.OpenFromPriorShiftHours);
     private const int DateMarginDays = 2;
+    private const decimal RoundingTolerance = 0.01m;
 
     public async Task AllocateStoppedAsync(IReadOnlyList<TimeEntry> entries, CancellationToken ct)
     {
@@ -83,6 +84,10 @@ public class LaborAllocationService(
             return;
 
         var editedIds = edited.Select(e => e.Id).ToHashSet();
+        affected = affected.Where(e => editedIds.Contains(e.Id) || e.AllocationMethod.HasValue).ToList();
+        if (affected.Count == 0)
+            return;
+
         var changed = await ApplyAsync(userId, affected, now, refuseLocked: true, editedIds, ct);
         await PriceAsync(changed, ct);
     }
@@ -187,6 +192,9 @@ public class LaborAllocationService(
             if (!proposals.TryGetValue(entry.Id, out var proposal))
                 continue;
             if (entry.LaborMinutes == proposal.Labor && entry.AllocationMethod == proposal.Method)
+                continue;
+            if (refuseLocked && !writableLocked.Contains(entry.Id) && entry.AllocationMethod == proposal.Method
+                && Math.Abs(LaborOf(entry) - (proposal.Labor ?? entry.DurationMinutes)) <= RoundingTolerance)
                 continue;
 
             if (entry.IsLocked && !writableLocked.Contains(entry.Id))
