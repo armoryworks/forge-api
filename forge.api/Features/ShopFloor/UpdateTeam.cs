@@ -33,7 +33,10 @@ public class UpdateTeamHandler(AppDbContext db) : IRequestHandler<UpdateTeamComm
 
         await db.SaveChangesAsync(ct);
 
-        var memberCount = await db.Users.CountAsync(u => u.IsActive && u.TeamId == team.Id, ct);
+        var memberCount = await db.Users
+            .Where(u => u.IsActive && u.TeamId == team.Id && !u.IsNonEmployee)
+            .WithoutServiceAccounts(db)
+            .CountAsync(ct);
 
         return new TeamModel(team.Id, team.Name, team.Color, team.Description, memberCount);
     }

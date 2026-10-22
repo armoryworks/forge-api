@@ -27,6 +27,7 @@ public class CreateClockInOutHandlerTests
         {
             new("clock_in", "Clock In", "In", "ClockOut", "work", true, true, "login", "#22c55e"),
             new("ClockIn", "Clock In", "In", "ClockOut", "work", true, true, "login", "#22c55e"),
+            new("ClockOut", "Clock Out", "Out", "ClockIn", "work", false, false, "logout", "#ef4444"),
         };
         var types = new Mock<IClockEventTypeService>();
         types.Setup(t => t.GetByCodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))

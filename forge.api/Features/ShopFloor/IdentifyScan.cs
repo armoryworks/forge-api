@@ -12,7 +12,7 @@ namespace Forge.Api.Features.ShopFloor;
 /// then UserScanIdentifiers (auth-specific RFID/NFC), then legacy EmployeeBarcode field.
 /// Returns the entity type and details so the kiosk can route accordingly.
 /// </summary>
-public record IdentifyScanQuery(string ScanValue) : IRequest<ScanIdentificationResult>;
+public record IdentifyScanQuery(string ScanValue, bool TerminalOnly = false) : IRequest<ScanIdentificationResult>;
 
 public record ScanIdentificationResult(
     string ScanType,
@@ -20,13 +20,24 @@ public record ScanIdentificationResult(
     string? EntityNumber = null,
     string? EntityTitle = null,
     string? StageName = null,
-    string? StageColor = null);
+    string? StageColor = null,
+    bool IsClosed = false);
 
 public class IdentifyScanHandler(
     AppDbContext db,
     UserManager<ApplicationUser> userManager) : IRequestHandler<IdentifyScanQuery, ScanIdentificationResult>
 {
+    private static readonly HashSet<string> TerminalScanTypes = ["employee", "job", "part", "lot", "storage-location", "unknown"];
+
     public async Task<ScanIdentificationResult> Handle(IdentifyScanQuery request, CancellationToken cancellationToken)
+    {
+        var result = await IdentifyAsync(request, cancellationToken);
+        return request.TerminalOnly && !TerminalScanTypes.Contains(result.ScanType)
+            ? new ScanIdentificationResult("unknown")
+            : result;
+    }
+
+    private async Task<ScanIdentificationResult> IdentifyAsync(IdentifyScanQuery request, CancellationToken cancellationToken)
     {
         var scanValue = request.ScanValue.Trim();
 
@@ -40,11 +51,15 @@ public class IdentifyScanHandler(
             {
                 BarcodeEntityType.User => await ResolveEmployeeFromBarcode(barcode, cancellationToken),
                 BarcodeEntityType.Job => await ResolveJobResult(barcode.JobId!.Value, cancellationToken),
-                BarcodeEntityType.Part => new ScanIdentificationResult("part", barcode.PartId),
-                BarcodeEntityType.SalesOrder => new ScanIdentificationResult("sales-order", barcode.SalesOrderId),
-                BarcodeEntityType.PurchaseOrder => new ScanIdentificationResult("purchase-order", barcode.PurchaseOrderId),
-                BarcodeEntityType.Asset => new ScanIdentificationResult("asset", barcode.AssetId),
-                BarcodeEntityType.StorageLocation => new ScanIdentificationResult("storage-location", barcode.StorageLocationId),
+                BarcodeEntityType.Part => await ResolvePartResult(barcode.PartId, cancellationToken),
+                BarcodeEntityType.SalesOrder => new ScanIdentificationResult("sales-order", barcode.SalesOrderId,
+                    await db.SalesOrders.Where(o => o.Id == barcode.SalesOrderId).Select(o => o.OrderNumber).FirstOrDefaultAsync(cancellationToken)),
+                BarcodeEntityType.PurchaseOrder => new ScanIdentificationResult("purchase-order", barcode.PurchaseOrderId,
+                    await db.PurchaseOrders.Where(o => o.Id == barcode.PurchaseOrderId).Select(o => o.PONumber).FirstOrDefaultAsync(cancellationToken)),
+                BarcodeEntityType.Asset => new ScanIdentificationResult("asset", barcode.AssetId,
+                    await db.Assets.Where(a => a.Id == barcode.AssetId && !a.IsCustomerOwned).Select(a => a.Name).FirstOrDefaultAsync(cancellationToken)),
+                BarcodeEntityType.StorageLocation => await ResolveLocationResult(barcode.StorageLocationId, cancellationToken),
+                BarcodeEntityType.Lot => await ResolveLotResult(barcode.LotRecordId, cancellationToken),
                 _ => new ScanIdentificationResult("unknown"),
             };
         }
@@ -81,25 +96,73 @@ public class IdentifyScanHandler(
         return new ScanIdentificationResult("employee");
     }
 
+    private async Task<ScanIdentificationResult> ResolvePartResult(int? partId, CancellationToken cancellationToken)
+    {
+        var part = await db.Parts
+            .Where(p => p.Id == partId)
+            .Select(p => new { p.PartNumber, p.Name })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (part is null)
+            return new ScanIdentificationResult("unknown");
+
+        return new ScanIdentificationResult("part", partId, part.PartNumber,
+            string.IsNullOrWhiteSpace(part.Name) ? null : part.Name);
+    }
+
+    private async Task<ScanIdentificationResult> ResolveLotResult(int? lotId, CancellationToken cancellationToken)
+    {
+        var lot = await db.LotRecords
+            .Where(l => l.Id == lotId)
+            .Select(l => new { l.LotNumber, l.Part.PartNumber })
+            .FirstOrDefaultAsync(cancellationToken);
+        return lot is null
+            ? new ScanIdentificationResult("unknown")
+            : new ScanIdentificationResult("lot", lotId, lot.LotNumber, lot.PartNumber);
+    }
+
+    private async Task<ScanIdentificationResult> ResolveLocationResult(int? locationId, CancellationToken cancellationToken)
+    {
+        if (locationId is not int id)
+            return new ScanIdentificationResult("storage-location");
+
+        var names = new List<string>();
+        var visited = new HashSet<int>();
+        int? currentId = id;
+        while (currentId is int current && visited.Add(current))
+        {
+            var location = await db.StorageLocations
+                .Where(l => l.Id == current)
+                .Select(l => new { l.Name, l.ParentId })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (location is null)
+                break;
+            names.Insert(0, location.Name);
+            currentId = location.ParentId;
+        }
+
+        return new ScanIdentificationResult("storage-location", id, null, names.Count > 0 ? string.Join(" / ", names) : null);
+    }
+
     private async Task<ScanIdentificationResult> ResolveJobResult(int jobId, CancellationToken cancellationToken)
     {
         var job = await db.Jobs
-            .Include(j => j.CurrentStage)
-            .Where(j => j.Id == jobId && !j.IsArchived && j.CompletedDate == null)
+            .Where(j => j.Id == jobId)
             .Select(j => new
             {
                 j.Id,
                 j.JobNumber,
                 j.Title,
+                IsClosed = j.IsArchived || j.CompletedDate != null || j.Disposition != null,
                 StageName = j.CurrentStage != null ? j.CurrentStage.Name : null,
                 StageColor = j.CurrentStage != null ? j.CurrentStage.Color : null,
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (job != null)
-            return new ScanIdentificationResult("job", job.Id, job.JobNumber, job.Title, job.StageName, job.StageColor);
+        if (job is null)
+            return new ScanIdentificationResult("unknown");
 
-        // Job exists but is archived/completed — still report as job
-        return new ScanIdentificationResult("job", jobId);
+        return job.IsClosed
+            ? new ScanIdentificationResult("job", job.Id, job.JobNumber, job.Title, IsClosed: true)
+            : new ScanIdentificationResult("job", job.Id, job.JobNumber, job.Title, job.StageName, job.StageColor);
     }
 }

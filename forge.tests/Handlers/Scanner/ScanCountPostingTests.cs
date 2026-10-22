@@ -83,6 +83,26 @@ public class ScanCountPostingTests
     }
 
     [Fact]
+    public async Task Count_WithMoreDecimalsThanTheStockUnit_IsRefusedAndChangesNothing()
+    {
+        var (db, partId, binId) = await SeedAsync();
+        using var _ = db;
+        var unit = new UnitOfMeasure { Code = "EA", Name = "Each", DecimalPlaces = 0 };
+        db.Add(unit);
+        await db.SaveChangesAsync();
+        (await db.Parts.SingleAsync(p => p.Id == partId)).StockUomId = unit.Id;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var act = () => CountAsync(db, partId, binId, 90.5m);
+
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Should().ContainSingle(e => e.PropertyName == "ActualCount");
+        (await db.ScanActionLogs.AnyAsync()).Should().BeFalse();
+        (await db.BinContents.SumAsync(b => b.Quantity)).Should().Be(100m);
+    }
+
+    [Fact]
     public async Task ReverseCount_PostsTheOppositeAdjustment_SoTheLedgerFollowsTheBin()
     {
         var (db, partId, binId) = await SeedAsync();

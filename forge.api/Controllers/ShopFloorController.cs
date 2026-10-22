@@ -64,7 +64,8 @@ public class ShopFloorController(IMediator mediator) : ControllerBase
         if (string.IsNullOrWhiteSpace(model.ScanValue))
             return BadRequest("scanValue is required");
 
-        var result = await mediator.Send(new IdentifyScanQuery(model.ScanValue));
+        var terminalOnly = User.Identity?.IsAuthenticated != true;
+        var result = await mediator.Send(new IdentifyScanQuery(model.ScanValue, terminalOnly));
         return Ok(result);
     }
 

@@ -50,7 +50,8 @@ public sealed class JobOperationTimerPostgresTests(PostgresFixture fixture)
             HubWithGroups<TimerHub>(),
             HubWithGroups<BoardHub>(),
             mediator.Object,
-            clock.Object);
+            clock.Object,
+            Mock.Of<IClockEventTypeService>());
     }
 
     private static IHubContext<T> HubWithGroups<T>() where T : Hub
