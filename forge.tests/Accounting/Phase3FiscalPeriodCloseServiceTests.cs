@@ -344,6 +344,31 @@ public class Phase3FiscalPeriodCloseServiceTests
     }
 
     [Fact]
+    public async Task Checklist_PendingApprovalEntryDatedInThePeriod_BlocksTheClose()
+    {
+        using var db = await SeedAsync();
+        var checklist = new PeriodCloseChecklistService(
+            new GrniReconciliationService(db, new SystemClock()),
+            new ArAgingService(db, new SystemClock()),
+            new ApAgingService(db, new SystemClock()),
+            db);
+        db.JournalEntries.Add(new JournalEntry
+        {
+            BookId = BookId, EntryNumber = 99, EntryDate = new DateOnly(2026, 12, 15), FiscalPeriodId = PeriodId,
+            FiscalYearId = FiscalYearId, Source = JournalSource.Manual, CurrencyId = UsdId,
+            Status = JournalEntryStatus.PendingApproval,
+        });
+        await db.SaveChangesAsync();
+
+        var later = await checklist.EvaluateAsync(BookId, new DateOnly(2026, 12, 31));
+        var earlier = await checklist.EvaluateAsync(BookId, new DateOnly(2026, 11, 30));
+
+        later.Items.Single(i => i.Key == "PENDING_JE").Passed.Should().BeFalse();
+        later.AllPassed.Should().BeFalse();
+        earlier.Items.Single(i => i.Key == "PENDING_JE").Passed.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task LatePosting_OpenPeriod_KeepsDesiredDate()
     {
         using var db = await SeedTwoPeriodsAsync();

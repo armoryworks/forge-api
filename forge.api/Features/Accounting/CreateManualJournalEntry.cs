@@ -141,27 +141,7 @@ public class CreateManualJournalEntryHandler(
         // Build the PostingRequest at the command site (the feature pattern):
         // the handler assembles the balanced Dr/Cr request and hands it to the
         // single write seam. Manual source → IdempotencyKey stays null (§5.1).
-        var postingRequest = new PostingRequest
-        {
-            BookId = request.BookId,
-            EntryDate = request.EntryDate,
-            Source = JournalSource.Manual,
-            CurrencyId = request.CurrencyId,
-            Memo = request.Memo,
-            AllowSoftClosedOverride = request.AllowSoftClosedOverride,
-            Lines = request.Lines.Select(l => new PostingLine
-            {
-                GlAccountId = l.GlAccountId,
-                AccountKey = l.AccountKey,
-                JobId = l.JobId,
-                CostCenterId = l.CostCenterId,
-                PartyType = l.PartyType,
-                PartyId = l.PartyId,
-                Debit = l.Debit,
-                Credit = l.Credit,
-                Description = l.Description,
-            }).ToList(),
-        };
+        var postingRequest = ToPostingRequest(request);
 
         var entry = requiresApproval
             ? await postingEngine.PostPendingAsync(postingRequest, postedByUserId, cancellationToken)
@@ -169,4 +149,26 @@ public class CreateManualJournalEntryHandler(
 
         return entry.ToManualResult();
     }
+
+    internal static PostingRequest ToPostingRequest(CreateManualJournalEntryCommand request) => new()
+    {
+        BookId = request.BookId,
+        EntryDate = request.EntryDate,
+        Source = JournalSource.Manual,
+        CurrencyId = request.CurrencyId,
+        Memo = request.Memo,
+        AllowSoftClosedOverride = request.AllowSoftClosedOverride,
+        Lines = request.Lines.Select(l => new PostingLine
+        {
+            GlAccountId = l.GlAccountId,
+            AccountKey = l.AccountKey,
+            JobId = l.JobId,
+            CostCenterId = l.CostCenterId,
+            PartyType = l.PartyType,
+            PartyId = l.PartyId,
+            Debit = l.Debit,
+            Credit = l.Credit,
+            Description = l.Description,
+        }).ToList(),
+    };
 }

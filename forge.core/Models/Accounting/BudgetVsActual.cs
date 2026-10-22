@@ -26,8 +26,24 @@ public sealed class BudgetVsActual
 
     public IReadOnlyList<BudgetVsActualLine> Lines { get; init; } = [];
 
+    /// <summary>Sum of every line's budget, income and expense together; kept for existing consumers.</summary>
     public decimal TotalBudget { get; init; }
+
+    /// <summary>Sum of every line's actual, income and expense together; kept for existing consumers.</summary>
     public decimal TotalActual { get; init; }
+
+    public decimal TotalBudgetIncome { get; init; }
+    public decimal TotalBudgetExpense { get; init; }
+    public decimal TotalActualIncome { get; init; }
+    public decimal TotalActualExpense { get; init; }
+
+    /// <summary>Budgeted net income: income budget less expense budget.</summary>
+    public decimal NetBudget => TotalBudgetIncome - TotalBudgetExpense;
+
+    /// <summary>Actual net income: income actual less expense actual.</summary>
+    public decimal NetActual => TotalActualIncome - TotalActualExpense;
+
+    public decimal? NetVariance => StatementVariance.Variance(NetActual, NetBudget);
 
     public decimal? TotalVariance => StatementVariance.Variance(TotalActual, TotalBudget);
     public decimal? TotalVariancePercent => StatementVariance.Percent(TotalActual, TotalBudget);

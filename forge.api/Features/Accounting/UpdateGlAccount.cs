@@ -14,7 +14,8 @@ namespace Forge.Api.Features.Accounting;
 /// cash-flow category, parent) are always editable. The <b>structural</b> fields — account number, type,
 /// normal balance — may only change while the account has <b>no journal postings</b>; once it carries
 /// activity, changing them would corrupt the statements + the account-determination map, so they are
-/// locked. Control accounts (AR/AP/Inventory) are system-managed and cannot be edited or deactivated
+/// locked. The normal balance defaults to the type's convention; the opposite side marks a contra
+/// account. Control accounts (AR/AP/Inventory) are system-managed and cannot be edited or deactivated
 /// here. Deactivation only hides the account from pickers; historical postings are untouched.
 /// </summary>
 public record UpdateGlAccountCommand(
@@ -37,6 +38,10 @@ public class UpdateGlAccountValidator : AbstractValidator<UpdateGlAccountCommand
     {
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.AccountNumber!).NotEmpty().MaximumLength(20)
+            .Must(n => GlAccountRules.AccountNumberPattern.IsMatch(n.Trim()))
+            .WithMessage("Account number may contain only letters, digits, dots and dashes.")
+            .When(x => x.AccountNumber is not null);
     }
 }
 
@@ -70,10 +75,6 @@ public class UpdateGlAccountHandler(AppDbContext db)
                 throw new InvalidOperationException("This account has journal postings — its number, type, and normal balance are locked. Create a new account instead.");
 
             var newType = request.AccountType ?? account.AccountType;
-            var newBalance = request.NormalBalance ?? account.NormalBalance;
-            if (GlAccountRules.ExpectedNormalBalance(newType) != newBalance)
-                throw new InvalidOperationException(
-                    $"A {newType} account must have a {GlAccountRules.ExpectedNormalBalance(newType)} normal balance.");
 
             if (request.AccountNumber is string num)
             {
@@ -84,7 +85,7 @@ public class UpdateGlAccountHandler(AppDbContext db)
                 account.AccountNumber = trimmed;
             }
             account.AccountType = newType;
-            account.NormalBalance = newBalance;
+            account.NormalBalance = request.NormalBalance ?? account.NormalBalance;
         }
 
         db.LogActivityAt("updated",

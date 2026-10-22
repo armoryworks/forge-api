@@ -168,6 +168,26 @@ public class PostingEngineAuditTrailTests
     }
 
     [Fact]
+    public async Task ResubmitDraftAsync_WritesASecondSubmittedRow_ForTheResubmitter()
+    {
+        using var db = await SeedAsync();
+        var engine = CreateEngine(db);
+
+        var pending = await engine.PostPendingAsync(Request(), submittedByUserId: 7);
+        pending.Status = JournalEntryStatus.Draft;
+        await db.SaveChangesAsync();
+
+        var resubmitted = await engine.ResubmitDraftAsync(pending.Id, Request(), submittedByUserId: 7);
+
+        resubmitted.Status.Should().Be(JournalEntryStatus.PendingApproval);
+        var rows = await AuditRowsFor(db, pending.Id);
+        rows.Select(r => (r.Action, r.UserId)).Should().Equal(
+            ("GlJournalSubmitted", 7),
+            ("GlJournalSubmitted", 7));
+        rows[1].Details.Should().Contain("\"status\":\"PendingApproval\"");
+    }
+
+    [Fact]
     public async Task ReverseAsync_WritesOneRowOnTheReversal_AndARepeatAddsNone()
     {
         using var db = await SeedAsync();

@@ -31,7 +31,7 @@ public sealed class ArAgingBucket
     /// </summary>
     public int? ToDays { get; init; }
 
-    /// <summary>Human-readable label, e.g. "0-30", "31-60", "91+".</summary>
+    /// <summary>Human-readable label, e.g. "Current", "1-30", "31-60", "91+".</summary>
     public string Label { get; init; } = string.Empty;
 
     /// <summary>Net open amount (functional) attributable to this bucket.</summary>
