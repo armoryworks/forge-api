@@ -34,7 +34,6 @@ public class SendSetupInviteHandler(
             "Welcome! Complete Your Account Setup",
             $"You've been invited to join {companyName}. Use the button below to set your password and complete your account setup.\n\n" +
             $"This link expires in 7 days. If the button doesn't work, copy and paste this URL:\n{setupUrl}",
-            appBaseUrl: baseUrl,
             actionUrl: setupUrl,
             actionLabel: "Complete Setup");
 
