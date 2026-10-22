@@ -339,4 +339,57 @@ public class IdentifyScanHandlerTests
 
         result.Should().Be(new ScanIdentificationResult("asset", asset.Id, "Press 3"));
     }
+
+    [Fact]
+    public async Task Handle_JobBarcodeWhoseJobIsGone_ReturnsNotFound()
+    {
+        var result = await ScanAsync(new Barcode { Value = "BC-J-GONE", EntityType = BarcodeEntityType.Job, JobId = 987654 });
+
+        result.Should().Be(new ScanIdentificationResult("unknown"));
+    }
+
+    [Fact]
+    public async Task Handle_FromATerminalAlone_HidesOrderNumbersAndAssetNames()
+    {
+        var order = new SalesOrder { OrderNumber = "SO-0099", CustomerId = 1 };
+        var po = new PurchaseOrder { PONumber = "PO-0099", VendorId = 1 };
+        var asset = new Asset { Name = "Press 9" };
+        _db.AddRange(order, po, asset);
+        await _db.SaveChangesAsync();
+        _db.Barcodes.AddRange(
+            new Barcode { Value = "T-SO", EntityType = BarcodeEntityType.SalesOrder, SalesOrderId = order.Id, IsActive = true },
+            new Barcode { Value = "T-PO", EntityType = BarcodeEntityType.PurchaseOrder, PurchaseOrderId = po.Id, IsActive = true },
+            new Barcode { Value = "T-AS", EntityType = BarcodeEntityType.Asset, AssetId = asset.Id, IsActive = true });
+        await _db.SaveChangesAsync();
+
+        foreach (var value in new[] { "T-SO", "T-PO", "T-AS" })
+        {
+            var result = await _handler.Handle(new IdentifyScanQuery(value, TerminalOnly: true), CancellationToken.None);
+            result.Should().Be(new ScanIdentificationResult("unknown"));
+        }
+    }
+
+    [Fact]
+    public async Task Handle_FromATerminalAlone_StillResolvesPartsLotsAndLocations()
+    {
+        var part = new Part { PartNumber = "BRK-200", Name = "Bracket" };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+        var lot = new LotRecord { LotNumber = "LOT-9", PartId = part.Id };
+        var bin = new StorageLocation { Name = "Bin B2", LocationType = LocationType.Bin };
+        _db.AddRange(lot, bin);
+        await _db.SaveChangesAsync();
+        _db.Barcodes.AddRange(
+            new Barcode { Value = "T-PART", EntityType = BarcodeEntityType.Part, PartId = part.Id, IsActive = true },
+            new Barcode { Value = "T-LOT", EntityType = BarcodeEntityType.Lot, LotRecordId = lot.Id, IsActive = true },
+            new Barcode { Value = "T-BIN", EntityType = BarcodeEntityType.StorageLocation, StorageLocationId = bin.Id, IsActive = true });
+        await _db.SaveChangesAsync();
+
+        (await _handler.Handle(new IdentifyScanQuery("T-PART", TerminalOnly: true), CancellationToken.None))
+            .Should().Be(new ScanIdentificationResult("part", part.Id, "BRK-200", "Bracket"));
+        (await _handler.Handle(new IdentifyScanQuery("T-LOT", TerminalOnly: true), CancellationToken.None))
+            .Should().Be(new ScanIdentificationResult("lot", lot.Id, "LOT-9", "BRK-200"));
+        (await _handler.Handle(new IdentifyScanQuery("T-BIN", TerminalOnly: true), CancellationToken.None))
+            .Should().Be(new ScanIdentificationResult("storage-location", bin.Id, null, "Bin B2"));
+    }
 }

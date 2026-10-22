@@ -62,6 +62,34 @@ public class JobOperationTimerHandlerTests
     }
 
     [Fact]
+    public async Task Start_ForAUserWhoNeverClocks_Starts()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(10m);
+        var user = await _h.Timers.AddUserAsync();
+        (await _h.Timers.Db.ClockEvents.AnyAsync(e => e.UserId == user.Id)).Should().BeFalse();
+
+        var result = await StartAsync(user.Id, job.Id, routing[0].Id);
+
+        result.AlreadyRunning.Should().BeFalse();
+        (await _h.Timers.Db.TimeEntries.CountAsync(e => e.UserId == user.Id)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Start_AfterClockingBackIn_Starts()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(10m);
+        var user = await _h.Timers.AddUserAsync();
+        await _h.Timers.AddClockEventAsync(user.Id, "ClockIn", _h.Timers.Now.AddHours(-5));
+        await _h.Timers.AddClockEventAsync(user.Id, "ClockOut", _h.Timers.Now.AddHours(-3));
+        await _h.Timers.AddClockEventAsync(user.Id, "ClockIn", _h.Timers.Now.AddHours(-1));
+
+        var result = await StartAsync(user.Id, job.Id, routing[0].Id);
+
+        result.AlreadyRunning.Should().BeFalse();
+        (await _h.Timers.Db.TimeEntries.CountAsync(e => e.UserId == user.Id)).Should().Be(1);
+    }
+
+    [Fact]
     public async Task Start_Twice_ReturnsTheRunningTimerInsteadOfAConflict()
     {
         var (job, routing) = await _h.AddJobWithRoutingAsync(10m);

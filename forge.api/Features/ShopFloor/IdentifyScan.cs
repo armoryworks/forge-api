@@ -12,7 +12,7 @@ namespace Forge.Api.Features.ShopFloor;
 /// then UserScanIdentifiers (auth-specific RFID/NFC), then legacy EmployeeBarcode field.
 /// Returns the entity type and details so the kiosk can route accordingly.
 /// </summary>
-public record IdentifyScanQuery(string ScanValue) : IRequest<ScanIdentificationResult>;
+public record IdentifyScanQuery(string ScanValue, bool TerminalOnly = false) : IRequest<ScanIdentificationResult>;
 
 public record ScanIdentificationResult(
     string ScanType,
@@ -27,7 +27,17 @@ public class IdentifyScanHandler(
     AppDbContext db,
     UserManager<ApplicationUser> userManager) : IRequestHandler<IdentifyScanQuery, ScanIdentificationResult>
 {
+    private static readonly HashSet<string> TerminalScanTypes = ["employee", "job", "part", "lot", "storage-location", "unknown"];
+
     public async Task<ScanIdentificationResult> Handle(IdentifyScanQuery request, CancellationToken cancellationToken)
+    {
+        var result = await IdentifyAsync(request, cancellationToken);
+        return request.TerminalOnly && !TerminalScanTypes.Contains(result.ScanType)
+            ? new ScanIdentificationResult("unknown")
+            : result;
+    }
+
+    private async Task<ScanIdentificationResult> IdentifyAsync(IdentifyScanQuery request, CancellationToken cancellationToken)
     {
         var scanValue = request.ScanValue.Trim();
 
@@ -144,7 +154,7 @@ public class IdentifyScanHandler(
             .FirstOrDefaultAsync(cancellationToken);
 
         if (job is null)
-            return new ScanIdentificationResult("job", jobId, IsClosed: true);
+            return new ScanIdentificationResult("unknown");
 
         return job.IsClosed
             ? new ScanIdentificationResult("job", job.Id, job.JobNumber, job.Title, IsClosed: true)
