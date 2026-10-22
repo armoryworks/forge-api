@@ -9,7 +9,6 @@ public static class OnboardingFieldRules
     public const int MaxDependents = 20;
     public const int MaxStateAllowances = 99;
     public const decimal MaxMoney = 999_999.99m;
-    public const decimal MaxDependentsAmount = MaxDependents * 2000m + MaxDependents * 500m;
 }
 
 public class OnboardingSubmitModelValidator : AbstractValidator<OnboardingSubmitRequestModel>
@@ -25,7 +24,7 @@ public class OnboardingSubmitModelValidator : AbstractValidator<OnboardingSubmit
         RuleFor(x => x.W4FilingStatus).NotEmpty();
         RuleFor(x => x.I9CitizenshipStatus).NotEmpty();
 
-        RuleFor(x => x.W4ClaimDependentsAmount).InclusiveBetween(0m, OnboardingFieldRules.MaxDependentsAmount);
+        RuleFor(x => x.W4ClaimDependentsAmount).InclusiveBetween(0m, OnboardingFieldRules.MaxMoney);
         RuleFor(x => x.W4OtherIncome).InclusiveBetween(0m, OnboardingFieldRules.MaxMoney);
         RuleFor(x => x.W4Deductions).InclusiveBetween(0m, OnboardingFieldRules.MaxMoney);
         RuleFor(x => x.W4ExtraWithholding).InclusiveBetween(0m, OnboardingFieldRules.MaxMoney);

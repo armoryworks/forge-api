@@ -81,4 +81,17 @@ public class OnboardingFieldRulesTests
             .Validate(new SaveOnboardingDataCommand(1, "pat@example.test", "Pat Lee", model))
             .IsValid.Should().BeFalse();
     }
+
+    [Theory]
+    [InlineData(52_000, true)]
+    [InlineData(999_999.99, true)]
+    [InlineData(1_000_000, false)]
+    [InlineData(-1, false)]
+    public void Submit_BoundsTheDependentsAmountByTheMoneyMaximumNotAPerChildFigure(double amount, bool valid)
+    {
+        var model = CompleteSubmission() with { W4ClaimDependentsAmount = (decimal)amount };
+        new SaveOnboardingDataValidator()
+            .Validate(new SaveOnboardingDataCommand(1, "pat@example.test", "Pat Lee", model))
+            .IsValid.Should().Be(valid);
+    }
 }

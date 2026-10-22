@@ -16,6 +16,8 @@ public class DailyDigestJob(
     IConfiguration configuration,
     ILogger<DailyDigestJob> logger)
 {
+    public const string DigestPreferenceKey = "notif:email_digest";
+
     public async Task SendDailyDigestAsync(CancellationToken ct = default)
     {
         var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct) ?? "Forge";
@@ -23,8 +25,13 @@ public class DailyDigestJob(
         var appBaseUrl = configuration[FrontendBaseUrl.SettingKey];
 
         // Get users with email digest enabled
+        var optedOut = await db.UserPreferences
+            .Where(p => p.Key == DigestPreferenceKey && p.ValueJson.Trim() == "false")
+            .Select(p => p.UserId)
+            .ToListAsync(ct);
+
         var users = await db.Users
-            .Where(u => u.IsActive && u.Email != null)
+            .Where(u => u.IsActive && u.Email != null && !optedOut.Contains(u.Id))
             .Select(u => new { u.Id, u.Email, u.FirstName })
             .ToListAsync(ct);
 
