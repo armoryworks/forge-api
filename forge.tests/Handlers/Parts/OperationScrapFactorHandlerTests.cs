@@ -89,6 +89,23 @@ public class OperationScrapFactorHandlerTests
     }
 
     [Fact]
+    public async Task CreateAndUpdate_TruncateToTheStoredFourPlaces_SoTheFactorStaysBelowOne()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+
+        var created = await new CreateOperationHandler(NewPartRepo(db), Mock.Of<IVendorRepository>()).Handle(
+            new CreateOperationCommand(part.Id, CreateRequest(0.99999m)),
+            CancellationToken.None);
+        created.ScrapFactor.Should().Be(0.9999m);
+
+        var updated = await new UpdateOperationHandler(NewPartRepo(db), Mock.Of<IVendorRepository>()).Handle(
+            new UpdateOperationCommand(part.Id, created.Id, UpdateRequest(0.123456m)),
+            CancellationToken.None);
+        updated.ScrapFactor.Should().Be(0.1234m);
+    }
+
+    [Fact]
     public async Task Update_LeavesScrapFactorAloneWhenOmitted()
     {
         using var db = TestDbContextFactory.Create();

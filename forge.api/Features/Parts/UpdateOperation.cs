@@ -60,7 +60,7 @@ public class UpdateOperationHandler(IPartRepository repo, IVendorRepository vend
         if (data.EstimatedMs is not null) operation.EstimatedMs = data.EstimatedMs;
         if (data.SetupMinutes.HasValue) operation.SetupMinutes = data.SetupMinutes.Value;
         if (data.RunMinutesLot.HasValue) operation.RunMinutesLot = data.RunMinutesLot.Value;
-        if (data.ScrapFactor.HasValue) operation.ScrapFactor = data.ScrapFactor.Value;
+        if (data.ScrapFactor.HasValue) operation.ScrapFactor = Math.Round(data.ScrapFactor.Value, 4, MidpointRounding.ToZero);
         if (data.IsQcCheckpoint.HasValue) operation.IsQcCheckpoint = data.IsQcCheckpoint.Value;
         if (data.QcCriteria is not null) operation.QcCriteria = data.QcCriteria.Trim();
         if (data.ReferencedOperationId is not null) operation.ReferencedOperationId = data.ReferencedOperationId == 0 ? null : data.ReferencedOperationId;
