@@ -60,6 +60,8 @@ public class GetLaborReconciliationHandler(
             })
             .ToListAsync(ct);
         var events = await eventQuery.ToListAsync(ct);
+        var entriesByDay = entries.ToLookup(e => (e.UserId, e.Date));
+        var eventsByUser = events.ToLookup(e => e.UserId);
 
         var userIds = entries.Select(e => e.UserId).Concat(events.Select(e => e.UserId)).Distinct().ToList();
         var names = await db.Users.AsNoTracking()
@@ -73,8 +75,7 @@ public class GetLaborReconciliationHandler(
         var rows = new List<LaborReconciliationRowResponseModel>();
         foreach (var userId in userIds)
         {
-            var marks = events
-                .Where(e => e.UserId == userId)
+            var marks = eventsByUser[userId]
                 .OrderBy(e => e.Timestamp).ThenBy(e => e.Id)
                 .Select(e => new ClockMark(e.Timestamp, StateOf(ClockStateRules.ResolveStatus(e, definitions).Status)))
                 .ToList();
@@ -86,7 +87,7 @@ public class GetLaborReconciliationHandler(
                 if (dayStart >= now)
                     break;
 
-                var dayEntries = entries.Where(e => e.UserId == userId && e.Date == day).ToList();
+                var dayEntries = entriesByDay[(userId, day)].ToList();
                 var prior = marks.LastOrDefault(m => m.At < dayStart);
                 var usesClock = marks.Any(m => m.At >= dayStart && m.At < dayEnd)
                     || (prior is not null && prior.State != ClockState.Out && dayStart - prior.At < MaxStretch);

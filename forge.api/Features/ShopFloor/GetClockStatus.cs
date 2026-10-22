@@ -85,6 +85,7 @@ public class GetClockStatusHandler(
         var activeTimers = await db.TimeEntries
             .Include(t => t.Job)
             .Include(t => t.Operation)
+                .ThenInclude(o => o!.WorkCenter)
             .Where(t => t.TimerStart != null && t.TimerStop == null)
             .ToListAsync(ct);
 
@@ -147,6 +148,19 @@ public class GetClockStatusHandler(
             .ToDictionary(g => g.Key, g => g.Max(t => t.TimerStart!.Value));
 
         var tracking = await operations.IsTrackingEnabledAsync(ct);
+        var nextOperations = await KioskWork.NextOperationsAsync(db, allJobIds, tracking, ct);
+        var ownRunningStep = !tracking
+            ? []
+            : activeTimers
+                .Where(t => t.JobId.HasValue && t.Operation is not null)
+                .GroupBy(t => (t.UserId, JobId: t.JobId!.Value))
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(t => t.Operation!)
+                        .OrderBy(o => o.StepNumber).ThenBy(o => o.Id)
+                        .Select(o => new KioskNextOperationResponseModel(
+                            o.Id, o.StepNumber, o.Title, o.WorkCenterId, o.WorkCenter?.Name))
+                        .First());
 
         var assignedSet = assignedIds.Select(p => (p.UserId, p.JobId)).ToHashSet();
         var recentSet = recentPairs.Select(p => (p.UserId, p.JobId)).ToHashSet();
@@ -162,7 +176,6 @@ public class GetClockStatusHandler(
             if (jobIds.Count == 0)
                 continue;
 
-            var nextOperations = await KioskWork.NextOperationsAsync(db, jobIds, tracking, ct, userId);
             assignmentsByUser[userId] = jobIds
                 .Select(id => jobRows[id])
                 .Select(j =>
@@ -180,7 +193,7 @@ public class GetClockStatusHandler(
                         hasTimer,
                         hasTimer ? timerStartedAt : null,
                         j.PartNumber,
-                        nextOperations.GetValueOrDefault(j.Id),
+                        ownRunningStep.GetValueOrDefault((userId, j.Id)) ?? nextOperations.GetValueOrDefault(j.Id),
                         j.DueDate,
                         isAssigned,
                         !isAssigned && !hasTimer);
