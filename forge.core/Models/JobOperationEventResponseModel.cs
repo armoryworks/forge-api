@@ -9,4 +9,6 @@ public record JobOperationEventResponseModel(
     string? ReasonCode,
     int UserId,
     string UserName,
-    DateTimeOffset OccurredAt);
+    DateTimeOffset OccurredAt,
+    bool GateOverride = false,
+    string? GateOverrideReason = null);

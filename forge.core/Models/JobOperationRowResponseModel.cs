@@ -33,4 +33,8 @@ public record JobOperationRowResponseModel
     public decimal? HistoryRunMinutesEach { get; init; }
     public int HistoryJobCount { get; init; }
     public List<JobOperationOpenTimerResponseModel> OpenTimers { get; init; } = [];
+    public decimal? Available { get; init; }
+    public int? AvailableFromStep { get; init; }
+    public List<int> WaitingOnSteps { get; init; } = [];
+    public bool CycleCountdown { get; init; }
 }

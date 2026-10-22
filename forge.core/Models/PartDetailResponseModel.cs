@@ -95,4 +95,5 @@ public record PartDetailResponseModel(
     // Licensed GS1 GTIN (CAP-MD-GS1). Null = internal identity only.
     string? Gtin = null,
     decimal? ExpectedYieldPercent = null,
-    PartStandardCostModel? StandardCost = null);
+    PartStandardCostModel? StandardCost = null,
+    StepGatingMode? StepGating = null);

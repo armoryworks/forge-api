@@ -25,6 +25,10 @@ public class UpdateOperationValidator : AbstractValidator<UpdateOperationCommand
         RuleFor(x => x.Data.ScrapFactor).GreaterThanOrEqualTo(0m).LessThan(1m).When(x => x.Data.ScrapFactor.HasValue);
         RuleFor(x => x.Data.RunMinutesEach).GreaterThanOrEqualTo(0m).FitsNumeric(10, 2).When(x => x.Data.RunMinutesEach.HasValue);
         RuleFor(x => x.Data.LaborAttendancePercent).InclusiveBetween(0m, 100m).FitsNumeric(5, 2).When(x => x.Data.LaborAttendancePercent.HasValue);
+        RuleFor(x => x.Data.Predecessors).Must(p => p!.Count <= RoutingPredecessorEditor.MaxPredecessors)
+            .WithMessage($"A step can follow at most {RoutingPredecessorEditor.MaxPredecessors} steps.")
+            .When(x => x.Data.Predecessors is not null);
+        RuleForEach(x => x.Data.Predecessors).ChildRules(p => p.RuleFor(l => l.Gate).IsInEnum());
 
         // Phase 3 H5 / WU-13 — when toggling op TO subcontract, both fields
         // must be supplied in the same patch. (Resulting-state check in
@@ -66,6 +70,7 @@ public class UpdateOperationHandler(IPartRepository repo, IVendorRepository vend
         if (data.RunMinutesLot.HasValue) operation.RunMinutesLot = data.RunMinutesLot.Value;
         if (data.RunMinutesEach.HasValue) operation.RunMinutesEach = data.RunMinutesEach.Value;
         if (data.LaborAttendancePercent.HasValue) operation.LaborAttendancePercent = data.LaborAttendancePercent.Value;
+        if (data.CycleCountdown.HasValue) operation.CycleCountdown = data.CycleCountdown.Value;
         if (data.ScrapFactor.HasValue) operation.ScrapFactor = Math.Round(data.ScrapFactor.Value, 4, MidpointRounding.ToZero);
         if (data.IsQcCheckpoint.HasValue) operation.IsQcCheckpoint = data.IsQcCheckpoint.Value;
         if (data.QcCriteria is not null) operation.QcCriteria = data.QcCriteria.Trim();
@@ -114,6 +119,10 @@ public class UpdateOperationHandler(IPartRepository repo, IVendorRepository vend
             var vendor = await vendorRepo.FindAsync(operation.SubcontractVendorId.Value, cancellationToken);
             ActiveCheck.EnsureActive(vendor, "Vendor", "subcontractVendorId", operation.SubcontractVendorId.Value);
         }
+
+        if (data.Predecessors is not null || data.StepNumber.HasValue)
+            await RoutingPredecessorEditor.ApplyAsync(
+                repo, request.PartId, operation, data.Predecessors, data.RemoveConflictingPredecessors, cancellationToken);
 
         await repo.SaveChangesAsync(cancellationToken);
 

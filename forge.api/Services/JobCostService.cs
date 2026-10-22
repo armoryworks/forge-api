@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Jobs;
+using Forge.Core.Costing;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -157,7 +158,24 @@ public class JobCostService(
 
     public Task PriceTimeEntryAsync(TimeEntry entry, CancellationToken ct) => PriceAsync([entry], ct);
 
-    private async Task PriceAsync(IReadOnlyList<TimeEntry> entries, CancellationToken ct)
+    public async Task RepriceMachineSiblingsAsync(IReadOnlyCollection<TimeEntry> edited, CancellationToken ct)
+    {
+        var jobOperationIds = edited.Where(e => e.JobOperationId.HasValue).Select(e => e.JobOperationId!.Value).Distinct().ToList();
+        if (jobOperationIds.Count == 0)
+            return;
+
+        var siblings = (await db.TimeEntries
+                .Where(t => t.JobOperationId != null && jobOperationIds.Contains(t.JobOperationId.Value)
+                    && !t.IsManual && !t.IsLocked && t.AllocationMethod != null
+                    && t.TimerStart != null && t.TimerStop != null)
+                .ToListAsync(ct))
+            .Where(t => t.DeletedAt == null && !edited.Any(e => ReferenceEquals(e, t) || e.Id == t.Id))
+            .ToList();
+        if (siblings.Count > 0)
+            await PriceAsync(siblings, ct, burdenOnly: true);
+    }
+
+    private async Task PriceAsync(IReadOnlyList<TimeEntry> entries, CancellationToken ct, bool burdenOnly = false)
     {
         if (entries.Count == 0)
             return;
@@ -188,9 +206,17 @@ public class JobCostService(
             .Select(w => new { w.Id, w.LaborCostPerHour, w.BurdenRatePerHour, w.BurdenBasis })
             .ToDictionaryAsync(w => w.Id, ct);
 
+        var machineShares = await MachineSharesAsync(entries,
+            e => WorkCenterOf(e) is int id && workCenters.GetValueOrDefault(id)?.BurdenBasis == BurdenBasis.Machine, ct);
+
         var policies = new Dictionary<DateOnly, CostingConversionPolicy>();
         foreach (var entry in entries)
         {
+            var machineBasis = WorkCenterOf(entry) is int basisWcId
+                && workCenters.GetValueOrDefault(basisWcId)?.BurdenBasis == BurdenBasis.Machine;
+            if (burdenOnly && !machineBasis)
+                continue;
+
             if (!policies.TryGetValue(entry.Date, out var policy))
             {
                 policy = await CostingConversionPolicy.LoadAsync(db, capabilities, entry.Date, ct);
@@ -212,15 +238,54 @@ public class JobCostService(
             var actualRate = userRate?.ActualRatePerHour ?? hourlyRate; // no actual rate → costs at standard
             var burdenPerHour = Positive(operation?.BurdenRate) ?? workCenter?.BurdenRatePerHour ?? 0m;
             var laborHours = (entry.LaborMinutes ?? entry.DurationMinutes) / 60m;
-            var machineHours = entry.DurationMinutes / 60m;
+            var machineHours = entry.DurationMinutes / 60m * machineShares.GetValueOrDefault(entry, 1m);
 
-            entry.LaborCost = laborHours * hourlyRate;       // standard-rate basis (efficiency variance)
-            entry.ActualLaborCost = laborHours * actualRate; // actual-rate basis (rate variance = actual − standard)
-            var machineBasis = workCenter?.BurdenBasis == BurdenBasis.Machine;
+            if (!burdenOnly)
+            {
+                entry.LaborCost = laborHours * hourlyRate;       // standard-rate basis (efficiency variance)
+                entry.ActualLaborCost = laborHours * actualRate; // actual-rate basis (rate variance = actual − standard)
+            }
             entry.BurdenCost = machineBasis
                 ? policy.Overhead(workCenterId, machineHours, machineHours * hourlyRate, burdenPerHour)
                 : policy.Overhead(workCenterId, laborHours, entry.LaborCost, burdenPerHour);
         }
+    }
+
+    private async Task<Dictionary<TimeEntry, decimal>> MachineSharesAsync(
+        IReadOnlyList<TimeEntry> entries, Func<TimeEntry, bool> isMachineBasis, CancellationToken ct)
+    {
+        var shares = new Dictionary<TimeEntry, decimal>(ReferenceEqualityComparer.Instance);
+        var candidates = entries
+            .Where(e => e.JobOperationId.HasValue && !e.IsManual && e.TimerStart.HasValue
+                && e.TimerStop > e.TimerStart && isMachineBasis(e))
+            .ToList();
+        if (candidates.Count == 0)
+            return shares;
+
+        var jobOperationIds = candidates.Select(e => e.JobOperationId!.Value).Distinct().ToList();
+        var stored = await db.TimeEntries.AsNoTracking()
+            .Where(t => t.JobOperationId != null && jobOperationIds.Contains(t.JobOperationId.Value)
+                && !t.IsManual && t.TimerStart != null)
+            .ToListAsync(ct);
+        var byId = stored.ToDictionary(t => t.Id);
+        foreach (var local in db.TimeEntries.Local.Where(t => t.Id != 0 && t.JobOperationId.HasValue
+                     && jobOperationIds.Contains(t.JobOperationId.Value)))
+            byId[local.Id] = local;
+        foreach (var entry in entries.Where(e => e.Id != 0))
+            byId[entry.Id] = entry;
+        var siblings = byId.Values
+            .Where(t => t.DeletedAt == null && !t.IsManual && t.TimerStart.HasValue)
+            .ToLookup(t => t.JobOperationId!.Value);
+
+        foreach (var entry in candidates)
+        {
+            var others = siblings[entry.JobOperationId!.Value]
+                .Where(t => !ReferenceEquals(t, entry) && t.Id != entry.Id)
+                .Select(t => new MachineInterval(t.TimerStart!.Value, t.TimerStop));
+            shares[entry] = MachineTimeSharing.ShareOf(new MachineInterval(entry.TimerStart!.Value, entry.TimerStop), others);
+        }
+
+        return shares;
     }
 
     private static decimal? Positive(decimal? value) => value > 0m ? value : null;

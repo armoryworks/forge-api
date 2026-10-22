@@ -24,6 +24,12 @@ public interface IJobCostService
     /// <summary>Sets one entry's labor, actual labor and burden cost (no save). Labor hours are the entry's labor
     /// share when overlapping timers split it, else its duration. Labor rate: the user's labor rate, else the work
     /// center's labor cost per hour, else the operation's labor rate; burden follows the costing policy the standard
-    /// rollup uses, on elapsed hours for a Machine-basis work center and on labor hours otherwise.</summary>
+    /// rollup uses, on elapsed hours for a Machine-basis work center and on labor hours otherwise. On a Machine-basis
+    /// step the elapsed hours are shared with other timers that overlapped it on the same job step, so the machine is
+    /// burdened once for the time they ran together.</summary>
     Task PriceTimeEntryAsync(TimeEntry entry, CancellationToken ct);
+    /// <summary>Re-prices the burden of the unlocked, stopped Machine-basis timers that share a job step with the edited
+    /// entries, so their share of the machine follows an edit (no save). Entries stopped before the labor split keep
+    /// their cost.</summary>
+    Task RepriceMachineSiblingsAsync(IReadOnlyCollection<TimeEntry> edited, CancellationToken ct);
 }

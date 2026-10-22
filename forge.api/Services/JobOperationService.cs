@@ -6,6 +6,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Routing;
 using Forge.Core.Settings;
 using Forge.Data.Context;
 
@@ -77,7 +78,7 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
     }
 
     public void ApplyProgress(JobOperation row, decimal completed, decimal scrap, decimal rework,
-        string? reasonCode, int userId, DateTimeOffset occurredAt)
+        string? reasonCode, int userId, DateTimeOffset occurredAt, bool gateOverride = false, string? gateOverrideReason = null)
     {
         var code = string.IsNullOrWhiteSpace(reasonCode) ? null : reasonCode.Trim();
         var changes = new[]
@@ -98,6 +99,8 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
                 UserId = userId,
                 OccurredAt = occurredAt,
                 CreatedAt = clock.UtcNow,
+                GateOverride = gateOverride,
+                GateOverrideReason = gateOverride ? gateOverrideReason : null,
             });
         }
 
@@ -172,6 +175,19 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
 
         var history = await HistoryByOperationAsync(operationIds, ct);
 
+        var gating = StepGateService.ResolveMode(
+            job.Part?.StepGating, await settings.GetStringAsync(ShopFloorSettings.StepGatingKey, ct));
+        var stepByOperation = routing.GroupBy(o => o.Id).ToDictionary(g => g.Key, g => g.First().StepNumber);
+        IReadOnlyDictionary<int, IReadOnlyList<RoutingLink>> predecessors = new Dictionary<int, IReadOnlyList<RoutingLink>>();
+        var progress = new Dictionary<int, StepProgress>();
+        if (gating != StepGatingMode.Off && routing.Count > 0)
+        {
+            predecessors = RoutingPredecessors.Effective(
+                routing.Select(o => new RoutingStep(o.Id, o.StepNumber)).ToList(),
+                await StepGateService.LoadLinksAsync(db, routingIds, ct));
+            progress = rowsByOperation.ToDictionary(r => r.Key, r => new StepProgress(r.Value.Status, r.Value.CompletedQuantity));
+        }
+
         JobOperationRowResponseModel BuildRow(Operation? op, JobOperation? row)
         {
             var setup = row?.EstSetupMinutes ?? op!.SetupMinutes;
@@ -193,6 +209,13 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
                 ? split
                 : OperationTimeMath.EntryMinutes(t.TimerStart, t.TimerStop, t.DurationMinutes, now)), 2);
             var hist = operationId is int hid ? history.GetValueOrDefault(hid) : default;
+            var gated = gating != StepGatingMode.Off && op is not null;
+            var availability = gated
+                ? StepGate.Available(op!.Id, predecessors, progress, quantity)
+                : new StepAvailability(null, null);
+            var waitingOn = gated
+                ? StepGate.WaitingOn(op!.Id, predecessors, progress).Select(id => stepByOperation.GetValueOrDefault(id)).OrderBy(s => s).ToList()
+                : [];
 
             return new JobOperationRowResponseModel
             {
@@ -238,6 +261,10 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
                         t.EntryType.ToString(),
                         t.TimerStart!.Value))
                     .ToList(),
+                Available = availability.Available,
+                AvailableFromStep = availability.LimitingOperationId is int limit ? stepByOperation.GetValueOrDefault(limit) : null,
+                WaitingOnSteps = waitingOn,
+                CycleCountdown = op?.CycleCountdown ?? false,
             };
         }
 
@@ -256,7 +283,7 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
             ? 0m
             : routingRows.Count == 0 ? null : routingRows.Sum(o => o.RemainingMinutes);
 
-        return new JobOperationsResponseModel(jobId, quantity, tracking, allComplete, remaining, now, operations, target, quantityDecimals);
+        return new JobOperationsResponseModel(jobId, quantity, tracking, allComplete, remaining, now, operations, target, quantityDecimals, gating);
     }
 
     public async Task<IReadOnlyDictionary<int, JobOperationSummaryResponseModel>> SummarizeAsync(

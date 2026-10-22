@@ -235,6 +235,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     // Operations
     public DbSet<Operation> Operations => Set<Operation>();
     public DbSet<OperationMaterial> OperationMaterials => Set<OperationMaterial>();
+    public DbSet<OperationPredecessor> OperationPredecessors => Set<OperationPredecessor>();
 
     // Cycle Counts
     public DbSet<CycleCount> CycleCounts => Set<CycleCount>();
@@ -1203,6 +1204,17 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
                     }
                     break;
             }
+        }
+
+        foreach (var entry in ChangeTracker.Entries<OperationPredecessor>())
+        {
+            if (entry.State == EntityState.Added)
+            {
+                if (entry.Entity.CreatedAt == default) entry.Entity.CreatedAt = now;
+                if (entry.Entity.UpdatedAt == default) entry.Entity.UpdatedAt = entry.Entity.CreatedAt;
+            }
+            else if (entry.State == EntityState.Modified)
+                entry.Entity.UpdatedAt = now;
         }
 
         // WU-11 / TODO E1 — bump optimistic-locking Version on every Modified

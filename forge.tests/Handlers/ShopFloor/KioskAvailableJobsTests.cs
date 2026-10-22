@@ -332,6 +332,28 @@ public class KioskAvailableJobsTests
     }
 
     [Fact]
+    public async Task ClockStatus_CycleMinutes_OnlyForRunTimersOnStepsThatOptIntoTheCountdown()
+    {
+        await SeedStagesAsync();
+        EnableTracking();
+        var worker = await AddUserAsync();
+        var part = await AddPartAsync("PN-CYCLE");
+        var press = await AddStepAsync(part, 10, "Press");
+        press.CycleCountdown = true;
+        press.RunMinutesEach = 2.5m;
+        var trim = await AddStepAsync(part, 20, "Trim");
+        trim.RunMinutesEach = 1m;
+        var job = await AddJobAsync("J-CYCLE", assigneeId: worker.Id, partId: part.Id);
+        AddTimer(worker.Id, job.Id, press.Id, Now.AddMinutes(-9));
+        AddTimer(worker.Id, job.Id, trim.Id, Now.AddMinutes(-5));
+        await _db.SaveChangesAsync();
+
+        var timers = (await ClockStatusHandler().Handle(new GetClockStatusQuery(), CancellationToken.None)).Single().RunningTimers!;
+
+        timers.Select(t => (t.StepNumber, t.CycleMinutes)).Should().Equal((10, 2.5m), (20, (decimal?)null));
+    }
+
+    [Fact]
     public async Task ClockStatus_MyJobs_IncludesOpenJobsWorkedRecentlyButNotOlderOrClosedOnes()
     {
         await SeedStagesAsync();

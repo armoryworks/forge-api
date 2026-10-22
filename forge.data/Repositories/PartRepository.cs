@@ -4,6 +4,7 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Data.Repositories;
 
@@ -350,7 +351,8 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
             resolved.Currency,
             resolved.Source.ToString(),
             ExpectedYieldPercent: part.ExpectedYieldPercent,
-            StandardCost: PartStandardCostModel.From(part));
+            StandardCost: PartStandardCostModel.From(part),
+            StepGating: part.StepGating);
     }
 
     public Task<Part?> FindAsync(int id, CancellationToken ct)
@@ -479,12 +481,36 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
                 s.RunMinutesLot,
                 s.ScrapFactor,
                 s.RunMinutesEach,
-                s.LaborAttendancePercent))
+                s.LaborAttendancePercent,
+                s.CycleCountdown,
+                s.Predecessors
+                    .Where(p => p.PredecessorOperation.DeletedAt == null && p.PredecessorOperation.PartId == s.PartId)
+                    .OrderBy(p => p.PredecessorOperation.StepNumber)
+                    .Select(p => new OperationPredecessorResponseModel(p.PredecessorOperationId, p.PredecessorOperation.StepNumber, p.Gate))
+                    .ToList()))
             .ToListAsync(ct);
     }
 
     public Task<Operation?> FindOperationAsync(int operationId, CancellationToken ct)
         => db.Operations.FirstOrDefaultAsync(s => s.Id == operationId, ct);
+
+    public Task<List<Operation>> GetRoutingAsync(int partId, CancellationToken ct)
+        => db.Operations
+            .Where(o => o.PartId == partId)
+            .OrderBy(o => o.StepNumber).ThenBy(o => o.Id)
+            .ToListAsync(ct);
+
+    public Task<List<OperationPredecessor>> GetPredecessorLinksAsync(int partId, CancellationToken ct)
+        => db.OperationPredecessors
+            .Where(l => db.Operations.Any(o => o.Id == l.OperationId && o.PartId == partId))
+            .ToListAsync(ct);
+
+    public void AddPredecessorLink(OperationPredecessor link) => db.OperationPredecessors.Add(link);
+
+    public void RemovePredecessorLink(OperationPredecessor link) => db.OperationPredecessors.Remove(link);
+
+    public void LogPartActivity(int partId, string action, string description)
+        => db.LogActivityAt(action, description, ("Part", partId));
 
     public Task SaveChangesAsync(CancellationToken ct)
         => db.SaveChangesAsync(ct);

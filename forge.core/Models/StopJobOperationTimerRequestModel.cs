@@ -5,4 +5,6 @@ public record StopJobOperationTimerRequestModel(
     decimal? GoodQuantity = null,
     decimal? ScrapQuantity = null,
     bool MarkComplete = false,
-    string? ReasonCode = null);
+    string? ReasonCode = null,
+    bool AcknowledgeGate = false,
+    string? OverrideReason = null);

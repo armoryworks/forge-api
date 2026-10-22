@@ -11,4 +11,5 @@ public record LaborReconciliationRowResponseModel(
     decimal? UnallocatedMinutes,
     decimal OverlappingTimerMinutes,
     int LongTimers,
-    int RunningTimers);
+    int RunningTimers,
+    int StaleTimers = 0);

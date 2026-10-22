@@ -202,6 +202,40 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             });
             await context.Response.WriteAsync(json);
         }
+        catch (Features.Jobs.Operations.StepGateException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Step gate",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = Features.Jobs.Operations.StepGateException.Code;
+            problem.Extensions["gate"] = JsonSerializer.SerializeToElement(ex.Violation, CamelCaseEnums);
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
+        catch (Features.Parts.PredecessorConflictException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Step order conflict",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = Features.Parts.PredecessorConflictException.Code;
+            problem.Extensions["conflicts"] = JsonSerializer.SerializeToElement(ex.Conflicts, CamelCaseEnums);
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
         catch (Features.Mobile.ConfirmationRequiredException ex)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -371,6 +405,12 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             await context.Response.WriteAsJsonAsync(problem);
         }
     }
+
+    private static readonly JsonSerializerOptions CamelCaseEnums = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+    };
 
     private static readonly JsonSerializerOptions CamelCase = new()
     {

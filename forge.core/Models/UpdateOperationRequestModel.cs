@@ -19,4 +19,7 @@ public record UpdateOperationRequestModel(
     decimal? RunMinutesLot = null,
     decimal? ScrapFactor = null,
     decimal? RunMinutesEach = null,
-    decimal? LaborAttendancePercent = null);
+    decimal? LaborAttendancePercent = null,
+    bool? CycleCountdown = null,
+    List<OperationPredecessorRequestModel>? Predecessors = null,
+    bool RemoveConflictingPredecessors = false);

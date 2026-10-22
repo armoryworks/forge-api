@@ -27,4 +27,6 @@ public record OperationResponseModel(
     decimal RunMinutesLot = 0,
     decimal ScrapFactor = 0,
     decimal RunMinutesEach = 0,
-    decimal LaborAttendancePercent = 100);
+    decimal LaborAttendancePercent = 100,
+    bool CycleCountdown = false,
+    List<OperationPredecessorResponseModel>? Predecessors = null);

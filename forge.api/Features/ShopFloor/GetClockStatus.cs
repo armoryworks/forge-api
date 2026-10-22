@@ -3,6 +3,8 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -222,7 +224,8 @@ public class GetClockStatusHandler(
                         t.Operation?.Title,
                         t.EntryType,
                         t.TimerStart!.Value,
-                        t.EntryType == TimeEntryType.Run && t.Operation is not null ? t.Operation.LaborAttendancePercent : 100m))
+                        t.EntryType == TimeEntryType.Run && t.Operation is not null ? t.Operation.LaborAttendancePercent : 100m,
+                        CycleMinutesOf(t)))
                     .ToList());
 
         // Load clock event type definitions from reference data
@@ -278,6 +281,12 @@ public class GetClockStatusHandler(
                 runningByUser.GetValueOrDefault(u.Id) ?? []);
         }).OrderBy(w => w.Status == ClockStateRules.StatusOut).ThenBy(w => w.Name).ToList();
     }
+
+    private static decimal? CycleMinutesOf(TimeEntry entry)
+        => entry.EntryType == TimeEntryType.Run && entry.Operation is { CycleCountdown: true } operation
+            && OperationTimeMath.PerPieceRunMinutes(operation) is var each && each > 0m
+            ? Math.Round(each, 4)
+            : null;
 
     private static string FormatDuration(TimeSpan duration)
     {

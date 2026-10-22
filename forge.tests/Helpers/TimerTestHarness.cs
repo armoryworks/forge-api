@@ -92,13 +92,14 @@ public sealed class TimerTestHarness
             .ReturnsAsync(() => BreaksPauseLabor);
     }
 
-    public IHttpContextAccessor SignedIn(int userId)
+    public IHttpContextAccessor SignedIn(int userId, params string[] roles)
     {
         var accessor = new Mock<IHttpContextAccessor>();
         accessor.Setup(h => h.HttpContext).Returns(() => new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(
-                [new Claim(ClaimTypes.NameIdentifier, userId.ToString())], "test")),
+                [new Claim(ClaimTypes.NameIdentifier, userId.ToString()), .. roles.Select(r => new Claim(ClaimTypes.Role, r))],
+                "test")),
         });
         return accessor.Object;
     }

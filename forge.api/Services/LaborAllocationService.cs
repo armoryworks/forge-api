@@ -70,6 +70,9 @@ public class LaborAllocationService(
         IReadOnlyList<TimeEntry> edited,
         CancellationToken ct)
     {
+        if (jobCost is not null)
+            await jobCost.RepriceMachineSiblingsAsync(edited, ct);
+
         var valid = spans.Where(s => s.End > s.Start).ToList();
         if (valid.Count == 0)
             return;

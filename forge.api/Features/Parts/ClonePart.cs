@@ -124,6 +124,7 @@ public class ClonePartHandler(
         HazmatClass = source.HazmatClass,
         ShelfLifeDays = source.ShelfLifeDays,
         BackflushPolicy = source.BackflushPolicy,
+        StepGating = source.StepGating,
         IsKit = source.IsKit,
         IsConfigurable = source.IsConfigurable,
         SourcePartId = source.SourcePartId,

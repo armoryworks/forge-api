@@ -24,6 +24,7 @@ public class StopJobOperationTimerValidator : AbstractValidator<StopJobOperation
         RuleFor(x => x.Data.ScrapQuantity).GreaterThanOrEqualTo(0m).JobQuantityLimits().When(x => x.Data.ScrapQuantity.HasValue);
         RuleFor(x => x.Data.ReasonCode).MaximumLength(50);
         RuleFor(x => x.Data.Notes).MaximumLength(1000);
+        RuleFor(x => x.Data.OverrideReason).MaximumLength(200);
     }
 }
 
@@ -65,7 +66,9 @@ public class StopJobOperationTimerHandler(
                     data.GoodQuantity > 0m ? (row?.CompletedQuantity ?? 0m) + data.GoodQuantity.Value : null,
                     data.ScrapQuantity > 0m ? (row?.ScrapQuantity ?? 0m) + data.ScrapQuantity.Value : null,
                     data.MarkComplete ? JobOperationStatus.Complete : null,
-                    ReasonCode: data.ReasonCode)), cancellationToken);
+                    ReasonCode: data.ReasonCode,
+                    AcknowledgeGate: data.AcknowledgeGate,
+                    OverrideReason: data.OverrideReason)), cancellationToken);
             operation = progress.Operation;
         }
 

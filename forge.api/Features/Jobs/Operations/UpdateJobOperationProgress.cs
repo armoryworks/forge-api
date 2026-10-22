@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Authorization;
 using Forge.Api.Features.Inventory;
 using Forge.Api.Hubs;
 using Forge.Api.Services;
@@ -14,6 +15,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Routing;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Jobs.Operations;
@@ -32,6 +34,7 @@ public class UpdateJobOperationProgressValidator : AbstractValidator<UpdateJobOp
         RuleFor(x => x.Data.ScrapQuantity).GreaterThanOrEqualTo(0m).JobQuantityLimits().When(x => x.Data.ScrapQuantity.HasValue);
         RuleFor(x => x.Data.ReworkQuantity).GreaterThanOrEqualTo(0m).JobQuantityLimits().When(x => x.Data.ReworkQuantity.HasValue);
         RuleFor(x => x.Data.ReasonCode).MaximumLength(50);
+        RuleFor(x => x.Data.OverrideReason).MaximumLength(200);
         RuleFor(x => x.Data.Status).IsInEnum().When(x => x.Data.Status.HasValue);
     }
 }
@@ -44,7 +47,8 @@ public class UpdateJobOperationProgressHandler(
     IHubContext<BoardHub> boardHub,
     IMediator mediator,
     IClock clock,
-    IBackflushService? backflush = null) : IRequestHandler<UpdateJobOperationProgressCommand, JobOperationProgressResponseModel>
+    IBackflushService? backflush = null,
+    IStepGateService? stepGate = null) : IRequestHandler<UpdateJobOperationProgressCommand, JobOperationProgressResponseModel>
 {
     public async Task<JobOperationProgressResponseModel> Handle(UpdateJobOperationProgressCommand request, CancellationToken cancellationToken)
     {
@@ -68,6 +72,7 @@ public class UpdateJobOperationProgressHandler(
         var jobQuantity = await operations.GetJobQuantityAsync(job, cancellationToken);
         var before = JobOperationRules.Describe(row, jobQuantity);
         var wasClosed = JobOperationRules.IsClosed(row.Status);
+        var wasComplete = row.Status == JobOperationStatus.Complete;
         var now = clock.UtcNow;
 
         var openTimers = await db.TimeEntries
@@ -135,7 +140,15 @@ public class UpdateJobOperationProgressHandler(
                     $"Completed ({completed:0.##}) plus scrap ({scrap:0.##}) is more than the job quantity ({jobQuantity:0.##})."),
             ]);
 
-        operations.ApplyProgress(row, completed, scrap, rework, data.ReasonCode, userId, now);
+        var gate = stepGate is null
+            ? StepGateOutcome.None
+            : await stepGate.EnforceAsync(new StepGateRequest(
+                job, operation, jobQuantity, row.CompletedQuantity, row.ScrapQuantity, completed, scrap,
+                data.Status == JobOperationStatus.Complete && !wasComplete,
+                data.AcknowledgeGate, data.OverrideReason,
+                StepGateRoles.CanOverride(httpContext.HttpContext?.User)), cancellationToken);
+
+        operations.ApplyProgress(row, completed, scrap, rework, data.ReasonCode, userId, now, gate.Overridden, gate.Reason);
 
         var closed = new List<TimeEntry>();
         if (closeTimers && openTimers.Count > 0)
@@ -157,6 +170,9 @@ public class UpdateJobOperationProgressHandler(
         var after = JobOperationRules.Describe(row, jobQuantity);
         var reworkNote = rework > 0m ? $" {rework:0.##} sent to rework." : string.Empty;
         var reasonNote = string.IsNullOrWhiteSpace(data.ReasonCode) ? string.Empty : $" Reason: {data.ReasonCode.Trim()}.";
+        var gateNote = !gate.Overridden ? string.Empty
+            : (gate.Mode == StepGatingMode.Block ? " Step gate overridden" : " Step gate warning acknowledged")
+                + (gate.Reason is null ? "." : $": {gate.Reason}.");
         db.JobActivityLogs.Add(new JobActivityLog
         {
             JobId = job.Id,
@@ -165,7 +181,7 @@ public class UpdateJobOperationProgressHandler(
             FieldName = "OperationStatus",
             OldValue = before,
             NewValue = after,
-            Description = $"Operation {operation.StepNumber} {operation.Title}: {before} → {after}.{reworkNote}{reasonNote}",
+            Description = $"Operation {operation.StepNumber} {operation.Title}: {before} → {after}.{reworkNote}{reasonNote}{gateNote}",
             CreatedAt = now,
             OperationId = operation.Id,
             WorkCenterId = operation.WorkCenterId,

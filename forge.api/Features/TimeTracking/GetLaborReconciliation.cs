@@ -71,6 +71,8 @@ public class GetLaborReconciliationHandler(
 
         var definitions = await clockEventTypes.GetAllAsync(ct);
         var breaksPause = await settings.GetBoolAsync(ShopFloorSettings.BreaksPauseLaborKey, ct);
+        var staleHours = await settings.GetIntAsync(ShopFloorSettings.StaleTimerHoursKey, ct);
+        var staleMinutes = (staleHours > 0 ? staleHours : ShopFloorSettings.DefaultStaleTimerHours) * 60m;
 
         var rows = new List<LaborReconciliationRowResponseModel>();
         foreach (var userId in userIds)
@@ -114,6 +116,7 @@ public class GetLaborReconciliationHandler(
                 var elapsed = spans.Sum(s => (decimal)(s.End - s.Start).TotalMinutes);
                 var overlap = Math.Round(elapsed - UnionMinutes(spans), 2);
                 var longTimers = spans.Count(s => (decimal)(s.End - s.Start).TotalMinutes >= LongTimerMinutes);
+                var staleTimers = spans.Count(s => (decimal)(s.End - s.Start).TotalMinutes >= staleMinutes);
 
                 rows.Add(new LaborReconciliationRowResponseModel(
                     userId,
@@ -126,7 +129,8 @@ public class GetLaborReconciliationHandler(
                     paid is decimal p ? Math.Round(p - jobLabor - indirect, 2) : null,
                     overlap,
                     longTimers,
-                    running.Count));
+                    running.Count,
+                    staleTimers));
             }
         }
 

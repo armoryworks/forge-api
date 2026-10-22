@@ -99,7 +99,6 @@
     "forge.api/Features/Onboarding/SaveOnboardingData.cs": 2,
     "forge.api/Features/Onboarding/SignOnboardingForm.cs": 2,
     "forge.api/Features/Onboarding/SubmitOnboarding.cs": 3,
-    "forge.api/Features/Parts/DeleteOperation.cs": 1,
     "forge.api/Features/Parts/PurchaseUnits/DeletePartPurchaseUnit.cs": 1,
     "forge.api/Features/Payments/DeletePayment.cs": 1,
     "forge.api/Features/Payments/VoidPayment.cs": 1,

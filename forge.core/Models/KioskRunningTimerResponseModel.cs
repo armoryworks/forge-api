@@ -12,4 +12,5 @@ public record KioskRunningTimerResponseModel(
     string? OperationTitle,
     TimeEntryType EntryType,
     DateTimeOffset TimerStart,
-    decimal AttendancePercent);
+    decimal AttendancePercent,
+    decimal? CycleMinutes = null);

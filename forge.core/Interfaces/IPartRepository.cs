@@ -40,5 +40,13 @@ public interface IPartRepository
     Task RemoveBomLineAsync(BOMLine entry);
     Task<List<OperationResponseModel>> GetOperationsAsync(int partId, CancellationToken ct);
     Task<Operation?> FindOperationAsync(int operationId, CancellationToken ct);
+    /// <summary>The part's live routing steps, tracked, ordered by step number.</summary>
+    Task<List<Operation>> GetRoutingAsync(int partId, CancellationToken ct);
+    /// <summary>The "must follow" links between the part's routing steps, tracked.</summary>
+    Task<List<OperationPredecessor>> GetPredecessorLinksAsync(int partId, CancellationToken ct);
+    void AddPredecessorLink(OperationPredecessor link);
+    void RemovePredecessorLink(OperationPredecessor link);
+    /// <summary>Adds an activity row on the part; the next save writes it.</summary>
+    void LogPartActivity(int partId, string action, string description);
     Task SaveChangesAsync(CancellationToken ct);
 }

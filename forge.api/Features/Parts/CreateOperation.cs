@@ -25,6 +25,10 @@ public class CreateOperationValidator : AbstractValidator<CreateOperationCommand
         RuleFor(x => x.Data.ScrapFactor).GreaterThanOrEqualTo(0m).LessThan(1m).When(x => x.Data.ScrapFactor.HasValue);
         RuleFor(x => x.Data.RunMinutesEach).GreaterThanOrEqualTo(0m).FitsNumeric(10, 2).When(x => x.Data.RunMinutesEach.HasValue);
         RuleFor(x => x.Data.LaborAttendancePercent).InclusiveBetween(0m, 100m).FitsNumeric(5, 2).When(x => x.Data.LaborAttendancePercent.HasValue);
+        RuleFor(x => x.Data.Predecessors).Must(p => p!.Count <= RoutingPredecessorEditor.MaxPredecessors)
+            .WithMessage($"A step can follow at most {RoutingPredecessorEditor.MaxPredecessors} steps.")
+            .When(x => x.Data.Predecessors is not null);
+        RuleForEach(x => x.Data.Predecessors).ChildRules(p => p.RuleFor(l => l.Gate).IsInEnum());
 
         // Phase 3 H5 / WU-13 — when an operation is flagged as subcontract,
         // both vendor + turn time must be present. The active-check on the
@@ -75,6 +79,7 @@ public class CreateOperationHandler(IPartRepository repo, IVendorRepository vend
             RunMinutesLot = data.RunMinutesLot ?? 0m,
             RunMinutesEach = data.RunMinutesEach ?? 0m,
             LaborAttendancePercent = data.LaborAttendancePercent ?? 100m,
+            CycleCountdown = data.CycleCountdown ?? false,
             ScrapFactor = Math.Round(data.ScrapFactor ?? 0m, 4, MidpointRounding.ToZero),
             IsQcCheckpoint = data.IsQcCheckpoint,
             QcCriteria = data.QcCriteria?.Trim(),
@@ -86,6 +91,8 @@ public class CreateOperationHandler(IPartRepository repo, IVendorRepository vend
         };
 
         part.Operations.Add(operation);
+        if (data.Predecessors is { Count: > 0 })
+            await RoutingPredecessorEditor.ApplyAsync(repo, request.PartId, operation, data.Predecessors, false, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);
 
         var operations = await repo.GetOperationsAsync(request.PartId, cancellationToken);

@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Settings;
 
 /// <summary>
@@ -14,8 +16,11 @@ public static class ShopFloorSettings
     public const string LaborSplitKey = "shop-floor.labor-split";
     public const string BreaksPauseLaborKey = "shop-floor.breaks-pause-labor";
     public const string RecentJobDaysKey = "shop-floor.recent-job-days";
+    public const string StepGatingKey = "shop-floor.step-gating";
+    public const string StaleTimerHoursKey = "shop-floor.stale-timer-hours";
     public const string LaborSplitWeighted = "Weighted";
     public const string LaborSplitNone = "None";
+    public const int DefaultStaleTimerHours = 14;
 
     public static IReadOnlyList<SettingDescriptor> Descriptors =>
     [
@@ -53,5 +58,25 @@ public static class ShopFloorSettings
             DefaultValue: "3",
             SortOrder: 140,
             ValidationPattern: "^([0-9]|[1-2][0-9]|30)$"),
+        new(StepGatingKey, Group, "Step gating", SettingDataType.Enum,
+            Description: "Whether a routing step can report more pieces than the steps it must follow have completed. "
+                + "Off never checks. Warn asks the operator to confirm and logs the reason. Block refuses unless a "
+                + "Manager or Production Manager overrides it with a reason. A Complete link also keeps a step from "
+                + "being marked Done before that predecessor is done. Starting a timer is never gated. Each part "
+                + "can override this on its routing.",
+            DefaultValue: nameof(StepGatingMode.Off),
+            SortOrder: 150,
+            Choices:
+            [
+                new(nameof(StepGatingMode.Off), "Off"),
+                new(nameof(StepGatingMode.Warn), "Warn"),
+                new(nameof(StepGatingMode.Block), "Block"),
+            ]),
+        new(StaleTimerHoursKey, Group, "Stale timer alert (hours)", SettingDataType.Integer,
+            Description: "Managers and production managers get a notification when a timer has been running this "
+                + "many hours, and the labor reconciliation report counts it. Timers are never stopped automatically.",
+            DefaultValue: "14",
+            SortOrder: 160,
+            ValidationPattern: "^([1-9]|[1-6][0-9]|7[0-2])$"),
     ];
 }
