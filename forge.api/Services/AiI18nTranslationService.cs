@@ -120,7 +120,7 @@ public partial class AiI18nTranslationService(IAiService aiService, ILogger<AiI1
         return PlaceholderToken().Matches(source).All(m => reply.Contains(m.Value, StringComparison.Ordinal));
     }
 
-    [GeneratedRegex(@"[.!?;:…]\s+[¿¡]?\p{Lu}")]
+    [GeneratedRegex(@"(?:[!?;:…]|(?<!(?:^|[\s(./-])\p{L}{1,4})\.)\s+[¿¡]?\p{Lu}")]
     private static partial Regex SentenceBreak();
 
     [GeneratedRegex(@"\{\{[^{}]*\}\}")]

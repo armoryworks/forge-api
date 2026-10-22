@@ -43,6 +43,7 @@ public class AiI18nTranslationServiceTests
     [InlineData("Save", "[Mock AI] Generated response for: Translate this software UI label from English to Spanish")]
     [InlineData("Customer purchase order number", "Translate this software UI label from English to Spanish")]
     [InlineData("Work order", "Traducción: Orden de trabajo")]
+    [InlineData("Work order", "Claro. Orden de trabajo")]
     [InlineData("Save", "Guardar\nThis is the Spanish word for save")]
     [InlineData("{{count}} orders", "órdenes")]
     [InlineData("Save", "Guardar Guardar Guardar Guardar Guardar Guardar Guardar Guardar Guardar")]
@@ -62,6 +63,9 @@ public class AiI18nTranslationServiceTests
     [InlineData("Loading…", "Cargando...")]
     [InlineData("Note: …", "Nota: …")]
     [InlineData("Order No.", "Núm. de pedido")]
+    [InlineData("Max. quantity", "Max. Menge")]
+    [InlineData("e.g. value", "z.B. Wert")]
+    [InlineData("Order no.", "Bestell-Nr. Kunde")]
     [InlineData("Translate this software UI label", "Traduce esta software UI label")]
     [InlineData("Are you sure? This cannot be undone.", "¿Está seguro? Esto no se puede deshacer.")]
     public void IsPlausibleTranslation_AcceptsLabel(string source, string reply)
