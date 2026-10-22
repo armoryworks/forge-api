@@ -18,7 +18,7 @@ public class SankeyReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<SankeyFlowItem>>> GetQuoteToCash(
         [FromQuery] DateTimeOffset? start, [FromQuery] DateTimeOffset? end)
     {
-        var result = await mediator.Send(new GetQuoteToCashFlowQuery(start, end));
+        var result = await mediator.Send(new GetQuoteToCashFlowQuery(start, ReportsController.InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -47,7 +47,7 @@ public class SankeyReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<SankeyFlowItem>>> GetExpenseFlow(
         [FromQuery] DateTimeOffset? start, [FromQuery] DateTimeOffset? end)
     {
-        var result = await mediator.Send(new GetExpenseFlowQuery(start, end));
+        var result = await mediator.Send(new GetExpenseFlowQuery(start, ReportsController.InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -62,7 +62,7 @@ public class SankeyReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<SankeyFlowItem>>> GetQualityRejection(
         [FromQuery] DateTimeOffset? start, [FromQuery] DateTimeOffset? end)
     {
-        var result = await mediator.Send(new GetQualityRejectionFlowQuery(start, end));
+        var result = await mediator.Send(new GetQualityRejectionFlowQuery(start, ReportsController.InclusiveEnd(end)));
         return Ok(result);
     }
 
@@ -77,7 +77,7 @@ public class SankeyReportsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<SankeyFlowItem>>> GetCustomerRevenue(
         [FromQuery] DateTimeOffset? start, [FromQuery] DateTimeOffset? end)
     {
-        var result = await mediator.Send(new GetCustomerRevenueFlowQuery(start, end));
+        var result = await mediator.Send(new GetCustomerRevenueFlowQuery(start, ReportsController.InclusiveEnd(end)));
         return Ok(result);
     }
 
