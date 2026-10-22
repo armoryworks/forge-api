@@ -207,4 +207,43 @@ public class LeaveAccrualAndApprovalTests
         await FluentActions.Awaiting(() => Requests(ben, [], rosa)).Should().ThrowAsync<ForbiddenException>();
         (await Requests(lena, ["Manager"], null)).Select(r => r.UserId).Should().BeEquivalentTo([ben, rosa]);
     }
+
+    [Theory]
+    [InlineData("OfficeManager")]
+    [InlineData("Controller")]
+    public async Task Payroll_roles_read_everyones_leave_but_cannot_decide_it(string role)
+    {
+        await SetUpAsync();
+        var ben = await AddEmployeeAsync(new DateTimeOffset(2019, 9, 16, 0, 0, 0, TimeSpan.Zero));
+        var rosa = await AddEmployeeAsync(new DateTimeOffset(2021, 4, 5, 0, 0, 0, TimeSpan.Zero));
+        var lena = await AddEmployeeAsync(new DateTimeOffset(2016, 6, 13, 0, 0, 0, TimeSpan.Zero));
+        await SetBalanceAsync(ben, 32m);
+        await SetBalanceAsync(rosa, 16m);
+        await RequestAsync(ben, 8m);
+        await RequestAsync(rosa, 8m);
+
+        (await new GetLeaveBalancesHandler(_h.Db, TestCaller.As(lena, [role]))
+            .Handle(new GetLeaveBalancesQuery(rosa), CancellationToken.None)).Single().Balance.Should().Be(16m);
+        (await new GetLeaveRequestsHandler(_h.Db, TestCaller.As(lena, [role]))
+            .Handle(new GetLeaveRequestsQuery(), CancellationToken.None)).Select(r => r.UserId).Should().BeEquivalentTo([ben, rosa]);
+        (await new GetLeaveRequestsHandler(_h.Db, TestCaller.As(lena, [role]))
+            .Handle(new GetLeaveRequestsQuery(ben), CancellationToken.None)).Should().ContainSingle().Which.UserId.Should().Be(ben);
+    }
+
+    [Fact]
+    public async Task A_production_worker_still_reads_only_their_own_leave()
+    {
+        await SetUpAsync();
+        var ben = await AddEmployeeAsync(new DateTimeOffset(2019, 9, 16, 0, 0, 0, TimeSpan.Zero));
+        var rosa = await AddEmployeeAsync(new DateTimeOffset(2021, 4, 5, 0, 0, 0, TimeSpan.Zero));
+        await SetBalanceAsync(ben, 32m);
+        await SetBalanceAsync(rosa, 16m);
+        await RequestAsync(ben, 8m);
+        await RequestAsync(rosa, 8m);
+
+        await FluentActions.Awaiting(() => new GetLeaveBalancesHandler(_h.Db, TestCaller.As(ben, ["ProductionWorker"]))
+            .Handle(new GetLeaveBalancesQuery(rosa), CancellationToken.None)).Should().ThrowAsync<ForbiddenException>();
+        (await new GetLeaveRequestsHandler(_h.Db, TestCaller.As(ben, ["ProductionWorker"]))
+            .Handle(new GetLeaveRequestsQuery(), CancellationToken.None)).Should().OnlyContain(r => r.UserId == ben);
+    }
 }

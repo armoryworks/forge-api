@@ -13,7 +13,7 @@ public class GetClockEventsHandler(ITimeTrackingRepository repo, IHttpContextAcc
 {
     public Task<List<ClockEventResponseModel>> Handle(GetClockEventsQuery request, CancellationToken cancellationToken)
     {
-        var userId = CallerAccess.ScopeToSelf(
+        var userId = CallerAccess.ScopeReadToSelf(
             http.HttpContext?.User, request.UserId, "You can only view your own clock events.");
         return repo.GetClockEventsAsync(userId, request.From, request.To, cancellationToken);
     }

@@ -137,7 +137,7 @@ public class TimeTrackingController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("corrections")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager,Controller")]
     public async Task<ActionResult<List<TimeCorrectionLogResponseModel>>> GetCorrections(
         [FromQuery] int? userId,
         [FromQuery] DateOnly? from,
@@ -150,7 +150,7 @@ public class TimeTrackingController(IMediator mediator) : ControllerBase
     // ─── Overtime ───
 
     [HttpGet("overtime/{userId:int}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager,Controller")]
     public async Task<ActionResult<OvertimeBreakdownResponseModel>> GetOvertimeBreakdown(
         int userId, [FromQuery] DateOnly weekOf, CancellationToken ct)
         => Ok(await mediator.Send(new GetOvertimeBreakdownQuery(userId, weekOf), ct));
