@@ -102,7 +102,8 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
                     j.DueDate,
                     j.IsArchived,
                     j.CompletedDate != null || j.Disposition != null || j.IsArchived)).ToList(),
-                CreateJobsForSalesOrderLinesHandler.SkipReason(l, routedPartIds) is null
+                CreateJobsForSalesOrderLinesHandler.SkipReason(l, routedPartIds) is null,
+                l.ShipsGoods
             )).ToList(),
             so.Shipments.Select(s => new SalesOrderShipmentModel(
                 s.Id,

@@ -224,4 +224,52 @@ public class AdjustStockHandlerTests
             m.LotNumber == lotNumber
         ), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task Handle_SameQuantityAsOnHand_IsRefusedAndWritesNoMovement()
+    {
+        var binContent = new BinContent { Id = 7, LocationId = 1, EntityType = "part", EntityId = 1, Quantity = 10 };
+        _inventoryRepo.Setup(r => r.FindBinContentWithLocationAsync(7, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(binContent);
+
+        var act = () => _handler.Handle(
+            new AdjustStockCommand(new AdjustStockRequestModel(7, 10m, "Recount", null)), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*nothing to adjust*");
+        binContent.Quantity.Should().Be(10);
+        _inventoryRepo.Verify(r => r.AddMovementAsync(It.IsAny<BinMovement>(), It.IsAny<CancellationToken>()), Times.Never);
+        _inventoryRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_FractionalBin_RecordsTheExactDelta()
+    {
+        var binContent = new BinContent { Id = 8, LocationId = 4, EntityType = "part", EntityId = 1, Quantity = 2.5m };
+        _inventoryRepo.Setup(r => r.FindBinContentWithLocationAsync(8, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(binContent);
+
+        await _handler.Handle(
+            new AdjustStockCommand(new AdjustStockRequestModel(8, 3m, "Recount", null)), CancellationToken.None);
+
+        binContent.Quantity.Should().Be(3m);
+        _inventoryRepo.Verify(r => r.AddMovementAsync(It.Is<BinMovement>(m =>
+            m.Quantity == 0.5m && m.ToLocationId == 4 && m.FromLocationId == null
+        ), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_FractionalNewQuantity_IsStoredWithoutRounding()
+    {
+        var binContent = new BinContent { Id = 9, LocationId = 4, EntityType = "part", EntityId = 1, Quantity = 4m };
+        _inventoryRepo.Setup(r => r.FindBinContentWithLocationAsync(9, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(binContent);
+
+        await _handler.Handle(
+            new AdjustStockCommand(new AdjustStockRequestModel(9, 1.25m, "Recount", null)), CancellationToken.None);
+
+        binContent.Quantity.Should().Be(1.25m);
+        _inventoryRepo.Verify(r => r.AddMovementAsync(It.Is<BinMovement>(m =>
+            m.Quantity == 2.75m && m.FromLocationId == 4 && m.ToLocationId == null
+        ), It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

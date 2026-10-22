@@ -79,13 +79,13 @@ public sealed class TimerTestHarness
             .ReturnsAsync((string code, CancellationToken _) => definitions.FirstOrDefault(d => d.Code == code));
     }
 
-    public IHttpContextAccessor SignedIn(int userId)
+    public IHttpContextAccessor SignedIn(int userId, params Claim[] extraClaims)
     {
         var accessor = new Mock<IHttpContextAccessor>();
         accessor.Setup(h => h.HttpContext).Returns(() => new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(
-                [new Claim(ClaimTypes.NameIdentifier, userId.ToString())], "test")),
+                [new Claim(ClaimTypes.NameIdentifier, userId.ToString()), .. extraClaims], "test")),
         });
         return accessor.Object;
     }

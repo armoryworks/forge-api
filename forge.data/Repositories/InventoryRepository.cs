@@ -306,11 +306,18 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
         if (locationId.HasValue)
             query = query.Where(m => m.FromLocationId == locationId || m.ToLocationId == locationId);
 
-        if (!string.IsNullOrWhiteSpace(entityType))
-            query = query.Where(m => m.EntityType == entityType);
+        if (entityType == "part" && entityId is int partId)
+            query = query.Where(m => (m.EntityType == "part" && m.EntityId == partId)
+                || (m.EntityType == "ShipmentLine" && db.ShipmentLines.Any(l => l.Id == m.EntityId
+                    && (l.PartId == partId || (l.PartId == null && l.SalesOrderLine != null && l.SalesOrderLine.PartId == partId)))));
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(entityType))
+                query = query.Where(m => m.EntityType == entityType);
 
-        if (entityId.HasValue)
-            query = query.Where(m => m.EntityId == entityId.Value);
+            if (entityId.HasValue)
+                query = query.Where(m => m.EntityId == entityId.Value);
+        }
 
         var movements = await query
             .OrderByDescending(m => m.MovedAt)
@@ -322,13 +329,34 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, ct);
 
-        var partIds = movements.Where(m => m.EntityType == "part").Select(m => m.EntityId).Distinct().ToList();
-        var parts = await db.Parts.Where(p => partIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, ct);
+        var shipmentLineIds = movements.Where(m => m.EntityType == "ShipmentLine").Select(m => m.EntityId).Distinct().ToList();
+        var shipmentLineParts = shipmentLineIds.Count == 0
+            ? new Dictionary<int, int>()
+            : await db.ShipmentLines
+                .Where(l => shipmentLineIds.Contains(l.Id))
+                .Select(l => new { l.Id, PartId = l.PartId ?? (l.SalesOrderLine != null ? l.SalesOrderLine.PartId : null) })
+                .Where(l => l.PartId != null)
+                .ToDictionaryAsync(l => l.Id, l => l.PartId!.Value, ct);
+
+        var partIds = movements.Where(m => m.EntityType == "part").Select(m => m.EntityId)
+            .Concat(shipmentLineParts.Values)
+            .Distinct().ToList();
+        var parts = await db.Parts
+            .Include(p => p.StockUom)
+            .Where(p => partIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, ct);
 
         return movements.Select(m =>
         {
-            var entityName = m.EntityType == "part" && parts.TryGetValue(m.EntityId, out var part)
-                ? $"{part.PartNumber} — {part.Description}"
+            int? movedPartId = m.EntityType switch
+            {
+                "part" => m.EntityId,
+                "ShipmentLine" when shipmentLineParts.TryGetValue(m.EntityId, out var linePartId) => linePartId,
+                _ => null,
+            };
+            var part = movedPartId.HasValue && parts.TryGetValue(movedPartId.Value, out var found) ? found : null;
+            var entityName = part != null
+                ? $"{part.PartNumber} — {part.Description ?? part.Name}"
                 : $"{m.EntityType}:{m.EntityId}";
 
             var userName = users.TryGetValue(m.MovedBy, out var user)
@@ -337,12 +365,20 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
 
             return new BinMovementResponseModel(
                 m.Id, m.EntityType, m.EntityId, entityName,
-                m.Quantity, m.LotNumber,
+                SignedMovementQuantity(m.Quantity, m.FromLocationId, m.ToLocationId), m.LotNumber,
                 m.FromLocationId, m.FromLocation?.Name,
                 m.ToLocationId, m.ToLocation?.Name,
-                userName, m.MovedAt, m.Reason);
+                userName, m.MovedAt, m.Reason, part?.StockUom?.Code);
         }).ToList();
     }
+
+    private static decimal SignedMovementQuantity(decimal stored, int? fromLocationId, int? toLocationId) =>
+        (fromLocationId.HasValue, toLocationId.HasValue) switch
+        {
+            (true, false) => -Math.Abs(stored),
+            (false, false) => stored,
+            _ => Math.Abs(stored),
+        };
 
     public async Task<List<ReceivingRecordResponseModel>> GetReceivingHistoryAsync(
         int? purchaseOrderId, int? partId, int take, CancellationToken ct)

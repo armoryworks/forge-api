@@ -15,4 +15,5 @@ public record BinMovementResponseModel(
     string? ToLocationName,
     string MovedByName,
     DateTimeOffset MovedAt,
-    BinMovementReason? Reason);
+    BinMovementReason? Reason,
+    string? UomCode = null);

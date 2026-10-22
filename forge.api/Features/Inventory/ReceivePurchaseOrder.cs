@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Extensions;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Lots;
 using Forge.Api.Features.ShopFloor;
@@ -63,7 +64,7 @@ public class ReceivePurchaseOrderHandler(
                 $"Cannot receive {data.QuantityReceived} — only {line.RemainingQuantity} remaining");
 
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var userName = httpContext.HttpContext.User.FindFirstValue(ClaimTypes.Name) ?? "Unknown";
+        var userName = httpContext.HttpContext.User.DisplayName();
 
         // Same receipt-number scheme as ReceiveItems: it keys the GRNI accrual JE (idempotency +
         // the D.3 line-level reconciliation sweep resolves records by it). No freight on this path.

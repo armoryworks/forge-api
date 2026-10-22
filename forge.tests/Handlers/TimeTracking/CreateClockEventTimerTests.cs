@@ -1,3 +1,5 @@
+using System.Security.Claims;
+
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
@@ -47,5 +49,26 @@ public class CreateClockEventTimerTests
         saved.TimerStop.Should().BeNull();
         var log = await _h.Db.ActivityLogs.AsNoTracking().SingleAsync(a => a.EntityType == "ClockEvent");
         log.Description.Should().Be("Start Lunch");
+    }
+
+    [Theory]
+    [InlineData("Dana", "Reyes", "dana@example.test", "Dana Reyes")]
+    [InlineData(null, null, "dana@example.test", "dana@example.test")]
+    public async Task Handle_NamesTheUserLikeEveryOtherScreen(string? given, string? surname, string email, string expected)
+    {
+        var user = await _h.AddUserAsync();
+        var claims = new List<Claim> { new(ClaimTypes.Email, email) };
+        if (given is not null)
+            claims.Add(new Claim(ClaimTypes.GivenName, given));
+        if (surname is not null)
+            claims.Add(new Claim(ClaimTypes.Surname, surname));
+        var handler = new CreateClockEventHandler(
+            _h.Db, _h.SignedIn(user.Id, [.. claims]), _h.ClockEventTypes.Object, _h.Mediator.Object, _h.Clock.Object);
+
+        var result = await handler.Handle(
+            new CreateClockEventCommand(new CreateClockEventRequestModel("LunchStart", null, null, null)),
+            CancellationToken.None);
+
+        result.UserName.Should().Be(expected);
     }
 }

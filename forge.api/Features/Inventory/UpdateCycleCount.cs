@@ -20,6 +20,10 @@ public class UpdateCycleCountCommandValidator : AbstractValidator<UpdateCycleCou
     public UpdateCycleCountCommandValidator()
     {
         RuleFor(x => x.Id).GreaterThan(0);
+        RuleForEach(x => x.Data.Lines)
+            .ChildRules(line => line.RuleFor(l => l.ActualQuantity)
+                .GreaterThanOrEqualTo(0).WithMessage("A counted quantity cannot be negative."))
+            .When(x => x.Data.Lines != null);
     }
 }
 

@@ -13,9 +13,9 @@ public class CreateStorageLocationCommandValidator : AbstractValidator<CreateSto
 {
     public CreateStorageLocationCommandValidator()
     {
-        RuleFor(x => x.Data.Name).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.Data.Barcode).MaximumLength(100).When(x => x.Data.Barcode is not null);
-        RuleFor(x => x.Data.Description).MaximumLength(500).When(x => x.Data.Description is not null);
+        RuleFor(x => x.Data.Name).NotEmpty().MaximumLength(200).WithName("Name");
+        RuleFor(x => x.Data.Barcode).MaximumLength(100).WithName("Barcode").When(x => x.Data.Barcode is not null);
+        RuleFor(x => x.Data.Description).MaximumLength(500).WithName("Description").When(x => x.Data.Description is not null);
     }
 }
 

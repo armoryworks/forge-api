@@ -51,4 +51,24 @@ public class GetShipmentCarrierNameTests
         result.InvoiceId.Should().Be(42);
         result.InvoiceNumber.Should().Be("INV-00042");
     }
+
+    [Fact]
+    public async Task Detail_lines_carry_the_part_number()
+    {
+        var shipment = new Shipment
+        {
+            Id = 2,
+            ShipmentNumber = "SHP-0002",
+            SalesOrderId = 1,
+            SalesOrder = new SalesOrder { Id = 1, OrderNumber = "SO-0001", CustomerId = 1, Customer = new Customer { Id = 1, Name = "Acme" } },
+            Lines = [new ShipmentLine { Id = 9, PartId = 3, Quantity = 24000m, Part = new Part { Id = 3, PartNumber = "RS-PCABS-BLK", Name = "Resin" } }],
+        };
+        var repo = new Mock<IShipmentRepository>();
+        repo.Setup(r => r.FindWithDetailsAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(shipment);
+
+        var result = await new GetShipmentByIdHandler(repo.Object)
+            .Handle(new GetShipmentByIdQuery(2), CancellationToken.None);
+
+        result.Lines.Single().PartNumber.Should().Be("RS-PCABS-BLK");
+    }
 }

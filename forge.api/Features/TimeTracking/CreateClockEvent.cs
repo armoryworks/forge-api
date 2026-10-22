@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Forge.Api.Extensions;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -66,11 +67,10 @@ public class CreateClockEventHandler(
         await db.SaveChangesAsync(cancellationToken);
 
         // Return populated response
-        var user = httpContext.HttpContext!.User;
-        var userName = user.FindFirstValue(ClaimTypes.GivenName) + " " + user.FindFirstValue(ClaimTypes.Surname);
+        var userName = httpContext.HttpContext!.User.DisplayName();
 
         return new ClockEventResponseModel(
-            clockEvent.Id, userId, userName.Trim(), clockEvent.EventTypeCode,
+            clockEvent.Id, userId, userName, clockEvent.EventTypeCode,
             clockEvent.Reason, clockEvent.ScanMethod, clockEvent.Timestamp, clockEvent.Source);
     }
 }

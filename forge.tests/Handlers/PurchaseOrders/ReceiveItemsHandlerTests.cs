@@ -95,6 +95,29 @@ public class ReceiveItemsHandlerTests
     }
 
     [Fact]
+    public async Task Handle_StampsTheReceiversNameFromTheSignInClaims()
+    {
+        var ctx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        ctx.User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(new[]
+        {
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "7"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.GivenName, "Avery"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Surname, "Stone"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, "avery@example.test"),
+        }));
+        _httpContext.Setup(x => x.HttpContext).Returns(ctx);
+        var po = PoWith(estimatedFreight: null, (1, 10, qty: 10m, unitPrice: 20m));
+        _repo.Setup(r => r.FindWithDetailsAsync(po.Id, It.IsAny<CancellationToken>())).ReturnsAsync(po);
+
+        await _handler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 4m, StorageLocationId: null, Notes: null) }),
+            CancellationToken.None);
+
+        _addedRecords.Should().ContainSingle().Which.ReceivedBy.Should().Be("Avery Stone");
+    }
+
+    [Fact]
     public async Task Handle_ByExtendedValue_AllocatesProportionally()
     {
         // 100 freight, two lines: $200 and $600 extended → 25/75 split.

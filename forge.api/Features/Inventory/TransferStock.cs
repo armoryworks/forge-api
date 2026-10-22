@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 
 using FluentValidation;
@@ -45,12 +46,12 @@ public class TransferStockHandler(
 
         if (source.Quantity < data.Quantity)
             throw new InvalidOperationException(
-                $"Cannot transfer {data.Quantity} — only {source.Quantity} available");
+                $"Cannot transfer {Qty(data.Quantity)} — only {Qty(source.Quantity)} available");
 
         // S-RI1: don't let a transfer drop the source bin's on-hand below what's reserved.
         if (source.Quantity - data.Quantity < source.ReservedQuantity)
             throw new InvalidOperationException(
-                $"Cannot transfer {data.Quantity}: would leave less than the {source.ReservedQuantity} " +
+                $"Cannot transfer {Qty(data.Quantity)}: would leave less than the {Qty(source.ReservedQuantity)} " +
                 "reserved at the source. Release the reservation first.");
 
         var destination = await repo.FindLocationAsync(data.DestinationLocationId, cancellationToken)
@@ -98,4 +99,6 @@ public class TransferStockHandler(
         await repo.AddMovementAsync(movementOut, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);
     }
+
+    private static string Qty(decimal value) => value.ToString("0.####", CultureInfo.InvariantCulture);
 }

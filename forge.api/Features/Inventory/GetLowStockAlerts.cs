@@ -16,7 +16,7 @@ public class GetLowStockAlertsHandler(AppDbContext db)
     public async Task<List<LowStockAlertModel>> Handle(GetLowStockAlertsQuery request, CancellationToken ct)
     {
         var partsWithThreshold = await db.Parts
-            .Where(p => p.MinStockThreshold.HasValue && p.Status == PartStatus.Active)
+            .Where(p => (p.MinStockThreshold.HasValue || p.ReorderPoint.HasValue) && p.Status == PartStatus.Active)
             // Only alert for parts that have been received at least once —
             // parts with thresholds but no bin history are a setup/purchasing concern, not a low-stock alert
             .Where(p => db.BinContents.Any(bc => bc.EntityType == "part" && bc.EntityId == p.Id))
@@ -35,13 +35,13 @@ public class GetLowStockAlertsHandler(AppDbContext db)
             .ToListAsync(ct);
 
         return partsWithThreshold
-            .Where(p => p.CurrentStock < p.MinStockThreshold!.Value)
+            .Where(p => p.CurrentStock < p.MinStockThreshold || p.CurrentStock <= p.ReorderPoint)
             .Select(p => new LowStockAlertModel(
                 p.Id,
                 p.PartNumber,
                 p.Description ?? p.Name,
                 p.CurrentStock,
-                p.MinStockThreshold!.Value,
+                p.MinStockThreshold,
                 p.ReorderPoint))
             .OrderBy(p => p.CurrentStock)
             .ToList();
