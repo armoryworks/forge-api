@@ -26,7 +26,7 @@ public class ShipDocumentPdfDocument(
         {
             page.Size(PageSizes.Letter.Landscape());
             page.Margin(26);
-            page.DefaultTextStyle(x => x.FontSize(11));
+            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(11));
 
             page.Content().Row(row =>
             {

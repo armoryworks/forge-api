@@ -29,7 +29,9 @@ public class GenerateInvoicePdfHandler(
 
         var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct);
 
-        var document = new InvoicePdfDocument(invoice, companyName);
+        var money = await MoneyFormat.ForCurrencyIdAsync(
+            db, invoice.CurrencyId, await MoneyFormat.BaseCodeAsync(settings, ct), ct);
+        var document = new InvoicePdfDocument(invoice, companyName, money);
         return document.GeneratePdf();
     }
 }

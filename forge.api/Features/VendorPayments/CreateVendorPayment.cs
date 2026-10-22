@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
 using Forge.Api.Jobs;
+using Forge.Api.Services;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -110,6 +111,7 @@ public class CreateVendorPaymentHandler(
         };
 
         decimal appliedTotal = 0;
+        var billCurrencyIds = new List<int>();
 
         if (request.Applications != null)
         {
@@ -135,8 +137,13 @@ public class CreateVendorPaymentHandler(
                 var balanceDue = bill.BalanceDue;
 
                 if (app.Amount > balanceDue)
+                {
+                    var billMoney = await MoneyFormat.ForCurrencyIdAsync(db, bill.CurrencyId, cancellationToken);
                     throw new InvalidOperationException(
-                        $"Application amount {app.Amount:C} exceeds bill {bill.BillNumber} balance of {balanceDue:C}");
+                        $"Application amount {billMoney.Format(app.Amount)} exceeds bill {bill.BillNumber} balance of {billMoney.Format(balanceDue)}");
+                }
+
+                billCurrencyIds.Add(bill.CurrencyId);
 
                 payment.Applications.Add(new VendorPaymentApplication
                 {
@@ -179,8 +186,11 @@ public class CreateVendorPaymentHandler(
 
                 var matchingApp = request.Applications!.First(a => a.VendorBillId == b.Id);
                 if (matchingApp.Amount > freshBalance)
+                {
+                    var billMoney = await MoneyFormat.ForCurrencyIdAsync(db, b.CurrencyId, cancellationToken);
                     throw new InvalidOperationException(
-                        $"Application amount {matchingApp.Amount:C} exceeds bill {b.BillNumber} balance of {freshBalance:C}");
+                        $"Application amount {billMoney.Format(matchingApp.Amount)} exceeds bill {b.BillNumber} balance of {billMoney.Format(freshBalance)}");
+                }
             }
 
             throw new InvalidOperationException("Concurrent payment conflict — please retry.");
@@ -205,10 +215,11 @@ public class CreateVendorPaymentHandler(
         // Activity (transactional entity → log on the payment), inside the same transaction. Without this,
         // non-electronic payments (Check/Cash) left no trail at all — only electronic ones got the
         // transmission-queued row below.
+        var money = await MoneyFormat.ForCurrencyIdsAsync(db, billCurrencyIds, cancellationToken);
         db.LogActivityAt(
             "created",
-            $"Payment {payment.PaymentNumber} recorded — {payment.Amount:C} via {method}"
-            + (appliedTotal > 0 ? $", {appliedTotal:C} applied" : string.Empty),
+            $"Payment {payment.PaymentNumber} recorded — {money.Format(payment.Amount)} via {method}"
+            + (appliedTotal > 0 ? $", {money.Format(appliedTotal)} applied" : string.Empty),
             ("VendorPayment", payment.Id));
         await db.SaveChangesAsync(cancellationToken);
 
@@ -236,7 +247,7 @@ public class CreateVendorPaymentHandler(
         {
             db.LogActivityAt(
                 "awaiting-batch",
-                $"Payment {payment.PaymentNumber} ({payment.Amount:C} via ACH) awaiting NACHA batch assembly",
+                $"Payment {payment.PaymentNumber} ({money.Format(payment.Amount)} via ACH) awaiting NACHA batch assembly",
                 ("VendorPayment", payment.Id));
             await db.SaveChangesAsync(cancellationToken);
         }
@@ -257,8 +268,8 @@ public class CreateVendorPaymentHandler(
             db.LogActivityAt(
                 awaitsWireAttestation ? WireAttestationState.AwaitingActivityAction : "transmission-queued",
                 awaitsWireAttestation
-                    ? $"Payment {payment.PaymentNumber} ({payment.Amount:C}) awaiting wire attestation — enter the wire at the bank, then a second user attests it"
-                    : $"Bank transmission queued — {payment.PaymentNumber} {payment.Amount:C} via {method}",
+                    ? $"Payment {payment.PaymentNumber} ({money.Format(payment.Amount)}) awaiting wire attestation — enter the wire at the bank, then a second user attests it"
+                    : $"Bank transmission queued — {payment.PaymentNumber} {money.Format(payment.Amount)} via {method}",
                 ("VendorPayment", payment.Id));
             await db.SaveChangesAsync(cancellationToken);
 

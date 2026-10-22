@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
@@ -23,8 +24,9 @@ public class DeletePieceWorkEntryHandler(AppDbContext db, IClock clock)
             ?? throw new KeyNotFoundException($"Piece-work entry {request.Id} not found.");
 
         entry.DeletedAt = clock.UtcNow;
+        var money = await MoneyFormat.ForBaseCurrencyAsync(db, ct);
         db.LogActivityAt("piece-work-deleted",
-            $"Removed piece-work entry {entry.Id} ({entry.Quantity:0.##} pcs, {entry.Earnings:C})",
+            $"Removed piece-work entry {entry.Id} ({entry.Quantity:0.##} pcs, {money.Format(entry.Earnings)})",
             ("PieceWorkEntry", entry.Id));
         await db.SaveChangesAsync(ct);
     }

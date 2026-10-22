@@ -25,6 +25,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     fonts-liberation \
+    fonts-noto-cjk \
+    fonts-noto-color-emoji \
+    fonts-hosny-amiri \
     libnss3 \
     libatk-bridge2.0-0 \
     libx11-xcb1 \

@@ -4,6 +4,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 
@@ -93,7 +94,7 @@ public class PurchaseOrderPdfDocument : IDocument
             page.Size(PageSizes.Letter);
             page.MarginHorizontal(40);
             page.MarginVertical(36);
-            page.DefaultTextStyle(x => x.FontSize(10).FontColor(Colors.Black));
+            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10).FontColor(Colors.Black));
 
             page.Header().Element(ComposeHeader);
             page.Content().Element(ComposeContent);
@@ -295,7 +296,7 @@ public class PurchaseOrderPdfDocument : IDocument
         container.AlignCenter().Text(text =>
         {
             text.DefaultTextStyle(x => x.FontSize(8));
-            text.Span($"PO {_po.PONumber}  -  Page ");
+            text.Span($"{_po.PONumber}  -  Page ");
             text.CurrentPageNumber();
             text.Span(" of ");
             text.TotalPages();

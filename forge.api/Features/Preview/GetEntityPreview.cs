@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Authorization;
+using Forge.Api.Services;
 using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
@@ -102,7 +103,7 @@ public class GetEntityPreviewHandler(
         var fields = new List<PreviewField>();
         AddEnum(fields, "Status", so.Status.ToString());
         Add(fields, "Requested delivery", Date(so.RequestedDeliveryDate));
-        AddMoney(fields, "Total", so.Total, null);
+        AddMoney(fields, "Total", so.Total, null, await MoneyFormat.ForBaseCurrencyAsync(db, ct));
 
         var links = new List<PreviewLink>();
         Link(links, "customer", so.CustomerId, "Customer");
@@ -144,7 +145,8 @@ public class GetEntityPreviewHandler(
         AddEnum(fields, "Status", inv.Status.ToString());
         Add(fields, "Invoice date", Date(inv.InvoiceDate));
         Add(fields, "Due", Date(inv.DueDate));
-        AddMoney(fields, "Total", inv.Total, inv.Currency?.Code);
+        AddMoney(fields, "Total", inv.Total, inv.Currency?.Code,
+            MoneyFormat.For(inv.Currency, await MoneyFormat.BaseCodeAsync(db, ct)));
 
         var links = new List<PreviewLink>();
         Link(links, "customer", inv.CustomerId, "Customer");
@@ -167,7 +169,7 @@ public class GetEntityPreviewHandler(
         AddEnum(fields, "Type", q.Type.ToString());
         AddEnum(fields, "Status", q.Status.ToString());
         Add(fields, "Expires", Date(q.ExpirationDate));
-        AddMoney(fields, "Total", q.EstimatedAmount ?? q.Total, null);
+        AddMoney(fields, "Total", q.EstimatedAmount ?? q.Total, null, await MoneyFormat.ForBaseCurrencyAsync(db, ct));
 
         var links = new List<PreviewLink>();
         Link(links, "customer", q.CustomerId, "Customer");
@@ -225,10 +227,10 @@ public class GetEntityPreviewHandler(
     private static void AddEnum(List<PreviewField> fields, string label, string value) =>
         fields.Add(new PreviewField(label, ActivityChangeSummary.SentenceLabel(value), Key(label), "enum", value));
 
-    private static void AddMoney(List<PreviewField> fields, string label, decimal amount, string? currency) =>
+    private static void AddMoney(List<PreviewField> fields, string label, decimal amount, string? currency, MoneyFormatter money) =>
         fields.Add(new PreviewField(
             label,
-            currency is null ? amount.ToString("N2", CultureInfo.InvariantCulture) : $"{amount.ToString("N2", CultureInfo.InvariantCulture)} {currency}",
+            money.Format(amount),
             Key(label),
             "money",
             amount.ToString(CultureInfo.InvariantCulture),

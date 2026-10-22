@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Notifications;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -126,13 +127,14 @@ public sealed class BankReturnsService(
                 var notifyUserId = transmission.CreatedByUserId ?? actorUserId;
                 if (notifyUserId is int userId && userId > 0)
                 {
+                    var money = await MoneyFormat.ForVendorPaymentAsync(db, item.VendorPaymentId.Value, ct);
                     await mediator.Send(new CreateNotificationCommand(new CreateNotificationRequestModel(
                         UserId: userId,
                         Type: "alert",
                         Severity: "critical",
                         Source: "ach-return",
                         Title: "ACH payment returned",
-                        Message: $"Payment {item.VendorPayment.PaymentNumber} ({entry.Amount:C}) was returned by the "
+                        Message: $"Payment {item.VendorPayment.PaymentNumber} ({money.Format(entry.Amount)}) was returned by the "
                                  + $"bank: {reason}. Void it (reopens the bill) or fix the vendor's bank account and re-send.",
                         EntityType: "VendorPayment",
                         EntityId: item.VendorPaymentId.Value,

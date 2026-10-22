@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
+using Forge.Api.Services;
 using Forge.Core.Enums;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
@@ -59,9 +60,10 @@ public class AttestWireTransmissionHandler(
             ? $"MANUAL-WIRE/{payment.PaymentNumber}"
             : $"MANUAL-WIRE/{request.BankReference.Trim()}";
 
+        var money = await MoneyFormat.ForVendorPaymentAsync(db, payment.Id, cancellationToken);
         db.LogActivityAt(
             "wire-attested",
-            $"Wire {payment.PaymentNumber} ({payment.Amount:C}) attested as entered at the bank (ref {transmission.SubmissionRef})",
+            $"Wire {payment.PaymentNumber} ({money.Format(payment.Amount)}) attested as entered at the bank (ref {transmission.SubmissionRef})",
             ("VendorPayment", payment.Id));
         await db.SaveChangesAsync(cancellationToken);
 

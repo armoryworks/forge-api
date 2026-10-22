@@ -2,7 +2,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
-using Forge.Api.Features.Invoices;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -64,7 +64,7 @@ public class OnInvoicePastDue_CreateFollowUp(
         if (assigneeId == 0) return;
 
         var customerName = invoice.Customer?.Name ?? "Unknown";
-        var balance = InvoiceMoneyText.Format(invoice.BalanceDue, await InvoiceMoneyText.CurrencyAsync(db, invoice.CurrencyId, ct));
+        var balance = (await MoneyFormat.ForCurrencyIdAsync(db, invoice.CurrencyId, ct)).Format(invoice.BalanceDue);
 
         db.FollowUpTasks.Add(new FollowUpTask
         {

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -9,12 +10,13 @@ namespace Forge.Api.Features.Payments;
 
 internal static class PaymentApplicationRules
 {
-    public static void ApplyToInvoice(
+    public static async Task ApplyToInvoiceAsync(
         AppDbContext db,
         Payment payment,
         Invoice invoice,
         CreatePaymentApplicationModel app,
-        ISet<int> completionCandidateSoIds)
+        ISet<int> completionCandidateSoIds,
+        CancellationToken ct)
     {
         if (invoice.CustomerId != payment.CustomerId)
             throw new InvalidOperationException(
@@ -27,8 +29,11 @@ internal static class PaymentApplicationRules
         var balanceDue = invoice.BalanceDue;
 
         if (app.Amount > balanceDue)
+        {
+            var money = await MoneyFormat.ForCurrencyIdAsync(db, invoice.CurrencyId, ct);
             throw new InvalidOperationException(
-                $"Application amount {app.Amount:C} exceeds invoice {invoice.InvoiceNumber} balance of {balanceDue:C}");
+                $"Application amount {money.Format(app.Amount)} exceeds invoice {invoice.InvoiceNumber} balance of {money.Format(balanceDue)}");
+        }
 
         payment.Applications.Add(new PaymentApplication
         {

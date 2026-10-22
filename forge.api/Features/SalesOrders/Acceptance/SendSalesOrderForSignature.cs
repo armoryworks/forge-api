@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -50,7 +51,8 @@ public class SendSalesOrderForSignatureHandler(
             .ToList();
 
         var pdfBytes = new SalesOrderAcceptancePdfDocument(
-            companyName, order.OrderNumber, order.Customer?.Name ?? "Customer", null, lines).GeneratePdf();
+            companyName, order.OrderNumber, order.Customer?.Name ?? "Customer", null, lines,
+            await MoneyFormat.ForBaseCurrencyAsync(db, settings, cancellationToken)).GeneratePdf();
 
         var templateId = await signing.CreateTemplateFromPdfAsync($"SO-Acceptance-{order.OrderNumber}", pdfBytes, cancellationToken);
         var submission = await signing.CreateSubmissionAsync(templateId, request.SignerEmail, request.SignerName, cancellationToken);

@@ -5,6 +5,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
@@ -84,7 +85,7 @@ public class DownloadSubmissionPdfHandler(AppDbContext db, IStorageService stora
             {
                 page.Size(PageSizes.Letter);
                 page.Margin(1, QuestInfra.Unit.Inch);
-                page.DefaultTextStyle(t => t.FontSize(10).FontFamily("Arial"));
+                page.DefaultTextStyle(t => t.FontSize(10).WithScriptFallbacks("Arial"));
 
                 // ── Header ────────────────────────────────────────────────
                 page.Header().Column(col =>

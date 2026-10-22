@@ -21,39 +21,6 @@ public static class EmailTemplateBuilder
         return sb.ToString();
     }
 
-    public static string BuildInvoiceEmail(
-        string companyName,
-        string customerName,
-        string invoiceNumber,
-        decimal total,
-        DateTimeOffset? dueDate)
-    {
-        var body = $"""
-            <p>Dear {Encode(customerName)},</p>
-            <p>Please find attached invoice <strong>{Encode(invoiceNumber)}</strong>.</p>
-            <table style="border-collapse:collapse;margin:16px 0;">
-              <tr>
-                <td style="padding:8px 16px;border:1px solid #ddd;font-weight:600;">Invoice #</td>
-                <td style="padding:8px 16px;border:1px solid #ddd;">{Encode(invoiceNumber)}</td>
-              </tr>
-              <tr>
-                <td style="padding:8px 16px;border:1px solid #ddd;font-weight:600;">Amount Due</td>
-                <td style="padding:8px 16px;border:1px solid #ddd;">${total:N2}</td>
-              </tr>
-              {(dueDate.HasValue ? $"""
-              <tr>
-                <td style="padding:8px 16px;border:1px solid #ddd;font-weight:600;">Due Date</td>
-                <td style="padding:8px 16px;border:1px solid #ddd;">{dueDate.Value:MMMM d, yyyy}</td>
-              </tr>
-              """ : "")}
-            </table>
-            <p>If you have any questions, please don't hesitate to reach out.</p>
-            <p>Thank you for your business.</p>
-            """;
-
-        return WrapHtml(companyName, $"Invoice {invoiceNumber}", body);
-    }
-
     public static string BuildNotificationEmail(
         string companyName,
         string recipientName,

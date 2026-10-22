@@ -228,7 +228,7 @@ public class VoidVendorPaymentTests
 
         db.ActivityLogs.Should().Contain(a =>
             a.EntityType == "VendorPayment" && a.EntityId == created.Id && a.Action == "voided"
-            && a.Description.Contains("duplicate entry") && a.Description.Contains(bill.BillNumber));
+            && a.Description.Contains("duplicate entry") && a.Description.Contains($"{bill.BillNumber} ($200.00)"));
         (await new VendorPaymentRepository(db).GetAllAsync(vendorId, CancellationToken.None))
             .Should().NotContain(p => p.Id == created.Id);
     }
