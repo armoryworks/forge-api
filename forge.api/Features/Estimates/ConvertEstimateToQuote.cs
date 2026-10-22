@@ -178,7 +178,7 @@ public class ConvertEstimateToQuoteHandler(
             estimate.Customer.Name,
             quote.Status.ToString(),
             quote.Lines.Count,
-            quote.RoundedSubtotal,
+            quote.Subtotal,
             quote.ExpirationDate,
             quote.CreatedAt);
     }

@@ -44,7 +44,7 @@ public class DeleteEstimateLineHandler(AppDbContext db, IMediator mediator)
             ?? throw new KeyNotFoundException($"Estimate line {request.LineId} not found.");
 
         estimate.Lines.Remove(line);
-        estimate.EstimatedAmount = Money.Round(estimate.Lines.Sum(l => l.Quantity * l.UnitPrice));
+        estimate.EstimatedAmount = estimate.Lines.Sum(l => l.LineTotal);
 
         db.LogActivityAt(
             "line-removed",

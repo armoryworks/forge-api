@@ -35,7 +35,7 @@ public class QuoteRepository(AppDbContext db) : IQuoteRepository
                 CustomerName = q.Customer.Name,
                 q.Status,
                 LineCount = q.Lines.Count,
-                Subtotal = q.Lines.Sum(l => l.Quantity * l.UnitPrice),
+                Subtotal = q.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)),
                 q.TaxRate,
                 q.ExpirationDate,
                 q.CreatedAt,
@@ -49,7 +49,7 @@ public class QuoteRepository(AppDbContext db) : IQuoteRepository
             r.CustomerName,
             r.Status.ToString(),
             r.LineCount,
-            Money.Round(r.Subtotal + r.Subtotal * r.TaxRate),
+            r.Subtotal + Money.Round(r.Subtotal * r.TaxRate),
             r.ExpirationDate,
             r.CreatedAt)).ToList();
     }

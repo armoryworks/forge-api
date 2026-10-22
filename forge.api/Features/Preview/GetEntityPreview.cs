@@ -167,7 +167,7 @@ public class GetEntityPreviewHandler(
         AddEnum(fields, "Type", q.Type.ToString());
         AddEnum(fields, "Status", q.Status.ToString());
         Add(fields, "Expires", Date(q.ExpirationDate));
-        AddMoney(fields, "Total", q.EstimatedAmount ?? q.RoundedTotal, null);
+        AddMoney(fields, "Total", q.EstimatedAmount ?? q.Total, null);
 
         var links = new List<PreviewLink>();
         Link(links, "customer", q.CustomerId, "Customer");

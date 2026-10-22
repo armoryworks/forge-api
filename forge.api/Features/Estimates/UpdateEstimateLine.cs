@@ -49,7 +49,7 @@ public class UpdateEstimateLineHandler(AppDbContext db, IMediator mediator)
         line.Quantity = request.Data.Quantity;
         line.UnitPrice = request.Data.UnitPrice;
         line.Notes = request.Data.Notes;
-        estimate.EstimatedAmount = Money.Round(estimate.Lines.Sum(l => l.Quantity * l.UnitPrice));
+        estimate.EstimatedAmount = estimate.Lines.Sum(l => l.LineTotal);
 
         db.LogActivityAt(
             "line-updated",

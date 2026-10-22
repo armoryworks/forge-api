@@ -62,7 +62,7 @@ public class AddEstimateLineHandler(AppDbContext db, IPartRepository partRepo, I
             LineNumber = nextLineNumber,
             Notes = request.Data.Notes,
         });
-        estimate.EstimatedAmount = Money.Round(estimate.Lines.Sum(l => l.Quantity * l.UnitPrice));
+        estimate.EstimatedAmount = estimate.Lines.Sum(l => l.LineTotal);
 
         db.LogActivityAt(
             "line-added",

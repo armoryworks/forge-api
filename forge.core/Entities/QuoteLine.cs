@@ -13,9 +13,7 @@ public class QuoteLine : BaseEntity
     public int LineNumber { get; set; }
     public string? Notes { get; set; }
 
-    public decimal LineTotal => Quantity * UnitPrice;
-
-    public decimal RoundedLineTotal => Money.Round(LineTotal);
+    public decimal LineTotal => Money.Round(Quantity * UnitPrice);
 
     public Quote Quote { get; set; } = null!;
     public Part? Part { get; set; }

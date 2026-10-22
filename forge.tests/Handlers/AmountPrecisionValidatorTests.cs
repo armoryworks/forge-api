@@ -2,6 +2,7 @@ using FluentAssertions;
 using FluentValidation;
 
 using Forge.Api.Features.Estimates;
+using Forge.Api.Features.Jobs;
 using Forge.Api.Features.Parts;
 using Forge.Api.Features.PurchaseOrders;
 using Forge.Api.Features.Quotes;
@@ -102,4 +103,32 @@ public class AmountPrecisionValidatorTests
         Errors(new ReviewPriceOverrideQueryValidator(), Review(1.23456m))
             .Should().ContainSingle(e => e.EndsWith("at most 4 decimal places."));
     }
+
+    [Fact]
+    public void SendOutSubcontract_FiveDecimalUnitCost_IsRejectedOnTheUnitCostField()
+    {
+        var failures = new SendOutSubcontractValidator()
+            .Validate(new SendOutSubcontractCommand(1, 1, new SendOutRequestModel(2m, 1.23456m, null, null, null, true)))
+            .Errors;
+
+        failures.Should().ContainSingle();
+        failures[0].PropertyName.Should().Be("Data.UnitCost");
+        failures[0].ErrorMessage.Should().EndWith("at most 4 decimal places.");
+    }
+
+    [Fact]
+    public void SendOutSubcontract_FiveDecimalQuantity_IsRejectedOnTheQuantityField()
+    {
+        var failures = new SendOutSubcontractValidator()
+            .Validate(new SendOutSubcontractCommand(1, 1, new SendOutRequestModel(1.00001m, 5m, null, null, null)))
+            .Errors;
+
+        failures.Should().ContainSingle().Which.PropertyName.Should().Be("Data.Quantity");
+    }
+
+    [Fact]
+    public void SendOutSubcontract_FourDecimalsWithTrailingZeros_IsAccepted()
+        => new SendOutSubcontractValidator()
+            .Validate(new SendOutSubcontractCommand(1, 1, new SendOutRequestModel(2.500000m, 1.234500m, null, null, null, true)))
+            .IsValid.Should().BeTrue();
 }

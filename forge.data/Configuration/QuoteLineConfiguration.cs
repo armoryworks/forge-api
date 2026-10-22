@@ -9,7 +9,6 @@ public class QuoteLineConfiguration : IEntityTypeConfiguration<QuoteLine>
     public void Configure(EntityTypeBuilder<QuoteLine> builder)
     {
         builder.Ignore(e => e.LineTotal);
-        builder.Ignore(e => e.RoundedLineTotal);
 
         builder.Property(e => e.Description).HasMaxLength(500);
         builder.Property(e => e.Notes).HasMaxLength(1000);

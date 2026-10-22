@@ -13,9 +13,6 @@ public class QuoteConfiguration : IEntityTypeConfiguration<Quote>
         builder.Ignore(e => e.Subtotal);
         builder.Ignore(e => e.TaxAmount);
         builder.Ignore(e => e.Total);
-        builder.Ignore(e => e.RoundedSubtotal);
-        builder.Ignore(e => e.RoundedTotal);
-        builder.Ignore(e => e.RoundedTaxAmount);
 
         // WU-11 / TODO E1 — optimistic locking
         builder.Property(e => e.Version).HasDefaultValue(1u);

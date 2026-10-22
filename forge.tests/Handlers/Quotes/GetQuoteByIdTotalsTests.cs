@@ -33,25 +33,44 @@ public class GetQuoteByIdTotalsTests
     }
 
     [Fact]
-    public async Task LineAndDocumentAmounts_AreRoundedToTheCent()
+    public async Task EachLineIsRoundedToTheCent_AndTheSubtotalIsTheirSum()
     {
         var quote = await GetAsync(SubCentQuote(0m));
 
         quote.Lines.Select(l => l.LineTotal).Should().Equal(0.38m, 10.00m, 10.00m);
         quote.Lines.Select(l => l.UnitPrice).Should().Equal(0.125m, 19.999m, 10m);
-        quote.Subtotal.Should().Be(20.37m);
+        quote.Subtotal.Should().Be(20.38m);
+        quote.Subtotal.Should().Be(quote.Lines.Sum(l => l.LineTotal));
         quote.TaxAmount.Should().Be(0m);
-        quote.Total.Should().Be(20.37m);
+        quote.Total.Should().Be(20.38m);
     }
 
     [Fact]
-    public async Task Tax_IsTheRoundedTotalLessTheRoundedSubtotal()
+    public async Task Tax_IsTheRateOnTheRoundedLines_RoundedToTheCent()
     {
         var quote = await GetAsync(SubCentQuote(0.0725m));
 
-        quote.Subtotal.Should().Be(20.37m);
-        quote.Total.Should().Be(21.85m);
+        quote.Subtotal.Should().Be(20.38m);
         quote.TaxAmount.Should().Be(1.48m);
+        quote.Total.Should().Be(21.86m);
         (quote.Subtotal + quote.TaxAmount).Should().Be(quote.Total);
+    }
+
+    [Fact]
+    public void QuoteRoundsLikeTheInvoiceItBecomes()
+    {
+        var quote = SubCentQuote(0.0725m);
+        var invoice = new Invoice
+        {
+            TaxRate = quote.TaxRate,
+            Lines = quote.Lines
+                .Select(l => new InvoiceLine { Description = l.Description, Quantity = l.Quantity, UnitPrice = l.UnitPrice })
+                .ToList(),
+        };
+
+        quote.Lines.Select(l => l.LineTotal).Should().Equal(invoice.Lines.Select(l => l.LineTotal));
+        quote.Subtotal.Should().Be(invoice.Subtotal);
+        quote.TaxAmount.Should().Be(invoice.TaxAmount);
+        quote.Total.Should().Be(invoice.Total);
     }
 }

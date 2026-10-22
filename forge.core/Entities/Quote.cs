@@ -56,20 +56,8 @@ public class Quote : BaseAuditableEntity, IConcurrencyVersioned
 
     // Computed (Quote-type only)
     public decimal Subtotal => Lines.Sum(l => l.LineTotal);
-    public decimal TaxAmount => Subtotal * TaxRate;
+    public decimal TaxAmount => Money.Round(Subtotal * TaxRate);
     public decimal Total => Subtotal + TaxAmount;
-
-    /// <summary>The subtotal rounded to the cent, as shown and sent to the customer.</summary>
-    public decimal RoundedSubtotal => Money.Round(Subtotal);
-
-    /// <summary>
-    /// The total rounded to the cent. Rounded total-first, like <see cref="Invoice.BalanceDue"/> and the AR
-    /// posting, so a quote's total matches the invoice it becomes.
-    /// </summary>
-    public decimal RoundedTotal => Money.Round(Total);
-
-    /// <summary>The tax as the difference, so the rounded subtotal and tax add up to the rounded total.</summary>
-    public decimal RoundedTaxAmount => RoundedTotal - RoundedSubtotal;
 
     // Navigation
     public Customer Customer { get; set; } = null!;

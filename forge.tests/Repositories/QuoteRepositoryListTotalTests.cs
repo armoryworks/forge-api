@@ -10,7 +10,7 @@ namespace Forge.Tests.Repositories;
 public class QuoteRepositoryListTotalTests
 {
     [Fact]
-    public async Task GetAllAsync_TotalIsTheTaxedSubtotalRoundedToTheCent()
+    public async Task GetAllAsync_TotalIsTheRoundedLinesPlusTheirTaxRoundedToTheCent()
     {
         using var db = TestDbContextFactory.Create();
         var customer = new Customer { Name = "Acme" };
@@ -26,6 +26,6 @@ public class QuoteRepositoryListTotalTests
 
         var list = await new QuoteRepository(db).GetAllAsync(null, null, CancellationToken.None);
 
-        list.Should().ContainSingle().Which.Total.Should().Be(21.85m);
+        list.Should().ContainSingle().Which.Total.Should().Be(21.86m);
     }
 }

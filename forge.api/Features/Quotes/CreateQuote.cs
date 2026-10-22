@@ -124,7 +124,7 @@ public class CreateQuoteHandler(
 
         return new QuoteListItemModel(
             quote.Id, quote.QuoteNumber, quote.CustomerId, customer.Name,
-            quote.Status.ToString(), quote.Lines.Count, quote.RoundedSubtotal,
+            quote.Status.ToString(), quote.Lines.Count, quote.Subtotal,
             quote.ExpirationDate, quote.CreatedAt);
     }
 
