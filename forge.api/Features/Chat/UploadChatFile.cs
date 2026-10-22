@@ -3,10 +3,13 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Forge.Api.Middleware;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Chat;
 
@@ -42,6 +45,7 @@ public class UploadChatFileCommandValidator : AbstractValidator<UploadChatFileCo
 }
 
 public class UploadChatFileHandler(
+    AppDbContext db,
     IStorageService storage,
     IFileRepository fileRepo,
     IHttpContextAccessor httpContext,
@@ -51,6 +55,13 @@ public class UploadChatFileHandler(
     {
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var file = request.File;
+
+        if (!await db.ChatRooms.AnyAsync(r => r.Id == request.ChannelId, cancellationToken))
+            throw new KeyNotFoundException($"Channel {request.ChannelId} not found");
+
+        if (!await db.ChatRoomMembers.AnyAsync(
+                m => m.ChatRoomId == request.ChannelId && m.UserId == userId, cancellationToken))
+            throw new ForbiddenException("You are not a member of this channel.");
 
         var bucketName = minioOptions.Value.JobFilesBucket;
         var objectKey = $"chat/{request.ChannelId}/{Guid.NewGuid():N}-{file.FileName}";
