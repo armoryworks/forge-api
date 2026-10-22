@@ -37,6 +37,7 @@ public class SaveOnboardingDraftValidator : AbstractValidator<SaveOnboardingDraf
             .Must(r => NachaFileGenerator.IsValidRoutingNumber(r!.Trim()))
             .When(x => !string.IsNullOrWhiteSpace(x.Model.RoutingNumber))
             .WithMessage("Routing number must be a valid 9-digit ABA routing number.");
+        RuleFor(x => x.Model).SetValidator(new OnboardingDraftModelValidator());
     }
 }
 

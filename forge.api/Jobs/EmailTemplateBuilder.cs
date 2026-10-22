@@ -12,12 +12,13 @@ public static class EmailTemplateBuilder
         List<DigestJobItem> upcomingJobs,
         List<DigestJobItem> overdueJobs,
         int completedYesterday,
-        TermLabels? terms = null)
+        TermLabels? terms = null,
+        string? appBaseUrl = null)
     {
         terms ??= TermLabels.Defaults;
         var sb = new StringBuilder();
         sb.Append(WrapHtml(companyName, $"Daily Digest for {userName}", BuildDigestBody(
-            userName, upcomingJobs, overdueJobs, completedYesterday, terms)));
+            userName, upcomingJobs, overdueJobs, completedYesterday, terms), appBaseUrl));
         return sb.ToString();
     }
 
@@ -25,20 +26,30 @@ public static class EmailTemplateBuilder
         string companyName,
         string recipientName,
         string notificationTitle,
-        string notificationMessage)
+        string notificationMessage,
+        string? appBaseUrl = null,
+        string? actionUrl = null,
+        string? actionLabel = null)
     {
-        var body = $"""
-            <p>Hi {Encode(recipientName)},</p>
-            <h3 style="margin:16px 0 8px;color:#333;">{Encode(notificationTitle)}</h3>
-            <p style="color:#555;">{Encode(notificationMessage)}</p>
+        var baseUrl = NormalizeBaseUrl(appBaseUrl);
+        var href = actionUrl ?? (baseUrl is null ? null : $"{baseUrl}/notifications");
+        var label = actionUrl is not null && actionLabel is not null ? actionLabel : $"Open {companyName}";
+        var button = href is null ? "" : $"""
             <p style="margin-top:24px;">
-              <a href="#" style="background:#2563eb;color:white;padding:10px 20px;text-decoration:none;font-weight:600;">
-                Open {Encode(companyName)}
+              <a href="{Encode(href)}" style="background:#2563eb;color:white;padding:10px 20px;text-decoration:none;font-weight:600;">
+                {Encode(label)}
               </a>
             </p>
             """;
+        var message = Encode(notificationMessage).Replace("\r\n", "\n").Replace("\n", "<br>");
+        var body = $"""
+            <p>Hi {Encode(recipientName)},</p>
+            <h3 style="margin:16px 0 8px;color:#333;">{Encode(notificationTitle)}</h3>
+            <p style="color:#555;">{message}</p>
+            {button}
+            """;
 
-        return WrapHtml(companyName, notificationTitle, body);
+        return WrapHtml(companyName, notificationTitle, body, baseUrl);
     }
 
     private static string BuildDigestBody(
@@ -113,8 +124,12 @@ public static class EmailTemplateBuilder
         return sb.ToString();
     }
 
-    private static string WrapHtml(string companyName, string title, string body)
+    private static string WrapHtml(string companyName, string title, string body, string? appBaseUrl = null)
     {
+        var baseUrl = NormalizeBaseUrl(appBaseUrl);
+        var preferences = baseUrl is null
+            ? ""
+            : $" · <a href=\"{Encode($"{baseUrl}/notifications?tab=preferences")}\" style=\"color:#6b7280;\">Manage preferences</a>";
         return $"""
             <!DOCTYPE html>
             <html>
@@ -130,7 +145,7 @@ public static class EmailTemplateBuilder
                 </div>
                 <div style="background:#f9fafb;padding:16px 24px;border-top:1px solid #e5e7eb;text-align:center;">
                   <p style="margin:0;color:#9ca3af;font-size:11px;">
-                    Sent by {Encode(companyName)} · <a href="#" style="color:#6b7280;">Manage preferences</a>
+                    Sent by {Encode(companyName)}{preferences}
                   </p>
                 </div>
               </div>
@@ -138,6 +153,9 @@ public static class EmailTemplateBuilder
             </html>
             """;
     }
+
+    private static string? NormalizeBaseUrl(string? appBaseUrl) =>
+        string.IsNullOrWhiteSpace(appBaseUrl) ? null : appBaseUrl.Trim().TrimEnd('/');
 
     private static string Encode(string text) =>
         System.Net.WebUtility.HtmlEncode(text);

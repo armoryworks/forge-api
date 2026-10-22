@@ -83,6 +83,7 @@ public class RegeneratedSetupTokenTests
 
         sent.Should().NotBeNull();
         sent!.HtmlBody.Should().NotContain(_user.SetupToken!);
+        sent.HtmlBody.Should().NotContain("Manage preferences");
         var code = Regex.Match(sent.HtmlBody, "https://forge\\.example/setup/([A-Z2-9]{4}-[A-Z2-9]{4})").Groups[1].Value;
         code.Should().NotBeEmpty();
 
