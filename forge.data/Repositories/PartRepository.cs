@@ -477,7 +477,9 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
                 s.SubcontractTurnTimeDays,
                 s.SetupMinutes,
                 s.RunMinutesLot,
-                s.ScrapFactor))
+                s.ScrapFactor,
+                s.RunMinutesEach,
+                s.LaborAttendancePercent))
             .ToListAsync(ct);
     }
 

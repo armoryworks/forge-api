@@ -113,6 +113,12 @@ public class ResumeStoppedTimerHandler(
         db.SyncQueueEntries.RemoveRange(syncItems);
         stopped.TimerStop = null;
         stopped.DurationMinutes = 0;
+        stopped.LaborMinutes = null;
+        stopped.AllocationMethod = null;
+        stopped.AllocatedAt = null;
+        stopped.LaborCost = 0m;
+        stopped.ActualLaborCost = 0m;
+        stopped.BurdenCost = 0m;
         db.LogActivityAt("timer-resumed", "Resumed timer after an undone clock-out", ("TimeEntry", stopped.Id));
         return stopped;
     }

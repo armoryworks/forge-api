@@ -27,6 +27,14 @@ public class LockPayPeriodHandler(AppDbContext db, IClock clock) : IRequestHandl
             throw new InvalidOperationException(
                 $"A pay period can only be locked through a finished day. Choose {shopToday.AddDays(-1):yyyy-MM-dd} or earlier.");
 
+        var running = await db.TimeEntries.AsNoTracking()
+            .Where(e => e.DeletedAt == null && e.Date <= lockDate && e.TimerStart != null && e.TimerStop == null)
+            .CountAsync(ct);
+        if (running > 0)
+            throw new InvalidOperationException(running == 1
+                ? $"A timer started on or before {lockDate:yyyy-MM-dd} is still running. Stop it before locking the pay period."
+                : $"{running} timers started on or before {lockDate:yyyy-MM-dd} are still running. Stop them before locking the pay period.");
+
         var entries = await db.TimeEntries
             .Where(e => e.DeletedAt == null
                 && !e.IsLocked

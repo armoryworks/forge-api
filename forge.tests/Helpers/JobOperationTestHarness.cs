@@ -41,14 +41,24 @@ public sealed class JobOperationTestHarness
             .ReturnsAsync((JobDetailResponseModel)null!);
 
         Operations = new JobOperationService(Timers.Db, Settings.Object, Timers.Clock.Object);
+
+        Timers.Mediator
+            .Setup(m => m.Send(It.IsAny<UpdateJobOperationProgressCommand>(), It.IsAny<CancellationToken>()))
+            .Returns((IRequest<JobOperationProgressResponseModel> command, CancellationToken ct) =>
+                ProgressHandler(_actingUserId).Handle((UpdateJobOperationProgressCommand)command, ct));
     }
+
+    private int _actingUserId;
 
     public StartJobOperationTimerHandler StartHandler(int userId) => new(
         Operations, Timers.Repo, Timers.Db, Timers.SignedIn(userId), Timers.TimerHub.Object,
         BoardHub.Object, Timers.Mediator.Object, Timers.Clock.Object, Timers.ClockEventTypes.Object);
 
-    public StopJobOperationTimerHandler StopHandler(int userId) => new(
-        Timers.Repo, Timers.Db, Timers.SignedIn(userId), Timers.Mediator.Object, Timers.Clock.Object);
+    public StopJobOperationTimerHandler StopHandler(int userId)
+    {
+        _actingUserId = userId;
+        return new(Timers.Repo, Timers.Db, Timers.SignedIn(userId), Timers.Mediator.Object, Timers.Clock.Object);
+    }
 
     public UpdateJobOperationProgressHandler ProgressHandler(int userId) => new(
         Operations, Timers.TimerStopService(), Timers.Db, Timers.SignedIn(userId), BoardHub.Object,

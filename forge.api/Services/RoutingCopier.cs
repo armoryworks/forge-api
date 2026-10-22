@@ -55,6 +55,7 @@ public static class RoutingCopier
                 BurdenRate = op.BurdenRate,
                 EstimatedLaborCost = op.EstimatedLaborCost,
                 EstimatedBurdenCost = op.EstimatedBurdenCost,
+                LaborAttendancePercent = op.LaborAttendancePercent,
             };
 
             foreach (var material in op.Materials)

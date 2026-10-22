@@ -18,6 +18,7 @@ public class WorkCenter : BaseAuditableEntity
     public bool IsActive { get; set; } = true;
     public int SortOrder { get; set; }
     public int? TeamId { get; set; }
+    public BurdenBasis BurdenBasis { get; set; } = BurdenBasis.Labor;
 
     public CompanyLocation? Location { get; set; }
     public Asset? Asset { get; set; }

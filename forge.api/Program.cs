@@ -352,6 +352,7 @@ try
     builder.Services.AddScoped<ITimeTrackingRepository, TimeTrackingRepository>();
     builder.Services.AddScoped<IWorkCenterContext, WorkCenterContext>();
     builder.Services.AddScoped<ITimerStopService, TimerStopService>();
+    builder.Services.AddScoped<ILaborAllocationService, LaborAllocationService>();
     builder.Services.AddScoped<UserDeactivation>();
     builder.Services.AddScoped<IJobOperationService, JobOperationService>();
     builder.Services.AddScoped<IBackflushService, BackflushService>();

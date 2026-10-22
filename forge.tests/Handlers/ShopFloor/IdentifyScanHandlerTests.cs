@@ -403,4 +403,34 @@ public class IdentifyScanHandlerTests
         (await _handler.Handle(new IdentifyScanQuery("T-BIN", TerminalOnly: true), CancellationToken.None))
             .Should().Be(new ScanIdentificationResult("storage-location", bin.Id, null, "Bin B2"));
     }
+    [Fact]
+    public async Task Handle_JobStepBarcode_OpensThatStepOfTheJob()
+    {
+        var trackType = new TrackType { Name = "Production", Code = "PROD-FJO", IsActive = true };
+        _db.TrackTypes.Add(trackType);
+        await _db.SaveChangesAsync();
+        var stage = new JobStage { TrackTypeId = trackType.Id, Name = "Machining", Code = "machining_fjo", SortOrder = 1, IsActive = true };
+        var part = new Part { PartNumber = "P-FJO", Name = "Bracket" };
+        _db.AddRange(stage, part);
+        await _db.SaveChangesAsync();
+        var step = new Operation { PartId = part.Id, StepNumber = 20, Title = "Mill" };
+        var otherPartStep = new Operation { PartId = part.Id + 1000, StepNumber = 10, Title = "Elsewhere" };
+        var job = new Job { JobNumber = "JOB-FJO", Title = "Step scan", TrackTypeId = trackType.Id, CurrentStageId = stage.Id, PartId = part.Id };
+        _db.AddRange(step, otherPartStep, job);
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new IdentifyScanQuery(JobStepBarcode.Format(job.Id, step.Id), TerminalOnly: true), CancellationToken.None);
+
+        result.ScanType.Should().Be("job-operation");
+        result.EntityId.Should().Be(job.Id);
+        result.EntityNumber.Should().Be("JOB-FJO");
+        result.OperationId.Should().Be(step.Id);
+        result.StepNumber.Should().Be(20);
+
+        var foreign = await _handler.Handle(new IdentifyScanQuery($"fjo:{job.Id}.{otherPartStep.Id}"), CancellationToken.None);
+        foreign.ScanType.Should().Be("job", "a step from another routing falls back to the job");
+
+        var garbage = await _handler.Handle(new IdentifyScanQuery("FJO:abc"), CancellationToken.None);
+        garbage.ScanType.Should().Be("unknown");
+    }
 }

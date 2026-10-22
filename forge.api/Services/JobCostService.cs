@@ -185,7 +185,7 @@ public class JobCostService(
         var workCenters = await db.WorkCenters
             .AsNoTracking()
             .Where(w => workCenterIds.Contains(w.Id))
-            .Select(w => new { w.Id, w.LaborCostPerHour, w.BurdenRatePerHour })
+            .Select(w => new { w.Id, w.LaborCostPerHour, w.BurdenRatePerHour, w.BurdenBasis })
             .ToDictionaryAsync(w => w.Id, ct);
 
         var policies = new Dictionary<DateOnly, CostingConversionPolicy>();
@@ -211,11 +211,15 @@ public class JobCostService(
                 ?? 0m;
             var actualRate = userRate?.ActualRatePerHour ?? hourlyRate; // no actual rate → costs at standard
             var burdenPerHour = Positive(operation?.BurdenRate) ?? workCenter?.BurdenRatePerHour ?? 0m;
-            var hours = entry.DurationMinutes / 60m;
+            var laborHours = (entry.LaborMinutes ?? entry.DurationMinutes) / 60m;
+            var machineHours = entry.DurationMinutes / 60m;
 
-            entry.LaborCost = hours * hourlyRate;       // standard-rate basis (efficiency variance)
-            entry.ActualLaborCost = hours * actualRate; // actual-rate basis (rate variance = actual − standard)
-            entry.BurdenCost = policy.Overhead(workCenterId, hours, entry.LaborCost, burdenPerHour);
+            entry.LaborCost = laborHours * hourlyRate;       // standard-rate basis (efficiency variance)
+            entry.ActualLaborCost = laborHours * actualRate; // actual-rate basis (rate variance = actual − standard)
+            var machineBasis = workCenter?.BurdenBasis == BurdenBasis.Machine;
+            entry.BurdenCost = machineBasis
+                ? policy.Overhead(workCenterId, machineHours, machineHours * hourlyRate, burdenPerHour)
+                : policy.Overhead(workCenterId, laborHours, entry.LaborCost, burdenPerHour);
         }
     }
 

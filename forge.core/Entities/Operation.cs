@@ -38,6 +38,7 @@ public class Operation : BaseAuditableEntity
     public decimal BurdenRate { get; set; }
     public decimal EstimatedLaborCost { get; set; }
     public decimal EstimatedBurdenCost { get; set; }
+    public decimal LaborAttendancePercent { get; set; } = 100m;
 
     public Part Part { get; set; } = null!;
     public WorkCenter? WorkCenter { get; set; }

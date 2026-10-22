@@ -47,7 +47,7 @@ public static class KioskWork
     }
 
     public static async Task<Dictionary<int, KioskNextOperationResponseModel>> NextOperationsAsync(
-        AppDbContext db, IEnumerable<int> jobIds, bool tracking, CancellationToken ct)
+        AppDbContext db, IEnumerable<int> jobIds, bool tracking, CancellationToken ct, int? userId = null)
     {
         var ids = jobIds.Distinct().ToList();
         if (ids.Count == 0)
@@ -63,7 +63,11 @@ public static class KioskWork
                     .Where(o => o.PartId == j.PartId
                         && !(tracking && db.JobOperations.Any(r => r.JobId == j.Id && r.OperationId == o.Id
                             && (r.Status == Complete || r.Status == Skipped))))
-                    .OrderBy(o => tracking
+                    .OrderBy(o => tracking && userId != null
+                        && db.TimeEntries.Any(t => t.JobId == j.Id && t.OperationId == o.Id && t.UserId == userId
+                            && t.TimerStart != null && t.TimerStop == null)
+                        ? 0 : 1)
+                    .ThenBy(o => tracking
                         && (db.JobOperations.Any(r => r.JobId == j.Id && r.OperationId == o.Id && r.Status == InProgress)
                             || db.TimeEntries.Any(t => t.JobId == j.Id && t.OperationId == o.Id
                                 && t.TimerStart != null && t.TimerStop == null))

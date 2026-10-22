@@ -33,6 +33,7 @@ public class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
 
         builder.Property(t => t.LaborCost).HasPrecision(18, 4);
         builder.Property(t => t.BurdenCost).HasPrecision(18, 4);
+        builder.Property(t => t.LaborMinutes).HasPrecision(10, 2);
 
         builder.HasOne(t => t.Operation)
             .WithMany()

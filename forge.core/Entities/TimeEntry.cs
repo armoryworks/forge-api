@@ -32,6 +32,9 @@ public class TimeEntry : BaseAuditableEntity
     public decimal LaborCost { get; set; }
     public decimal ActualLaborCost { get; set; }
     public decimal BurdenCost { get; set; }
+    public decimal? LaborMinutes { get; set; }
+    public LaborAllocationMethod? AllocationMethod { get; set; }
+    public DateTimeOffset? AllocatedAt { get; set; }
 
     // Pro Services — billable / non-billable split. Gated by
     // CAP-PS-TIME-BILLABLE at the UI / API surface; columns are

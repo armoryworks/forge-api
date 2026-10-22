@@ -2,7 +2,10 @@ using FluentValidation;
 
 using MediatR;
 
+using Microsoft.EntityFrameworkCore;
+
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
@@ -22,7 +25,8 @@ public record CreateWorkCenterCommand(
     int? CompanyLocationId,
     int SortOrder,
     int? TeamId = null,
-    decimal? IdealCycleTimeSeconds = null) : IRequest<WorkCenterResponseModel>, IWorkCenterFields;
+    decimal? IdealCycleTimeSeconds = null,
+    BurdenBasis? BurdenBasis = null) : IRequest<WorkCenterResponseModel>, IWorkCenterFields;
 
 public class CreateWorkCenterValidator : AbstractValidator<CreateWorkCenterCommand>
 {
@@ -39,6 +43,12 @@ public class CreateWorkCenterHandler(AppDbContext db) : IRequestHandler<CreateWo
         var teamName = await WorkCenterTeamGuard.ResolveTeamNameAsync(db, request.TeamId, cancellationToken);
         var code = await WorkCenterCodeGuard.EnsureUniqueAsync(db, request.Code, null, cancellationToken);
 
+        var burdenBasis = request.BurdenBasis
+            ?? (request.AssetId is int assetId
+                && await db.Assets.AnyAsync(a => a.Id == assetId && a.AssetType == AssetType.Machine, cancellationToken)
+                ? BurdenBasis.Machine
+                : BurdenBasis.Labor);
+
         var wc = new WorkCenter
         {
             Name = request.Name,
@@ -54,6 +64,7 @@ public class CreateWorkCenterHandler(AppDbContext db) : IRequestHandler<CreateWo
             SortOrder = request.SortOrder,
             TeamId = request.TeamId,
             IdealCycleTimeSeconds = request.IdealCycleTimeSeconds,
+            BurdenBasis = burdenBasis,
         };
 
         db.WorkCenters.Add(wc);
@@ -70,6 +81,6 @@ public class CreateWorkCenterHandler(AppDbContext db) : IRequestHandler<CreateWo
             wc.NumberOfMachines, wc.LaborCostPerHour,
             wc.BurdenRatePerHour, wc.IsActive,
             wc.AssetId, null, wc.CompanyLocationId, null, wc.SortOrder,
-            wc.TeamId, teamName, wc.IdealCycleTimeSeconds);
+            wc.TeamId, teamName, wc.IdealCycleTimeSeconds, wc.BurdenBasis);
     }
 }

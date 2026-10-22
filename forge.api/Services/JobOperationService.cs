@@ -189,6 +189,9 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
             var actualSetup = Sum(opEntries.Where(t => t.EntryType == TimeEntryType.Setup));
             var actualRun = Sum(opEntries.Where(t => t.EntryType == TimeEntryType.Run));
             var actualTotal = Sum(opEntries);
+            var labor = Math.Round(opEntries.Sum(t => t.TimerStop is not null && t.LaborMinutes is decimal split
+                ? split
+                : OperationTimeMath.EntryMinutes(t.TimerStart, t.TimerStop, t.DurationMinutes, now)), 2);
             var hist = operationId is int hid ? history.GetValueOrDefault(hid) : default;
 
             return new JobOperationRowResponseModel
@@ -217,6 +220,8 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
                 ActualRunMinutes = actualRun,
                 ActualOtherMinutes = actualTotal - actualSetup - actualRun,
                 ActualTotalMinutes = actualTotal,
+                LaborMinutes = labor,
+                LaborAttendancePercent = op?.LaborAttendancePercent ?? 100m,
                 ActualRunMinutesEach = completed > 0m ? actualRun / completed : null,
                 RemainingMinutes = Math.Round(
                     OperationTimeMath.RemainingMinutes(status, setup, lot, each, quantity, completed, scrap), 2),

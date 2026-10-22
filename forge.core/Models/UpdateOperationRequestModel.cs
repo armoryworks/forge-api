@@ -17,4 +17,6 @@ public record UpdateOperationRequestModel(
     decimal? SubcontractTurnTimeDays = null,
     decimal? SetupMinutes = null,
     decimal? RunMinutesLot = null,
-    decimal? ScrapFactor = null);
+    decimal? ScrapFactor = null,
+    decimal? RunMinutesEach = null,
+    decimal? LaborAttendancePercent = null);

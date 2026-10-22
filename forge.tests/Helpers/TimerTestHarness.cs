@@ -14,6 +14,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Settings;
 using Forge.Data.Context;
 using Forge.Data.Repositories;
 
@@ -38,6 +39,9 @@ public sealed class TimerTestHarness
     public Mock<IMediator> Mediator { get; } = new();
     public Mock<IClock> Clock { get; } = new();
     public Mock<IClockEventTypeService> ClockEventTypes { get; } = new();
+    public Mock<ISettingsService> LaborSettings { get; } = new();
+    public string LaborSplit { get; set; } = ShopFloorSettings.LaborSplitWeighted;
+    public bool BreaksPauseLabor { get; set; } = true;
     public DateTimeOffset Now { get; set; } = new(2026, 10, 7, 14, 0, 0, TimeSpan.Zero);
 
     public TimerTestHarness()
@@ -80,6 +84,12 @@ public sealed class TimerTestHarness
         };
         ClockEventTypes.Setup(t => t.GetByCodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string code, CancellationToken _) => definitions.FirstOrDefault(d => d.Code == code));
+        ClockEventTypes.Setup(t => t.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(definitions);
+
+        LaborSettings.Setup(s => s.GetStringAsync(ShopFloorSettings.LaborSplitKey, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => LaborSplit);
+        LaborSettings.Setup(s => s.GetBoolAsync(ShopFloorSettings.BreaksPauseLaborKey, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => BreaksPauseLabor);
     }
 
     public IHttpContextAccessor SignedIn(int userId)
@@ -120,8 +130,12 @@ public sealed class TimerTestHarness
             Jobs,
             Mock.Of<ICustomerRepository>(),
             Mock.Of<ILogger<TimerStopService>>(),
-            new JobCostService(Db));
+            new JobCostService(Db),
+            LaborAllocation());
     }
+
+    public LaborAllocationService LaborAllocation()
+        => new(Db, LaborSettings.Object, ClockEventTypes.Object, Clock.Object, new JobCostService(Db));
 
     public async Task<ApplicationUser> AddUserAsync()
     {

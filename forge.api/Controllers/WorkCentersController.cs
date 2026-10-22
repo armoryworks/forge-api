@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Scheduling;
+using Forge.Core.Enums;
 using Forge.Core.Models;
 
 namespace Forge.Api.Controllers;
@@ -39,7 +40,7 @@ public class WorkCentersController(IMediator mediator) : ControllerBase
             request.DailyCapacityHours, request.EfficiencyPercent,
             request.NumberOfMachines, request.LaborCostPerHour,
             request.BurdenRatePerHour, request.AssetId,
-            request.CompanyLocationId, request.SortOrder, request.TeamId, request.IdealCycleTimeSeconds));
+            request.CompanyLocationId, request.SortOrder, request.TeamId, request.IdealCycleTimeSeconds, request.BurdenBasis));
         return CreatedAtAction(nameof(GetAll), new { id = result.Id }, result);
     }
 
@@ -52,7 +53,7 @@ public class WorkCentersController(IMediator mediator) : ControllerBase
             request.DailyCapacityHours, request.EfficiencyPercent,
             request.NumberOfMachines, request.LaborCostPerHour,
             request.BurdenRatePerHour, request.IsActive,
-            request.AssetId, request.CompanyLocationId, request.SortOrder, request.TeamId, request.IdealCycleTimeSeconds));
+            request.AssetId, request.CompanyLocationId, request.SortOrder, request.TeamId, request.IdealCycleTimeSeconds, request.BurdenBasis));
         return Ok(result);
     }
 
@@ -78,7 +79,8 @@ public record CreateWorkCenterRequest(
     int? CompanyLocationId,
     int SortOrder,
     int? TeamId = null,
-    decimal? IdealCycleTimeSeconds = null);
+    decimal? IdealCycleTimeSeconds = null,
+    BurdenBasis? BurdenBasis = null);
 
 public record UpdateWorkCenterRequest(
     string Name,
@@ -94,4 +96,5 @@ public record UpdateWorkCenterRequest(
     int? CompanyLocationId,
     int SortOrder,
     int? TeamId = null,
-    decimal? IdealCycleTimeSeconds = null);
+    decimal? IdealCycleTimeSeconds = null,
+    BurdenBasis? BurdenBasis = null);

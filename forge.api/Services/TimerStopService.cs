@@ -23,7 +23,8 @@ public class TimerStopService(
     IJobRepository jobRepository,
     ICustomerRepository customerRepository,
     ILogger<TimerStopService> logger,
-    IJobCostService? jobCost = null) : ITimerStopService
+    IJobCostService? jobCost = null,
+    ILaborAllocationService? laborAllocation = null) : ITimerStopService
 {
     public void Close(TimeEntry entry, DateTimeOffset stopAt, string? notes = null, string? reason = null, string? appendNote = null)
     {
@@ -44,13 +45,17 @@ public class TimerStopService(
     public async Task<IReadOnlyList<TimeEntryResponseModel>> PublishStoppedAsync(
         IReadOnlyList<TimeEntry> entries, CancellationToken cancellationToken)
     {
+        if (laborAllocation is not null && entries.Count > 0)
+            await laborAllocation.AllocateStoppedAsync(entries, cancellationToken);
+
         var jobEntries = entries.Where(e => e.JobId.HasValue).ToList();
-        if (jobCost is not null && jobEntries.Count > 0)
+        if (jobCost is not null)
         {
             foreach (var entry in jobEntries)
                 await jobCost.PriceTimeEntryAsync(entry, cancellationToken);
-            await db.SaveChangesAsync(cancellationToken);
         }
+        if (entries.Count > 0 && (laborAllocation is not null || (jobCost is not null && jobEntries.Count > 0)))
+            await db.SaveChangesAsync(cancellationToken);
 
         var results = new List<TimeEntryResponseModel>(entries.Count);
         foreach (var entry in entries)
@@ -61,7 +66,7 @@ public class TimerStopService(
             await timerHub.Clients.Group($"user:{entry.UserId}")
                 .SendAsync("timerStopped", new TimerStoppedEvent(entry.UserId, result), cancellationToken);
 
-            if (entry.DurationMinutes != 0)
+            if ((entry.LaborMinutes ?? entry.DurationMinutes) != 0)
                 await EnqueueTimeActivityAsync(entry, cancellationToken);
         }
 
@@ -98,7 +103,7 @@ public class TimerStopService(
             var activity = new AccountingTimeActivity(
                 EmployeeExternalId: user.AccountingEmployeeId,
                 CustomerExternalId: customerExternalId,
-                Hours: entry.DurationMinutes / 60m,
+                Hours: (entry.LaborMinutes ?? entry.DurationMinutes) / 60m,
                 Date: entry.Date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
                 Description: entry.Notes ?? $"Time entry for {entry.Category ?? "general"}",
                 ServiceItemExternalId: null);

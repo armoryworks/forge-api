@@ -23,6 +23,8 @@ public class CreateOperationValidator : AbstractValidator<CreateOperationCommand
         RuleFor(x => x.Data.RunMinutesLot).GreaterThanOrEqualTo(0m).FitsNumeric(10, 2).When(x => x.Data.RunMinutesLot.HasValue);
         RuleFor(x => x.Data.EstimatedMs).InclusiveBetween(0L, NumericColumnRules.MaxOperationEstimatedMs).When(x => x.Data.EstimatedMs.HasValue);
         RuleFor(x => x.Data.ScrapFactor).GreaterThanOrEqualTo(0m).LessThan(1m).When(x => x.Data.ScrapFactor.HasValue);
+        RuleFor(x => x.Data.RunMinutesEach).GreaterThanOrEqualTo(0m).FitsNumeric(10, 2).When(x => x.Data.RunMinutesEach.HasValue);
+        RuleFor(x => x.Data.LaborAttendancePercent).InclusiveBetween(0m, 100m).FitsNumeric(5, 2).When(x => x.Data.LaborAttendancePercent.HasValue);
 
         // Phase 3 H5 / WU-13 — when an operation is flagged as subcontract,
         // both vendor + turn time must be present. The active-check on the
@@ -71,6 +73,8 @@ public class CreateOperationHandler(IPartRepository repo, IVendorRepository vend
             EstimatedMs = data.EstimatedMs,
             SetupMinutes = data.SetupMinutes ?? 0m,
             RunMinutesLot = data.RunMinutesLot ?? 0m,
+            RunMinutesEach = data.RunMinutesEach ?? 0m,
+            LaborAttendancePercent = data.LaborAttendancePercent ?? 100m,
             ScrapFactor = Math.Round(data.ScrapFactor ?? 0m, 4, MidpointRounding.ToZero),
             IsQcCheckpoint = data.IsQcCheckpoint,
             QcCriteria = data.QcCriteria?.Trim(),

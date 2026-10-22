@@ -250,6 +250,81 @@ public class JobOperationTimerHandlerTests
     }
 
     [Fact]
+    public async Task Stop_WithQuantities_RecordsThemOnTheStepAndStopsTheTimer()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(10m);
+        var user = await _h.Timers.AddUserAsync();
+        await StartAsync(user.Id, job.Id, routing[0].Id);
+        _h.Timers.Now = _h.Timers.Now.AddMinutes(12);
+
+        var result = await _h.StopHandler(user.Id).Handle(
+            new StopJobOperationTimerCommand(job.Id, routing[0].Id, new StopJobOperationTimerRequestModel(GoodQuantity: 4m, ScrapQuantity: 1m, ReasonCode: "chatter")),
+            CancellationToken.None);
+
+        result.Stopped.Should().BeTrue();
+        result.Entry!.DurationMinutes.Should().Be(12);
+        result.Operation!.CompletedQuantity.Should().Be(4m);
+        result.Operation.ScrapQuantity.Should().Be(1m);
+        var row = await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync();
+        row.Status.Should().Be(JobOperationStatus.InProgress);
+        (await _h.Timers.Db.TimeEntries.AnyAsync(t => t.TimerStop == null)).Should().BeFalse();
+
+        await StartAsync(user.Id, job.Id, routing[0].Id);
+        await _h.StopHandler(user.Id).Handle(
+            new StopJobOperationTimerCommand(job.Id, routing[0].Id, new StopJobOperationTimerRequestModel(GoodQuantity: 2m)),
+            CancellationToken.None);
+        (await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync()).CompletedQuantity.Should().Be(6m, "stop quantities add to what is already recorded");
+    }
+
+    [Fact]
+    public async Task Stop_WithMarkComplete_CompletesTheStep()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(10m);
+        var user = await _h.Timers.AddUserAsync();
+        await StartAsync(user.Id, job.Id, routing[1].Id);
+
+        var result = await _h.StopHandler(user.Id).Handle(
+            new StopJobOperationTimerCommand(job.Id, routing[1].Id, new StopJobOperationTimerRequestModel(GoodQuantity: 10m, MarkComplete: true)),
+            CancellationToken.None);
+
+        result.Stopped.Should().BeTrue();
+        result.Operation!.Status.Should().Be(JobOperationStatus.Complete);
+        (await _h.Timers.Db.TimeEntries.AnyAsync(t => t.TimerStop == null)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Stop_WithTooManyPieces_IsRefusedAndTheTimerKeepsRunning()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(10m);
+        var user = await _h.Timers.AddUserAsync();
+        await StartAsync(user.Id, job.Id, routing[0].Id);
+
+        var act = () => _h.StopHandler(user.Id).Handle(
+            new StopJobOperationTimerCommand(job.Id, routing[0].Id, new StopJobOperationTimerRequestModel(GoodQuantity: 9m, ScrapQuantity: 3m)),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<FluentValidation.ValidationException>();
+        (await _h.Timers.Db.TimeEntries.CountAsync(t => t.TimerStop == null)).Should().Be(1);
+        (await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync()).CompletedQuantity.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task Stop_WithBlankQuantities_OnlyStopsTheTimer()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(10m);
+        var user = await _h.Timers.AddUserAsync();
+        await StartAsync(user.Id, job.Id, routing[0].Id);
+
+        var result = await _h.StopHandler(user.Id).Handle(
+            new StopJobOperationTimerCommand(job.Id, routing[0].Id, new StopJobOperationTimerRequestModel()),
+            CancellationToken.None);
+
+        result.Stopped.Should().BeTrue();
+        result.Operation.Should().BeNull();
+        (await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync()).CompletedQuantity.Should().Be(0m);
+    }
+
+    [Fact]
     public void Validator_RejectsAnUnknownEntryType()
     {
         var validator = new StartJobOperationTimerValidator();

@@ -25,7 +25,8 @@ public class UpdateTimeEntryCommandValidator : AbstractValidator<UpdateTimeEntry
 }
 
 public class UpdateTimeEntryHandler(
-    ITimeTrackingRepository repo, AppDbContext db, IClock clock, IHttpContextAccessor http, IJobCostService? jobCost = null)
+    ITimeTrackingRepository repo, AppDbContext db, IClock clock, IHttpContextAccessor http, IJobCostService? jobCost = null,
+    ILaborAllocationService? laborAllocation = null)
     : IRequestHandler<UpdateTimeEntryCommand, TimeEntryResponseModel>
 {
     public async Task<TimeEntryResponseModel> Handle(UpdateTimeEntryCommand request, CancellationToken cancellationToken)
@@ -51,12 +52,15 @@ public class UpdateTimeEntryHandler(
         if (data.Date.HasValue && data.Date.Value != entry.Date)
             await TimeLockBoundary.EnsureOpenAsync(db, data.Date.Value, cancellationToken);
 
+        var before = TimeEntryTimes.Span(entry);
         if (data.JobId.HasValue) entry.JobId = data.JobId;
         if (data.Date.HasValue) entry.Date = data.Date.Value;
         TimeEntryTimes.Apply(entry, null, null, data.DurationMinutes);
         if (data.Category is not null) entry.Category = data.Category.Trim();
         if (data.Notes is not null) entry.Notes = data.Notes.Trim();
         if (data.IsBillable.HasValue) entry.IsBillable = data.IsBillable.Value;
+        if (laborAllocation is not null)
+            await laborAllocation.ReallocateAsync(entry.UserId, TimeEntryTimes.Spans(before, entry), [entry], cancellationToken);
         if (jobCost is not null && entry.JobId.HasValue)
             await jobCost.PriceTimeEntryAsync(entry, cancellationToken);
 

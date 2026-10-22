@@ -26,6 +26,8 @@ public record JobOperationRowResponseModel
     public decimal ActualRunMinutes { get; init; }
     public decimal ActualOtherMinutes { get; init; }
     public decimal ActualTotalMinutes { get; init; }
+    public decimal LaborMinutes { get; init; }
+    public decimal LaborAttendancePercent { get; init; } = 100m;
     public decimal? ActualRunMinutesEach { get; init; }
     public decimal RemainingMinutes { get; init; }
     public decimal? HistoryRunMinutesEach { get; init; }

@@ -21,13 +21,15 @@ public record ScanIdentificationResult(
     string? EntityTitle = null,
     string? StageName = null,
     string? StageColor = null,
-    bool IsClosed = false);
+    bool IsClosed = false,
+    int? OperationId = null,
+    int? StepNumber = null);
 
 public class IdentifyScanHandler(
     AppDbContext db,
     UserManager<ApplicationUser> userManager) : IRequestHandler<IdentifyScanQuery, ScanIdentificationResult>
 {
-    private static readonly HashSet<string> TerminalScanTypes = ["employee", "job", "part", "lot", "storage-location", "unknown"];
+    private static readonly HashSet<string> TerminalScanTypes = ["employee", "job", "job-operation", "part", "lot", "storage-location", "unknown"];
 
     public async Task<ScanIdentificationResult> Handle(IdentifyScanQuery request, CancellationToken cancellationToken)
     {
@@ -40,6 +42,11 @@ public class IdentifyScanHandler(
     private async Task<ScanIdentificationResult> IdentifyAsync(IdentifyScanQuery request, CancellationToken cancellationToken)
     {
         var scanValue = request.ScanValue.Trim();
+
+        if (scanValue.StartsWith(JobStepBarcode.Prefix, StringComparison.OrdinalIgnoreCase))
+            return JobStepBarcode.TryParse(scanValue, out var stepJobId, out var stepOperationId)
+                ? await ResolveJobStepResult(stepJobId, stepOperationId, cancellationToken)
+                : new ScanIdentificationResult("unknown");
 
         // 1. Check central Barcode table (primary lookup)
         var barcode = await db.Barcodes
@@ -141,6 +148,23 @@ public class IdentifyScanHandler(
         }
 
         return new ScanIdentificationResult("storage-location", id, null, names.Count > 0 ? string.Join(" / ", names) : null);
+    }
+
+    private async Task<ScanIdentificationResult> ResolveJobStepResult(int jobId, int operationId, CancellationToken cancellationToken)
+    {
+        var job = await ResolveJobResult(jobId, cancellationToken);
+        if (job.ScanType != "job")
+            return job;
+
+        var step = await db.Jobs
+            .Where(j => j.Id == jobId)
+            .SelectMany(j => db.Operations.Where(o => o.Id == operationId && o.PartId == j.PartId))
+            .Select(o => new { o.Id, o.StepNumber })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return step is null
+            ? job
+            : job with { ScanType = "job-operation", OperationId = step.Id, StepNumber = step.StepNumber };
     }
 
     private async Task<ScanIdentificationResult> ResolveJobResult(int jobId, CancellationToken cancellationToken)

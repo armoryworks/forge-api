@@ -25,4 +25,6 @@ public record OperationResponseModel(
     decimal? SubcontractTurnTimeDays = null,
     decimal SetupMinutes = 0,
     decimal RunMinutesLot = 0,
-    decimal ScrapFactor = 0);
+    decimal ScrapFactor = 0,
+    decimal RunMinutesEach = 0,
+    decimal LaborAttendancePercent = 100);

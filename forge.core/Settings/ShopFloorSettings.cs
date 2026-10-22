@@ -11,6 +11,11 @@ public static class ShopFloorSettings
 
     public const string OperationTrackingKey = "shop-floor.operation-tracking";
     public const string BackflushDefaultKey = "shop-floor.backflush-default";
+    public const string LaborSplitKey = "shop-floor.labor-split";
+    public const string BreaksPauseLaborKey = "shop-floor.breaks-pause-labor";
+    public const string RecentJobDaysKey = "shop-floor.recent-job-days";
+    public const string LaborSplitWeighted = "Weighted";
+    public const string LaborSplitNone = "None";
 
     public static IReadOnlyList<SettingDescriptor> Descriptors =>
     [
@@ -28,5 +33,25 @@ public static class ShopFloorSettings
             DefaultValue: "Manual",
             SortOrder: 110,
             Choices: [new("Auto", "Auto"), new("Manual", "Manual"), new("None", "None")]),
+        new(LaborSplitKey, Group, "Labor split for overlapping timers", SettingDataType.Enum,
+            Description: "How a person's clocked time is costed when several of their timers run at once. Weighted "
+                + "shares it across the open timers by each step's operator attendance % (an even split when every "
+                + "step is fully attended), so a job is never charged more labor than the person was paid for. None "
+                + "charges every timer its full elapsed time. Applies to timers stopped after the change; use "
+                + "Recompute labor to re-price an open period.",
+            DefaultValue: LaborSplitWeighted,
+            SortOrder: 120,
+            Choices: [new(LaborSplitWeighted, "Weighted"), new(LaborSplitNone, "None")]),
+        new(BreaksPauseLaborKey, Group, "Unpaid breaks remove labor from jobs", SettingDataType.Boolean,
+            Description: "When on, time spent on a break or lunch is not charged to the jobs whose timers kept "
+                + "running; machine burden still accrues. Turn off if your shop pays for breaks.",
+            DefaultValue: "true",
+            SortOrder: 130),
+        new(RecentJobDaysKey, Group, "Recent jobs on the kiosk (days)", SettingDataType.Integer,
+            Description: "The kiosk's My jobs list includes jobs the person logged time on within this many days, "
+                + "next to the jobs assigned to them and the jobs they have running.",
+            DefaultValue: "3",
+            SortOrder: 140,
+            ValidationPattern: "^([0-9]|[1-2][0-9]|30)$"),
     ];
 }
