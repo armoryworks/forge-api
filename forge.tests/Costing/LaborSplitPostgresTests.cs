@@ -107,7 +107,7 @@ public sealed class LaborSplitPostgresTests(PostgresFixture fixture)
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var user = new ApplicationUser
         {
-            FirstName = "Ian", LastName = $"Split{suffix}", UserName = $"split-{suffix}@example.com",
+            FirstName = "Avery", LastName = $"Split{suffix}", UserName = $"split-{suffix}@example.com",
             Email = $"split-{suffix}@example.com", IsActive = true,
         };
         seed.Users.Add(user);
