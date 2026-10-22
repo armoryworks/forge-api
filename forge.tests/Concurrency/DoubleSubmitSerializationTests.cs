@@ -85,7 +85,7 @@ public sealed class DoubleSubmitSerializationTests(PostgresFixture fixture)
         var clock = new SystemClock();
         var handler = new StartTimerHandler(
             new TimeTrackingRepository(db), new JobRepository(db, clock), db, SignedIn(user.Id),
-            hub.Object, Mock.Of<IMediator>(), clock);
+            hub.Object, Mock.Of<IMediator>(), clock, Mock.Of<IClockEventTypeService>());
 
         var second = handler.Handle(new StartTimerCommand(new StartTimerRequestModel(null, "Setup", null)), CancellationToken.None);
         (await Task.WhenAny(second, Task.Delay(BlockedFor))).Should().NotBe(second);
