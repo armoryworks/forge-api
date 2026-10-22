@@ -123,7 +123,9 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
         var routing = (job.Part?.Operations ?? []).OrderBy(o => o.StepNumber).ThenBy(o => o.Id).ToList();
         var routingIds = routing.Select(o => o.Id).ToHashSet();
         var target = Math.Min(OperationTimeMath.JobTargetQuantity(job), quantity);
-        var plannedInputs = ProductionQuantityPlan.PlannedStepInputs(target, routing.Select(o => o.ScrapFactor).ToList());
+        var plannedInputs = ProductionQuantityPlan.PlannedStepInputs(target, routing.Select(o => o.ScrapFactor).ToList()).ToArray();
+        if (plannedInputs.Length > 0 && quantity > plannedInputs[0])
+            plannedInputs[0] = quantity;
         var plannedByOperation = routing
             .Select((op, index) => (op.Id, Planned: Math.Min(plannedInputs[index], quantity)))
             .GroupBy(p => p.Id)

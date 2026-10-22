@@ -16,4 +16,5 @@ public record UpdateOperationRequestModel(
     int? SubcontractVendorId = null,
     decimal? SubcontractTurnTimeDays = null,
     decimal? SetupMinutes = null,
-    decimal? RunMinutesLot = null);
+    decimal? RunMinutesLot = null,
+    decimal? ScrapFactor = null);
