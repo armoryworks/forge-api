@@ -6,6 +6,7 @@ using Forge.Api.Features.Presets.Apply.Layers;
 using Forge.Api.Features.Terminology;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
+using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Tests.Helpers;
 
@@ -18,7 +19,7 @@ public class TerminologySpanishTranslatorTests
 
     private void Translates(string english, string? spanish) =>
         _translator.Setup(t => t.TranslateLabelAsync($"the {english}", "en", "es", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(spanish);
+            .ReturnsAsync(spanish is null ? I18nTranslationResult.Unavailable : I18nTranslationResult.Translated(spanish));
 
     private string? Label(string key) => _db.TerminologyEntries.SingleOrDefault(e => e.Key == key)?.Label;
 
@@ -95,5 +96,28 @@ public class TerminologySpanishTranslatorTests
         untranslated.Should().Contain("job");
         Label("entity_job:es").Should().BeNullOrEmpty();
         Label("label_jobs:es").Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task A_rejected_reply_does_not_stop_the_next_term()
+    {
+        _db.TerminologyEntries.AddRange(
+            new TerminologyEntry { Key = "entity_job", Label = "Engagement", IsAdminEdited = true },
+            new TerminologyEntry { Key = "label_jobs", Label = "Engagements", IsAdminEdited = true },
+            new TerminologyEntry { Key = "entity_customer", Label = "Company", IsAdminEdited = true },
+            new TerminologyEntry { Key = "label_customers", Label = "Companies", IsAdminEdited = true });
+        await _db.SaveChangesAsync();
+        _translator.Setup(t => t.TranslateLabelAsync("the Engagement", "en", "es", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(I18nTranslationResult.Rejected);
+        Translates("Engagements", "los Compromisos");
+        Translates("Company", "la Compañía");
+        Translates("Companies", "las Compañías");
+
+        var untranslated = await new TerminologySpanishTranslator(_db, _translator.Object)
+            .TranslateChangedTermsAsync(["entity_job", "label_jobs", "entity_customer", "label_customers"], CancellationToken.None);
+
+        untranslated.Should().Contain("job").And.NotContain("customer");
+        Label("entity_job:es").Should().BeNullOrEmpty();
+        Label("entity_customer:es").Should().Be("Compañía");
     }
 }

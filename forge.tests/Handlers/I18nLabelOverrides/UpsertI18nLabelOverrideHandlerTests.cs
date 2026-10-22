@@ -1,11 +1,15 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 using Forge.Api.Features.I18nLabelOverrides;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Integrations;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.I18nLabelOverrides;
@@ -19,7 +23,7 @@ public class UpsertI18nLabelOverrideHandlerTests
     public UpsertI18nLabelOverrideHandlerTests()
     {
         _db = TestDbContextFactory.Create();
-        _handler = new UpsertI18nLabelOverrideHandler(_db, _translator.Object);
+        _handler = new UpsertI18nLabelOverrideHandler(_db, _translator.Object, new SystemClock());
     }
 
     private static UpsertI18nLabelOverrideCommand Command(
@@ -33,7 +37,7 @@ public class UpsertI18nLabelOverrideHandlerTests
     public async Task Handle_NewKey_CreatesHumanOverride()
     {
         _translator.Setup(t => t.TranslateLabelAsync("Client Name", "en", "es", It.IsAny<CancellationToken>()))
-            .ReturnsAsync("Nombre del cliente");
+            .ReturnsAsync(I18nTranslationResult.Translated("Nombre del cliente"));
 
         var result = await _handler.Handle(Command(), CancellationToken.None);
 
@@ -49,7 +53,7 @@ public class UpsertI18nLabelOverrideHandlerTests
     public async Task Handle_FanOut_CreatesMachineTranslationForOtherLanguage()
     {
         _translator.Setup(t => t.TranslateLabelAsync("Client Name", "en", "es", It.IsAny<CancellationToken>()))
-            .ReturnsAsync("Nombre del cliente");
+            .ReturnsAsync(I18nTranslationResult.Translated("Nombre del cliente"));
 
         var result = await _handler.Handle(Command(), CancellationToken.None);
 
@@ -69,7 +73,7 @@ public class UpsertI18nLabelOverrideHandlerTests
             new SupportedLanguage { Code = "zh", Name = "Chinese", NativeName = "中文", IsActive = false });
         await _db.SaveChangesAsync();
         _translator.Setup(t => t.TranslateLabelAsync(It.IsAny<string>(), "en", "pt", It.IsAny<CancellationToken>()))
-            .ReturnsAsync("Nome do cliente");
+            .ReturnsAsync(I18nTranslationResult.Translated("Nome do cliente"));
 
         var result = await _handler.Handle(Command(), CancellationToken.None);
 
@@ -81,7 +85,7 @@ public class UpsertI18nLabelOverrideHandlerTests
     public async Task Handle_TranslationServiceUnavailable_SavesPrimaryAndFlagsSiblingPending()
     {
         _translator.Setup(t => t.TranslateLabelAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string?)null);
+            .ReturnsAsync(I18nTranslationResult.Unavailable);
 
         var result = await _handler.Handle(Command(), CancellationToken.None);
 
@@ -90,6 +94,47 @@ public class UpsertI18nLabelOverrideHandlerTests
         pending.IsPendingTranslation.Should().BeTrue();
         pending.Value.Should().Be("Client Name"); // Source text kept as placeholder.
         result.Overrides.Single(o => o.LanguageCode == "en").IsPendingTranslation.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Handle_CannedAiReply_StoresNoSibling()
+    {
+        var ai = new Mock<IAiService>();
+        ai.Setup(a => a.IsAvailableAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        ai.Setup(a => a.GenerateTextAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("Canned assistant answer. This response is fixed for testing");
+        var translator = new AiI18nTranslationService(ai.Object, NullLogger<AiI18nTranslationService>.Instance);
+        var handler = new UpsertI18nLabelOverrideHandler(_db, translator, new SystemClock());
+
+        var result = await handler.Handle(Command(), CancellationToken.None);
+
+        result.TranslationsPending.Should().BeFalse();
+        result.Overrides.Select(o => o.LanguageCode).Should().BeEquivalentTo(["en"]);
+        _db.I18nLabelOverrides.Any(o => o.LanguageCode == "es").Should().BeFalse();
+        _db.ActivityLogs.Single(l => l.EntityType == "I18nLabelOverride" && l.Action == "created")
+            .Description.Should().Contain("1 translation(s) discarded");
+    }
+
+    [Fact]
+    public async Task Handle_RejectedReply_RemovesMachineRowFromEarlierValue()
+    {
+        _db.I18nLabelOverrides.Add(new I18nLabelOverride
+        {
+            Key = "customers.fields.name",
+            LanguageCode = "es",
+            Value = "Nombre anterior",
+            IsMachineTranslated = true,
+            SourceLanguageCode = "en",
+        });
+        await _db.SaveChangesAsync();
+        _translator.Setup(t => t.TranslateLabelAsync("Client Name", "en", "es", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(I18nTranslationResult.Rejected);
+
+        var result = await _handler.Handle(Command(), CancellationToken.None);
+
+        result.TranslationsPending.Should().BeFalse();
+        _db.I18nLabelOverrides.Any(o => o.LanguageCode == "es").Should().BeFalse();
+        _db.I18nLabelOverrides.IgnoreQueryFilters().Single(o => o.LanguageCode == "es").DeletedAt.Should().NotBeNull();
     }
 
     [Fact]
@@ -124,7 +169,7 @@ public class UpsertI18nLabelOverrideHandlerTests
         });
         await _db.SaveChangesAsync();
         _translator.Setup(t => t.TranslateLabelAsync("Client Name", "en", "es", It.IsAny<CancellationToken>()))
-            .ReturnsAsync("Nombre del cliente");
+            .ReturnsAsync(I18nTranslationResult.Translated("Nombre del cliente"));
 
         await _handler.Handle(Command(), CancellationToken.None);
 
@@ -170,7 +215,7 @@ public class UpsertI18nLabelOverrideHandlerTests
     public async Task Handle_WritesActivityLogRow()
     {
         _translator.Setup(t => t.TranslateLabelAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("Nombre del cliente");
+            .ReturnsAsync(I18nTranslationResult.Translated("Nombre del cliente"));
 
         await _handler.Handle(Command(), CancellationToken.None);
 
