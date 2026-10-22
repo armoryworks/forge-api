@@ -24,6 +24,9 @@ public class InvoiceLine : BaseEntity
     // Values: "TAX" (taxable), "NON" (non-taxable). Propagated from Part.TaxCode at invoice creation.
     public string? TaxCode { get; set; }
 
+    public int? SalesOrderLineId { get; set; }
+
     public Invoice Invoice { get; set; } = null!;
     public Part? Part { get; set; }
+    public SalesOrderLine? SalesOrderLine { get; set; }
 }

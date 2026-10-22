@@ -14,6 +14,8 @@ public sealed record JobMarginRow(
     decimal ExpenseCost)
 {
     public decimal TotalCost => LaborCost + MaterialCost + ExpenseCost;
+    public bool CostRecorded => TotalCost > 0;
+    public bool Measured => CostRecorded && Revenue > 0;
     public decimal Margin => Revenue - TotalCost;
 }
 
@@ -36,6 +38,9 @@ public static class JobMarginCalculator
                 .ThenInclude(sol => sol!.SalesOrder)
                     .ThenInclude(so => so.Invoices)
                         .ThenInclude(inv => inv.Lines)
+            .Include(j => j.SalesOrderLine)
+                .ThenInclude(sol => sol!.SalesOrder)
+                    .ThenInclude(so => so.Lines)
             .Include(j => j.PurchaseOrders)
                 .ThenInclude(po => po.Lines)
             .AsSplitQuery()
@@ -58,33 +63,90 @@ public static class JobMarginCalculator
             .Select(g => new { JobId = g.Key, TotalAmount = g.Sum(e => e.Amount) })
             .ToDictionaryAsync(e => e.JobId, e => e.TotalAmount, ct);
 
+        var revenueByOrder = new Dictionary<int, Dictionary<int, decimal>>();
+
         return jobs.Select(job => new JobMarginRow(
                 job,
-                InvoicedRevenue(job),
+                InvoicedRevenue(job, revenueByOrder),
                 Math.Round((decimal)timeByJob.GetValueOrDefault(job.Id, 0) / 60 * laborRate, 2),
-                job.PurchaseOrders.SelectMany(po => po.Lines).Sum(l => l.OrderedQuantity * l.UnitPrice),
+                Math.Round(job.PurchaseOrders.Sum(po => po.Lines.Sum(l => l.OrderedQuantity * l.UnitPrice) * (po.FxRate ?? 1m)), 2),
                 expensesByJob.GetValueOrDefault(job.Id, 0m)))
             .ToList();
     }
 
+    public static decimal? MarginPercentage(JobMarginRow row) =>
+        row.Measured ? Math.Round(row.Margin / row.Revenue * 100, 1) : null;
+
+    public static decimal MeasuredMargin(IEnumerable<JobMarginRow> rows) =>
+        rows.Where(r => r.Measured).Sum(r => r.Margin);
+
     public static decimal WeightedMarginPercentage(IEnumerable<JobMarginRow> rows)
     {
-        var measured = rows.Where(r => r.Revenue > 0 && r.TotalCost > 0).ToList();
+        var measured = rows.Where(r => r.Measured).ToList();
         var revenue = measured.Sum(r => r.Revenue);
         return revenue > 0 ? Math.Round(measured.Sum(r => r.Margin) / revenue * 100, 1) : 0m;
     }
 
-    private static decimal InvoicedRevenue(Job job)
+    private static decimal InvoicedRevenue(Job job, Dictionary<int, Dictionary<int, decimal>> revenueByOrder)
     {
-        if (job.SalesOrderLine is not { SalesOrder.Invoices: { Count: > 0 } invoices } soLine)
+        if (job.SalesOrderLine is not { SalesOrder: { } order } soLine)
             return 0m;
 
-        return invoices
-            .Where(inv => inv.Status != InvoiceStatus.Voided && inv.Status != InvoiceStatus.Draft)
-            .SelectMany(inv => inv.Lines)
-            .Where(l => IsLineForSalesOrderLine(l, soLine))
-            .Sum(l => l.Quantity * l.UnitPrice);
+        if (!revenueByOrder.TryGetValue(order.Id, out var byLine))
+        {
+            byLine = AllocateRevenue(order);
+            revenueByOrder[order.Id] = byLine;
+        }
+
+        return Math.Round(byLine.GetValueOrDefault(soLine.Id), 2, MidpointRounding.AwayFromZero);
     }
+
+    private static Dictionary<int, decimal> AllocateRevenue(SalesOrder order)
+    {
+        var revenue = new Dictionary<int, decimal>();
+        var allocatedQty = new Dictionary<int, decimal>();
+        var orderLines = order.Lines.OrderBy(l => l.LineNumber).ThenBy(l => l.Id).ToList();
+        var orderLineIds = orderLines.Select(l => l.Id).ToHashSet();
+
+        var billed = order.Invoices
+            .Where(inv => inv.Status != InvoiceStatus.Voided && inv.Status != InvoiceStatus.Draft)
+            .OrderBy(inv => inv.InvoiceDate).ThenBy(inv => inv.Id)
+            .SelectMany(inv => inv.Lines.OrderBy(l => l.LineNumber).Select(l => (Line: l, Rate: inv.FxRate)))
+            .ToList();
+
+        foreach (var (line, rate) in billed.Where(b => b.Line.SalesOrderLineId is int id && orderLineIds.Contains(id)))
+        {
+            var id = line.SalesOrderLineId!.Value;
+            Add(revenue, id, line.Quantity * line.UnitPrice * rate);
+            Add(allocatedQty, id, line.Quantity);
+        }
+
+        foreach (var (line, rate) in billed.Where(b => b.Line.SalesOrderLineId is not int id || !orderLineIds.Contains(id)))
+        {
+            var matches = orderLines.Where(ol => IsLineForSalesOrderLine(line, ol)).ToList();
+            if (matches.Count == 0)
+                continue;
+
+            var remaining = line.Quantity;
+            for (var i = 0; i < matches.Count && remaining > 0; i++)
+            {
+                var target = matches[i];
+                var isLast = i == matches.Count - 1;
+                var room = Math.Max(0m, target.Quantity - allocatedQty.GetValueOrDefault(target.Id));
+                var take = isLast ? remaining : Math.Min(room, remaining);
+                if (take <= 0)
+                    continue;
+                Add(revenue, target.Id, take * line.UnitPrice * rate);
+                Add(allocatedQty, target.Id, take);
+                remaining -= take;
+            }
+        }
+
+        return revenue;
+    }
+
+    private static void Add(Dictionary<int, decimal> totals, int key, decimal amount) =>
+        totals[key] = totals.GetValueOrDefault(key) + amount;
 
     private static bool IsLineForSalesOrderLine(InvoiceLine invoiceLine, SalesOrderLine salesOrderLine) =>
         salesOrderLine.PartId is { } partId

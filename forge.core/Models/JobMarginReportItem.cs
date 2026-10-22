@@ -9,5 +9,6 @@ public record JobMarginReportItem(
     decimal MaterialCost,
     decimal ExpenseCost,
     decimal TotalCost,
-    decimal Margin,
-    decimal MarginPercentage);
+    decimal? Margin,
+    decimal? MarginPercentage,
+    bool CostRecorded);

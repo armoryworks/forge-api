@@ -38,7 +38,7 @@ public class SankeyReportRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task Customer_revenue_sums_invoice_lines_and_tax_including_overdue_but_not_draft()
+    public async Task Customer_revenue_sums_invoice_lines_without_tax_including_overdue_but_not_draft()
     {
         _db.Customers.AddRange(new Customer { Id = 1, Name = "Alpha" }, new Customer { Id = 2, Name = "Beta" });
         AddInvoice(1, 1, InvoiceStatus.Sent, 0.0725m, (3, 10.05m), (1, 100m));
@@ -51,7 +51,7 @@ public class SankeyReportRepositoryTests : IDisposable
 
         var flow = flows.Should().ContainSingle().Subject;
         flow.From.Should().Be("Alpha");
-        flow.Flow.Should().Be(Math.Round(130.15m * 1.0725m, 2, MidpointRounding.AwayFromZero) + 100m);
+        flow.Flow.Should().Be(230.15m);
         flow.Unit.Should().Be(SankeyFlowItem.CurrencyUnit);
     }
 
@@ -117,5 +117,65 @@ public class SankeyReportRepositoryTests : IDisposable
         Flow("Invoiced", "Paid in Full").Should().Be(1);
         Flow("Invoiced", "Balance Outstanding").Should().Be(1);
         flows.Should().OnlyContain(f => f.Unit == SankeyFlowItem.CountUnit);
+    }
+
+    [Fact]
+    public async Task Customer_revenue_converts_foreign_currency_invoices_to_base_currency()
+    {
+        _db.Customers.Add(new Customer { Id = 1, Name = "Maple Ltd" });
+        var cad = AddInvoice(1, 1, InvoiceStatus.Sent, 0m, (10, 100m));
+        cad.FxRate = 0.73m;
+        AddInvoice(2, 1, InvoiceStatus.Paid, 0m, (1, 50m));
+        await _db.SaveChangesAsync();
+
+        var flows = await new SankeyReportRepository(_db).GetCustomerRevenueFlowAsync(Start, End, CancellationToken.None);
+
+        flows.Should().ContainSingle().Which.Flow.Should().Be(780m);
+    }
+
+    [Fact]
+    public async Task Vendor_supply_chain_converts_each_po_at_its_locked_fx_rate()
+    {
+        _db.Vendors.Add(new Vendor { Id = 1, CompanyName = "Euro Steel" });
+        _db.Parts.Add(new Part { Id = 10, PartNumber = "BAR", Name = "Bar" });
+        var po = new PurchaseOrder { Id = 1, PONumber = "PO-1", VendorId = 1, QuoteCurrency = "EUR", FxRate = 1.10m };
+        po.Lines.Add(new PurchaseOrderLine { PartId = 10, Description = "Bar", OrderedQuantity = 10, UnitPrice = 20m });
+        _db.PurchaseOrders.Add(po);
+        await _db.SaveChangesAsync();
+
+        var flows = await new SankeyReportRepository(_db).GetVendorSupplyChainFlowAsync(CancellationToken.None);
+
+        flows.Should().ContainSingle().Which.Flow.Should().Be(220m);
+    }
+
+    [Fact]
+    public async Task Inventory_by_location_is_weighted_by_value_in_the_stock_unit()
+    {
+        _db.UnitsOfMeasure.AddRange(
+            new UnitOfMeasure { Id = 1, Code = "EA", Name = "Each" },
+            new UnitOfMeasure { Id = 2, Code = "BOX", Name = "Box" },
+            new UnitOfMeasure { Id = 3, Code = "KG", Name = "Kilogram" });
+        _db.UomConversions.Add(new UomConversion { FromUomId = 2, ToUomId = 1, ConversionFactor = 100m });
+        _db.StorageLocations.Add(new StorageLocation { Id = 1, Name = "Rack A" });
+        _db.Parts.AddRange(
+            new Part { Id = 10, PartNumber = "SCREW", Name = "Screw", StockUomId = 1 },
+            new Part { Id = 20, PartNumber = "RESIN", Name = "Resin", StockUomId = 3, ManualCostOverride = 4m },
+            new Part { Id = 30, PartNumber = "SAMPLE", Name = "Sample", StockUomId = 1 });
+        _db.Books.Add(new Forge.Core.Entities.Accounting.Book { Id = 1, Code = "MAIN", Name = "Main", FunctionalCurrencyId = 1 });
+        _db.InventoryValuations.Add(new Forge.Core.Entities.Accounting.InventoryValuation { BookId = 1, PartId = 10, OnHandQuantity = 500, AverageUnitCost = 0.05m, TotalValue = 25m });
+        _db.BinContents.AddRange(
+            new BinContent { LocationId = 1, EntityId = 10, Quantity = 3, UomId = 2 },
+            new BinContent { LocationId = 1, EntityId = 10, Quantity = 200, UomId = 1 },
+            new BinContent { LocationId = 1, EntityId = 20, Quantity = 25 },
+            new BinContent { LocationId = 1, EntityId = 30, Quantity = 9 });
+        await _db.SaveChangesAsync();
+
+        var flows = await new SankeyReportRepository(_db).GetInventoryLocationFlowAsync(CancellationToken.None);
+
+        flows.Should().BeEquivalentTo(
+        [
+            new SankeyFlowItem("Rack A", "RESIN", 100m, SankeyFlowItem.CurrencyUnit),
+            new SankeyFlowItem("Rack A", "SCREW", 25m, SankeyFlowItem.CurrencyUnit),
+        ], o => o.WithStrictOrdering());
     }
 }

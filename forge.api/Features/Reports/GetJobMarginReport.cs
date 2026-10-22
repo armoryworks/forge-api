@@ -25,8 +25,9 @@ public class GetJobMarginReportHandler(AppDbContext db)
                 r.MaterialCost,
                 r.ExpenseCost,
                 r.TotalCost,
-                r.Margin,
-                r.Revenue > 0 ? Math.Round(r.Margin / r.Revenue * 100, 1) : 0m))
+                r.CostRecorded ? r.Margin : null,
+                JobMarginCalculator.MarginPercentage(r),
+                r.CostRecorded))
             .OrderByDescending(r => r.Revenue)
             .ToList();
     }

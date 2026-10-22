@@ -189,4 +189,24 @@ public sealed class ExceptionHandlingMiddlewareTests
         status.Should().Be(StatusCodes.Status500InternalServerError);
         body.TryGetProperty("code", out _).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task An_unavailable_dependency_is_a_503_problem_with_retry_after()
+    {
+        var middleware = new ExceptionHandlingMiddleware(
+            _ => throw new ServiceUnavailableException("The AI service is currently unavailable."),
+            NullLogger<ExceptionHandlingMiddleware>.Instance);
+        var ctx = new DefaultHttpContext();
+        ctx.Response.Body = new MemoryStream();
+
+        await middleware.InvokeAsync(ctx);
+
+        ctx.Response.StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
+        ctx.Response.ContentType.Should().StartWith("application/problem+json");
+        ctx.Response.Headers.RetryAfter.ToString().Should().Be("30");
+        ctx.Response.Body.Position = 0;
+        using var doc = await JsonDocument.ParseAsync(ctx.Response.Body);
+        doc.RootElement.GetProperty("status").GetInt32().Should().Be(503);
+        doc.RootElement.GetProperty("detail").GetString().Should().Be("The AI service is currently unavailable.");
+    }
 }

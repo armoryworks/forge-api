@@ -4,6 +4,7 @@ using FluentValidation;
 using MediatR;
 using Pgvector;
 
+using Forge.Api.Middleware;
 using Forge.Core.Interfaces;
 
 namespace Forge.Api.Features.Ai;
@@ -42,7 +43,7 @@ public class AiHelpChatHandler(
         availCts.CancelAfter(TimeSpan.FromSeconds(5));
         var available = await aiService.IsAvailableAsync(availCts.Token).ConfigureAwait(false);
         if (!available)
-            return new AiHelpChatResponse("The AI service is currently unavailable. Please try again later.");
+            throw new ServiceUnavailableException("The AI service is currently unavailable. Please try again later.");
 
         var role = request.UserRole ?? "General";
         var systemContext = GetSystemContext(role);

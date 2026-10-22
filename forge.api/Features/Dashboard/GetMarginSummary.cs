@@ -25,7 +25,7 @@ public class GetMarginSummaryHandler(AppDbContext db, IClock clock)
         return new MarginSummaryResponseModel(
             totalRevenue,
             totalCost,
-            totalRevenue - totalCost,
+            JobMarginCalculator.MeasuredMargin(rows),
             JobMarginCalculator.WeightedMarginPercentage(rows),
             rows.Count,
             rows.Count(r => r.TotalCost > 0));

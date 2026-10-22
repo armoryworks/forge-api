@@ -139,4 +139,19 @@ public class GetMarginSummaryCostTests : IDisposable
         result.CostedJobCount.Should().Be(2);
         result.AverageMarginPercentage.Should().Be(19.0m);
     }
+
+    [Fact]
+    public async Task Handle_TotalMarginLeavesOutJobsWithNoRecordedCost()
+    {
+        var costed = await SeedInvoicedJobAsync(1, 1000m);
+        await SeedInvoicedJobAsync(2, 5000m);
+        _db.Expenses.Add(new Expense { JobId = costed.Id, UserId = 1, Amount = 600m, Category = "Material", Description = "Bar stock" });
+        await _db.SaveChangesAsync();
+
+        var result = await RunAsync();
+
+        result.TotalRevenue.Should().Be(6000m);
+        result.TotalMargin.Should().Be(400m);
+        result.AverageMarginPercentage.Should().Be(40.0m);
+    }
 }
