@@ -16,11 +16,11 @@ public class I18nPendingTranslationJob(IMediator mediator, ILogger<I18nPendingTr
     public async Task RunAsync(CancellationToken ct)
     {
         var result = await mediator.Send(new RetryPendingI18nTranslationsCommand(), ct);
-        if (result.TranslatedCount > 0 || result.StillPendingCount > 0)
+        if (result.TranslatedCount > 0 || result.StillPendingCount > 0 || result.DiscardedCount > 0)
         {
             logger.LogInformation(
-                "i18n pending-translation sweep: {Translated} translated, {StillPending} still pending.",
-                result.TranslatedCount, result.StillPendingCount);
+                "i18n pending-translation sweep: {Translated} translated, {StillPending} still pending, {Discarded} discarded.",
+                result.TranslatedCount, result.StillPendingCount, result.DiscardedCount);
         }
     }
 }

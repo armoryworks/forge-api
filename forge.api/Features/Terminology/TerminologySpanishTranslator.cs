@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
@@ -89,10 +90,12 @@ public partial class TerminologySpanishTranslator(AppDbContext db, II18nTranslat
     {
         if (_translatorUnavailable)
             return null;
-        var translated = await translator.TranslateLabelAsync($"the {english}", SourceLanguage, TargetLanguage, ct);
+        var result = await translator.TranslateLabelAsync($"the {english}", SourceLanguage, TargetLanguage, ct);
+        var translated = result.Value;
         if (string.IsNullOrWhiteSpace(translated))
         {
-            _translatorUnavailable = true;
+            if (result.Outcome != I18nTranslationOutcome.Rejected)
+                _translatorUnavailable = true;
             return null;
         }
 

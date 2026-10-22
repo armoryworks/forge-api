@@ -6,6 +6,7 @@ using Forge.Api.Features.I18nLabelOverrides;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
+using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Integrations;
 using Forge.Tests.Helpers;
@@ -47,6 +48,7 @@ public class RetryPendingI18nTranslationsHandlerTests
 
         result.TranslatedCount.Should().Be(0);
         result.StillPendingCount.Should().Be(0);
+        result.DiscardedCount.Should().Be(0);
         _translator.Verify(t => t.TranslateLabelAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -55,7 +57,7 @@ public class RetryPendingI18nTranslationsHandlerTests
     {
         await SeedPendingPairAsync();
         _translator.Setup(t => t.TranslateLabelAsync("Client Name", "en", "es", It.IsAny<CancellationToken>()))
-            .ReturnsAsync("Nombre del cliente");
+            .ReturnsAsync(I18nTranslationResult.Translated("Nombre del cliente"));
 
         var result = await _handler.Handle(new RetryPendingI18nTranslationsCommand(), CancellationToken.None);
 
@@ -72,7 +74,7 @@ public class RetryPendingI18nTranslationsHandlerTests
     {
         await SeedPendingPairAsync();
         _translator.Setup(t => t.TranslateLabelAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string?)null);
+            .ReturnsAsync(I18nTranslationResult.Unavailable);
 
         var result = await _handler.Handle(new RetryPendingI18nTranslationsCommand(), CancellationToken.None);
 
@@ -82,7 +84,7 @@ public class RetryPendingI18nTranslationsHandlerTests
     }
 
     [Fact]
-    public async Task Handle_CannedAiReply_LeavesRowPending()
+    public async Task Handle_CannedAiReply_DiscardsRowAndDoesNotAskAgain()
     {
         await SeedPendingPairAsync();
         var ai = new Mock<IAiService>();
@@ -92,13 +94,32 @@ public class RetryPendingI18nTranslationsHandlerTests
         var translator = new AiI18nTranslationService(ai.Object, NullLogger<AiI18nTranslationService>.Instance);
         var handler = new RetryPendingI18nTranslationsHandler(_db, translator, new SystemClock());
 
-        var result = await handler.Handle(new RetryPendingI18nTranslationsCommand(), CancellationToken.None);
+        var first = await handler.Handle(new RetryPendingI18nTranslationsCommand(), CancellationToken.None);
+        var second = await handler.Handle(new RetryPendingI18nTranslationsCommand(), CancellationToken.None);
 
-        result.TranslatedCount.Should().Be(0);
-        result.StillPendingCount.Should().Be(1);
-        var row = _db.I18nLabelOverrides.Single(o => o.LanguageCode == "es");
-        row.IsPendingTranslation.Should().BeTrue();
-        row.Value.Should().Be("Client Name");
+        first.TranslatedCount.Should().Be(0);
+        first.StillPendingCount.Should().Be(0);
+        first.DiscardedCount.Should().Be(1);
+        second.Should().Be(new RetryPendingI18nTranslationsResponseModel(0, 0, 0));
+        _db.I18nLabelOverrides.Any(o => o.LanguageCode == "es").Should().BeFalse();
+        ai.Verify(a => a.GenerateTextAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<CancellationToken>()), Times.Once);
+        _db.ActivityLogs.Single(l => l.EntityType == "I18nLabelOverride" && l.Action == "deleted")
+            .Description.Should().Contain("Discarded 1 machine translation");
+    }
+
+    [Fact]
+    public async Task Handle_RejectedAndUnavailableTogether_OnlyUnavailableStaysPending()
+    {
+        await SeedPendingPairAsync("customers.fields.name");
+        await SeedPendingPairAsync("orders.fields.number");
+        var calls = 0;
+        _translator.Setup(t => t.TranslateLabelAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => ++calls == 1 ? I18nTranslationResult.Rejected : I18nTranslationResult.Unavailable);
+
+        var result = await _handler.Handle(new RetryPendingI18nTranslationsCommand(), CancellationToken.None);
+
+        result.Should().Be(new RetryPendingI18nTranslationsResponseModel(0, 1, 1));
+        _db.I18nLabelOverrides.Count(o => o.LanguageCode == "es" && o.IsPendingTranslation).Should().Be(1);
     }
 
     [Fact]
@@ -127,7 +148,7 @@ public class RetryPendingI18nTranslationsHandlerTests
     {
         await SeedPendingPairAsync();
         _translator.Setup(t => t.TranslateLabelAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("Nombre del cliente");
+            .ReturnsAsync(I18nTranslationResult.Translated("Nombre del cliente"));
 
         await _handler.Handle(new RetryPendingI18nTranslationsCommand(), CancellationToken.None);
 
