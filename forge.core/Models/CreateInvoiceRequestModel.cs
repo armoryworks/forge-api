@@ -24,4 +24,5 @@ public record CreateInvoiceLineModel(
     string Description,
     decimal Quantity,
     decimal UnitPrice,
-    bool Taxable = true);
+    bool Taxable = true,
+    int? SalesOrderLineId = null);

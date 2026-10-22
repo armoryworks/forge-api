@@ -109,6 +109,23 @@ public class CreateInvoiceHandler(
             salesOrderTerms = salesOrder.CreditTerms;
         }
 
+        var linkedLineIds = request.Lines
+            .Where(l => l.SalesOrderLineId != null)
+            .Select(l => l.SalesOrderLineId!.Value)
+            .Distinct()
+            .ToList();
+        if (linkedLineIds.Count > 0)
+        {
+            if (request.SalesOrderId is not int lineOrderId)
+                throw new ValidationException("An invoice line can name a sales-order line only when the invoice is for that sales order.");
+
+            var lineIdsOnOrder = await db.SalesOrderLines.AsNoTracking()
+                .Where(l => l.SalesOrderId == lineOrderId && linkedLineIds.Contains(l.Id))
+                .CountAsync(cancellationToken);
+            if (lineIdsOnOrder != linkedLineIds.Count)
+                throw new ValidationException("An invoice line names a sales-order line that is not on this invoice's sales order.");
+        }
+
         if (request.ShipmentId is int shipmentId)
         {
             var shipment = await db.Shipments.AsNoTracking()
@@ -250,6 +267,7 @@ public class CreateInvoiceHandler(
                 UnitPrice = line.UnitPrice,
                 LineNumber = lineNumber++,
                 TaxCode = line.Taxable ? null : InvoiceLine.NonTaxableCode,
+                SalesOrderLineId = line.SalesOrderLineId,
             });
         }
 

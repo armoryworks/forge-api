@@ -6,4 +6,6 @@ public record ShippingSummaryReportItem(
     // Phase 3 / WU-23 (F8-broad): aggregate of ShipmentLine.Quantity (now decimal).
     decimal TotalItems,
     int OnTimeCount,
-    int LateCount);
+    int LateCount,
+    int NoDueDateCount = 0,
+    int NotShippedCount = 0);

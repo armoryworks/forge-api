@@ -66,8 +66,9 @@ public class ReportRepository(AppDbContext db) : IReportRepository
             .Select(g => new TimeByUserReportItem(
                 g.Key,
                 "", // populated in handler with user lookup
-                Math.Round((decimal)g.Sum(t => t.DurationMinutes) / 60, 1)))
-            .OrderByDescending(r => r.TotalHours)
+                Math.Round((decimal)g.Sum(t => t.DurationMinutes) / 60, 1),
+                g.Sum(t => t.DurationMinutes)))
+            .OrderByDescending(r => r.TotalMinutes)
             .ToList();
     }
 
@@ -345,7 +346,7 @@ public class ReportRepository(AppDbContext db) : IReportRepository
                 return new ArAgingReportItem(
                     i.Id, i.InvoiceNumber, i.Customer.Name,
                     i.InvoiceDate, i.DueDate,
-                    i.Total, i.AmountPaid, i.BalanceDue,
+                    Math.Round(i.Total, 2, MidpointRounding.AwayFromZero), i.AmountPaid, i.BalanceDue,
                     daysOverdue, bucket);
             })
             .OrderByDescending(r => r.DaysOverdue)
@@ -489,7 +490,9 @@ public class ReportRepository(AppDbContext db) : IReportRepository
                 g.Count(s => s.ShippedDate.HasValue && s.SalesOrder != null && s.SalesOrder.RequestedDeliveryDate.HasValue
                     && s.ShippedDate.Value.Date <= s.SalesOrder.RequestedDeliveryDate.Value.Date),
                 g.Count(s => s.ShippedDate.HasValue && s.SalesOrder != null && s.SalesOrder.RequestedDeliveryDate.HasValue
-                    && s.ShippedDate.Value.Date > s.SalesOrder.RequestedDeliveryDate.Value.Date)))
+                    && s.ShippedDate.Value.Date > s.SalesOrder.RequestedDeliveryDate.Value.Date),
+                g.Count(s => s.ShippedDate.HasValue && s.SalesOrder?.RequestedDeliveryDate is null),
+                g.Count(s => !s.ShippedDate.HasValue)))
             .ToList();
     }
 

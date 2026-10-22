@@ -166,6 +166,18 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 Type = "about:blank",
             });
         }
+        catch (ServiceUnavailableException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            context.Response.Headers.RetryAfter = "30";
+            await context.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Status = StatusCodes.Status503ServiceUnavailable,
+                Title = "Service unavailable",
+                Detail = ex.Message,
+                Type = "about:blank",
+            }, options: null, contentType: "application/problem+json");
+        }
         catch (Features.Devices.DeviceRevokedException ex)
         {
             // Mobile device revoked by an admin. 401 with code
