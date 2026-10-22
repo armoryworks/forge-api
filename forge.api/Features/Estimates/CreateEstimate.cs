@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -22,7 +23,7 @@ public class CreateEstimateValidator : AbstractValidator<CreateEstimateCommand>
     {
         RuleFor(x => x.CustomerId).GreaterThan(0);
         RuleFor(x => x.Title).NotEmpty().MaximumLength(300);
-        RuleFor(x => x.EstimatedAmount).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.EstimatedAmount).GreaterThanOrEqualTo(0).MoneyScale();
         RuleFor(x => x.Description).MaximumLength(2000).When(x => x.Description is not null);
         RuleFor(x => x.Notes).MaximumLength(2000).When(x => x.Notes is not null);
     }

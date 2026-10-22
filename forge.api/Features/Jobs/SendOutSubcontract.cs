@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.PurchaseOrders;
+using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -17,8 +18,8 @@ public class SendOutSubcontractValidator : AbstractValidator<SendOutSubcontractC
 {
     public SendOutSubcontractValidator()
     {
-        RuleFor(x => x.Data.Quantity).GreaterThan(0);
-        RuleFor(x => x.Data.UnitCost).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Data.Quantity).GreaterThan(0).UnitScale();
+        RuleFor(x => x.Data.UnitCost).GreaterThanOrEqualTo(0).UnitScale();
         RuleFor(x => x.Data.ShippingTrackingNumber).MaximumLength(200);
         RuleFor(x => x.Data.Notes).MaximumLength(2000);
     }

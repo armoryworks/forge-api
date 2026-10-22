@@ -54,8 +54,8 @@ public class CreatePurchaseOrderValidator : AbstractValidator<CreatePurchaseOrde
             line.RuleFor(l => l.Notes).MaximumLength(1000);
             // Phase 3 / WU-10 — Quantity is decimal; allow fractional values
             // (e.g. 0.5 lb of solder), but disallow zero / negative.
-            line.RuleFor(l => l.Quantity).GreaterThan(0m);
-            line.RuleFor(l => l.UnitPrice).GreaterThanOrEqualTo(0m);
+            line.RuleFor(l => l.Quantity).GreaterThan(0m).UnitScale();
+            line.RuleFor(l => l.UnitPrice).GreaterThanOrEqualTo(0m).UnitScale();
         });
         RuleFor(x => x.EstimatedFreight)
             .GreaterThanOrEqualTo(0m)

@@ -16,8 +16,6 @@ public class GetQuoteByIdHandler(IQuoteRepository repo, IStandardCostResolver? c
         var quote = await repo.FindWithDetailsAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Quote {request.Id} not found");
 
-        var subtotal = quote.Lines.Sum(l => l.Quantity * l.UnitPrice);
-
         var unitCosts = new Dictionary<int, QuoteLineCostBreakdownModel>();
         if (costs is not null)
         {
@@ -42,9 +40,9 @@ public class GetQuoteByIdHandler(IQuoteRepository repo, IStandardCostResolver? c
             quote.AcceptedDate,
             quote.Notes,
             quote.TaxRate,
-            subtotal,
-            subtotal * quote.TaxRate,
-            subtotal * (1 + quote.TaxRate),
+            quote.Subtotal,
+            quote.TaxAmount,
+            quote.Total,
             quote.SalesOrder?.Id,
             quote.SalesOrder?.OrderNumber,
             quote.SourceEstimateId,
@@ -55,7 +53,7 @@ public class GetQuoteByIdHandler(IQuoteRepository repo, IStandardCostResolver? c
                 l.Description,
                 l.Quantity,
                 l.UnitPrice,
-                l.Quantity * l.UnitPrice,
+                l.LineTotal,
                 l.LineNumber,
                 l.Notes,
                 CostBreakdownFor(l, unitCosts),

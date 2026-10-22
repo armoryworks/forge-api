@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
 using Forge.Api.Jobs;
+using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -36,7 +37,7 @@ public class CreateVendorPaymentValidator : AbstractValidator<CreateVendorPaymen
     public CreateVendorPaymentValidator()
     {
         RuleFor(x => x.VendorId).GreaterThan(0);
-        RuleFor(x => x.Amount).GreaterThan(0);
+        RuleFor(x => x.Amount).GreaterThan(0).MoneyScale();
         RuleFor(x => x.Method).NotEmpty()
             // Constrain to the PaymentMethod enum so an invalid string is a 400, not a 500 from the
             // handler's Enum.Parse (the parse would throw ArgumentException unmapped by the middleware).
@@ -55,7 +56,7 @@ public class CreateVendorPaymentValidator : AbstractValidator<CreateVendorPaymen
             RuleForEach(x => x.Applications).ChildRules(app =>
             {
                 app.RuleFor(a => a.VendorBillId).GreaterThan(0);
-                app.RuleFor(a => a.Amount).GreaterThan(0);
+                app.RuleFor(a => a.Amount).GreaterThan(0).MoneyScale();
                 // Settlement FX rate must be positive (a 0 or negative rate would zero/invert the functional
                 // cash amount, breaking the realized-FX plug). Default 1 satisfies this for single-currency.
                 app.RuleFor(a => a.SettlementFxRate).GreaterThan(0m);

@@ -28,8 +28,8 @@ public class AddPurchaseOrderLineValidator : AbstractValidator<AddPurchaseOrderL
             .WithMessage("Description is required when the line has no part.");
         RuleFor(x => x.Data.Description).MaximumLength(500);
         RuleFor(x => x.Data.Notes).MaximumLength(1000);
-        RuleFor(x => x.Data.Quantity).GreaterThan(0m);
-        RuleFor(x => x.Data.UnitPrice).GreaterThanOrEqualTo(0m);
+        RuleFor(x => x.Data.Quantity).GreaterThan(0m).UnitScale();
+        RuleFor(x => x.Data.UnitPrice).GreaterThanOrEqualTo(0m).UnitScale();
     }
 }
 

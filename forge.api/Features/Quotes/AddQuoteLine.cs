@@ -24,8 +24,8 @@ public class AddQuoteLineValidator : AbstractValidator<AddQuoteLineCommand>
     {
         RuleFor(x => x.QuoteId).GreaterThan(0);
         RuleFor(x => x.Data.Description).NotEmpty();
-        RuleFor(x => x.Data.Quantity).GreaterThan(0);
-        RuleFor(x => x.Data.UnitPrice).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Data.Quantity).GreaterThan(0).UnitScale();
+        RuleFor(x => x.Data.UnitPrice).GreaterThanOrEqualTo(0).UnitScale();
     }
 }
 

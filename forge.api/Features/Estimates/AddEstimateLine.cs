@@ -6,6 +6,7 @@ using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
+using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
 
@@ -26,8 +27,8 @@ public class AddEstimateLineValidator : AbstractValidator<AddEstimateLineCommand
     {
         RuleFor(x => x.EstimateId).GreaterThan(0);
         RuleFor(x => x.Data.Description).NotEmpty();
-        RuleFor(x => x.Data.Quantity).GreaterThan(0);
-        RuleFor(x => x.Data.UnitPrice).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Data.Quantity).GreaterThan(0).UnitScale();
+        RuleFor(x => x.Data.UnitPrice).GreaterThanOrEqualTo(0).UnitScale();
     }
 }
 
@@ -61,7 +62,7 @@ public class AddEstimateLineHandler(AppDbContext db, IPartRepository partRepo, I
             LineNumber = nextLineNumber,
             Notes = request.Data.Notes,
         });
-        estimate.EstimatedAmount = estimate.Lines.Sum(l => l.Quantity * l.UnitPrice);
+        estimate.EstimatedAmount = estimate.Lines.Sum(l => l.LineTotal);
 
         db.LogActivityAt(
             "line-added",
