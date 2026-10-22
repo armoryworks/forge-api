@@ -1,17 +1,19 @@
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Interfaces;
+using Forge.Core.Models;
 using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Accounting;
 
 /// <summary>
-/// Resolves a part's standard unit cost into material / labor / overhead. Resolution priority:
+/// Resolves a part's standard unit cost into material / labor / overhead. The total follows
+/// <see cref="PartStandardCostRule"/>: a manual standard override is the cost of record whenever it is set.
 /// <list type="number">
 ///   <item><b>Explicit cost-calc breakdown</b> — <c>CurrentCostCalculation.Inputs</c>
 ///         (DirectMaterialCost / DirectLaborCost / OverheadAmount), when any element is populated (the D5
-///         persisted snapshot).</item>
+///         persisted snapshot); under an override the breakdown is reconciled to the override.</item>
 ///   <item><b>Manual standard override present</b> — <c>ManualCostOverride</c> is the carried standard
 ///         <i>total</i>; labor + overhead come from the live cost rollup (routing × work-center rates) and
 ///         material is the reconciling residual (override − labor − overhead). This keeps the element total
@@ -30,21 +32,10 @@ public sealed class StandardCostResolver(AppDbContext db, IStandardCostRollupSer
         if (part is null)
             return StandardCostElements.Zero;
 
-        // 1) Explicit element breakdown from the current cost calculation (D5 snapshot).
-        var inputs = part.CurrentCostCalculation?.Inputs;
-        if (inputs is not null &&
-            (inputs.DirectMaterialCost.HasValue || inputs.DirectLaborCost.HasValue || inputs.OverheadAmount.HasValue))
-        {
-            return new StandardCostElements(
-                inputs.DirectMaterialCost ?? 0m,
-                inputs.DirectLaborCost ?? 0m,
-                inputs.OverheadAmount ?? 0m);
-        }
+        if (PartStandardCostRule.CalculationElements(part) is { } fromCalculation)
+            return fromCalculation;
 
-        // 2) Manual override → it is the carried total (labor/overhead from rollup, material = residual);
-        //    3) no override → the rollup is the standard. (Shared reconcile with the part-standard recalc.)
         var elements = await rollup.RollupAsync(partId, ct);
-        var manualOverride = part.ManualCostOverride ?? part.CurrentCostCalculation?.ResultAmount;
-        return StandardCostElements.ReconcileToOverride(elements, manualOverride);
+        return PartStandardCostRule.ReconcileToCostOfRecord(part, elements);
     }
 }

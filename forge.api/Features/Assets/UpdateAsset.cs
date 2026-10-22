@@ -1,8 +1,12 @@
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Forge.Api.Validation;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Assets;
 
@@ -16,10 +20,18 @@ public class UpdateAssetCommandValidator : AbstractValidator<UpdateAssetCommand>
         RuleFor(x => x.Data.Name).MaximumLength(200).When(x => x.Data.Name is not null);
         RuleFor(x => x.Data.SerialNumber).MaximumLength(100).When(x => x.Data.SerialNumber is not null);
         RuleFor(x => x.Data.Location).MaximumLength(200).When(x => x.Data.Location is not null);
+        RuleFor(x => x.Data.AcquisitionCost)
+            .InclusiveBetween(0m, 1_000_000_000m)
+            .WithMessage("Acquisition cost must be between 0 and 1,000,000,000.")
+            .FitsNumeric(18, 2)
+            .When(x => x.Data.AcquisitionCost.HasValue);
+        RuleFor(x => x.Data.DepreciationMethod).IsInEnum().When(x => x.Data.DepreciationMethod.HasValue);
+        RuleFor(x => x.Data.WorkCenterId).GreaterThan(0).When(x => x.Data.WorkCenterId.HasValue);
+        RuleFor(x => x.Data.GlAccount).MaximumLength(100).When(x => x.Data.GlAccount is not null);
     }
 }
 
-public class UpdateAssetHandler(IAssetRepository repo) : IRequestHandler<UpdateAssetCommand, AssetResponseModel>
+public class UpdateAssetHandler(IAssetRepository repo, AppDbContext db) : IRequestHandler<UpdateAssetCommand, AssetResponseModel>
 {
     public async Task<AssetResponseModel> Handle(UpdateAssetCommand request, CancellationToken cancellationToken)
     {
@@ -53,6 +65,28 @@ public class UpdateAssetHandler(IAssetRepository repo) : IRequestHandler<UpdateA
         if (data.CurrentShotCount.HasValue) asset.CurrentShotCount = data.CurrentShotCount.Value;
         if (data.SourceJobId.HasValue) asset.SourceJobId = data.SourceJobId.Value;
         if (data.SourcePartId.HasValue) asset.SourcePartId = data.SourcePartId.Value;
+        if (data.AcquisitionCost.HasValue) asset.AcquisitionCost = data.AcquisitionCost.Value;
+        if (data.DepreciationMethod.HasValue) asset.DepreciationMethod = data.DepreciationMethod.Value;
+        if (data.WorkCenterId is int workCenterId && workCenterId != asset.WorkCenterId)
+        {
+            if (!await db.WorkCenters.AnyAsync(w => w.Id == workCenterId, cancellationToken))
+                throw new ValidationException([new ValidationFailure("workCenterId", $"Work center {workCenterId} not found.")]);
+            asset.WorkCenterId = workCenterId;
+        }
+        if (data.GlAccount is not null)
+        {
+            var glAccount = string.IsNullOrWhiteSpace(data.GlAccount) ? null : data.GlAccount.Trim();
+            if (glAccount != asset.GlAccount)
+            {
+                var depreciationPosted = await db.DepreciationEntries.AnyAsync(
+                    e => db.FixedAssets.Any(f => f.Id == e.FixedAssetId && f.LinkedAssetId == asset.Id),
+                    cancellationToken);
+                if (depreciationPosted)
+                    throw new ValidationException([new ValidationFailure("glAccount",
+                        "The GL account cannot change after depreciation has posted for this asset.")]);
+                asset.GlAccount = glAccount;
+            }
+        }
 
         await repo.SaveChangesAsync(cancellationToken);
         return (await repo.GetByIdAsync(asset.Id, cancellationToken))!;

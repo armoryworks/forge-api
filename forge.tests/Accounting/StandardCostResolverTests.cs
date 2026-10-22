@@ -1,8 +1,11 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Models;
+using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
 using Forge.Integrations;
 using Forge.Tests.Helpers;
@@ -100,5 +103,64 @@ public class StandardCostResolverTests
         elements.Labor.Should().Be(9m);     // 15 × (18/30)
         elements.Overhead.Should().Be(6m);  // 15 − 9
         elements.Total.Should().Be(15m);
+    }
+
+    private static async Task<Part> AddPartWithCalculationAsync(AppDbContext db, decimal? manualOverride)
+    {
+        var part = new Part { PartNumber = $"P-{Guid.NewGuid():N}", Name = "x", ManualCostOverride = manualOverride };
+        db.Add(part);
+        await db.SaveChangesAsync();
+        var calc = new CostCalculation
+        {
+            EntityType = "Part", EntityId = part.Id, ResultAmount = 30m, IsCurrent = true,
+            Inputs = new CostCalculationInputs { DirectMaterialCost = 18m, DirectLaborCost = 8m, OverheadAmount = 4m },
+        };
+        db.Add(calc);
+        await db.SaveChangesAsync();
+        part.CurrentCostCalculationId = calc.Id;
+        await db.SaveChangesAsync();
+        return part;
+    }
+
+    [Fact]
+    public async Task ManualOverride_IsTheCostOfRecord_OverACalculationBreakdown()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await AddPartWithCalculationAsync(db, manualOverride: 40m);
+
+        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off)).ResolveAsync(part.Id);
+
+        elements.Total.Should().Be(40m, "the manual override is the cost of record, not the calculation's 30");
+        elements.Labor.Should().Be(8m);
+        elements.Overhead.Should().Be(4m);
+        elements.Material.Should().Be(28m);
+    }
+
+    [Fact]
+    public async Task Resolver_AndPartDetail_AgreeOnTheStandard()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await AddPartWithCalculationAsync(db, manualOverride: 40m);
+        db.ChangeTracker.Clear();
+        var loaded = await db.Parts.Include(p => p.CurrentCostCalculation).ThenInclude(c => c!.Inputs).SingleAsync(p => p.Id == part.Id);
+
+        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off)).ResolveAsync(part.Id);
+        var model = PartStandardCostModel.From(loaded)!;
+
+        elements.Total.Should().Be(model.Amount);
+        elements.Material.Should().Be(model.MaterialCost);
+        elements.Labor.Should().Be(model.LaborCost);
+        elements.Overhead.Should().Be(model.OverheadCost);
+    }
+
+    [Fact]
+    public async Task ZeroOverride_ResolvesToZero()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await AddPartWithCalculationAsync(db, manualOverride: 0m);
+
+        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off)).ResolveAsync(part.Id);
+
+        elements.Should().Be(StandardCostElements.Zero);
     }
 }

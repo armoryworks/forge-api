@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Forge.Api.Services;
+using Forge.Api.Validation;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
@@ -15,7 +16,7 @@ public class UpdateBOMLineValidator : AbstractValidator<UpdateBOMLineCommand>
     {
         RuleFor(x => x.ParentPartId).GreaterThan(0);
         RuleFor(x => x.BomLineId).GreaterThan(0);
-        RuleFor(x => x.Data.Quantity).GreaterThan(0).When(x => x.Data.Quantity.HasValue);
+        RuleFor(x => x.Data.Quantity).GreaterThan(0).FitsNumeric(18, 4).When(x => x.Data.Quantity.HasValue);
         RuleFor(x => x.Data.ReferenceDesignator).MaximumLength(200).When(x => x.Data.ReferenceDesignator is not null);
         RuleFor(x => x.Data.Notes).MaximumLength(2000).When(x => x.Data.Notes is not null);
     }
