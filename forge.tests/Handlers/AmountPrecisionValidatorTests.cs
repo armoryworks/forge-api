@@ -8,6 +8,7 @@ using Forge.Api.Features.PurchaseOrders;
 using Forge.Api.Features.Quotes;
 using Forge.Api.Features.VendorBills;
 using Forge.Api.Features.VendorPayments;
+using Forge.Api.Validation;
 using Forge.Core.Models;
 
 namespace Forge.Tests.Handlers;
@@ -15,6 +16,8 @@ namespace Forge.Tests.Handlers;
 public class AmountPrecisionValidatorTests
 {
     private static readonly DateTimeOffset BillDate = new(2026, 10, 1, 0, 0, 0, TimeSpan.Zero);
+
+    public AmountPrecisionValidatorTests() => FluentValidationDefaults.Apply();
 
     private static string[] Errors<T>(IValidator<T> validator, T instance)
         => validator.Validate(instance).Errors.Select(e => e.ErrorMessage).ToArray();
@@ -26,7 +29,7 @@ public class AmountPrecisionValidatorTests
     [Fact]
     public void VendorBill_SubCentTax_IsRejected()
         => Errors(new CreateVendorBillValidator(), Bill(0.075m))
-            .Should().ContainSingle(e => e == "Tax Amount can have at most 2 decimal places.");
+            .Should().ContainSingle(e => e == "Tax amount can have at most 2 decimal places.");
 
     [Fact]
     public void VendorBill_FourDecimalUnitPriceAndTwoDecimalTax_IsAccepted()
@@ -71,7 +74,7 @@ public class AmountPrecisionValidatorTests
     [Fact]
     public void QuoteLine_MoreThanFourDecimals_IsRejected()
         => Errors(new AddQuoteLineValidator(), new AddQuoteLineCommand(1, new CreateQuoteLineModel(null, "x", 1m, 0.12345m, null)))
-            .Should().ContainSingle(e => e.EndsWith("Unit Price can have at most 4 decimal places."));
+            .Should().ContainSingle(e => e.EndsWith("Unit price can have at most 4 decimal places."));
 
     [Fact]
     public void QuoteLine_FourDecimalPrice_IsAccepted()
@@ -81,7 +84,7 @@ public class AmountPrecisionValidatorTests
     [Fact]
     public void Estimate_SubCentAmount_IsRejected()
         => Errors(new CreateEstimateValidator(), new CreateEstimateCommand(1, "Job", null, 0.30000000000000004m, null, null, null))
-            .Should().ContainSingle(e => e == "Estimated Amount can have at most 2 decimal places.");
+            .Should().ContainSingle(e => e == "Estimated amount can have at most 2 decimal places.");
 
     [Fact]
     public void PartManualCostOverride_FourDecimals_IsAcceptedButFiveIsRejected()
