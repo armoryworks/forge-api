@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record JobOperationsResponseModel(
@@ -8,4 +10,6 @@ public record JobOperationsResponseModel(
     decimal? EstimatedRemainingMinutes,
     DateTimeOffset ServerNow,
     List<JobOperationRowResponseModel> Operations,
-    decimal? TargetQuantity = null);
+    decimal? TargetQuantity = null,
+    int? QuantityDecimalPlaces = null,
+    StepGatingMode StepGating = StepGatingMode.Off);

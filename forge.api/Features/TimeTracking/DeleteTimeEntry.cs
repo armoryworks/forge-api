@@ -13,7 +13,8 @@ namespace Forge.Api.Features.TimeTracking;
 public sealed record DeleteTimeEntryCommand(int Id) : IRequest;
 
 public sealed class DeleteTimeEntryHandler(
-    ITimeTrackingRepository repo, IHttpContextAccessor http, AppDbContext db, IClock clock)
+    ITimeTrackingRepository repo, IHttpContextAccessor http, AppDbContext db, IClock clock,
+    ILaborAllocationService? laborAllocation = null)
     : IRequestHandler<DeleteTimeEntryCommand>
 {
     public async Task Handle(DeleteTimeEntryCommand request, CancellationToken cancellationToken)
@@ -38,6 +39,8 @@ public sealed class DeleteTimeEntryHandler(
             throw new InvalidOperationException("Time entries from previous days cannot be deleted.");
 
         entry.DeletedAt = now;
+        if (laborAllocation is not null)
+            await laborAllocation.ReallocateAsync(entry.UserId, TimeEntryTimes.Spans(TimeEntryTimes.Span(entry), entry), [entry], cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);
     }
 }

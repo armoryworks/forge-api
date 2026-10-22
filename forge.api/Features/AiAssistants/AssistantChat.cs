@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Pgvector;
 
 using Forge.Api.Features.Ai;
+using Forge.Api.Middleware;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
@@ -37,7 +38,7 @@ public class AssistantChatHandler(
         availCts.CancelAfter(TimeSpan.FromSeconds(5));
         var available = await aiService.IsAvailableAsync(availCts.Token).ConfigureAwait(false);
         if (!available)
-            return new AiHelpChatResponse("The AI service is currently unavailable. Please try again later.");
+            throw new ServiceUnavailableException("The AI service is currently unavailable. Please try again later.");
 
         var assistant = await db.AiAssistants
             .AsNoTracking()

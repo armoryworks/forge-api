@@ -20,7 +20,8 @@ public class GetTeamsHandler(AppDbContext db) : IRequestHandler<GetTeamsQuery, L
             .ToListAsync(ct);
 
         var memberCounts = await db.Users
-            .Where(u => u.IsActive && u.TeamId != null)
+            .Where(u => u.IsActive && u.TeamId != null && !u.IsNonEmployee)
+            .WithoutServiceAccounts(db)
             .GroupBy(u => u.TeamId)
             .Select(g => new { TeamId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.TeamId!.Value, x => x.Count, ct);

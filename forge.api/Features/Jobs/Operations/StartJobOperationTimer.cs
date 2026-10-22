@@ -38,7 +38,8 @@ public class StartJobOperationTimerHandler(
     IHubContext<TimerHub> timerHub,
     IHubContext<BoardHub> boardHub,
     IMediator mediator,
-    IClock clock) : IRequestHandler<StartJobOperationTimerCommand, JobOperationTimerResponseModel>
+    IClock clock,
+    IClockEventTypeService clockEventTypeService) : IRequestHandler<StartJobOperationTimerCommand, JobOperationTimerResponseModel>
 {
     private const string OpenTimerIndex = "ux_time_entries_open_job_operation";
 
@@ -54,6 +55,8 @@ public class StartJobOperationTimerHandler(
             throw new InvalidOperationException($"Job {job.JobNumber} is already complete.");
         if (job.IsArchived || job.Disposition.HasValue)
             throw new InvalidOperationException("This work order is closed and can't take time.");
+
+        await ClockStateRules.EnsureNotClockedOutAsync(db, clockEventTypeService, userId, cancellationToken);
 
         var row = await operations.EnsureRowAsync(job, operation, cancellationToken);
         if (JobOperationRules.IsClosed(row.Status))

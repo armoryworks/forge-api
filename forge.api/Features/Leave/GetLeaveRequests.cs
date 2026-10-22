@@ -16,7 +16,7 @@ public class GetLeaveRequestsHandler(AppDbContext db, IHttpContextAccessor http)
 {
     public async Task<List<LeaveRequestResponseModel>> Handle(GetLeaveRequestsQuery request, CancellationToken cancellationToken)
     {
-        var userId = CallerAccess.ScopeToSelf(
+        var userId = CallerAccess.ScopeReadToSelf(
             http.HttpContext?.User, request.UserId, "You can only view your own leave requests.");
 
         var query = db.LeaveRequests.AsNoTracking()

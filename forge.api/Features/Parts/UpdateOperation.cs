@@ -19,8 +19,16 @@ public class UpdateOperationValidator : AbstractValidator<UpdateOperationCommand
         RuleFor(x => x.Data.Title).NotEmpty().MaximumLength(200).When(x => x.Data.Title is not null);
         RuleFor(x => x.Data.Instructions).MaximumLength(4000).When(x => x.Data.Instructions is not null);
         RuleFor(x => x.Data.QcCriteria).MaximumLength(1000).When(x => x.Data.QcCriteria is not null);
-        RuleFor(x => x.Data.SetupMinutes).GreaterThanOrEqualTo(0m).When(x => x.Data.SetupMinutes.HasValue);
-        RuleFor(x => x.Data.RunMinutesLot).GreaterThanOrEqualTo(0m).When(x => x.Data.RunMinutesLot.HasValue);
+        RuleFor(x => x.Data.SetupMinutes).GreaterThanOrEqualTo(0m).FitsNumeric(10, 2).When(x => x.Data.SetupMinutes.HasValue);
+        RuleFor(x => x.Data.RunMinutesLot).GreaterThanOrEqualTo(0m).FitsNumeric(10, 2).When(x => x.Data.RunMinutesLot.HasValue);
+        RuleFor(x => x.Data.EstimatedMs).InclusiveBetween(0L, NumericColumnRules.MaxOperationEstimatedMs).When(x => x.Data.EstimatedMs.HasValue);
+        RuleFor(x => x.Data.ScrapFactor).GreaterThanOrEqualTo(0m).LessThan(1m).When(x => x.Data.ScrapFactor.HasValue);
+        RuleFor(x => x.Data.RunMinutesEach).GreaterThanOrEqualTo(0m).FitsNumeric(10, 2).When(x => x.Data.RunMinutesEach.HasValue);
+        RuleFor(x => x.Data.LaborAttendancePercent).InclusiveBetween(0m, 100m).FitsNumeric(5, 2).When(x => x.Data.LaborAttendancePercent.HasValue);
+        RuleFor(x => x.Data.Predecessors).Must(p => p!.Count <= RoutingPredecessorEditor.MaxPredecessors)
+            .WithMessage($"A step can follow at most {RoutingPredecessorEditor.MaxPredecessors} steps.")
+            .When(x => x.Data.Predecessors is not null);
+        RuleForEach(x => x.Data.Predecessors).ChildRules(p => p.RuleFor(l => l.Gate).IsInEnum());
 
         // Phase 3 H5 / WU-13 — when toggling op TO subcontract, both fields
         // must be supplied in the same patch. (Resulting-state check in
@@ -34,7 +42,8 @@ public class UpdateOperationValidator : AbstractValidator<UpdateOperationCommand
             RuleFor(x => x.Data.SubcontractTurnTimeDays)
                 .NotNull()
                 .GreaterThan(0m)
-                .WithMessage("Subcontract operations require a positive turn time (days).");
+                .WithMessage("Subcontract operations require a positive turn time (days).")
+                .FitsNumeric(5, 1);
         });
     }
 }
@@ -59,6 +68,10 @@ public class UpdateOperationHandler(IPartRepository repo, IVendorRepository vend
         if (data.EstimatedMs is not null) operation.EstimatedMs = data.EstimatedMs;
         if (data.SetupMinutes.HasValue) operation.SetupMinutes = data.SetupMinutes.Value;
         if (data.RunMinutesLot.HasValue) operation.RunMinutesLot = data.RunMinutesLot.Value;
+        if (data.RunMinutesEach.HasValue) operation.RunMinutesEach = data.RunMinutesEach.Value;
+        if (data.LaborAttendancePercent.HasValue) operation.LaborAttendancePercent = data.LaborAttendancePercent.Value;
+        if (data.CycleCountdown.HasValue) operation.CycleCountdown = data.CycleCountdown.Value;
+        if (data.ScrapFactor.HasValue) operation.ScrapFactor = Math.Round(data.ScrapFactor.Value, 4, MidpointRounding.ToZero);
         if (data.IsQcCheckpoint.HasValue) operation.IsQcCheckpoint = data.IsQcCheckpoint.Value;
         if (data.QcCriteria is not null) operation.QcCriteria = data.QcCriteria.Trim();
         if (data.ReferencedOperationId is not null) operation.ReferencedOperationId = data.ReferencedOperationId == 0 ? null : data.ReferencedOperationId;
@@ -106,6 +119,10 @@ public class UpdateOperationHandler(IPartRepository repo, IVendorRepository vend
             var vendor = await vendorRepo.FindAsync(operation.SubcontractVendorId.Value, cancellationToken);
             ActiveCheck.EnsureActive(vendor, "Vendor", "subcontractVendorId", operation.SubcontractVendorId.Value);
         }
+
+        if (data.Predecessors is not null || data.StepNumber.HasValue)
+            await RoutingPredecessorEditor.ApplyAsync(
+                repo, request.PartId, operation, data.Predecessors, data.RemoveConflictingPredecessors, cancellationToken);
 
         await repo.SaveChangesAsync(cancellationToken);
 

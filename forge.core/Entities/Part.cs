@@ -151,6 +151,12 @@ public class Part : BaseAuditableEntity, IActiveAware
     public BackflushPolicy? BackflushPolicy { get; set; }
 
     /// <summary>
+    /// Per-part override of the shop-floor step gating setting (Off / Warn /
+    /// Block). Null = follow the shop setting.
+    /// </summary>
+    public StepGatingMode? StepGating { get; set; }
+
+    /// <summary>
     /// True when the part ships as a kit (a fixed assortment of components
     /// shipped together), as opposed to a phantom assembly that explodes
     /// at MRP and is never picked as a single unit.

@@ -89,7 +89,7 @@ public class CreateInvoiceFromJobHandlerTests
         _sent.DueDate.Should().Be(Now.AddDays(30));
         _sent.CreditTerms.Should().Be("Net30");
         _sent.Lines.Should().ContainSingle().Which.Should().Be(
-            new CreateInvoiceLineModel(part.Id, "J-13 — Mold T112: Tooling build", 1m, 6800m));
+            new CreateInvoiceLineModel(part.Id, "J-13 — Mold T112: Tooling build", 1m, 6800m, SalesOrderLineId: line.Id));
     }
 
     [Fact]

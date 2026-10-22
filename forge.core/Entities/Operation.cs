@@ -38,6 +38,8 @@ public class Operation : BaseAuditableEntity
     public decimal BurdenRate { get; set; }
     public decimal EstimatedLaborCost { get; set; }
     public decimal EstimatedBurdenCost { get; set; }
+    public decimal LaborAttendancePercent { get; set; } = 100m;
+    public bool CycleCountdown { get; set; }
 
     public Part Part { get; set; } = null!;
     public WorkCenter? WorkCenter { get; set; }
@@ -45,4 +47,5 @@ public class Operation : BaseAuditableEntity
     public Vendor? SubcontractVendor { get; set; }
     public Operation? ReferencedOperation { get; set; }
     public ICollection<OperationMaterial> Materials { get; set; } = [];
+    public ICollection<OperationPredecessor> Predecessors { get; set; } = [];
 }

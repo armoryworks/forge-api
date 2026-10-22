@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using Forge.Api.Validation;
 
 namespace Forge.Api.Features.Accounting;
 
@@ -89,7 +90,7 @@ public static partial class BankStatementParser
         var amountCol = Col("amount");
         var descCol = Col("description", "memo", "payee", "name");
         if (dateCol < 0 || amountCol < 0)
-            throw new InvalidOperationException(
+            throw FieldValidation.Fail("file",
                 "CSV statement needs recognizable Date and Amount columns (header row required).");
 
         var lines = new List<ParsedStatementLine>();

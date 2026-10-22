@@ -94,4 +94,6 @@ public record PartDetailResponseModel(
     string EffectivePriceSource = "Default",
     // Licensed GS1 GTIN (CAP-MD-GS1). Null = internal identity only.
     string? Gtin = null,
-    decimal? ExpectedYieldPercent = null);
+    decimal? ExpectedYieldPercent = null,
+    PartStandardCostModel? StandardCost = null,
+    StepGatingMode? StepGating = null);

@@ -45,5 +45,8 @@ public class WatchtowerController(IMediator mediator, IRegulatoryPoller poller) 
     /// <summary>Manually trigger a poll of active sources (also runs on a schedule).</summary>
     [HttpPost("poll")]
     public async Task<ActionResult<object>> Poll(CancellationToken ct)
-        => Ok(new { created = await poller.PollActiveAsync(ct) });
+    {
+        var result = await poller.PollActiveAsync(ct);
+        return Ok(new { created = result.Created, activeSources = result.ActiveSources, failedSources = result.FailedSources });
+    }
 }

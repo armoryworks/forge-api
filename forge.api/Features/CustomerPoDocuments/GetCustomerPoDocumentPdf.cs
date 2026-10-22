@@ -35,7 +35,8 @@ public class GetCustomerPoDocumentPdfHandler(
 
         var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct);
 
-        var pdf = new CustomerPoPdfDocument(document, companyName);
+        var money = await MoneyFormat.ForBaseCurrencyAsync(db, settings, ct);
+        var pdf = new CustomerPoPdfDocument(document, companyName, money);
         return pdf.GeneratePdf();
     }
 }

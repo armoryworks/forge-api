@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
+using Forge.Api.Services;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -93,9 +94,10 @@ public class VoidVendorPaymentHandler(
 
         // Drop the applications so each bill's computed balance reopens.
         var affectedBillIds = payment.Applications.Select(a => a.VendorBillId).Distinct().ToList();
+        var paymentMoney = await MoneyFormat.ForVendorPaymentAsync(db, payment.Id, cancellationToken);
         var appliedTo = string.Join(", ", payment.Applications
             .OrderBy(a => a.Id)
-            .Select(a => $"{a.VendorBill?.BillNumber ?? $"Bill {a.VendorBillId}"} ({a.Amount:C})"));
+            .Select(a => $"{a.VendorBill?.BillNumber ?? $"Bill {a.VendorBillId}"} ({paymentMoney.Format(a.Amount)})"));
         foreach (var app in payment.Applications.ToList())
             db.Remove(app);
 
@@ -127,9 +129,10 @@ public class VoidVendorPaymentHandler(
                     ? VendorBillStatus.PartiallyPaid
                     : VendorBillStatus.Approved;
 
+            var money = await MoneyFormat.ForCurrencyIdAsync(db, bill.CurrencyId, cancellationToken);
             db.LogActivityAt(
                 "payment-voided",
-                $"Payment {payment.PaymentNumber} voided — balance {bill.BalanceDue:C} restored",
+                $"Payment {payment.PaymentNumber} voided — balance {money.Format(bill.BalanceDue)} restored",
                 ("VendorBill", bill.Id));
         }
 

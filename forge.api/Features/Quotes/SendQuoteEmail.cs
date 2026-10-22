@@ -164,7 +164,7 @@ public class SendQuoteEmailHandler(
         string? personalMessage,
         IReadOnlyList<CompiledTermsSection> sections,
         string termsUrl,
-        IFormatProvider money)
+        MoneyFormatter money)
     {
         var customerName = WebUtility.HtmlEncode(quote.Customer.CompanyName ?? quote.Customer.Name);
         var sb = new StringBuilder();
@@ -185,12 +185,12 @@ public class SendQuoteEmailHandler(
         {
             sb.Append("<tr style=\"border-bottom:1px solid #e0e0e0;\">")
               .Append($"<td>{WebUtility.HtmlEncode(line.Description)}</td>")
-              .Append($"<td style=\"text-align:right;\">{line.Quantity:0.####}</td>")
-              .Append($"<td style=\"text-align:right;\">{line.UnitPrice.ToString("C", money)}</td>")
-              .Append($"<td style=\"text-align:right;\">{line.LineTotal.ToString("C", money)}</td></tr>");
+              .Append($"<td style=\"text-align:right;\">{MoneyFormat.Quantity(line.Quantity)}</td>")
+              .Append($"<td style=\"text-align:right;\">{money.Format(line.UnitPrice)}</td>")
+              .Append($"<td style=\"text-align:right;\">{money.Format(line.LineTotal)}</td></tr>");
         }
         sb.Append($"<tr><td colspan=\"3\" style=\"text-align:right;\"><strong>Total:</strong></td>")
-          .Append($"<td style=\"text-align:right;\"><strong>{quote.Total.ToString("C", money)}</strong></td></tr>");
+          .Append($"<td style=\"text-align:right;\"><strong>{money.Format(quote.Total)}</strong></td></tr>");
         sb.Append("</table>");
 
         if (quote.ExpirationDate.HasValue)

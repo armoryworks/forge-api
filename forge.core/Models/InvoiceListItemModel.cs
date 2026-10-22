@@ -11,4 +11,5 @@ public record InvoiceListItemModel(
     decimal Total,
     decimal AmountPaid,
     decimal BalanceDue,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? CurrencyCode = null);

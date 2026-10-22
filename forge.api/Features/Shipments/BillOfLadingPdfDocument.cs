@@ -2,6 +2,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 
 namespace Forge.Api.Features.Shipments;
@@ -32,7 +33,7 @@ public class BillOfLadingPdfDocument : IDocument
             page.Size(PageSizes.Letter);
             page.MarginHorizontal(40);
             page.MarginVertical(30);
-            page.DefaultTextStyle(x => x.FontSize(9));
+            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(9));
 
             page.Header().Element(ComposeHeader);
             page.Content().Element(ComposeContent);

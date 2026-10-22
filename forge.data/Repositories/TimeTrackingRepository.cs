@@ -182,6 +182,8 @@ public class TimeTrackingRepository(AppDbContext db) : ITimeTrackingRepository
             EntryType = t.EntryType.ToString(),
             LaborCost = t.LaborCost,
             BurdenCost = t.BurdenCost,
+            LaborMinutes = t.LaborMinutes,
+            AllocationMethod = t.AllocationMethod.HasValue ? t.AllocationMethod.Value.ToString() : null,
         };
     }
 }

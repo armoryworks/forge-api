@@ -21,7 +21,8 @@ public class StartTimerHandler(
     IHttpContextAccessor httpContext,
     IHubContext<TimerHub> timerHub,
     IMediator mediator,
-    IClock clock) : IRequestHandler<StartTimerCommand, TimeEntryResponseModel>
+    IClock clock,
+    IClockEventTypeService clockEventTypeService) : IRequestHandler<StartTimerCommand, TimeEntryResponseModel>
 {
     public async Task<TimeEntryResponseModel> Handle(StartTimerCommand request, CancellationToken cancellationToken)
     {
@@ -36,6 +37,13 @@ public class StartTimerHandler(
         }
 
         var now = clock.UtcNow;
+
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        await db.AcquireAdvisoryLockAsync("time-entries.timer", userId.ToString(), cancellationToken);
+
+        await ClockStateRules.EnsureNotClockedOutAsync(db, clockEventTypeService, userId, cancellationToken);
 
         var active = await repo.GetActiveTimerAsync(userId, cancellationToken);
         if (active is not null)
@@ -65,6 +73,9 @@ public class StartTimerHandler(
 
         db.LogActivityAt("timer-started", "Started timer", ("TimeEntry", entry.Id));
         await db.SaveChangesAsync(cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
         var result = (await repo.GetTimeEntryByIdAsync(entry.Id, cancellationToken))!;
 

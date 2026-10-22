@@ -6,7 +6,8 @@ namespace Forge.Api.Authorization;
 
 /// <summary>
 /// Owner-or-supervisor checks for per-person records (time, attendance, leave):
-/// Admin and Manager act on anyone's rows, everyone else only on their own.
+/// Admin and Manager act on anyone's rows, OfficeManager and Controller read anyone's rows
+/// for payroll, everyone else reads and changes only their own.
 /// </summary>
 public static class CallerAccess
 {
@@ -16,9 +17,12 @@ public static class CallerAccess
     public static bool IsSupervisor(ClaimsPrincipal? user)
         => user?.IsInRole("Admin") == true || user?.IsInRole("Manager") == true;
 
-    public static int? ScopeToSelf(ClaimsPrincipal? user, int? requestedUserId, string forbiddenMessage)
+    public static bool CanReadOthers(ClaimsPrincipal? user)
+        => IsSupervisor(user) || user?.IsInRole("OfficeManager") == true || user?.IsInRole("Controller") == true;
+
+    public static int? ScopeReadToSelf(ClaimsPrincipal? user, int? requestedUserId, string forbiddenMessage)
     {
-        if (IsSupervisor(user))
+        if (CanReadOthers(user))
             return requestedUserId;
 
         var callerId = UserId(user);

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
@@ -13,9 +14,11 @@ namespace Forge.Api.Features.Accounting;
 /// data — the "cost rollup" the variance decomposition needs (the D5 cost-recalc engine, used live by
 /// <see cref="StandardCostResolver"/> now and available to persist into <c>CostCalculation</c> later):
 /// <list type="bullet">
-///   <item><b>Labor</b> = Σ operations <c>(EstimatedMs/3600000) × WorkCenter.LaborCostPerHour</c>.</item>
-///   <item><b>Overhead (flat, Tier 1)</b> = Σ operations <c>(EstimatedMs/3600000) × WorkCenter.BurdenRatePerHour</c>
-///         (work-center burden rate × hours).</item>
+///   <item><b>Labor</b> = Σ operations <c>(EstimatedMs/3600000) × LaborAttendancePercent/100 × WorkCenter.LaborCostPerHour</c>
+///         (an operator who only tends a machine cycle is costed for the share of it he attends).</item>
+///   <item><b>Overhead (flat, Tier 1)</b> = Σ operations <c>hours × WorkCenter.BurdenRatePerHour</c>
+///         (work-center burden rate × hours), where hours are the full operation hours on a Machine-basis work
+///         center and the attended labor hours otherwise, the same basis actual time entries are priced on.</item>
 ///   <item><b>Overhead (departmental, Tier 2)</b> = Σ operations <c>opLaborCost × ratePct(WorkCenter)/100</c> —
 ///         a per-work-center percentage of direct labor from the active <see cref="CostingProfile"/> in
 ///         <c>departmental</c> mode; work centers with no configured rate fall back to the flat burden rate.
@@ -86,7 +89,7 @@ public sealed class StandardCostRollupService(
     {
         var ops = await db.Operations.AsNoTracking()
             .Where(o => o.PartId == partId && !o.IsSubcontract && o.WorkCenterId != null && o.EstimatedMs != null)
-            .Select(o => new { Ms = o.EstimatedMs!.Value, WorkCenterId = o.WorkCenterId!.Value })
+            .Select(o => new { Ms = o.EstimatedMs!.Value, WorkCenterId = o.WorkCenterId!.Value, o.LaborAttendancePercent })
             .ToListAsync(ct);
         if (ops.Count == 0)
             return (0m, 0m);
@@ -94,8 +97,8 @@ public sealed class StandardCostRollupService(
         var wcIds = ops.Select(o => o.WorkCenterId).Distinct().ToList();
         var rates = await db.WorkCenters.AsNoTracking()
             .Where(w => wcIds.Contains(w.Id))
-            .Select(w => new { w.Id, w.LaborCostPerHour, w.BurdenRatePerHour })
-            .ToDictionaryAsync(w => w.Id, w => (w.LaborCostPerHour, w.BurdenRatePerHour), ct);
+            .Select(w => new { w.Id, w.LaborCostPerHour, w.BurdenRatePerHour, w.BurdenBasis })
+            .ToDictionaryAsync(w => w.Id, w => (w.LaborCostPerHour, w.BurdenRatePerHour, w.BurdenBasis), ct);
 
         decimal labor = 0m, overhead = 0m;
         foreach (var op in ops)
@@ -103,12 +106,15 @@ public sealed class StandardCostRollupService(
             if (op.Ms <= 0 || !rates.TryGetValue(op.WorkCenterId, out var rate))
                 continue;
             var hours = op.Ms / 3_600_000m;
-            var opLabor = hours * rate.LaborCostPerHour;
+            var laborHours = hours * op.LaborAttendancePercent / 100m;
+            var opLabor = laborHours * rate.LaborCostPerHour;
             labor += opLabor;
 
             // Tier 2 (departmental): a per-work-center percentage of this op's direct labor. Work centers
             // with no configured departmental rate — and Tier-1/flat mode — fall back to burden × hours.
-            overhead += policy.Overhead(op.WorkCenterId, hours, opLabor, rate.BurdenRatePerHour);
+            overhead += rate.BurdenBasis == BurdenBasis.Machine
+                ? policy.Overhead(op.WorkCenterId, hours, hours * rate.LaborCostPerHour, rate.BurdenRatePerHour)
+                : policy.Overhead(op.WorkCenterId, laborHours, opLabor, rate.BurdenRatePerHour);
         }
         return (labor, overhead);
     }

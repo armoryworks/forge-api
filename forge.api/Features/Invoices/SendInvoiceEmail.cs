@@ -66,11 +66,13 @@ public class SendInvoiceEmailHandler(
             ?? throw new InvalidOperationException(
                 "Set your company name in Admin > Company before sending documents to customers.");
 
-        var pdfDoc = new InvoicePdfDocument(invoice, companyName);
+        var money = await MoneyFormat.ForCurrencyIdAsync(
+            db, invoice.CurrencyId, await MoneyFormat.BaseCodeAsync(settings, ct), ct);
+        var pdfDoc = new InvoicePdfDocument(invoice, companyName, money);
         var pdfBytes = pdfDoc.GeneratePdf();
 
         var customerName = invoice.Customer.CompanyName ?? invoice.Customer.Name;
-        var total = InvoiceMoneyText.Format(invoice.Total, await InvoiceMoneyText.CurrencyAsync(db, invoice.CurrencyId, ct));
+        var total = money.Format(invoice.Total);
         var message = new EmailMessage(
             To: recipient,
             Subject: $"Invoice {invoice.InvoiceNumber} from {companyName}",

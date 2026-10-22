@@ -203,11 +203,11 @@ public class ApAgingServiceTests
     public async Task Aging_BucketsByDueDate_PerVendor()
     {
         using var db = await SeedAsync();
-        await PostBillAsync(db, VendorAId, 100m, new DateOnly(2026, 3, 20)); // 12 days → 0-30
+        await PostBillAsync(db, VendorAId, 100m, new DateOnly(2026, 3, 20)); // 12 days → 1-30
         await PostBillAsync(db, VendorAId, 200m, new DateOnly(2026, 2, 20)); // 40 days → 31-60
         await PostBillAsync(db, VendorAId, 400m, new DateOnly(2026, 1, 20)); // 71 days → 61-90
         await PostBillAsync(db, VendorAId, 800m, new DateOnly(2025, 12, 1)); // 121 days → 91+
-        await PostBillAsync(db, VendorBId, 50m, new DateOnly(2026, 3, 31)); //  1 day → 0-30
+        await PostBillAsync(db, VendorBId, 50m, new DateOnly(2026, 3, 31)); //  1 day → 1-30
 
         var aging = await Service(db).GetApAgingAsync(BookId, AsOf);
 
@@ -217,16 +217,16 @@ public class ApAgingServiceTests
         var a = aging.Vendors.Single(v => v.VendorId == VendorAId);
         a.VendorName.Should().Be("Acme Supply");
         a.OpenBalance.Should().Be(1500m);
-        a.Buckets.Single(b => b.Label == "0-30").Amount.Should().Be(100m);
+        a.Buckets.Single(b => b.Label == "1-30").Amount.Should().Be(100m);
         a.Buckets.Single(b => b.Label == "31-60").Amount.Should().Be(200m);
         a.Buckets.Single(b => b.Label == "61-90").Amount.Should().Be(400m);
         a.Buckets.Single(b => b.Label == "91+").Amount.Should().Be(800m);
 
         var b = aging.Vendors.Single(v => v.VendorId == VendorBId);
         b.OpenBalance.Should().Be(50m);
-        b.Buckets.Single(bk => bk.Label == "0-30").Amount.Should().Be(50m);
+        b.Buckets.Single(bk => bk.Label == "1-30").Amount.Should().Be(50m);
 
-        aging.TotalsByBucket.Single(b => b.Label == "0-30").Amount.Should().Be(150m);
+        aging.TotalsByBucket.Single(b => b.Label == "1-30").Amount.Should().Be(150m);
         aging.TotalsByBucket.Single(b => b.Label == "91+").Amount.Should().Be(800m);
 
         aging.Vendors.Select(v => v.VendorId).Should().ContainInOrder(VendorAId, VendorBId);
@@ -250,7 +250,7 @@ public class ApAgingServiceTests
         // balance-forward behavior put −100 in 0-30).
         a.OpenBalance.Should().Be(200m);
         a.Buckets.Single(b => b.Label == "31-60").Amount.Should().Be(200m);
-        a.Buckets.Single(b => b.Label == "0-30").Amount.Should().Be(0m);
+        a.Buckets.Single(b => b.Label == "1-30").Amount.Should().Be(0m);
         a.OpenBalance.Should().Be(a.Buckets.Sum(b => b.Amount));
         aging.Reconciliation.IsReconciled.Should().BeTrue();
     }
@@ -409,7 +409,7 @@ public class ApAgingServiceTests
         aging.GrandTotal.Should().Be(0m);
         aging.Reconciliation.ControlBalance.Should().Be(0m);
         aging.Reconciliation.IsReconciled.Should().BeTrue();
-        aging.TotalsByBucket.Select(b => b.Label).Should().ContainInOrder("0-30", "31-60", "61-90", "91+");
+        aging.TotalsByBucket.Select(b => b.Label).Should().ContainInOrder("Current", "1-30", "31-60", "61-90", "91+");
     }
 
     [Fact]

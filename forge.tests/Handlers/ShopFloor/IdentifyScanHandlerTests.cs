@@ -176,6 +176,8 @@ public class IdentifyScanHandlerTests
     public async Task Handle_PartBarcode_ReturnsPart()
     {
         // Arrange
+        _db.Parts.Add(new Part { Id = 42, PartNumber = "P-42" });
+        await _db.SaveChangesAsync();
         var barcode = new Barcode
         {
             Value = "BC-PART-42",
@@ -218,5 +220,217 @@ public class IdentifyScanHandlerTests
         // Assert
         result.ScanType.Should().Be("asset");
         result.EntityId.Should().Be(7);
+    }
+
+    private async Task<ScanIdentificationResult> ScanAsync(Barcode barcode)
+    {
+        barcode.IsActive = true;
+        _db.Barcodes.Add(barcode);
+        await _db.SaveChangesAsync();
+        return await _handler.Handle(new IdentifyScanQuery(barcode.Value), CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Handle_SalesOrderBarcode_ReturnsTheOrderNumberOnly()
+    {
+        var order = new SalesOrder { OrderNumber = "SO-0042", CustomerId = 1 };
+        _db.SalesOrders.Add(order);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-SO-42", EntityType = BarcodeEntityType.SalesOrder, SalesOrderId = order.Id });
+
+        result.Should().Be(new ScanIdentificationResult("sales-order", order.Id, "SO-0042"));
+    }
+
+    [Fact]
+    public async Task Handle_PurchaseOrderBarcode_ReturnsThePoNumberOnly()
+    {
+        var po = new PurchaseOrder { PONumber = "PO-0007", VendorId = 1 };
+        _db.PurchaseOrders.Add(po);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-PO-7", EntityType = BarcodeEntityType.PurchaseOrder, PurchaseOrderId = po.Id });
+
+        result.Should().Be(new ScanIdentificationResult("purchase-order", po.Id, "PO-0007"));
+    }
+
+    [Fact]
+    public async Task Handle_PartBarcode_ReturnsThePartNumber()
+    {
+        var part = new Part { PartNumber = "BRK-100", Name = "Bracket" };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-BRK-100", EntityType = BarcodeEntityType.Part, PartId = part.Id });
+
+        result.Should().Be(new ScanIdentificationResult("part", part.Id, "BRK-100", "Bracket"));
+    }
+
+    [Fact]
+    public async Task Handle_LotBarcode_ReturnsTheLotNumber()
+    {
+        var part = new Part { PartNumber = "RES-7", Name = "Resin" };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+        var lot = new LotRecord { LotNumber = "LOT-2026-001", PartId = part.Id };
+        _db.LotRecords.Add(lot);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-LOT-1", EntityType = BarcodeEntityType.Lot, LotRecordId = lot.Id });
+
+        result.Should().Be(new ScanIdentificationResult("lot", lot.Id, "LOT-2026-001", "RES-7"));
+    }
+
+    [Fact]
+    public async Task Handle_CompletedJobBarcode_ReturnsTheNumberAndTitleMarkedClosed()
+    {
+        var trackType = new TrackType { Name = "Production", Code = "PROD", IsActive = true };
+        _db.TrackTypes.Add(trackType);
+        await _db.SaveChangesAsync();
+        var stage = new JobStage { TrackTypeId = trackType.Id, Name = "Shipped", Code = "shipped", SortOrder = 9, IsActive = true };
+        _db.JobStages.Add(stage);
+        await _db.SaveChangesAsync();
+        var job = new Job
+        {
+            JobNumber = "J-0900", Title = "Brackets", TrackTypeId = trackType.Id, CurrentStageId = stage.Id,
+            CompletedDate = DateTimeOffset.UtcNow,
+        };
+        _db.Jobs.Add(job);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-J-900", EntityType = BarcodeEntityType.Job, JobId = job.Id });
+
+        result.Should().Be(new ScanIdentificationResult("job", job.Id, "J-0900", "Brackets", IsClosed: true));
+    }
+
+    [Fact]
+    public async Task Handle_LocationBarcode_ReturnsTheLocationPath()
+    {
+        var area = new StorageLocation { Name = "Warehouse", LocationType = LocationType.Area };
+        _db.StorageLocations.Add(area);
+        await _db.SaveChangesAsync();
+        var bin = new StorageLocation { Name = "Bin A1", LocationType = LocationType.Bin, ParentId = area.Id };
+        _db.StorageLocations.Add(bin);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-BIN-A1", EntityType = BarcodeEntityType.StorageLocation, StorageLocationId = bin.Id });
+
+        result.Should().Be(new ScanIdentificationResult("storage-location", bin.Id, null, "Warehouse / Bin A1"));
+    }
+
+    [Fact]
+    public async Task Handle_CustomerOwnedAssetBarcode_ReturnsNoName()
+    {
+        var asset = new Asset { Name = "Customer mold", IsCustomerOwned = true };
+        _db.Assets.Add(asset);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-MOLD-1", EntityType = BarcodeEntityType.Asset, AssetId = asset.Id });
+
+        result.Should().Be(new ScanIdentificationResult("asset", asset.Id));
+    }
+
+    [Fact]
+    public async Task Handle_ShopAssetBarcode_ReturnsTheAssetName()
+    {
+        var asset = new Asset { Name = "Press 3" };
+        _db.Assets.Add(asset);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-PRESS-3", EntityType = BarcodeEntityType.Asset, AssetId = asset.Id });
+
+        result.Should().Be(new ScanIdentificationResult("asset", asset.Id, "Press 3"));
+    }
+
+    [Fact]
+    public async Task Handle_JobBarcodeWhoseJobIsGone_ReturnsNotFound()
+    {
+        var result = await ScanAsync(new Barcode { Value = "BC-J-GONE", EntityType = BarcodeEntityType.Job, JobId = 987654 });
+
+        result.Should().Be(new ScanIdentificationResult("unknown"));
+    }
+
+    [Fact]
+    public async Task Handle_PartOrLotBarcodeWhoseRecordIsGone_ReturnsNotFound()
+    {
+        (await ScanAsync(new Barcode { Value = "BC-P-GONE", EntityType = BarcodeEntityType.Part, PartId = 987654 }))
+            .Should().Be(new ScanIdentificationResult("unknown"));
+        (await ScanAsync(new Barcode { Value = "BC-L-GONE", EntityType = BarcodeEntityType.Lot, LotRecordId = 987654 }))
+            .Should().Be(new ScanIdentificationResult("unknown"));
+    }
+
+    [Fact]
+    public async Task Handle_FromATerminalAlone_HidesOrderNumbersAndAssetNames()
+    {
+        var order = new SalesOrder { OrderNumber = "SO-0099", CustomerId = 1 };
+        var po = new PurchaseOrder { PONumber = "PO-0099", VendorId = 1 };
+        var asset = new Asset { Name = "Press 9" };
+        _db.AddRange(order, po, asset);
+        await _db.SaveChangesAsync();
+        _db.Barcodes.AddRange(
+            new Barcode { Value = "T-SO", EntityType = BarcodeEntityType.SalesOrder, SalesOrderId = order.Id, IsActive = true },
+            new Barcode { Value = "T-PO", EntityType = BarcodeEntityType.PurchaseOrder, PurchaseOrderId = po.Id, IsActive = true },
+            new Barcode { Value = "T-AS", EntityType = BarcodeEntityType.Asset, AssetId = asset.Id, IsActive = true });
+        await _db.SaveChangesAsync();
+
+        foreach (var value in new[] { "T-SO", "T-PO", "T-AS" })
+        {
+            var result = await _handler.Handle(new IdentifyScanQuery(value, TerminalOnly: true), CancellationToken.None);
+            result.Should().Be(new ScanIdentificationResult("unknown"));
+        }
+    }
+
+    [Fact]
+    public async Task Handle_FromATerminalAlone_StillResolvesPartsLotsAndLocations()
+    {
+        var part = new Part { PartNumber = "BRK-200", Name = "Bracket" };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+        var lot = new LotRecord { LotNumber = "LOT-9", PartId = part.Id };
+        var bin = new StorageLocation { Name = "Bin B2", LocationType = LocationType.Bin };
+        _db.AddRange(lot, bin);
+        await _db.SaveChangesAsync();
+        _db.Barcodes.AddRange(
+            new Barcode { Value = "T-PART", EntityType = BarcodeEntityType.Part, PartId = part.Id, IsActive = true },
+            new Barcode { Value = "T-LOT", EntityType = BarcodeEntityType.Lot, LotRecordId = lot.Id, IsActive = true },
+            new Barcode { Value = "T-BIN", EntityType = BarcodeEntityType.StorageLocation, StorageLocationId = bin.Id, IsActive = true });
+        await _db.SaveChangesAsync();
+
+        (await _handler.Handle(new IdentifyScanQuery("T-PART", TerminalOnly: true), CancellationToken.None))
+            .Should().Be(new ScanIdentificationResult("part", part.Id, "BRK-200", "Bracket"));
+        (await _handler.Handle(new IdentifyScanQuery("T-LOT", TerminalOnly: true), CancellationToken.None))
+            .Should().Be(new ScanIdentificationResult("lot", lot.Id, "LOT-9", "BRK-200"));
+        (await _handler.Handle(new IdentifyScanQuery("T-BIN", TerminalOnly: true), CancellationToken.None))
+            .Should().Be(new ScanIdentificationResult("storage-location", bin.Id, null, "Bin B2"));
+    }
+    [Fact]
+    public async Task Handle_JobStepBarcode_OpensThatStepOfTheJob()
+    {
+        var trackType = new TrackType { Name = "Production", Code = "PROD-FJO", IsActive = true };
+        _db.TrackTypes.Add(trackType);
+        await _db.SaveChangesAsync();
+        var stage = new JobStage { TrackTypeId = trackType.Id, Name = "Machining", Code = "machining_fjo", SortOrder = 1, IsActive = true };
+        var part = new Part { PartNumber = "P-FJO", Name = "Bracket" };
+        _db.AddRange(stage, part);
+        await _db.SaveChangesAsync();
+        var step = new Operation { PartId = part.Id, StepNumber = 20, Title = "Mill" };
+        var otherPartStep = new Operation { PartId = part.Id + 1000, StepNumber = 10, Title = "Elsewhere" };
+        var job = new Job { JobNumber = "JOB-FJO", Title = "Step scan", TrackTypeId = trackType.Id, CurrentStageId = stage.Id, PartId = part.Id };
+        _db.AddRange(step, otherPartStep, job);
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new IdentifyScanQuery(JobStepBarcode.Format(job.Id, step.Id), TerminalOnly: true), CancellationToken.None);
+
+        result.ScanType.Should().Be("job-operation");
+        result.EntityId.Should().Be(job.Id);
+        result.EntityNumber.Should().Be("JOB-FJO");
+        result.OperationId.Should().Be(step.Id);
+        result.StepNumber.Should().Be(20);
+
+        var foreign = await _handler.Handle(new IdentifyScanQuery($"fjo:{job.Id}.{otherPartStep.Id}"), CancellationToken.None);
+        foreign.ScanType.Should().Be("job", "a step from another routing falls back to the job");
+
+        var garbage = await _handler.Handle(new IdentifyScanQuery("FJO:abc"), CancellationToken.None);
+        garbage.ScanType.Should().Be("unknown");
     }
 }

@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
@@ -51,8 +52,11 @@ public class UpdatePaymentHandler(
 
         var appliedTotal = payment.Applications.Sum(a => a.Amount);
         if (request.Data.Amount < appliedTotal)
+        {
+            var money = await MoneyFormat.ForCustomerPaymentAsync(db, payment.Id, cancellationToken);
             throw new InvalidOperationException(
-                $"Cannot reduce the payment to {request.Data.Amount:C}: {appliedTotal:C} is already applied to invoices. Void it instead.");
+                $"Cannot reduce the payment to {money.Format(request.Data.Amount)}: {money.Format(appliedTotal)} is already applied to invoices. Void it instead.");
+        }
 
         // User-settable payment number — audit-sensitive, so STRICTLY gated: a payment that has
         // been applied to any invoice is committed and its number is frozen. Payment has no status/

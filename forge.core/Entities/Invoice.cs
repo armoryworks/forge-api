@@ -1,4 +1,5 @@
 using Forge.Core.Enums;
+using Forge.Core.Models.Accounting;
 
 namespace Forge.Core.Entities;
 
@@ -76,7 +77,7 @@ public class Invoice : BaseAuditableEntity, IConcurrencyVersioned
     }
 
     private static decimal QuantizeMoney(decimal value)
-        => Math.Round(value, 2, MidpointRounding.AwayFromZero);
+        => Money.Round(value);
 
     public Customer Customer { get; set; } = null!;
     public Currency Currency { get; set; } = null!;

@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record WorkCenterResponseModel(
@@ -18,4 +20,5 @@ public record WorkCenterResponseModel(
     int SortOrder,
     int? TeamId,
     string? TeamName,
-    decimal? IdealCycleTimeSeconds = null);
+    decimal? IdealCycleTimeSeconds = null,
+    BurdenBasis BurdenBasis = BurdenBasis.Labor);

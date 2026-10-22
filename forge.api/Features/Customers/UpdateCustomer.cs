@@ -44,7 +44,7 @@ public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
         RuleFor(x => x.Name)
             .Must(VisibleText.HasVisibleContent)
             .When(x => !string.IsNullOrEmpty(x.Name))
-            .WithMessage("'Name' must contain visible (non-whitespace) characters.");
+            .WithMessage("Name must contain visible characters.").WithErrorCode("name-not-visible");
         RuleFor(x => x.CompanyName).MaximumLength(200).When(x => x.CompanyName is not null);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Phone).MaximumLength(50).When(x => x.Phone is not null);
@@ -114,14 +114,14 @@ public class UpdateCustomerHandler(
             }
         }
 
-        if (request.Name is not null && request.Name != customer.Name)
+        if (request.Name is not null && request.Name.Trim() != customer.Name)
         {
-            customer.Name = request.Name;
+            customer.Name = request.Name.Trim();
             changedFields.Add("name");
         }
-        if (request.CompanyName is not null && request.CompanyName != customer.CompanyName)
+        if (request.CompanyName is not null && request.CompanyName.Trim() != customer.CompanyName)
         {
-            customer.CompanyName = request.CompanyName;
+            customer.CompanyName = request.CompanyName.Trim();
             changedFields.Add("companyName");
         }
         if (request.Email is not null && request.Email.NullIfEmpty() != customer.Email)

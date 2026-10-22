@@ -22,7 +22,7 @@ public class RaiseKioskAndonValidator : AbstractValidator<RaiseKioskAndonCommand
     public RaiseKioskAndonValidator()
     {
         RuleFor(x => x.JobId).GreaterThan(0);
-        RuleFor(x => x.Type).Must(KioskTypes.Contains).WithMessage("Choose stoppage, quality or material.");
+        RuleFor(x => x.Type).Must(KioskTypes.Contains).WithMessage("Choose stoppage, quality or material.").WithErrorCode("andon-type-required");
         RuleFor(x => x.Notes).MaximumLength(2000);
     }
 }

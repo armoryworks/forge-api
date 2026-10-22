@@ -2,6 +2,7 @@ using FluentValidation;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Enums;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Scheduling;
@@ -16,6 +17,7 @@ public interface IWorkCenterFields
     decimal LaborCostPerHour { get; }
     decimal BurdenRatePerHour { get; }
     decimal? IdealCycleTimeSeconds { get; }
+    BurdenBasis? BurdenBasis { get; }
 }
 
 public class WorkCenterFieldsValidator : AbstractValidator<IWorkCenterFields>
@@ -27,6 +29,7 @@ public class WorkCenterFieldsValidator : AbstractValidator<IWorkCenterFields>
         RuleFor(x => x.DailyCapacityHours).GreaterThan(0).LessThanOrEqualTo(24)
             .WithMessage("Daily capacity is hours per machine and must be more than 0 and at most 24.");
         RuleFor(x => x.EfficiencyPercent).InclusiveBetween(1, 200);
+        RuleFor(x => x.BurdenBasis).IsInEnum().When(x => x.BurdenBasis.HasValue);
         RuleFor(x => x.NumberOfMachines).GreaterThan(0);
         RuleFor(x => x.LaborCostPerHour).GreaterThanOrEqualTo(0);
         RuleFor(x => x.BurdenRatePerHour).GreaterThanOrEqualTo(0);

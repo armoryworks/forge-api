@@ -31,7 +31,7 @@ public class ReceivePurchaseOrderCommandValidator : AbstractValidator<ReceivePur
             .NotNull().WithMessage("A storage location is required when receiving stock into inventory.");
         RuleFor(x => x.Data.LotNumber)
             .Must(lot => lot is null || lot.Trim().Length <= 100)
-            .WithMessage("Lot / heat number must be 100 characters or fewer.");
+            .WithMessage("Lot / heat number must be 100 characters or fewer.").WithErrorCode("lot-number-too-long");
     }
 }
 

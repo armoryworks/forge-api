@@ -33,7 +33,7 @@ public class UpdateVendorValidator : AbstractValidator<UpdateVendorCommand>
 {
     public UpdateVendorValidator()
     {
-        RuleFor(x => x.CompanyName).MaximumLength(200).When(x => x.CompanyName != null);
+        RuleFor(x => x.CompanyName).NotEmpty().MaximumLength(200).When(x => x.CompanyName != null);
         RuleFor(x => x.VendorNumber).NotEmpty().MaximumLength(50).When(x => x.VendorNumber != null);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Notes).MaximumLength(2000).When(x => x.Notes != null);
@@ -88,9 +88,9 @@ public class UpdateVendorHandler(
             }
         }
 
-        if (request.CompanyName != null && request.CompanyName != vendor.CompanyName)
+        if (request.CompanyName != null && request.CompanyName.Trim() != vendor.CompanyName)
         {
-            vendor.CompanyName = request.CompanyName;
+            vendor.CompanyName = request.CompanyName.Trim();
             changedFields.Add("companyName");
         }
         if (request.ContactName != null && request.ContactName != vendor.ContactName)

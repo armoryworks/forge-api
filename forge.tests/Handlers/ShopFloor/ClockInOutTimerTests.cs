@@ -21,12 +21,13 @@ public class ClockInOutTimerTests
     public async Task Handle_ClockOutWithRunningTimer_ClosesTimerAtPunchTime()
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
         var job = await _h.AddJobAsync("JOB-0100");
         var entry = await _h.AddRunningTimerAsync(user.Id, job.Id, _h.Now.AddMinutes(-90));
 
         var result = await _handler.Handle(new ClockInOutCommand(user.Id, "ClockOut"), CancellationToken.None);
 
-        var clockEvent = await _h.Db.ClockEvents.AsNoTracking().SingleAsync();
+        var clockEvent = await _h.Db.ClockEvents.AsNoTracking().SingleAsync(e => e.Id == result.ClockEventId);
         clockEvent.Timestamp.Should().Be(_h.Now);
         var saved = await _h.Db.TimeEntries.AsNoTracking().SingleAsync(t => t.Id == entry.Id);
         saved.TimerStop.Should().Be(clockEvent.Timestamp);
@@ -38,10 +39,11 @@ public class ClockInOutTimerTests
     public async Task Handle_ClockOutWithoutTimer_RecordsEventWithNoStoppedJob()
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
 
         var result = await _handler.Handle(new ClockInOutCommand(user.Id, "ClockOut"), CancellationToken.None);
 
-        var clockEvent = await _h.Db.ClockEvents.AsNoTracking().SingleAsync();
+        var clockEvent = await _h.Db.ClockEvents.AsNoTracking().SingleAsync(e => e.Id == result.ClockEventId);
         result.Should().Be(new ClockInOutResponseModel(clockEvent.Id, null));
     }
 
@@ -51,6 +53,7 @@ public class ClockInOutTimerTests
     public async Task Handle_BreakOrLunch_LeavesTimerRunning(string code)
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
         var entry = await _h.AddRunningTimerAsync(user.Id, null, _h.Now.AddMinutes(-30));
 
         var result = await _handler.Handle(new ClockInOutCommand(user.Id, code), CancellationToken.None);
@@ -64,6 +67,7 @@ public class ClockInOutTimerTests
     public async Task Handle_CustomOutCode_StopsTimer()
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
         var entry = await _h.AddRunningTimerAsync(user.Id, null, _h.Now.AddMinutes(-5));
 
         await _handler.Handle(new ClockInOutCommand(user.Id, "shift_end"), CancellationToken.None);
@@ -80,10 +84,13 @@ public class ClockInOutTimerTests
     public async Task Handle_StoresLegacyEventTypeFromStatusMapping(string code, ClockEventType expected)
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
+        if (code == "return_from_errand")
+            await _h.AddClockEventAsync(user.Id, "smoke_break", _h.Now.AddMinutes(-10));
 
-        await _handler.Handle(new ClockInOutCommand(user.Id, code), CancellationToken.None);
+        var result = await _handler.Handle(new ClockInOutCommand(user.Id, code), CancellationToken.None);
 
-        var clockEvent = await _h.Db.ClockEvents.AsNoTracking().SingleAsync();
+        var clockEvent = await _h.Db.ClockEvents.AsNoTracking().SingleAsync(e => e.Id == result.ClockEventId);
         clockEvent.EventType.Should().Be(expected);
         clockEvent.EventTypeCode.Should().Be(code);
     }
@@ -92,6 +99,7 @@ public class ClockInOutTimerTests
     public async Task Handle_ClockOutWithRunningTimer_LogsTheEventAndTheClockOutStop()
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
         var job = await _h.AddJobAsync("JOB-0100");
         var entry = await _h.AddRunningTimerAsync(user.Id, job.Id, _h.Now.AddMinutes(-90));
 
@@ -110,6 +118,7 @@ public class ClockInOutTimerTests
     public async Task Handle_BreakStart_LogsTheEventOnly()
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
         await _h.AddRunningTimerAsync(user.Id, null, _h.Now.AddMinutes(-30));
 
         var result = await _handler.Handle(new ClockInOutCommand(user.Id, "BreakStart"), CancellationToken.None);
@@ -123,6 +132,7 @@ public class ClockInOutTimerTests
     public async Task Handle_ClockOut_StopsOperationTimersTooAndReportsTheJobTimer()
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
         var job = await _h.AddJobAsync("JOB-0110");
         var general = await _h.AddRunningTimerAsync(user.Id, job.Id, _h.Now.AddMinutes(-60));
         var first = await _h.AddRunningOperationTimerAsync(

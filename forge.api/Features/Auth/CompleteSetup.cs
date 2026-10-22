@@ -52,10 +52,12 @@ public class CompleteSetupHandler(
 
         // Set password
         var removeResult = await userManager.RemovePasswordAsync(user);
+        ThrowIfAlreadyUsed(removeResult);
         if (!removeResult.Succeeded && user.PasswordHash != null)
             throw new InvalidOperationException("Failed to reset password");
 
         var addResult = await userManager.AddPasswordAsync(user, request.Password);
+        ThrowIfAlreadyUsed(addResult);
         if (!addResult.Succeeded)
             throw PasswordRejected(addResult.Errors);
 
@@ -71,7 +73,10 @@ public class CompleteSetupHandler(
         user.EmailConfirmed = true;
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
-        await userManager.UpdateAsync(user);
+        var updateResult = await userManager.UpdateAsync(user);
+        ThrowIfAlreadyUsed(updateResult);
+        if (!updateResult.Succeeded)
+            throw new InvalidOperationException("Failed to complete setup");
 
         // Generate JWT and return login response
         // WU-06 / C1 — RoleTemplate expansion at setup completion.
@@ -99,4 +104,10 @@ public class CompleteSetupHandler(
 
     private static ValidationException PasswordRejected(IEnumerable<IdentityError> errors) =>
         new(errors.Select(e => new FluentValidation.Results.ValidationFailure(nameof(CompleteSetupCommand.Password), e.Description)));
+
+    private static void ThrowIfAlreadyUsed(IdentityResult result)
+    {
+        if (result.Errors.Any(e => e.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure)))
+            throw new InvalidOperationException("This setup link has already been used.");
+    }
 }

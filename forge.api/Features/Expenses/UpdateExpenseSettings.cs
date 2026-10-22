@@ -28,7 +28,7 @@ public class UpdateExpenseSettingsValidator : AbstractValidator<UpdateExpenseSet
             .WithMessage("Minimum description length must be between 0 and 500.");
         RuleFor(x => x)
             .Must(x => !x.MaxAmount.HasValue || !x.AutoApproveThreshold.HasValue || x.AutoApproveThreshold <= x.MaxAmount)
-            .WithMessage("Auto-approve threshold cannot exceed the max expense amount.");
+            .WithMessage("Auto-approve threshold cannot exceed the max expense amount.").WithErrorCode("auto-approve-over-max");
     }
 }
 

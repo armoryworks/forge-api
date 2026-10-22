@@ -18,6 +18,7 @@ public class CreateClockEventTimerTests
     public async Task Handle_ClockOutFromDesktop_StopsTheRunningTimerAndLogsTheEvent()
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
         var job = await _h.AddJobAsync("JOB-0300");
         var entry = await _h.AddRunningTimerAsync(user.Id, job.Id, _h.Now.AddMinutes(-60));
 
@@ -37,6 +38,7 @@ public class CreateClockEventTimerTests
     public async Task Handle_LunchFromDesktop_LeavesTheTimerRunning()
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
         var entry = await _h.AddRunningTimerAsync(user.Id, null, _h.Now.AddMinutes(-60));
 
         await Handler(user.Id).Handle(

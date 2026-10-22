@@ -29,7 +29,8 @@ public class GetWorkCentersHandler(AppDbContext db) : IRequestHandler<GetWorkCen
                 w.CompanyLocationId, w.Location != null ? w.Location.Name : null,
                 w.SortOrder,
                 w.TeamId, w.Team != null ? w.Team.Name : null,
-                w.IdealCycleTimeSeconds))
+                w.IdealCycleTimeSeconds,
+                w.BurdenBasis))
             .ToListAsync(cancellationToken);
     }
 }

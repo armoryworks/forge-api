@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Models.PieceRates;
 using Forge.Data.Context;
@@ -71,8 +72,9 @@ public class LogPieceWorkHandler(AppDbContext db)
         db.PieceWorkEntries.Add(entry);
         await db.SaveChangesAsync(ct);
 
+        var money = await MoneyFormat.ForBaseCurrencyAsync(db, ct);
         db.LogActivityAt("piece-work-logged",
-            $"{request.Quantity:0.##} × {part.PartNumber} @ {rate.RatePerPiece:C4} = {entry.Earnings:C} on {d:MM/dd/yyyy}",
+            $"{request.Quantity:0.##} × {part.PartNumber} @ {money.WithDecimalPlaces(4).Format(rate.RatePerPiece)} = {money.Format(entry.Earnings)} on {d:MM/dd/yyyy}",
             ("PieceWorkEntry", entry.Id));
         await db.SaveChangesAsync(ct);
 

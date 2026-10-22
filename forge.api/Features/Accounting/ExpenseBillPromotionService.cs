@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
@@ -147,9 +148,10 @@ public sealed class ExpenseBillPromotionService(
         db.VendorBills.Add(bill);
         await db.SaveChangesAsync(ct); // assign the id so the posting + activity can reference it
 
+        var money = await MoneyFormat.ForCurrencyIdAsync(db, bill.CurrencyId, ct);
         db.LogActivityAt(
             "created",
-            $"Bill {bill.BillNumber} promoted from expense EXP-{expense.Id} and approved for payment — {bill.Total:C}",
+            $"Bill {bill.BillNumber} promoted from expense EXP-{expense.Id} and approved for payment — {money.Format(bill.Total)}",
             ("VendorBill", bill.Id));
 
         if (legacyPosted)

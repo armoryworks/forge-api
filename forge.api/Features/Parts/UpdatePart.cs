@@ -38,6 +38,7 @@ public class UpdatePartCommandValidator : AbstractValidator<UpdatePartCommand>
             .Must(y => y < 0m || (y > 0m && y <= 100m && decimal.Round(y.Value, 2) == y))
             .WithMessage("Expected yield must be more than 0 and at most 100 percent, with up to 2 decimal places.")
             .When(x => x.Data.ExpectedYieldPercent.HasValue);
+        RuleFor(x => x.Data.ManualCostOverride).UnitScale();
     }
 }
 

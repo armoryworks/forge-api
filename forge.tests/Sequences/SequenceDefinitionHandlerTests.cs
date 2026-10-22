@@ -45,6 +45,8 @@ public class SequenceDefinitionHandlerTests
         await using var f = new SequenceHandlerFixture();
         var bad = Serial() with { Edges = [new("cut", "inspect"), new("inspect", "cut")] }; // non-rework cycle
         var act = () => new CreateSequenceDefinitionHandler(f.Db).Handle(new CreateSequenceDefinitionCommand(bad), default);
-        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("Invalid sequence definition");
+        var thrown = (await act.Should().ThrowAsync<FluentValidation.ValidationException>()).Which;
+        thrown.Message.Should().Contain("Invalid sequence definition");
+        thrown.Errors.Should().ContainSingle(e => e.PropertyName == "steps");
     }
 }

@@ -175,6 +175,7 @@ public static class CapabilityCatalogRelations
         new("CAP-MFG-LABOR", "CAP-MD-EMPLOYEES"),
         new("CAP-MFG-MULTIOP", "CAP-MD-ROUTING"),
         new("CAP-MFG-MULTIOP", "CAP-MFG-WO-RELEASE"),
+        new("CAP-MFG-GATE-OVERRIDE", "CAP-MFG-MULTIOP"),
         new("CAP-MFG-COMPLETE", "CAP-MFG-WO-RELEASE"),
         new("CAP-MFG-WOVARIANCE", "CAP-MFG-COMPLETE"),
         new("CAP-MFG-WOVARIANCE", "CAP-MFG-LABOR"),

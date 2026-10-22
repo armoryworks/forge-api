@@ -31,7 +31,7 @@ public class GetScanContextHandler(
         var part = await db.Parts
             .AsNoTracking()
             .Where(p => p.PartNumber == identifier)
-            .Select(p => new { p.Id, p.PartNumber, p.Description, p.TraceabilityType })
+            .Select(p => new { p.Id, p.PartNumber, p.Description, p.TraceabilityType, StockUomCode = p.StockUom != null ? p.StockUom.Code : null })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (part == null)
@@ -47,7 +47,7 @@ public class GetScanContextHandler(
                 part = await db.Parts
                     .AsNoTracking()
                     .Where(p => p.Id == vendorMatch.PartId)
-                    .Select(p => new { p.Id, p.PartNumber, p.Description, p.TraceabilityType })
+                    .Select(p => new { p.Id, p.PartNumber, p.Description, p.TraceabilityType, StockUomCode = p.StockUom != null ? p.StockUom.Code : null })
                     .FirstOrDefaultAsync(cancellationToken);
             }
         }
@@ -66,7 +66,7 @@ public class GetScanContextHandler(
                 part = await db.Parts
                     .AsNoTracking()
                     .Where(p => p.Id == barcode.PartId)
-                    .Select(p => new { p.Id, p.PartNumber, p.Description, p.TraceabilityType })
+                    .Select(p => new { p.Id, p.PartNumber, p.Description, p.TraceabilityType, StockUomCode = p.StockUom != null ? p.StockUom.Code : null })
                     .FirstOrDefaultAsync(cancellationToken);
             }
         }
@@ -91,7 +91,7 @@ public class GetScanContextHandler(
                 part = await db.Parts
                     .AsNoTracking()
                     .Where(p => p.Id == lotPartId.Value)
-                    .Select(p => new { p.Id, p.PartNumber, p.Description, p.TraceabilityType })
+                    .Select(p => new { p.Id, p.PartNumber, p.Description, p.TraceabilityType, StockUomCode = p.StockUom != null ? p.StockUom.Code : null })
                     .FirstOrDefaultAsync(cancellationToken);
             }
         }
@@ -242,6 +242,7 @@ public class GetScanContextHandler(
                 return new ScanIssueContextJob(
                     first.Id, first.JobNumber, first.Title, required, issued, Math.Max(required - issued, 0));
             })
+            .Where(j => j.RemainingQuantity > 0)
             .OrderBy(j => j.JobNumber)
             .ToList();
 
@@ -273,6 +274,7 @@ public class GetScanContextHandler(
             totalStock,
             primaryLocation?.Location.Name,
             primaryLocation?.LocationId,
-            actions);
+            actions,
+            part.StockUomCode);
     }
 }

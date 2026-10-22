@@ -82,7 +82,7 @@ public static class ModuleCatalog
             "Turns on BOMs, routings, work centers, and the job board.",
             new[] { "CAP-MD-BOM", "CAP-MD-ROUTING", "CAP-MD-WORKCENTERS", "CAP-MD-CALENDARS",
                     "CAP-MFG-WO-RELEASE", "CAP-MFG-MATL-ISSUE", "CAP-MFG-LABOR", "CAP-MFG-MULTIOP",
-                    "CAP-MFG-COMPLETE", "CAP-MFG-SHOPFLOOR", "CAP-EXT-KANBAN" }),
+                    "CAP-MFG-GATE-OVERRIDE", "CAP-MFG-COMPLETE", "CAP-MFG-SHOPFLOOR", "CAP-EXT-KANBAN" }),
 
         new("shipping", "Shipping",
             "Pick, pack, and ship orders, with tracking.",

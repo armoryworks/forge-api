@@ -1,5 +1,9 @@
+using Microsoft.EntityFrameworkCore;
+
+using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Accounting;
 
@@ -7,7 +11,8 @@ namespace Forge.Api.Features.Accounting;
 public sealed class PeriodCloseChecklistService(
     IGrniReconciliationService grni,
     IArAgingService arAging,
-    IApAgingService apAging) : IPeriodCloseChecklistService
+    IApAgingService apAging,
+    AppDbContext? db = null) : IPeriodCloseChecklistService
 {
     public async Task<CloseChecklistResult> EvaluateAsync(int bookId, DateOnly asOf, CancellationToken ct = default)
     {
@@ -31,6 +36,17 @@ public sealed class PeriodCloseChecklistService(
         items.Add(new CloseChecklistItem(
             "AP_TIES", "AP aging ties to control",
             ap.IsReconciled, ap.IsReconciled ? "Reconciled" : $"Difference {ap.Difference:0.00}"));
+
+        if (db is not null)
+        {
+            var pending = await db.JournalEntries.AsNoTracking()
+                .CountAsync(e => e.BookId == bookId
+                    && e.Status == JournalEntryStatus.PendingApproval
+                    && e.EntryDate <= asOf, ct);
+            items.Add(new CloseChecklistItem(
+                "PENDING_JE", "No journal entries awaiting approval",
+                pending == 0, pending == 0 ? "None pending" : $"{pending} awaiting approval"));
+        }
 
         return new CloseChecklistResult(bookId, asOf, items);
     }

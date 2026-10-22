@@ -22,7 +22,7 @@ public class GetJobOperationEventsHandler(AppDbContext db)
             .Where(e => e.JobOperation.JobId == request.JobId && e.JobOperation.OperationId == request.OperationId)
             .OrderBy(e => e.OccurredAt)
             .ThenBy(e => e.Id)
-            .Select(e => new { e.Id, e.Kind, e.Quantity, e.ReasonCode, e.UserId, e.OccurredAt })
+            .Select(e => new { e.Id, e.Kind, e.Quantity, e.ReasonCode, e.UserId, e.OccurredAt, e.GateOverride, e.GateOverrideReason })
             .ToListAsync(ct);
 
         var userIds = events.Select(e => e.UserId).Distinct().ToList();
@@ -33,7 +33,8 @@ public class GetJobOperationEventsHandler(AppDbContext db)
 
         return events
             .Select(e => new JobOperationEventResponseModel(
-                e.Id, e.Kind, e.Quantity, e.ReasonCode, e.UserId, names.GetValueOrDefault(e.UserId, "Unknown"), e.OccurredAt))
+                e.Id, e.Kind, e.Quantity, e.ReasonCode, e.UserId, names.GetValueOrDefault(e.UserId, "Unknown"), e.OccurredAt,
+                e.GateOverride, e.GateOverrideReason))
             .ToList();
     }
 }

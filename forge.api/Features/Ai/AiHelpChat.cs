@@ -4,6 +4,7 @@ using FluentValidation;
 using MediatR;
 using Pgvector;
 
+using Forge.Api.Middleware;
 using Forge.Core.Interfaces;
 
 namespace Forge.Api.Features.Ai;
@@ -42,7 +43,7 @@ public class AiHelpChatHandler(
         availCts.CancelAfter(TimeSpan.FromSeconds(5));
         var available = await aiService.IsAvailableAsync(availCts.Token).ConfigureAwait(false);
         if (!available)
-            return new AiHelpChatResponse("The AI service is currently unavailable. Please try again later.");
+            throw new ServiceUnavailableException("The AI service is currently unavailable. Please try again later.");
 
         var role = request.UserRole ?? "General";
         var systemContext = GetSystemContext(role);
@@ -334,7 +335,7 @@ public class AiHelpChatHandler(
         1. Invoice a Job: Jobs complete on Kanban -> Invoices -> Create Invoice -> Link job -> Set terms -> Send PDF
         2. Record Payment: Payments -> New Payment -> Select customer -> Apply to invoices -> Mark paid
         3. PO to Receiving: Purchase Orders -> Create PO -> Send to vendor -> Receive Items -> Auto-updates inventory
-        4. Month-End AR: Reports -> AR Aging -> Review buckets (0-30, 31-60, 60+) -> Follow up on overdue -> Export
+        4. Month-End AR: Reports -> AR Aging -> Review buckets (Current, 1-30, 31-60, 61-90, 91+) -> Follow up on overdue -> Export
         5. Expense Report: Expenses -> Filter by date range -> Export CSV -> Import to accounting system
 
         CUSTOMER WORKFLOWS:

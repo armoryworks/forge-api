@@ -31,7 +31,8 @@ public class AdminCorrectTimeEntryHandler(
     AppDbContext db,
     ITimeTrackingRepository repo,
     IMediator mediator,
-    IJobCostService? jobCost = null) : IRequestHandler<AdminCorrectTimeEntryCommand, TimeEntryResponseModel>
+    IJobCostService? jobCost = null,
+    ILaborAllocationService? laborAllocation = null) : IRequestHandler<AdminCorrectTimeEntryCommand, TimeEntryResponseModel>
 {
     public async Task<TimeEntryResponseModel> Handle(AdminCorrectTimeEntryCommand request, CancellationToken cancellationToken)
     {
@@ -56,11 +57,14 @@ public class AdminCorrectTimeEntryHandler(
 
         // Apply corrections (no date/lock restrictions for admin)
         var data = request.Data;
+        var before = TimeEntryTimes.Span(entry);
         if (data.JobId.HasValue) entry.JobId = data.JobId;
         if (data.Date.HasValue) entry.Date = data.Date.Value;
         TimeEntryTimes.Apply(entry, data.StartTime, data.EndTime, data.DurationMinutes);
         if (data.Category is not null) entry.Category = data.Category.Trim();
         if (data.Notes is not null) entry.Notes = data.Notes.Trim();
+        if (laborAllocation is not null && TimeEntryTimes.Span(entry) != before)
+            await laborAllocation.ReallocateAsync(entry.UserId, TimeEntryTimes.Spans(before, entry), [entry], cancellationToken);
         if (jobCost is not null && entry.JobId.HasValue)
             await jobCost.PriceTimeEntryAsync(entry, cancellationToken);
 

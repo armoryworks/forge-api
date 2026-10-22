@@ -41,6 +41,7 @@ public class OperationConfiguration : IEntityTypeConfiguration<Operation>
         builder.Property(e => e.BurdenRate).HasPrecision(18, 4);
         builder.Property(e => e.EstimatedLaborCost).HasPrecision(18, 4);
         builder.Property(e => e.EstimatedBurdenCost).HasPrecision(18, 4);
+        builder.Property(e => e.LaborAttendancePercent).HasPrecision(5, 2);
 
         builder.HasIndex(e => e.PartId);
         builder.HasIndex(e => e.WorkCenterId);

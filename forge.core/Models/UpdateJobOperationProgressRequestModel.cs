@@ -8,4 +8,6 @@ public record UpdateJobOperationProgressRequestModel(
     JobOperationStatus? Status,
     uint? ExpectedVersion = null,
     decimal? ReworkQuantity = null,
-    string? ReasonCode = null);
+    string? ReasonCode = null,
+    bool AcknowledgeGate = false,
+    string? OverrideReason = null);

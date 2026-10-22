@@ -18,7 +18,7 @@ public class AssignLeadsOwnerValidator : AbstractValidator<AssignLeadsOwnerComma
     public AssignLeadsOwnerValidator()
     {
         RuleFor(x => x.LeadIds).NotEmpty().Must(ids => ids.Count <= 500)
-            .WithMessage("Assign at most 500 leads at a time.");
+            .WithMessage("Assign at most 500 leads at a time.").WithErrorCode("too-many-leads");
         RuleFor(x => x.AssignedToUserId).GreaterThanOrEqualTo(0);
     }
 }

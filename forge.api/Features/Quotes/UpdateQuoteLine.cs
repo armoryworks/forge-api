@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 
+using Forge.Api.Validation;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -18,8 +19,8 @@ public class UpdateQuoteLineValidator : AbstractValidator<UpdateQuoteLineCommand
     {
         RuleFor(x => x.QuoteId).GreaterThan(0);
         RuleFor(x => x.LineId).GreaterThan(0);
-        RuleFor(x => x.Data.Quantity).GreaterThan(0);
-        RuleFor(x => x.Data.UnitPrice).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Data.Quantity).GreaterThan(0).UnitScale();
+        RuleFor(x => x.Data.UnitPrice).GreaterThanOrEqualTo(0).UnitScale();
     }
 }
 

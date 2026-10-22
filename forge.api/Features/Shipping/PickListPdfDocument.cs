@@ -2,6 +2,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 
 namespace Forge.Api.Features.Shipping;
@@ -26,7 +27,7 @@ public class PickListPdfDocument : IDocument
             page.Size(PageSizes.Letter);
             page.MarginHorizontal(50);
             page.MarginVertical(40);
-            page.DefaultTextStyle(x => x.FontSize(10));
+            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10));
 
             page.Header().Element(ComposeHeader);
             page.Content().Element(ComposeContent);

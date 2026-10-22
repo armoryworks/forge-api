@@ -271,6 +271,83 @@ public class AccountingGlHandlerTests
     }
 
     [Fact]
+    public async Task ResubmitRejectedDraft_EditsInPlace_KeepsItsNumber_AndReturnsToPending()
+    {
+        using var db = await SeedAsync();
+        var book = await db.Books.SingleAsync(b => b.Id == BookId);
+        book.MakerCheckerThreshold = 1000m;
+        await db.SaveChangesAsync();
+        var engine = CreateEngine(db);
+        var create = new CreateManualJournalEntryHandler(engine, HttpAccessorFor(PostingUserId), db);
+
+        var rejected = await create.Handle(BalancedCommand(5000m), CancellationToken.None);
+        await new RejectJournalEntryHandler(db)
+            .Handle(new RejectJournalEntryCommand(rejected.Id, "wrong amount"), CancellationToken.None);
+
+        var corrected = BalancedCommand(4500m) with
+        {
+            EntryDate = new DateOnly(2026, 1, 20),
+            Memo = "Corrected",
+            Lines =
+            [
+                new CreateManualJournalLineModel(CashId, null, null, null, null, null, 4000m, 0m, "Dr Cash"),
+                new CreateManualJournalLineModel(CashId, null, null, null, null, null, 500m, 0m, "Dr Cash 2"),
+                new CreateManualJournalLineModel(RevenueId, null, null, null, null, null, 0m, 4500m, "Cr Revenue"),
+            ],
+        };
+        var result = await new ResubmitJournalEntryHandler(engine, HttpAccessorFor(PostingUserId))
+            .Handle(new ResubmitJournalEntryCommand(rejected.Id, corrected), CancellationToken.None);
+
+        result.Id.Should().Be(rejected.Id);
+        result.EntryNumber.Should().Be(rejected.EntryNumber);
+        result.Status.Should().Be(nameof(JournalEntryStatus.PendingApproval));
+        result.EntryDate.Should().Be(new DateOnly(2026, 1, 20));
+        result.Memo.Should().Be("Corrected");
+        result.Lines.Select(l => l.LineNumber).Should().Equal(1, 2, 3);
+        result.Lines.Sum(l => l.Debit).Should().Be(4500m);
+        (await db.JournalLines.CountAsync(l => l.JournalEntryId == rejected.Id)).Should().Be(3);
+        (await db.LedgerBalances.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ResubmitDraft_RefusesAnotherUser_APendingEntry_AndAnUnbalancedEdit()
+    {
+        using var db = await SeedAsync();
+        var book = await db.Books.SingleAsync(b => b.Id == BookId);
+        book.MakerCheckerThreshold = 1000m;
+        await db.SaveChangesAsync();
+        var engine = CreateEngine(db);
+        var create = new CreateManualJournalEntryHandler(engine, HttpAccessorFor(PostingUserId), db);
+
+        var rejected = await create.Handle(BalancedCommand(5000m), CancellationToken.None);
+        await new RejectJournalEntryHandler(db)
+            .Handle(new RejectJournalEntryCommand(rejected.Id, null), CancellationToken.None);
+        var pending = await create.Handle(BalancedCommand(6000m), CancellationToken.None);
+
+        var otherUser = async () => await new ResubmitJournalEntryHandler(engine, HttpAccessorFor(PostingUserId + 1))
+            .Handle(new ResubmitJournalEntryCommand(rejected.Id, BalancedCommand(5000m)), CancellationToken.None);
+        (await otherUser.Should().ThrowAsync<PostingException>()).Which.Code.Should().Be("NOT_DRAFT_AUTHOR");
+
+        var notDraft = async () => await new ResubmitJournalEntryHandler(engine, HttpAccessorFor(PostingUserId))
+            .Handle(new ResubmitJournalEntryCommand(pending.Id, BalancedCommand(6000m)), CancellationToken.None);
+        (await notDraft.Should().ThrowAsync<PostingException>()).Which.Code.Should().Be("NOT_DRAFT");
+
+        var unbalanced = BalancedCommand(5000m) with
+        {
+            Lines =
+            [
+                new CreateManualJournalLineModel(CashId, null, null, null, null, null, 5000m, 0m, null),
+                new CreateManualJournalLineModel(RevenueId, null, null, null, null, null, 0m, 4000m, null),
+            ],
+        };
+        var bad = async () => await new ResubmitJournalEntryHandler(engine, HttpAccessorFor(PostingUserId))
+            .Handle(new ResubmitJournalEntryCommand(rejected.Id, unbalanced), CancellationToken.None);
+        (await bad.Should().ThrowAsync<PostingException>()).Which.Code.Should().Be("UNBALANCED");
+
+        (await db.JournalEntries.SingleAsync(e => e.Id == rejected.Id)).Status.Should().Be(JournalEntryStatus.Draft);
+    }
+
+    [Fact]
     public async Task GetPendingJournalEntries_ReturnsOnlyPendingForBook()
     {
         using var db = await SeedAsync();

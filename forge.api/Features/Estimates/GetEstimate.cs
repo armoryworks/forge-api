@@ -54,7 +54,7 @@ public class GetEstimateHandler(AppDbContext db) : IRequestHandler<GetEstimateQu
                     l.Description,
                     l.Quantity,
                     l.UnitPrice,
-                    l.Quantity * l.UnitPrice,
+                    l.LineTotal,
                     l.LineNumber,
                     l.Notes))
                 .ToList());

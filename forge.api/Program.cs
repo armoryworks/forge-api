@@ -352,8 +352,10 @@ try
     builder.Services.AddScoped<ITimeTrackingRepository, TimeTrackingRepository>();
     builder.Services.AddScoped<IWorkCenterContext, WorkCenterContext>();
     builder.Services.AddScoped<ITimerStopService, TimerStopService>();
+    builder.Services.AddScoped<ILaborAllocationService, LaborAllocationService>();
     builder.Services.AddScoped<UserDeactivation>();
     builder.Services.AddScoped<IJobOperationService, JobOperationService>();
+    builder.Services.AddScoped<IStepGateService, StepGateService>();
     builder.Services.AddScoped<IBackflushService, BackflushService>();
     builder.Services.AddScoped<IUserPreferenceRepository, UserPreferenceRepository>();
     builder.Services.AddScoped<IFileRepository, FileRepository>();
@@ -1278,6 +1280,7 @@ try
         cfg.RegisterServicesFromAssemblyContaining<Program>();
         cfg.NotificationPublisherType = typeof(Forge.Api.Behaviors.ResilientNotificationPublisher);
     });
+    FluentValidationDefaults.Apply();
     builder.Services.AddValidatorsFromAssemblyContaining<Program>();
     builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
     builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Forge.Api.Behaviors.CapabilityGateBehavior<,>));
@@ -1766,6 +1769,7 @@ try
                 ["CheckI9OverdueJob"]              = (typeof(CheckI9OverdueJob),              "CheckOverdueSection2Async"),
                 ["CheckI9ReverificationJob"]       = (typeof(CheckI9ReverificationJob),       "CheckReverificationDueAsync"),
                 ["CheckMismatchedClockEventsJob"]  = (typeof(CheckMismatchedClockEventsJob),  "CheckMismatchedEventsAsync"),
+                ["StaleTimerAlertJob"]             = (typeof(StaleTimerAlertJob),             "CheckStaleTimersAsync"),
                 ["ReorderAnalysisJob"]             = (typeof(ReorderAnalysisJob),             "RunAnalysisAsync"),
                 ["EventReminderJob"]               = (typeof(EventReminderJob),               "SendRemindersAsync"),
                 ["MrpRunJob"]                      = (typeof(MrpRunJob),                      "ExecuteNightlyRunAsync"),
@@ -2057,6 +2061,10 @@ try
         "check-mismatched-clock-events",
         job => job.CheckMismatchedEventsAsync(CancellationToken.None),
         Cron.Daily(22)); // 10 PM UTC daily
+    RecurringJob.AddOrUpdate<StaleTimerAlertJob>(
+        "stale-timer-alerts",
+        job => job.CheckStaleTimersAsync(CancellationToken.None),
+        Cron.Hourly(5));
     RecurringJob.AddOrUpdate<ReorderAnalysisJob>(
         "reorder-analysis",
         job => job.RunAnalysisAsync(CancellationToken.None),

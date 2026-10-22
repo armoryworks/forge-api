@@ -86,139 +86,7 @@ public sealed class ForgeGlPostingEngine(
                 return existing;
         }
 
-        if (request.Lines is null || request.Lines.Count == 0)
-            throw new PostingException("NO_LINES", "A posting request must have at least one line.");
-
-        var book = await db.Books.AsNoTracking().FirstOrDefaultAsync(b => b.Id == request.BookId, ct)
-            ?? throw new PostingException("BOOK_NOT_FOUND", $"Book {request.BookId} not found.");
-
-        // --- Resolve + validate every line's account, build the persisted lines. ---
-        var lines = new List<JournalLine>(request.Lines.Count);
-        decimal totalDebit = 0m;
-        decimal totalCredit = 0m;
-        var lineNumber = 0;
-
-        foreach (var l in request.Lines)
-        {
-            lineNumber++;
-
-            // Exactly one non-zero side, both non-negative.
-            if (l.Debit < 0 || l.Credit < 0)
-                throw new PostingException("NEGATIVE_AMOUNT", $"Line {lineNumber}: debit/credit must be >= 0.");
-            if ((l.Debit == 0m) == (l.Credit == 0m))
-                throw new PostingException(
-                    "DEBIT_CREDIT_XOR",
-                    $"Line {lineNumber}: exactly one of Debit/Credit must be non-zero (got Dr {l.Debit}, Cr {l.Credit}).");
-
-            var account = await ResolveLineAccountAsync(request.BookId, l, lineNumber, ct);
-
-            // Book-consistency: the account must belong to the entry's book.
-            if (account.BookId != request.BookId)
-                throw new PostingException(
-                    "BOOK_MISMATCH_ACCOUNT",
-                    $"Line {lineNumber}: account {account.AccountNumber} is in book {account.BookId}, not entry book {request.BookId}.");
-
-            if (!account.IsPostable)
-                throw new PostingException(
-                    "ACCOUNT_NOT_POSTABLE",
-                    $"Line {lineNumber}: account {account.AccountNumber} is not postable.");
-            if (!account.IsActive)
-                throw new PostingException(
-                    "ACCOUNT_INACTIVE",
-                    $"Line {lineNumber}: account {account.AccountNumber} is inactive.");
-
-            // Control accounts post via a sub-ledger and require a party — EXCEPT inventory control
-            // accounts, which are reconciled by PART via the valuation store (Phase-2 §8.1), not a
-            // party sub-ledger (there is no inventory SubledgerPartyType), so they post party-less
-            // (e.g. Cr INVENTORY_FG on the COGS relief). Stated as "everything except Inventory" so the
-            // guard stays FAIL-SAFE: a misconfigured control account with a null ControlType still
-            // demands a party rather than silently posting party-less.
-            if (account.IsControlAccount
-                && account.ControlType != ControlAccountType.Inventory
-                && (l.PartyType is null || l.PartyId is null))
-                throw new PostingException(
-                    "CONTROL_LINE_PARTY_REQUIRED",
-                    $"Line {lineNumber}: account {account.AccountNumber} is a control account and requires SubledgerPartyType/Id (only inventory control accounts post party-less).");
-
-            // Dimension-required policy (§12): WIP/COGS accounts can require a Job; departmental accounts a
-            // CostCenter. A line missing the required dimension is rejected.
-            if (account.RequiresJob && l.JobId is null)
-                throw new PostingException(
-                    "JOB_REQUIRED",
-                    $"Line {lineNumber}: account {account.AccountNumber} requires a Job dimension.");
-            if (account.RequiresCostCenter && l.CostCenterId is null)
-                throw new PostingException(
-                    "COST_CENTER_REQUIRED",
-                    $"Line {lineNumber}: account {account.AccountNumber} requires a CostCenter dimension.");
-
-            // Book-consistency for the cost-center dimension.
-            if (l.CostCenterId is int ccId)
-            {
-                var ccBookId = await db.CostCenters.AsNoTracking()
-                    .Where(c => c.Id == ccId)
-                    .Select(c => (int?)c.BookId)
-                    .FirstOrDefaultAsync(ct);
-                if (ccBookId is null)
-                    throw new PostingException("COST_CENTER_NOT_FOUND", $"Line {lineNumber}: cost center {ccId} not found.");
-                if (ccBookId != request.BookId)
-                    throw new PostingException(
-                        "BOOK_MISMATCH_COST_CENTER",
-                        $"Line {lineNumber}: cost center {ccId} is in book {ccBookId}, not entry book {request.BookId}.");
-            }
-
-            var amount = l.Debit > 0 ? l.Debit : l.Credit;
-            totalDebit += l.Debit;
-            totalCredit += l.Credit;
-
-            lines.Add(new JournalLine
-            {
-                BookId = request.BookId,
-                LineNumber = lineNumber,
-                GlAccountId = account.Id,
-                JobId = l.JobId,
-                CostCenterId = l.CostCenterId,
-                Debit = l.Debit,
-                Credit = l.Credit,
-                CurrencyId = request.CurrencyId,       // entry transaction currency
-                TxnAmount = amount,                    // amount in the transaction currency
-                // FX (Phase-4): functional value at the entry rate. At FxRate == 1 this is byte-for-byte the
-                // old single-currency behaviour (FunctionalAmount == TxnAmount, no rounding applied); only a
-                // real rate (≠ 1) multiplies + rounds to the functional currency's minor unit.
-                FunctionalAmount = request.FxRate == 1m
-                    ? amount
-                    : Math.Round(amount * request.FxRate, 2, MidpointRounding.AwayFromZero),
-                FxRate = request.FxRate,
-                SubledgerPartyType = l.PartyType,
-                SubledgerPartyId = l.PartyId,
-                Description = l.Description,
-            });
-        }
-
-        // --- Σ Debit == Σ Credit, within the book's rounding tolerance, but the
-        // ledger row total must net to exactly 0.00. We require equality within
-        // tolerance (handlers add an explicit ROUNDING line for allocations). ---
-        var imbalance = Math.Abs(totalDebit - totalCredit);
-        if (imbalance > book.RoundingTolerance)
-            throw new PostingException(
-                "UNBALANCED",
-                $"Entry is unbalanced: Σdebit {totalDebit} vs Σcredit {totalCredit} (imbalance {imbalance} exceeds tolerance {book.RoundingTolerance}).");
-        if (imbalance != 0m)
-            throw new PostingException(
-                "UNBALANCED_RESIDUAL",
-                $"Entry has a {imbalance} residual within tolerance; add an explicit ROUNDING line so Σdebit == Σcredit exactly.");
-
-        // --- Resolve the fiscal period from EntryDate under a row lock; reject
-        // HardClosed; block SoftClosed unless an audited override is supplied. ---
-        var period = await ResolveAndLockPeriodAsync(request.BookId, request.EntryDate, ct);
-
-        if (period.Status == FiscalPeriodStatus.HardClosed)
-            throw new PostingException(
-                "PERIOD_HARD_CLOSED",
-                $"Cannot post into hard-closed period '{period.Name}' (EntryDate {request.EntryDate}).");
-        if (period.Status == FiscalPeriodStatus.SoftClosed && !request.AllowSoftClosedOverride)
-            throw new PostingException(
-                "PERIOD_SOFT_CLOSED",
-                $"Period '{period.Name}' is soft-closed; a controller override is required to post into it.");
+        var (lines, period) = await ValidateLinesAndPeriodAsync(request, ct);
 
         var entry = await BuildAndAddEntryAsync(
             request, lines, period, postedByUserId, ct,
@@ -276,6 +144,82 @@ public sealed class ForgeGlPostingEngine(
         await ApplyToLedgerBalancesAsync(entry, entry.FiscalPeriodId, ct);
         await db.SaveChangesAsync(ct);
         await TryAuditAsync("GlJournalApproved", entry, approvedByUserId, reason: null, ct);
+        return entry;
+    }
+
+    public async Task<JournalEntry> ResubmitDraftAsync(
+        long entryId, PostingRequest request, int submittedByUserId, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        authorizer?.EnsureAuthorized(GlCapability.PostJournalEntry);
+
+        var entry = await db.JournalEntries
+            .Include(e => e.Lines)
+            .FirstOrDefaultAsync(e => e.Id == entryId, ct)
+            ?? throw new PostingException("ENTRY_NOT_FOUND", $"Journal entry {entryId} not found.");
+
+        if (entry.Status != JournalEntryStatus.Draft || entry.Source != JournalSource.Manual)
+            throw new PostingException(
+                "NOT_DRAFT",
+                $"Only a manual Draft entry can be resubmitted; entry {entryId} is {entry.Status}.");
+        if (entry.PostedBy is int maker && maker != submittedByUserId)
+            throw new PostingException(
+                "NOT_DRAFT_AUTHOR",
+                "Only the user who submitted the entry can resubmit it.");
+        if (request.BookId != entry.BookId)
+            throw new PostingException(
+                "BOOK_MISMATCH_ENTRY",
+                $"Entry {entryId} is in book {entry.BookId}, not book {request.BookId}.");
+
+        var (lines, period) = await ValidateLinesAndPeriodAsync(request, ct);
+        var fiscalYearId = period.FiscalYear?.Id ?? await db.FiscalPeriods
+            .Where(p => p.Id == period.Id)
+            .Select(p => p.FiscalYearId)
+            .FirstAsync(ct);
+        if (fiscalYearId != entry.FiscalYearId)
+            throw new PostingException(
+                "FISCAL_YEAR_CHANGED",
+                $"Entry {entry.EntryNumber} is numbered in its original fiscal year; resubmit it with a date in that year or create a new entry.");
+
+        entry.EntryDate = request.EntryDate;
+        entry.FiscalPeriodId = period.Id;
+        entry.CurrencyId = request.CurrencyId;
+        entry.Memo = request.Memo;
+        entry.Status = JournalEntryStatus.PendingApproval;
+        entry.PostedBy = submittedByUserId;
+        entry.ApprovedBy = null;
+        entry.PostedAt = null;
+
+        var existing = entry.Lines.OrderBy(l => l.LineNumber).ToList();
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var source = lines[i];
+            if (i >= existing.Count)
+            {
+                entry.Lines.Add(source);
+                continue;
+            }
+
+            var target = existing[i];
+            target.LineNumber = source.LineNumber;
+            target.GlAccountId = source.GlAccountId;
+            target.JobId = source.JobId;
+            target.CostCenterId = source.CostCenterId;
+            target.Debit = source.Debit;
+            target.Credit = source.Credit;
+            target.CurrencyId = source.CurrencyId;
+            target.TxnAmount = source.TxnAmount;
+            target.FunctionalAmount = source.FunctionalAmount;
+            target.FxRate = source.FxRate;
+            target.SubledgerPartyType = source.SubledgerPartyType;
+            target.SubledgerPartyId = source.SubledgerPartyId;
+            target.Description = source.Description;
+        }
+        if (existing.Count > lines.Count)
+            db.JournalLines.RemoveRange(existing.Skip(lines.Count));
+
+        await db.SaveChangesAsync(ct);
+        await TryAuditAsync("GlJournalSubmitted", entry, submittedByUserId, reason: null, ct);
         return entry;
     }
 
@@ -445,6 +389,151 @@ public sealed class ForgeGlPostingEngine(
             .FirstOrDefaultAsync(a => a.Id == l.GlAccountId!.Value, ct)
             ?? throw new PostingException("ACCOUNT_NOT_FOUND", $"Line {lineNumber}: account {l.GlAccountId} not found.");
         return account;
+    }
+
+    /// <summary>
+    /// The §5.2 checks shared by every new posting and a resubmitted draft: resolves and validates each
+    /// line's account and dimensions, requires Σdebit == Σcredit exactly, and resolves the fiscal period
+    /// under a row lock (HardClosed rejected, SoftClosed only with the override).
+    /// </summary>
+    private async Task<(List<JournalLine> Lines, FiscalPeriod Period)> ValidateLinesAndPeriodAsync(
+        PostingRequest request, CancellationToken ct)
+    {
+        if (request.Lines is null || request.Lines.Count == 0)
+            throw new PostingException("NO_LINES", "A posting request must have at least one line.");
+
+        var book = await db.Books.AsNoTracking().FirstOrDefaultAsync(b => b.Id == request.BookId, ct)
+            ?? throw new PostingException("BOOK_NOT_FOUND", $"Book {request.BookId} not found.");
+
+        // --- Resolve + validate every line's account, build the persisted lines. ---
+        var lines = new List<JournalLine>(request.Lines.Count);
+        decimal totalDebit = 0m;
+        decimal totalCredit = 0m;
+        var lineNumber = 0;
+
+        foreach (var l in request.Lines)
+        {
+            lineNumber++;
+
+            // Exactly one non-zero side, both non-negative.
+            if (l.Debit < 0 || l.Credit < 0)
+                throw new PostingException("NEGATIVE_AMOUNT", $"Line {lineNumber}: debit/credit must be >= 0.");
+            if ((l.Debit == 0m) == (l.Credit == 0m))
+                throw new PostingException(
+                    "DEBIT_CREDIT_XOR",
+                    $"Line {lineNumber}: exactly one of Debit/Credit must be non-zero (got Dr {l.Debit}, Cr {l.Credit}).");
+
+            var account = await ResolveLineAccountAsync(request.BookId, l, lineNumber, ct);
+
+            // Book-consistency: the account must belong to the entry's book.
+            if (account.BookId != request.BookId)
+                throw new PostingException(
+                    "BOOK_MISMATCH_ACCOUNT",
+                    $"Line {lineNumber}: account {account.AccountNumber} is in book {account.BookId}, not entry book {request.BookId}.");
+
+            if (!account.IsPostable)
+                throw new PostingException(
+                    "ACCOUNT_NOT_POSTABLE",
+                    $"Line {lineNumber}: account {account.AccountNumber} is not postable.");
+            if (!account.IsActive)
+                throw new PostingException(
+                    "ACCOUNT_INACTIVE",
+                    $"Line {lineNumber}: account {account.AccountNumber} is inactive.");
+
+            // Control accounts post via a sub-ledger and require a party — EXCEPT inventory control
+            // accounts, which are reconciled by PART via the valuation store (Phase-2 §8.1), not a
+            // party sub-ledger (there is no inventory SubledgerPartyType), so they post party-less
+            // (e.g. Cr INVENTORY_FG on the COGS relief). Stated as "everything except Inventory" so the
+            // guard stays FAIL-SAFE: a misconfigured control account with a null ControlType still
+            // demands a party rather than silently posting party-less.
+            if (account.IsControlAccount
+                && account.ControlType != ControlAccountType.Inventory
+                && (l.PartyType is null || l.PartyId is null))
+                throw new PostingException(
+                    "CONTROL_LINE_PARTY_REQUIRED",
+                    $"Line {lineNumber}: account {account.AccountNumber} is a control account and requires SubledgerPartyType/Id (only inventory control accounts post party-less).");
+
+            // Dimension-required policy (§12): WIP/COGS accounts can require a Job; departmental accounts a
+            // CostCenter. A line missing the required dimension is rejected.
+            if (account.RequiresJob && l.JobId is null)
+                throw new PostingException(
+                    "JOB_REQUIRED",
+                    $"Line {lineNumber}: account {account.AccountNumber} requires a Job dimension.");
+            if (account.RequiresCostCenter && l.CostCenterId is null)
+                throw new PostingException(
+                    "COST_CENTER_REQUIRED",
+                    $"Line {lineNumber}: account {account.AccountNumber} requires a CostCenter dimension.");
+
+            // Book-consistency for the cost-center dimension.
+            if (l.CostCenterId is int ccId)
+            {
+                var ccBookId = await db.CostCenters.AsNoTracking()
+                    .Where(c => c.Id == ccId)
+                    .Select(c => (int?)c.BookId)
+                    .FirstOrDefaultAsync(ct);
+                if (ccBookId is null)
+                    throw new PostingException("COST_CENTER_NOT_FOUND", $"Line {lineNumber}: cost center {ccId} not found.");
+                if (ccBookId != request.BookId)
+                    throw new PostingException(
+                        "BOOK_MISMATCH_COST_CENTER",
+                        $"Line {lineNumber}: cost center {ccId} is in book {ccBookId}, not entry book {request.BookId}.");
+            }
+
+            var amount = l.Debit > 0 ? l.Debit : l.Credit;
+            totalDebit += l.Debit;
+            totalCredit += l.Credit;
+
+            lines.Add(new JournalLine
+            {
+                BookId = request.BookId,
+                LineNumber = lineNumber,
+                GlAccountId = account.Id,
+                JobId = l.JobId,
+                CostCenterId = l.CostCenterId,
+                Debit = l.Debit,
+                Credit = l.Credit,
+                CurrencyId = request.CurrencyId,       // entry transaction currency
+                TxnAmount = amount,                    // amount in the transaction currency
+                // FX (Phase-4): functional value at the entry rate. At FxRate == 1 this is byte-for-byte the
+                // old single-currency behaviour (FunctionalAmount == TxnAmount, no rounding applied); only a
+                // real rate (≠ 1) multiplies + rounds to the functional currency's minor unit.
+                FunctionalAmount = request.FxRate == 1m
+                    ? amount
+                    : Math.Round(amount * request.FxRate, 2, MidpointRounding.AwayFromZero),
+                FxRate = request.FxRate,
+                SubledgerPartyType = l.PartyType,
+                SubledgerPartyId = l.PartyId,
+                Description = l.Description,
+            });
+        }
+
+        // --- Σ Debit == Σ Credit, within the book's rounding tolerance, but the
+        // ledger row total must net to exactly 0.00. We require equality within
+        // tolerance (handlers add an explicit ROUNDING line for allocations). ---
+        var imbalance = Math.Abs(totalDebit - totalCredit);
+        if (imbalance > book.RoundingTolerance)
+            throw new PostingException(
+                "UNBALANCED",
+                $"Entry is unbalanced: Σdebit {totalDebit} vs Σcredit {totalCredit} (imbalance {imbalance} exceeds tolerance {book.RoundingTolerance}).");
+        if (imbalance != 0m)
+            throw new PostingException(
+                "UNBALANCED_RESIDUAL",
+                $"Entry has a {imbalance} residual within tolerance; add an explicit ROUNDING line so Σdebit == Σcredit exactly.");
+
+        // --- Resolve the fiscal period from EntryDate under a row lock; reject
+        // HardClosed; block SoftClosed unless an audited override is supplied. ---
+        var period = await ResolveAndLockPeriodAsync(request.BookId, request.EntryDate, ct);
+
+        if (period.Status == FiscalPeriodStatus.HardClosed)
+            throw new PostingException(
+                "PERIOD_HARD_CLOSED",
+                $"Cannot post into hard-closed period '{period.Name}' (EntryDate {request.EntryDate}).");
+        if (period.Status == FiscalPeriodStatus.SoftClosed && !request.AllowSoftClosedOverride)
+            throw new PostingException(
+                "PERIOD_SOFT_CLOSED",
+                $"Period '{period.Name}' is soft-closed; a controller override is required to post into it.");
+
+        return (lines, period);
     }
 
     /// <summary>

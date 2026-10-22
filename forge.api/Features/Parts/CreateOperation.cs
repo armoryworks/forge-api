@@ -19,8 +19,16 @@ public class CreateOperationValidator : AbstractValidator<CreateOperationCommand
         RuleFor(x => x.Data.Title).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Data.Instructions).MaximumLength(4000).When(x => x.Data.Instructions is not null);
         RuleFor(x => x.Data.QcCriteria).MaximumLength(1000).When(x => x.Data.QcCriteria is not null);
-        RuleFor(x => x.Data.SetupMinutes).GreaterThanOrEqualTo(0m).When(x => x.Data.SetupMinutes.HasValue);
-        RuleFor(x => x.Data.RunMinutesLot).GreaterThanOrEqualTo(0m).When(x => x.Data.RunMinutesLot.HasValue);
+        RuleFor(x => x.Data.SetupMinutes).GreaterThanOrEqualTo(0m).FitsNumeric(10, 2).When(x => x.Data.SetupMinutes.HasValue);
+        RuleFor(x => x.Data.RunMinutesLot).GreaterThanOrEqualTo(0m).FitsNumeric(10, 2).When(x => x.Data.RunMinutesLot.HasValue);
+        RuleFor(x => x.Data.EstimatedMs).InclusiveBetween(0L, NumericColumnRules.MaxOperationEstimatedMs).When(x => x.Data.EstimatedMs.HasValue);
+        RuleFor(x => x.Data.ScrapFactor).GreaterThanOrEqualTo(0m).LessThan(1m).When(x => x.Data.ScrapFactor.HasValue);
+        RuleFor(x => x.Data.RunMinutesEach).GreaterThanOrEqualTo(0m).FitsNumeric(10, 2).When(x => x.Data.RunMinutesEach.HasValue);
+        RuleFor(x => x.Data.LaborAttendancePercent).InclusiveBetween(0m, 100m).FitsNumeric(5, 2).When(x => x.Data.LaborAttendancePercent.HasValue);
+        RuleFor(x => x.Data.Predecessors).Must(p => p!.Count <= RoutingPredecessorEditor.MaxPredecessors)
+            .WithMessage($"A step can follow at most {RoutingPredecessorEditor.MaxPredecessors} steps.")
+            .When(x => x.Data.Predecessors is not null);
+        RuleForEach(x => x.Data.Predecessors).ChildRules(p => p.RuleFor(l => l.Gate).IsInEnum());
 
         // Phase 3 H5 / WU-13 — when an operation is flagged as subcontract,
         // both vendor + turn time must be present. The active-check on the
@@ -34,7 +42,8 @@ public class CreateOperationValidator : AbstractValidator<CreateOperationCommand
             RuleFor(x => x.Data.SubcontractTurnTimeDays)
                 .NotNull()
                 .GreaterThan(0m)
-                .WithMessage("Subcontract operations require a positive turn time (days).");
+                .WithMessage("Subcontract operations require a positive turn time (days).")
+                .FitsNumeric(5, 1);
         });
     }
 }
@@ -68,6 +77,10 @@ public class CreateOperationHandler(IPartRepository repo, IVendorRepository vend
             EstimatedMs = data.EstimatedMs,
             SetupMinutes = data.SetupMinutes ?? 0m,
             RunMinutesLot = data.RunMinutesLot ?? 0m,
+            RunMinutesEach = data.RunMinutesEach ?? 0m,
+            LaborAttendancePercent = data.LaborAttendancePercent ?? 100m,
+            CycleCountdown = data.CycleCountdown ?? false,
+            ScrapFactor = Math.Round(data.ScrapFactor ?? 0m, 4, MidpointRounding.ToZero),
             IsQcCheckpoint = data.IsQcCheckpoint,
             QcCriteria = data.QcCriteria?.Trim(),
             ReferencedOperationId = data.ReferencedOperationId,
@@ -78,6 +91,8 @@ public class CreateOperationHandler(IPartRepository repo, IVendorRepository vend
         };
 
         part.Operations.Add(operation);
+        if (data.Predecessors is { Count: > 0 })
+            await RoutingPredecessorEditor.ApplyAsync(repo, request.PartId, operation, data.Predecessors, false, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);
 
         var operations = await repo.GetOperationsAsync(request.PartId, cancellationToken);

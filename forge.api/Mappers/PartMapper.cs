@@ -105,6 +105,8 @@ public static partial class PartMapper
             EffectivePriceCurrency: resolvedPrice?.Currency ?? "USD",
             EffectivePriceSource: (resolvedPrice?.Source ?? PartPriceSource.Default).ToString(),
             Gtin: part.Gtin,
-            ExpectedYieldPercent: part.ExpectedYieldPercent);
+            ExpectedYieldPercent: part.ExpectedYieldPercent,
+            StandardCost: PartStandardCostModel.From(part),
+            StepGating: part.StepGating);
     }
 }

@@ -9,6 +9,7 @@ using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
+using Forge.Api.Validation;
 
 namespace Forge.Api.Features.Parts;
 
@@ -27,6 +28,9 @@ public class CreatePartRevisionCommandValidator : AbstractValidator<CreatePartRe
         RuleFor(x => x.Revision).NotEmpty().MaximumLength(10);
         RuleFor(x => x.ChangeDescription).MaximumLength(500).When(x => x.ChangeDescription is not null);
         RuleFor(x => x.ChangeReason).MaximumLength(500).When(x => x.ChangeReason is not null);
+        RuleFor(x => x.ChangeReason).Must(r => !string.IsNullOrWhiteSpace(r))
+            .When(x => x.ChangeReason is { Length: > 0 })
+            .WithMessage("Reason must contain visible characters.");
     }
 }
 
@@ -41,10 +45,12 @@ public class CreatePartRevisionHandler(
         var part = await partRepo.FindAsync(request.PartId, cancellationToken)
             ?? throw new KeyNotFoundException($"Part {request.PartId} not found");
 
-        var exists = await db.PartRevisions
-            .AnyAsync(r => r.PartId == request.PartId && r.Revision == request.Revision.Trim(), cancellationToken);
+        var requested = request.Revision.Trim();
+        var exists = string.Equals(part.Revision.Trim(), requested, StringComparison.OrdinalIgnoreCase)
+            || await db.PartRevisions
+                .AnyAsync(r => r.PartId == request.PartId && r.Revision.ToLower() == requested.ToLower(), cancellationToken);
         if (exists)
-            throw new InvalidOperationException($"Revision '{request.Revision}' already exists for this part");
+            throw FieldValidation.Fail("revision", $"Revision '{requested}' already exists for this part.");
 
         // Clear current flag on all existing revisions
         var existingRevisions = await db.PartRevisions

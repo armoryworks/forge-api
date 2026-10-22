@@ -56,6 +56,19 @@ public sealed class ExceptionHandlingMiddlewareTests
     }
 
     [Fact]
+    public async Task Wrapped_command_property_names_map_to_the_form_field()
+    {
+        var ex = new ValidationException(new[]
+        {
+            new ValidationFailure("Data.Title", "Title is required."),
+        });
+
+        var (_, body) = await Run(ex);
+
+        body.GetProperty("errors")[0].GetProperty("field").GetString().Should().Be("title");
+    }
+
+    [Fact]
     public async Task Handler_validator_failures_never_echo_the_submitted_value()
     {
         var ex = new ValidationException(new[]
@@ -188,5 +201,84 @@ public sealed class ExceptionHandlingMiddlewareTests
 
         status.Should().Be(StatusCodes.Status500InternalServerError);
         body.TryGetProperty("code", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Validator_failures_carry_a_stable_code_and_the_rule_limits_but_not_the_value()
+    {
+        var validator = new InlineValidator<string>();
+        validator.RuleFor(v => v).MaximumLength(5).OverridePropertyName("Name");
+        var result = await validator.ValidateAsync("far-too-long-value");
+
+        var (_, body) = await Run(new ValidationException(result.Errors));
+
+        var error = body.GetProperty("errors")[0];
+        error.GetProperty("field").GetString().Should().Be("name");
+        error.GetProperty("code").GetString().Should().Be("MaximumLengthValidator");
+        error.GetProperty("params").GetProperty("maxLength").GetInt32().Should().Be(5);
+        body.GetRawText().Should().NotContain("far-too-long-value");
+    }
+
+    [Fact]
+    public async Task A_comparison_against_another_field_sends_no_comparison_value_param()
+    {
+        var validator = new InlineValidator<DateRangeProbe>();
+        validator.RuleFor(v => v.End).GreaterThanOrEqualTo(v => v.Start);
+        var result = await validator.ValidateAsync(new DateRangeProbe(new DateOnly(2031, 7, 9), new DateOnly(2031, 7, 1)));
+
+        var (_, body) = await Run(new ValidationException(result.Errors));
+
+        var error = body.GetProperty("errors")[0];
+        error.GetProperty("code").GetString().Should().Be("GreaterThanOrEqualValidator");
+        error.GetProperty("params").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task A_rule_with_an_explicit_error_code_sends_that_code()
+    {
+        var validator = new InlineValidator<string>();
+        validator.RuleFor(v => v).Must(v => v.Length > 10)
+            .WithMessage("Provide a company name or a contact name.").WithErrorCode("lead-name-required")
+            .OverridePropertyName("CompanyName");
+        var result = await validator.ValidateAsync("short");
+
+        var (_, body) = await Run(new ValidationException(result.Errors));
+
+        var error = body.GetProperty("errors")[0];
+        error.GetProperty("code").GetString().Should().Be("lead-name-required");
+        error.GetProperty("params").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task A_failure_built_by_hand_without_a_code_sends_a_null_code()
+    {
+        var (_, body) = await Run(new ValidationException(new[]
+        {
+            new ValidationFailure("Quantity", "Quantity must be greater than zero."),
+        }));
+
+        body.GetProperty("errors")[0].GetProperty("code").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    public sealed record DateRangeProbe(DateOnly Start, DateOnly End);
+
+    [Fact]
+    public async Task An_unavailable_dependency_is_a_503_problem_with_retry_after()
+    {
+        var middleware = new ExceptionHandlingMiddleware(
+            _ => throw new ServiceUnavailableException("The AI service is currently unavailable."),
+            NullLogger<ExceptionHandlingMiddleware>.Instance);
+        var ctx = new DefaultHttpContext();
+        ctx.Response.Body = new MemoryStream();
+
+        await middleware.InvokeAsync(ctx);
+
+        ctx.Response.StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
+        ctx.Response.ContentType.Should().StartWith("application/problem+json");
+        ctx.Response.Headers.RetryAfter.ToString().Should().Be("30");
+        ctx.Response.Body.Position = 0;
+        using var doc = await JsonDocument.ParseAsync(ctx.Response.Body);
+        doc.RootElement.GetProperty("status").GetInt32().Should().Be(503);
+        doc.RootElement.GetProperty("detail").GetString().Should().Be("The AI service is currently unavailable.");
     }
 }

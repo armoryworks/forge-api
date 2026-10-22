@@ -15,9 +15,11 @@ public class ListWorkCenterCostRatesHandler(AppDbContext db)
     public async Task<List<WorkCenterCostRateResponseModel>> Handle(ListWorkCenterCostRatesQuery request, CancellationToken ct)
         => await db.WorkCenterCostRates.AsNoTracking()
             .Where(r => r.CostingPeriodId == request.PeriodId)
-            .OrderBy(r => r.WorkCenterId)
+            .OrderBy(r => r.WorkCenter != null ? r.WorkCenter.Code : null).ThenBy(r => r.WorkCenterId)
             .Select(r => new WorkCenterCostRateResponseModel(
                 r.Id, r.WorkCenterId, r.CostingPeriodId, r.LaborRate, r.LaborOhRate,
-                r.MachineRate, r.MachineOhVarRate, r.MachineOhFixedRate, r.FrozenAt, r.FrozenBy))
+                r.MachineRate, r.MachineOhVarRate, r.MachineOhFixedRate, r.FrozenAt, r.FrozenBy,
+                r.WorkCenter != null ? r.WorkCenter.Code : null,
+                r.WorkCenter != null ? r.WorkCenter.Name : null))
             .ToListAsync(ct);
 }

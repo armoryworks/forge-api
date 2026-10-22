@@ -93,6 +93,33 @@ public class BackflushServiceTests : IDisposable
         return run;
     }
 
+    private async Task HandIssueAsync(Part part, decimal quantity, MaterialIssueType type = MaterialIssueType.Issue)
+    {
+        _db.MaterialIssues.Add(new MaterialIssue
+        {
+            JobId = _job.Id, PartId = part.Id, Quantity = quantity, IssueType = type, IssuedById = UserId, IssuedAt = Now,
+        });
+        await _db.SaveChangesAsync();
+    }
+
+    private async Task<Part> AlternateAsync(Part primary, string number, decimal? factor, bool approved = true)
+    {
+        var part = new Part { PartNumber = number, Name = number, DefaultBinId = _bin.Id };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+        _db.PartAlternates.Add(new PartAlternate
+        {
+            PartId = primary.Id, AlternatePartId = part.Id, ConversionFactor = factor, IsApproved = approved,
+        });
+        await _db.SaveChangesAsync();
+        return part;
+    }
+
+    private Task<List<MaterialIssue>> BackflushIssuesAsync(Part part)
+        => _db.MaterialIssues.AsNoTracking()
+            .Where(m => m.PartId == part.Id && m.Notes != null && m.Notes.StartsWith(BackflushService.NotePrefix))
+            .OrderBy(m => m.Id).ToListAsync();
+
     private Task<List<MaterialIssue>> IssuesAsync(Part part)
         => _db.MaterialIssues.AsNoTracking().Where(m => m.PartId == part.Id).OrderBy(m => m.Id).ToListAsync();
 
@@ -159,6 +186,185 @@ public class BackflushServiceTests : IDisposable
         await BackflushAsync();
 
         (await IssuesAsync(resin)).Sum(i => i.Quantity).Should().Be(30m);
+    }
+
+    [Fact]
+    public async Task RequirementIssuedByHand_BackflushConsumesNothing()
+    {
+        await SeedAsync();
+        var resin = await ComponentAsync("RS-PCABS-BLK", 0.18m, BackflushPolicy.Auto);
+        await StockAsync(resin, _bin, 190m, "R-26-117");
+        await HandIssueAsync(resin, 360m);
+        await ReceivedRunAsync(good: 1940, scrap: 60);
+
+        await BackflushAsync();
+
+        (await BackflushIssuesAsync(resin)).Should().BeEmpty();
+        (await OnHandAsync(resin)).Should().Be(190m);
+    }
+
+    [Fact]
+    public async Task PartialHandIssue_BackflushConsumesOnlyTheRemainder()
+    {
+        await SeedAsync();
+        var resin = await ComponentAsync("RS-1", 0.5m, BackflushPolicy.Auto);
+        await StockAsync(resin, _bin, 100m, "R-1");
+        await HandIssueAsync(resin, 12m);
+        await ReceivedRunAsync(good: 40, scrap: 0);
+
+        await BackflushAsync();
+
+        (await BackflushIssuesAsync(resin)).Select(i => i.Quantity).Should().Equal(8m);
+        (await OnHandAsync(resin)).Should().Be(92m);
+    }
+
+    [Fact]
+    public async Task ReturnedHandIssues_NoLongerCount_SoBackflushConsumesThem()
+    {
+        await SeedAsync();
+        var resin = await ComponentAsync("RS-1", 0.5m, BackflushPolicy.Auto);
+        await StockAsync(resin, _bin, 100m, "R-1");
+        await HandIssueAsync(resin, 20m);
+        await HandIssueAsync(resin, 6m, MaterialIssueType.Return);
+        await HandIssueAsync(resin, 3m, MaterialIssueType.Scrap);
+        await ReceivedRunAsync(good: 40, scrap: 0);
+
+        await BackflushAsync();
+
+        (await BackflushIssuesAsync(resin)).Select(i => i.Quantity).Should().Equal(6m);
+    }
+
+    [Fact]
+    public async Task OverIssuedByHand_BackflushConsumesNothing_AndNeverGivesStockBack()
+    {
+        await SeedAsync();
+        var resin = await ComponentAsync("RS-1", 0.5m, BackflushPolicy.Auto);
+        await StockAsync(resin, _bin, 100m, "R-1");
+        await HandIssueAsync(resin, 30m);
+        await ReceivedRunAsync(good: 40, scrap: 0);
+
+        await BackflushAsync();
+
+        (await IssuesAsync(resin)).Should().ContainSingle().Which.IssueType.Should().Be(MaterialIssueType.Issue);
+        (await OnHandAsync(resin)).Should().Be(100m);
+
+        await ReceivedRunAsync(good: 30, scrap: 0);
+        await BackflushAsync();
+
+        (await BackflushIssuesAsync(resin)).Select(i => i.Quantity).Should().Equal(5m);
+        (await OnHandAsync(resin)).Should().Be(95m);
+    }
+
+    [Fact]
+    public async Task SeveralReports_WithHandIssuesBetween_KeepTheHighWaterMark()
+    {
+        await SeedAsync();
+        var resin = await ComponentAsync("RS-1", 0.5m, BackflushPolicy.Auto);
+        await StockAsync(resin, _bin, 100m, "R-1");
+        var step = new Operation { PartId = _parent.Id, StepNumber = 10, Title = "Mold" };
+        _db.Operations.Add(step);
+        await _db.SaveChangesAsync();
+        var lastStep = new JobOperation
+        {
+            JobId = _job.Id, OperationId = step.Id, StepNumber = 10, Title = "Mold",
+            Status = JobOperationStatus.Complete, CompletedQuantity = 40m,
+        };
+        _db.JobOperations.Add(lastStep);
+        await _db.SaveChangesAsync();
+
+        await BackflushAsync();
+        await HandIssueAsync(resin, 5m);
+        await ReceivedRunAsync(good: 40, scrap: 0);
+        await BackflushAsync();
+        (await BackflushIssuesAsync(resin)).Select(i => i.Quantity).Should().Equal(20m);
+
+        await ReceivedRunAsync(good: 10, scrap: 0);
+        await BackflushAsync();
+        (await BackflushIssuesAsync(resin)).Select(i => i.Quantity).Should().Equal(20m);
+
+        await ReceivedRunAsync(good: 10, scrap: 0);
+        await BackflushAsync();
+        await BackflushAsync();
+        (await BackflushIssuesAsync(resin)).Select(i => i.Quantity).Should().Equal(20m, 5m);
+        (await OnHandAsync(resin)).Should().Be(75m);
+    }
+
+    [Fact]
+    public async Task AlternateIssuedByHand_NetsItsPrimary_ThroughTheConversionFactor()
+    {
+        await SeedAsync();
+        var resin = await ComponentAsync("RS-1", 0.5m, BackflushPolicy.Auto);
+        var alternate = await AlternateAsync(resin, "RS-1-ALT", factor: 2m);
+        await StockAsync(resin, _bin, 100m, "R-1");
+        await HandIssueAsync(alternate, 4m);
+        await ReceivedRunAsync(good: 10, scrap: 0);
+
+        await BackflushAsync();
+
+        (await BackflushIssuesAsync(resin)).Select(i => i.Quantity).Should().Equal(3m);
+        (await BackflushIssuesAsync(alternate)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task BidirectionalAlternate_IssuedByHand_DividesByTheFactor_AndAnUnapprovedOneDoesNotCount()
+    {
+        await SeedAsync();
+        var resin = await ComponentAsync("RS-1", 0.5m, BackflushPolicy.Auto);
+        var standIn = new Part { PartNumber = "RS-1-BULK", Name = "RS-1-BULK", DefaultBinId = _bin.Id };
+        var unapproved = new Part { PartNumber = "RS-1-NEW", Name = "RS-1-NEW", DefaultBinId = _bin.Id };
+        _db.Parts.AddRange(standIn, unapproved);
+        await _db.SaveChangesAsync();
+        _db.PartAlternates.AddRange(
+            new PartAlternate { PartId = standIn.Id, AlternatePartId = resin.Id, ConversionFactor = 4m, IsApproved = true, IsBidirectional = true },
+            new PartAlternate { PartId = resin.Id, AlternatePartId = unapproved.Id, ConversionFactor = 1m, IsApproved = false });
+        await _db.SaveChangesAsync();
+        await StockAsync(resin, _bin, 100m, "R-1");
+        await HandIssueAsync(standIn, 0.25m);
+        await HandIssueAsync(unapproved, 2m);
+        await ReceivedRunAsync(good: 10, scrap: 0);
+
+        await BackflushAsync();
+
+        (await BackflushIssuesAsync(resin)).Select(i => i.Quantity).Should().Equal(4m);
+    }
+
+    [Fact]
+    public async Task AlternateOfAComponentOnSeveralBomLines_CoversEveryLine()
+    {
+        await SeedAsync();
+        var resin = await ComponentAsync("RS-1", 0.25m, BackflushPolicy.Auto);
+        _db.BOMLines.Add(new BOMLine { ParentPartId = _parent.Id, ChildPartId = resin.Id, Quantity = 0.25m });
+        await _db.SaveChangesAsync();
+        var alternate = await AlternateAsync(resin, "RS-1-ALT", factor: 2m);
+        await StockAsync(resin, _bin, 100m, "R-1");
+        await HandIssueAsync(alternate, 10m);
+        await ReceivedRunAsync(good: 10, scrap: 0);
+
+        await BackflushAsync();
+
+        (await BackflushIssuesAsync(resin)).Should().BeEmpty();
+        (await OnHandAsync(resin)).Should().Be(100m);
+    }
+
+    [Fact]
+    public async Task AlternateIssuedByHand_InAnotherUnit_NetsTheConvertedRequirement()
+    {
+        await SeedAsync();
+        var grams = new UnitOfMeasure { Code = "G", Name = "Gram", Category = UomCategory.Weight };
+        var kilos = new UnitOfMeasure { Code = "KG", Name = "Kilogram", Category = UomCategory.Weight };
+        _db.AddRange(grams, kilos);
+        await _db.SaveChangesAsync();
+        _db.Add(new UomConversion { FromUomId = grams.Id, ToUomId = kilos.Id, ConversionFactor = 0.001m });
+        await _db.SaveChangesAsync();
+        var resin = await ComponentAsync("RS-1", 250m, BackflushPolicy.Auto, uomId: grams.Id, stockUomId: kilos.Id);
+        var alternate = await AlternateAsync(resin, "RS-1-ALT", factor: 2m);
+        await StockAsync(resin, _bin, 10m, null);
+        await HandIssueAsync(alternate, 1000m);
+        await ReceivedRunAsync(good: 8, scrap: 0);
+
+        await BackflushAsync();
+
+        (await BackflushIssuesAsync(resin)).Select(i => i.Quantity).Should().Equal(1.5m);
     }
 
     [Fact]

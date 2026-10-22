@@ -22,15 +22,23 @@ public class FreezeCostingPeriodHandler(AppDbContext db, IClock clock)
 {
     public async Task<FreezeCostingPeriodResultModel> Handle(FreezeCostingPeriodCommand request, CancellationToken ct)
     {
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(ct)
+            : null;
+        await db.AcquireAdvisoryLockAsync("costing-periods.freeze", request.PeriodId.ToString(), ct);
+
         var period = await db.CostingPeriods.FirstOrDefaultAsync(p => p.Id == request.PeriodId, ct)
             ?? throw new KeyNotFoundException($"Costing period {request.PeriodId} not found.");
 
         var now = clock.UtcNow.UtcDateTime;
 
         // 1. Derive each budgeted pool's absorption rate.
-        var budgets = await db.OverheadPoolBudgets
-            .Where(b => b.CostingPeriodId == period.Id)
-            .ToListAsync(ct);
+        var budgets = (await db.OverheadPoolBudgets
+                .Where(b => b.CostingPeriodId == period.Id)
+                .ToListAsync(ct))
+            .GroupBy(b => b.OverheadCostPoolId)
+            .Select(g => g.OrderByDescending(b => b.UpdatedAt).ThenByDescending(b => b.Id).First())
+            .ToList();
         foreach (var b in budgets)
             b.DerivedRate = b.BudgetDriverQty != 0 ? b.BudgetAmount / b.BudgetDriverQty : 0;
         var rateByPool = budgets.ToDictionary(b => b.OverheadCostPoolId, b => b.DerivedRate);
@@ -98,6 +106,10 @@ public class FreezeCostingPeriodHandler(AppDbContext db, IClock clock)
             ("CostingPeriod", period.Id));
 
         await db.SaveChangesAsync(ct);
+
+        if (tx is not null)
+            await tx.CommitAsync(ct);
+
         return new FreezeCostingPeriodResultModel(period.Id, budgets.Count, rated);
     }
 }

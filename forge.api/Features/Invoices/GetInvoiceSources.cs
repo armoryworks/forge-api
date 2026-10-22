@@ -51,7 +51,8 @@ public class GetInvoiceSourcesHandler(AppDbContext db)
                             ?? (l.Part != null ? l.Part.Name : string.Empty),
                         l.Quantity,
                         l.SalesOrderLine != null ? l.SalesOrderLine.UnitPrice : 0m,
-                        l.SalesOrderLine == null || l.SalesOrderLine.TaxCode != InvoiceLine.NonTaxableCode))
+                        l.SalesOrderLine == null || l.SalesOrderLine.TaxCode != InvoiceLine.NonTaxableCode,
+                        l.SalesOrderLineId))
                     .ToList()))
             .ToListAsync(cancellationToken);
 

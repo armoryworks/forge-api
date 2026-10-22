@@ -18,6 +18,13 @@ public static class TimeEntryTimes
             throw new ValidationException([new ValidationFailure("Data.Date", FutureDayMessage)]);
     }
 
+    public static (DateTimeOffset Start, DateTimeOffset End)? Span(TimeEntry entry)
+        => entry is { IsManual: false, TimerStart: { } start, TimerStop: { } stop } && stop > start ? (start, stop) : null;
+
+    public static IReadOnlyList<(DateTimeOffset Start, DateTimeOffset End)> Spans(
+        (DateTimeOffset Start, DateTimeOffset End)? before, TimeEntry after)
+        => new[] { before, Span(after) }.Where(s => s.HasValue).Select(s => s!.Value).Distinct().ToList();
+
     public static void Apply(TimeEntry entry, DateTimeOffset? start, DateTimeOffset? end, int? durationMinutes)
     {
         if (start.HasValue) entry.TimerStart = start;

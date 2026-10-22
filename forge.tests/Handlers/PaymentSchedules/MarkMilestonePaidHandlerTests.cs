@@ -129,4 +129,57 @@ public class MarkMilestonePaidHandlerTests
         var actPaid = () => handler.Handle(new MarkMilestonePaidCommand(milestone.Id, 50m, null), CancellationToken.None);
         await actPaid.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already fully paid*");
     }
+
+    [Fact]
+    public async Task Handle_PaymentAboveRemaining_RejectsWithoutChangingTheMilestone()
+    {
+        using var db = TestDbContextFactory.Create();
+        var milestone = await SeedMilestoneAsync(db);
+        var handler = new MarkMilestonePaidHandler(db, FixedClock());
+
+        await handler.Handle(new MarkMilestonePaidCommand(milestone.Id, 100m, "CHK-1001"), CancellationToken.None);
+
+        var act = () => handler.Handle(
+            new MarkMilestonePaidCommand(milestone.Id, 200.01m, "CHK-1002"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Payment of 200.01 exceeds the 200.00 still due on milestone 1");
+        milestone.PaidAmount.Should().Be(100m);
+        milestone.Status.Should().Be(PaymentMilestoneStatus.PartiallyPaid);
+        milestone.PaidReference.Should().Be("CHK-1001");
+    }
+
+    [Fact]
+    public async Task Handle_FirstPaymentAboveAmountDue_RejectsAndLeavesAmountUnlocked()
+    {
+        using var db = TestDbContextFactory.Create();
+        var milestone = await SeedMilestoneAsync(db);
+        var handler = new MarkMilestonePaidHandler(db, FixedClock());
+
+        var act = () => handler.Handle(
+            new MarkMilestonePaidCommand(milestone.Id, 99999.99m, null), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*exceeds the 300.00 still due*");
+        milestone.AmountLocked.Should().BeNull();
+        milestone.PaidAmount.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(99999.999)]
+    [InlineData(0.001)]
+    public void Validator_RejectsMoreThanTwoDecimals(decimal amount)
+    {
+        var result = new MarkMilestonePaidValidator().Validate(new MarkMilestonePaidCommand(1, amount, null));
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e => e.PropertyName == nameof(MarkMilestonePaidCommand.PaidAmount)
+            && e.ErrorMessage.Contains("at most 2 decimal places"));
+    }
+
+    [Fact]
+    public void Validator_AcceptsTrailingZerosBeyondTwoDecimals()
+    {
+        new MarkMilestonePaidValidator().Validate(new MarkMilestonePaidCommand(1, 10.500m, null))
+            .IsValid.Should().BeTrue();
+    }
 }

@@ -1,7 +1,9 @@
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
@@ -23,6 +25,17 @@ namespace Forge.Api.Features.Accounting;
 public record GetBudgetVsActualQuery(int BookId, int FiscalYear, int? PeriodMonth = null)
     : IRequest<BudgetVsActual>;
 
+public class GetBudgetVsActualValidator : AbstractValidator<GetBudgetVsActualQuery>
+{
+    public GetBudgetVsActualValidator()
+    {
+        RuleFor(x => x.BookId).GreaterThan(0);
+        RuleFor(x => x.FiscalYear).InclusiveBetween(1900, 9999);
+        RuleFor(x => x.PeriodMonth).InclusiveBetween(1, 12)
+            .When(x => x.PeriodMonth is not null);
+    }
+}
+
 public class GetBudgetVsActualHandler(AppDbContext db, IFinancialStatementService statements)
     : IRequestHandler<GetBudgetVsActualQuery, BudgetVsActual>
 {
@@ -37,6 +50,7 @@ public class GetBudgetVsActualHandler(AppDbContext db, IFinancialStatementServic
             .ToDictionary(
                 l => l.GlAccountId,
                 l => (l.AccountNumber, l.AccountName, l.Amount));
+        var incomeIds = pnl.Income.Select(l => l.GlAccountId).ToHashSet();
 
         var budgetRows = await db.AcctBudgets.AsNoTracking()
             .Where(b => b.BookId == request.BookId && b.FiscalYear == request.FiscalYear)
@@ -66,8 +80,8 @@ public class GetBudgetVsActualHandler(AppDbContext db, IFinancialStatementServic
             ? []
             : await db.GlAccounts.AsNoTracking()
                 .Where(a => missingIds.Contains(a.Id))
-                .Select(a => new { a.Id, a.AccountNumber, a.Name })
-                .ToDictionaryAsync(a => a.Id, a => (a.AccountNumber, a.Name), ct);
+                .Select(a => new { a.Id, a.AccountNumber, a.Name, a.AccountType })
+                .ToDictionaryAsync(a => a.Id, a => (a.AccountNumber, a.Name, a.AccountType), ct);
 
         var lines = new List<BudgetVsActualLine>();
         foreach (var accountId in actualByAccount.Keys.Union(budgetByAccount.Keys))
@@ -77,12 +91,16 @@ public class GetBudgetVsActualHandler(AppDbContext db, IFinancialStatementServic
                 : missingAccounts.TryGetValue(accountId, out var acct) ? acct.AccountNumber : string.Empty;
             var name = hasActual ? actual.AccountName
                 : missingAccounts.TryGetValue(accountId, out var acct2) ? acct2.Name : string.Empty;
+            var isIncome = hasActual
+                ? incomeIds.Contains(accountId)
+                : missingAccounts.TryGetValue(accountId, out var acct3) && acct3.AccountType == AccountType.Income;
 
             lines.Add(new BudgetVsActualLine
             {
                 GlAccountId = accountId,
                 AccountNumber = number,
                 AccountName = name,
+                IsIncome = isIncome,
                 ActualAmount = hasActual ? actual.Amount : 0m,
                 BudgetAmount = budgetByAccount.TryGetValue(accountId, out var budget) ? budget : 0m,
             });
@@ -100,6 +118,10 @@ public class GetBudgetVsActualHandler(AppDbContext db, IFinancialStatementServic
             Lines = ordered,
             TotalBudget = ordered.Sum(l => l.BudgetAmount),
             TotalActual = ordered.Sum(l => l.ActualAmount),
+            TotalBudgetIncome = ordered.Where(l => l.IsIncome).Sum(l => l.BudgetAmount),
+            TotalBudgetExpense = ordered.Where(l => !l.IsIncome).Sum(l => l.BudgetAmount),
+            TotalActualIncome = ordered.Where(l => l.IsIncome).Sum(l => l.ActualAmount),
+            TotalActualExpense = ordered.Where(l => !l.IsIncome).Sum(l => l.ActualAmount),
         };
     }
 
@@ -179,6 +201,9 @@ public class GetBudgetVsActualHandler(AppDbContext db, IFinancialStatementServic
 
         if (month is null)
             return (new DateOnly(fiscalYear, 1, 1), new DateOnly(fiscalYear, 12, 31));
+
+        if (month.Value > 12)
+            throw new KeyNotFoundException($"Fiscal year {fiscalYear} has no period {month.Value}.");
 
         var monthStart = new DateOnly(fiscalYear, month.Value, 1);
         return (monthStart, monthStart.AddMonths(1).AddDays(-1));

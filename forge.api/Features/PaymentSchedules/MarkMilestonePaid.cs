@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Validation;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -25,7 +26,7 @@ public class MarkMilestonePaidValidator : AbstractValidator<MarkMilestonePaidCom
     public MarkMilestonePaidValidator()
     {
         RuleFor(x => x.MilestoneId).GreaterThan(0);
-        RuleFor(x => x.PaidAmount).GreaterThan(0m);
+        RuleFor(x => x.PaidAmount).GreaterThan(0m).MoneyScale();
         RuleFor(x => x.PaidReference).MaximumLength(200);
     }
 }
@@ -67,6 +68,10 @@ public class MarkMilestonePaidHandler(AppDbContext db, IClock clock)
 
         var documentTotal = PaymentMilestoneEvaluator.QuantizeMoney(salesOrder?.Total ?? quote?.Total ?? 0m);
         var amountDue = PaymentMilestoneEvaluator.DeriveAmount(milestone, documentTotal);
+        var remaining = amountDue - (milestone.PaidAmount ?? 0m);
+        if (request.PaidAmount > remaining)
+            throw new InvalidOperationException(
+                $"Payment of {request.PaidAmount:0.00} exceeds the {remaining:0.00} still due on milestone {milestone.Sequence}");
 
         // First payment freezes the amount: from here on the milestone's worth is
         // this figure, regardless of later document edits.

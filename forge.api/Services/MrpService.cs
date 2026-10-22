@@ -814,7 +814,8 @@ public class MrpService(
                     .Where(r => r.JobId == j.Id
                         && (r.Status == ProductionRunStatus.Planned || r.Status == ProductionRunStatus.InProgress)
                         && r.TargetQuantity > r.CompletedQuantity)
-                    .Sum(r => (int?)(r.TargetQuantity - r.CompletedQuantity)) ?? 0))
+                    .Sum(r => (int?)(r.TargetQuantity - r.CompletedQuantity)) ?? 0,
+                j.TargetQuantity))
             .ToListAsync(cancellationToken);
     }
 
@@ -850,33 +851,28 @@ public class MrpService(
     {
         var peggedLineBySupply = new Dictionary<MrpSupply, int>(ReferenceEqualityComparer.Instance);
         var jobNumberById = new Dictionary<int, string>();
-        var jobSupplies = new List<(OpenJobRow Job, decimal JobQuantity, MrpSupply Supply)>();
+        var jobSupplies = new List<(OpenJobRow Job, decimal JobQuantity, decimal SupplyQuantity, MrpSupply Supply)>();
         var madeJobs = context.OpenJobs.Where(j => IsMadeInHouse(j, context)).ToList();
 
         foreach (var job in madeJobs)
         {
             var produced = Math.Max(job.ReceivedQuantity, job.BinnedQuantity);
             decimal jobQuantity;
-            decimal quantity;
             if (job.HasJobPart)
-            {
                 jobQuantity = job.JobPartQuantity;
-                quantity = jobQuantity - produced;
-            }
             else if (job.PlannedOrderQuantity is decimal plannedQuantity)
-            {
                 jobQuantity = plannedQuantity;
-                quantity = jobQuantity - produced;
-            }
             else if (job.IsPeggedToLine && job.LineQuantity is decimal lineQuantity)
-            {
                 jobQuantity = lineQuantity;
-                quantity = jobQuantity - Math.Max(produced, job.LineShippedQuantity ?? 0m);
-            }
             else
-            {
                 continue;
-            }
+
+            var supplyQuantity = job.TargetQuantity is decimal target && target > 0m
+                ? Math.Min(target, jobQuantity)
+                : jobQuantity;
+            var quantity = !job.HasJobPart && job.PlannedOrderQuantity is null
+                ? supplyQuantity - Math.Max(produced, job.LineShippedQuantity ?? 0m)
+                : supplyQuantity - produced;
 
             quantity -= job.ActiveRunQuantity;
             if (quantity <= 0)
@@ -894,7 +890,7 @@ public class MrpService(
                 AvailableDate = job.DueDate ?? clock.UtcNow.AddDays(leadTime ?? 14),
             };
             supplyRecords.Add(supply);
-            jobSupplies.Add((job, jobQuantity, supply));
+            jobSupplies.Add((job, jobQuantity, supplyQuantity, supply));
             jobNumberById[job.Id] = job.JobNumber;
 
             if (job.IsPeggedToLine)
@@ -931,7 +927,7 @@ public class MrpService(
 
         jobSupplies.RemoveAll(js => js.Supply.Quantity <= 0);
 
-        foreach (var (job, _, supply) in jobSupplies)
+        foreach (var (job, _, _, supply) in jobSupplies)
         {
             if (job.DueDate is DateTimeOffset dueDate && dueDate < clock.UtcNow.AddDays(-StaleJobSupplyDays))
             {
@@ -953,7 +949,7 @@ public class MrpService(
 
     private async Task AddJobComponentDemandAsync(
         OpenJobPlanningContext context,
-        List<(OpenJobRow Job, decimal JobQuantity, MrpSupply Supply)> jobSupplies,
+        List<(OpenJobRow Job, decimal JobQuantity, decimal SupplyQuantity, MrpSupply Supply)> jobSupplies,
         List<MrpDemand> demandRecords,
         CancellationToken cancellationToken)
     {
@@ -983,8 +979,12 @@ public class MrpService(
             .ToListAsync(cancellationToken);
         var reservedByJobAndPart = reserved.ToDictionary(r => (r.JobId, r.PartId), r => r.Quantity);
 
-        foreach (var (job, jobQuantity, supply) in jobSupplies)
+        foreach (var (job, jobQuantity, supplyQuantity, supply) in jobSupplies)
         {
+            var remainingStart = supplyQuantity > 0m && jobQuantity > supplyQuantity
+                ? Math.Min(jobQuantity, Math.Ceiling(supply.Quantity * jobQuantity / supplyQuantity))
+                : supply.Quantity;
+
             var components = ComponentsFor(job, context)
                 .Where(c => context.PlannedPartIds.Contains(c.PartId))
                 .GroupBy(c => c.PartId)
@@ -997,12 +997,12 @@ public class MrpService(
 
             foreach (var (componentPartId, perUnit) in components)
             {
-                var alreadyBuiltUsage = (jobQuantity - supply.Quantity) * perUnit;
+                var alreadyBuiltUsage = (jobQuantity - remainingStart) * perUnit;
                 var allocated = Math.Max(
                     issuedByJobAndPart.GetValueOrDefault((job.Id, componentPartId)),
                     reservedByJobAndPart.GetValueOrDefault((job.Id, componentPartId)));
                 var allocatedToRemaining = Math.Max(0m, allocated - alreadyBuiltUsage);
-                var quantity = supply.Quantity * perUnit - allocatedToRemaining;
+                var quantity = remainingStart * perUnit - allocatedToRemaining;
                 if (quantity <= 0)
                     continue;
 
@@ -1133,7 +1133,8 @@ public class MrpService(
         decimal JobPartQuantity,
         int ReceivedQuantity,
         decimal BinnedQuantity,
-        int ActiveRunQuantity)
+        int ActiveRunQuantity,
+        decimal? TargetQuantity)
     {
         public bool IsPeggedToLine => SalesOrderLineId.HasValue && LinePartId == PartId;
     }
