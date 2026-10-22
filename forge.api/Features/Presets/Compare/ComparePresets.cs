@@ -28,7 +28,7 @@ public class ComparePresetsValidator : AbstractValidator<ComparePresetsQuery>
         RuleFor(x => x.PresetIds)
             .NotNull()
             .Must(ids => ids.Count >= 2 && ids.Count <= 4)
-            .WithMessage("Compare requires between 2 and 4 preset IDs.")
+            .WithMessage("Compare requires between 2 and 4 preset IDs.").WithErrorCode("preset-compare-count")
             .Must(ids => ids.Distinct(StringComparer.Ordinal).Count() == ids.Count)
             .WithMessage("Duplicate preset IDs are not allowed.");
         RuleForEach(x => x.PresetIds)

@@ -92,7 +92,7 @@ public class CreateManualJournalEntryValidator : AbstractValidator<CreateManualJ
         RuleFor(x => x.Lines)
             .NotEmpty().WithMessage("At least one line is required")
             .Must(lines => lines == null || lines.Count >= 2)
-            .WithMessage("A double-entry journal requires at least two lines");
+            .WithMessage("A double-entry journal requires at least two lines").WithErrorCode("journal-needs-two-lines");
 
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
@@ -100,7 +100,7 @@ public class CreateManualJournalEntryValidator : AbstractValidator<CreateManualJ
             // both-non-zero. The engine re-validates (DEBIT_CREDIT_XOR) but the
             // 400-at-the-edge keeps the contract honest.
             line.RuleFor(l => l).Must(l => (l.Debit == 0m) != (l.Credit == 0m))
-                .WithMessage("Exactly one of debit/credit must be non-zero on each line");
+                .WithMessage("Exactly one of debit/credit must be non-zero on each line").WithErrorCode("journal-line-one-side");
             line.RuleFor(l => l.Debit).GreaterThanOrEqualTo(0m);
             line.RuleFor(l => l.Credit).GreaterThanOrEqualTo(0m);
             // Account is identified by id XOR key.

@@ -32,7 +32,7 @@ public class DisposeJobCommandValidator : AbstractValidator<DisposeJobCommand>
         RuleFor(x => x.Data.GoodQuantity)
             .GreaterThanOrEqualTo(0)
             .LessThanOrEqualTo(int.MaxValue)
-            .Must(q => q % 1 == 0).WithMessage("Good quantity must be a whole number.")
+            .Must(q => q % 1 == 0).WithMessage("Good quantity must be a whole number.").WithErrorCode("whole-quantity-required")
             .When(x => x.Data.GoodQuantity.HasValue);
         RuleFor(x => x.Data.LocationId).GreaterThan(0).When(x => x.Data.LocationId.HasValue);
         RuleFor(x => x.Data.AssetGlAccountId).GreaterThan(0).When(x => x.Data.AssetGlAccountId.HasValue);

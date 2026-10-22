@@ -44,7 +44,7 @@ public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
         RuleFor(x => x.Name)
             .Must(VisibleText.HasVisibleContent)
             .When(x => !string.IsNullOrEmpty(x.Name))
-            .WithMessage("'Name' must contain visible (non-whitespace) characters.");
+            .WithMessage("'Name' must contain visible (non-whitespace) characters.").WithErrorCode("name-not-visible");
         RuleFor(x => x.CompanyName).MaximumLength(200).When(x => x.CompanyName is not null);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Phone).MaximumLength(50).When(x => x.Phone is not null);

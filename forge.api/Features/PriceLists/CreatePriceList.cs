@@ -23,7 +23,7 @@ public class CreatePriceListValidator : AbstractValidator<CreatePriceListCommand
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Description).MaximumLength(500);
         RuleFor(x => x).Must(c => c.EffectiveFrom == null || c.EffectiveTo == null || c.EffectiveTo > c.EffectiveFrom)
-            .WithMessage("Effective To must be after Effective From");
+            .WithMessage("Effective To must be after Effective From").WithErrorCode("effective-range-order");
         // Entries are optional — the Customer Pricing tab UI creates an empty
         // list and adds entries one at a time. Seed/import flows can still
         // pass an initial batch.

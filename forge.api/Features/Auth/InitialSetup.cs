@@ -47,7 +47,7 @@ public class InitialSetupValidator : AbstractValidator<InitialSetupCommand>
         // claim is proven.
         RuleFor(x => x.ActivationCode)
             .Must(activation.Verify)
-            .WithMessage("That activation code isn't right. Check it with your contact at Forge.");
+            .WithMessage("That activation code isn't right. Check it with your contact at Forge.").WithErrorCode("activation-code-invalid");
 
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email is required.")

@@ -26,7 +26,7 @@ public class UpdateJobOperationProgressValidator : AbstractValidator<UpdateJobOp
     {
         RuleFor(x => x.Data)
             .Must(d => d.CompletedQuantity.HasValue || d.ScrapQuantity.HasValue || d.ReworkQuantity.HasValue || d.Status.HasValue)
-            .WithMessage("Send a completed quantity, a scrap quantity, a rework quantity or a status.");
+            .WithMessage("Send a completed quantity, a scrap quantity, a rework quantity or a status.").WithErrorCode("operation-progress-empty");
         RuleFor(x => x.Data.CompletedQuantity).GreaterThanOrEqualTo(0m).JobQuantityLimits().When(x => x.Data.CompletedQuantity.HasValue);
         RuleFor(x => x.Data.ScrapQuantity).GreaterThanOrEqualTo(0m).JobQuantityLimits().When(x => x.Data.ScrapQuantity.HasValue);
         RuleFor(x => x.Data.ReworkQuantity).GreaterThanOrEqualTo(0m).JobQuantityLimits().When(x => x.Data.ReworkQuantity.HasValue);

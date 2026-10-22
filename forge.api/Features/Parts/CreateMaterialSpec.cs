@@ -26,7 +26,7 @@ public class CreateMaterialSpecValidator : AbstractValidator<CreateMaterialSpecC
         RuleFor(x => x.Body.ParentId).GreaterThan(0).When(x => x.Body.ParentId is not null);
         RuleFor(x => x.Body)
             .Must(b => b.ParentId is null || b.NewCategoryLabel is null)
-            .WithMessage("Choose an existing category or name a new one, not both.");
+            .WithMessage("Choose an existing category or name a new one, not both.").WithErrorCode("material-category-conflict");
     }
 }
 

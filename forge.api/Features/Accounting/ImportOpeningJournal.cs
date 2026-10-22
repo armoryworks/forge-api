@@ -43,7 +43,7 @@ public class ImportOpeningJournalValidator : AbstractValidator<ImportOpeningJour
         RuleFor(x => x.CurrencyId).GreaterThan(0);
         RuleFor(x => x.Lines)
             .Must(lines => lines is { Count: >= 2 })
-            .WithMessage("An opening journal requires at least two lines.");
+            .WithMessage("An opening journal requires at least two lines.").WithErrorCode("journal-needs-two-lines");
         RuleFor(x => x.Lines)
             .Must(lines => lines is null || Math.Abs(lines.Sum(l => l.Debit) - lines.Sum(l => l.Credit)) == 0m)
             .WithMessage("The opening journal must balance: total debits must equal total credits (native opening TB == legacy closing TB, §7A).");
@@ -52,7 +52,7 @@ public class ImportOpeningJournalValidator : AbstractValidator<ImportOpeningJour
         {
             line.RuleFor(l => l.AccountNumber).NotEmpty().MaximumLength(50);
             line.RuleFor(l => l).Must(l => (l.Debit == 0m) != (l.Credit == 0m))
-                .WithMessage("Exactly one of debit/credit must be non-zero on each line.");
+                .WithMessage("Exactly one of debit/credit must be non-zero on each line.").WithErrorCode("journal-line-one-side");
             line.RuleFor(l => l.Debit).GreaterThanOrEqualTo(0m);
             line.RuleFor(l => l.Credit).GreaterThanOrEqualTo(0m);
         });

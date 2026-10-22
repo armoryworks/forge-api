@@ -34,7 +34,7 @@ public class UpsertPaymentScheduleValidator : AbstractValidator<UpsertPaymentSch
         RuleFor(x => x.QuoteId).GreaterThan(0);
         RuleFor(x => x.Milestones)
             .NotEmpty().WithMessage("At least one milestone is required")
-            .Must(m => m.Count <= 20).WithMessage("A payment schedule may have at most 20 milestones");
+            .Must(m => m.Count <= 20).WithMessage("A payment schedule may have at most 20 milestones").WithErrorCode("too-many-milestones");
         RuleFor(x => x.Milestones)
             .Must(m => Math.Abs(m.Sum(x => x.Percentage) - 100m) <= SumTolerance)
             .WithMessage("Milestone percentages must sum to exactly 100")

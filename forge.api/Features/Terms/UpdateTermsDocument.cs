@@ -34,7 +34,7 @@ public class UpdateTermsDocumentValidator : AbstractValidator<UpdateTermsDocumen
             .WithMessage("Effective From is required");
         RuleFor(x => x.Body)
             .Must(b => b.EffectiveTo == null || b.EffectiveTo > b.EffectiveFrom)
-            .WithMessage("Effective To must be after Effective From");
+            .WithMessage("Effective To must be after Effective From").WithErrorCode("effective-range-order");
     }
 }
 
