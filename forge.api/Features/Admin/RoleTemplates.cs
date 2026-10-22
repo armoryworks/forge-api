@@ -107,9 +107,9 @@ public class CreateRoleTemplateValidator : AbstractValidator<CreateRoleTemplateC
         RuleFor(x => x.IncludedRoleNames)
             .NotNull()
             .Must(r => r.Length > 0)
-            .WithMessage("Template must include at least one role.")
+            .WithMessage("Template must include at least one role.").WithErrorCode("role-template-empty")
             .Must(r => r.Length <= 25)
-            .WithMessage("Template may include at most 25 roles.");
+            .WithMessage("Template may include at most 25 roles.").WithErrorCode("role-template-too-many");
     }
 }
 
@@ -207,9 +207,9 @@ public class UpdateRoleTemplateValidator : AbstractValidator<UpdateRoleTemplateC
         RuleFor(x => x.IncludedRoleNames)
             .NotNull()
             .Must(r => r.Length > 0)
-            .WithMessage("Template must include at least one role.")
+            .WithMessage("Template must include at least one role.").WithErrorCode("role-template-empty")
             .Must(r => r.Length <= 25)
-            .WithMessage("Template may include at most 25 roles.");
+            .WithMessage("Template may include at most 25 roles.").WithErrorCode("role-template-too-many");
     }
 }
 

@@ -137,7 +137,7 @@ public class TimeTrackingController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("corrections")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager,Controller")]
     public async Task<ActionResult<List<TimeCorrectionLogResponseModel>>> GetCorrections(
         [FromQuery] int? userId,
         [FromQuery] DateOnly? from,
@@ -147,10 +147,22 @@ public class TimeTrackingController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("labor-reconciliation")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager,Controller")]
+    public async Task<ActionResult<List<LaborReconciliationRowResponseModel>>> GetLaborReconciliation(
+        [FromQuery] DateOnly from, [FromQuery] DateOnly to, [FromQuery] int? userId, CancellationToken ct)
+        => Ok(await mediator.Send(new GetLaborReconciliationQuery(from, to, userId), ct));
+
+    [HttpPost("labor-allocation/recompute")]
+    [Authorize(Roles = "Admin,Manager,Controller")]
+    public async Task<ActionResult<LaborRecomputeResponseModel>> RecomputeLaborAllocation(
+        [FromBody] LaborRecomputeRequestModel request, CancellationToken ct)
+        => Ok(await mediator.Send(new RecomputeLaborAllocationCommand(request), ct));
+
     // ─── Overtime ───
 
     [HttpGet("overtime/{userId:int}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager,Controller")]
     public async Task<ActionResult<OvertimeBreakdownResponseModel>> GetOvertimeBreakdown(
         int userId, [FromQuery] DateOnly weekOf, CancellationToken ct)
         => Ok(await mediator.Send(new GetOvertimeBreakdownQuery(userId, weekOf), ct));

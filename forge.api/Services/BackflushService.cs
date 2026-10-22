@@ -35,6 +35,9 @@ public class BackflushService(
         if (job?.PartId is not int parentPartId)
             return;
 
+        if (db.Database.IsNpgsql())
+            await db.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM jobs WHERE id = {job.Id} FOR NO KEY UPDATE", ct);
+
         var reported = await ReportedQuantityAsync(job.Id, parentPartId, ct);
         if (reported <= 0m)
             return;
@@ -54,6 +57,20 @@ public class BackflushService(
             .ToListAsync(ct);
         if (lines.Count == 0)
             return;
+
+        var alternates = (await JobMaterialRules.ForParentAsync(db, parentPartId, ct))
+            .Where(c => c.AlternateForPartId is not null && c.PerUnit > 0m)
+            .ToList();
+        var issuedPartIds = lines.Select(l => l.ChildPartId).Concat(alternates.Select(a => a.IssuedPartId)).Distinct().ToList();
+        var issued = await db.MaterialIssues.AsNoTracking()
+            .Where(mi => mi.JobId == job.Id && issuedPartIds.Contains(mi.PartId) && mi.IssueType != MaterialIssueType.Scrap)
+            .GroupBy(mi => mi.PartId)
+            .Select(g => new
+            {
+                PartId = g.Key,
+                Net = g.Sum(mi => mi.IssueType == MaterialIssueType.Return ? -mi.Quantity : mi.Quantity),
+            })
+            .ToDictionaryAsync(x => x.PartId, x => x.Net, ct);
 
         var plantDefault = await PlantDefaultAsync(ct);
         var shopToday = await LotExpiry.ShopTodayAsync(db, now, ct);
@@ -78,12 +95,10 @@ public class BackflushService(
                 continue;
             }
 
-            var consumed = await db.MaterialIssues.AsNoTracking()
-                .Where(mi => mi.JobId == job.Id && mi.PartId == first.ChildPartId
-                    && mi.IssueType == MaterialIssueType.Issue
-                    && mi.Notes != null && mi.Notes.StartsWith(NotePrefix))
-                .SumAsync(mi => mi.Quantity, ct);
-            var due = perUnit * reported - consumed;
+            var consumed = issued.GetValueOrDefault(first.ChildPartId)
+                + alternates.Where(a => a.AlternateForPartId == first.ChildPartId)
+                    .Sum(a => issued.GetValueOrDefault(a.IssuedPartId) * perUnit / a.PerUnit);
+            var due = Math.Round(perUnit * reported - consumed, 4);
             if (due <= 0m)
                 continue;
 

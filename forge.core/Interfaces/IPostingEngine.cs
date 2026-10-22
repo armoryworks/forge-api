@@ -56,6 +56,19 @@ public interface IPostingEngine
     Task<JournalEntry> ApprovePendingAsync(long entryId, int approvedByUserId, CancellationToken ct = default);
 
     /// <summary>
+    /// Edit-and-resubmit for a rejected manual entry (§5.7): a <see cref="Enums.Accounting.JournalEntryStatus.Draft"/>
+    /// entry takes the request's date, memo and lines in place — the same §5.2 checks as <see cref="PostAsync"/> —
+    /// and returns to <see cref="Enums.Accounting.JournalEntryStatus.PendingApproval"/> for a distinct approver. It
+    /// keeps its <c>EntryNumber</c>, so its date must stay in the same fiscal year; only its submitter may resubmit.
+    /// Nothing is applied to the <see cref="LedgerBalance"/> read-model until approval.
+    /// </summary>
+    /// <exception cref="PostingException">
+    /// Not found, not a manual draft, not the submitter, a fiscal-year change, or any §5.2 validation failure.
+    /// </exception>
+    Task<JournalEntry> ResubmitDraftAsync(
+        long entryId, PostingRequest request, int submittedByUserId, CancellationToken ct = default);
+
+    /// <summary>
     /// Reverses a posted entry by posting an equal-and-opposite entry and
     /// flipping the original to <see cref="Enums.Accounting.JournalEntryStatus.Reversed"/>
     /// with a <c>ReversedByEntryId</c> link, in one transaction.

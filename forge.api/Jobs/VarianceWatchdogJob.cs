@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Notifications;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
@@ -134,9 +135,10 @@ public class VarianceWatchdogJob(
             return;
         }
 
+        var money = await MoneyFormat.ForBaseCurrencyAsync(db, ct);
         foreach (var line in newTriggers)
         {
-            var message = BuildMessage(line.Key, line.Amount, cogs);
+            var message = BuildMessage(line.Key, line.Amount, cogs, money);
 
             foreach (var user in controllers)
             {
@@ -177,10 +179,10 @@ public class VarianceWatchdogJob(
     }
 
     /// <summary>Friendly copy: account in human terms + amount + % of period COGS + a tailored suggestion.</summary>
-    private static string BuildMessage(string key, decimal amount, decimal cogs)
+    private static string BuildMessage(string key, decimal amount, decimal cogs, MoneyFormatter money)
     {
         var name = HumanNames.TryGetValue(key, out var n) ? n : key;
-        var magnitude = Math.Abs(amount).ToString("C", CultureInfo.GetCultureInfo("en-US"));
+        var magnitude = money.Format(Math.Abs(amount));
 
         var reached = cogs != 0m
             ? $"{name} has reached {magnitude} ({Math.Abs(amount) / Math.Abs(cogs) * 100m:0.0}% of this period's COGS)."

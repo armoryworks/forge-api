@@ -32,6 +32,7 @@ public class UndoClockPunchTimerTests
     public async Task Handle_UndoneClockOut_ResumesTheTimerAndDropsTheQuickBooksItem()
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
         var job = await _h.AddJobAsync("JOB-0200");
         var entry = await _h.AddRunningTimerAsync(user.Id, job.Id, _h.Now.AddMinutes(-90));
         var punch = await _punch.Handle(new ClockInOutCommand(user.Id, "ClockOut"), CancellationToken.None);
@@ -40,7 +41,7 @@ public class UndoClockPunchTimerTests
         _h.Now = _h.Now.AddSeconds(20);
         await UndoHandler(user.Id).Handle(new UndoClockPunchCommand(punch.ClockEventId), CancellationToken.None);
 
-        (await _h.Db.ClockEvents.AnyAsync()).Should().BeFalse();
+        (await _h.Db.ClockEvents.AnyAsync(e => e.Id == punch.ClockEventId)).Should().BeFalse();
         var saved = await _h.Db.TimeEntries.AsNoTracking().SingleAsync();
         saved.Id.Should().Be(entry.Id);
         saved.TimerStop.Should().BeNull();
@@ -56,6 +57,7 @@ public class UndoClockPunchTimerTests
     public async Task Handle_UndoneClockOutAlreadySentToQuickBooks_ContinuesOnANewEntry()
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
         var job = await _h.AddJobAsync("JOB-0201");
         var entry = await _h.AddRunningTimerAsync(user.Id, job.Id, _h.Now.AddMinutes(-90));
         var punchedAt = _h.Now;
@@ -81,6 +83,7 @@ public class UndoClockPunchTimerTests
     public async Task Handle_UndoneBreak_LeavesTheRunningTimerAlone()
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
         var entry = await _h.AddRunningTimerAsync(user.Id, null, _h.Now.AddMinutes(-30));
         var punch = await _punch.Handle(new ClockInOutCommand(user.Id, "BreakStart"), CancellationToken.None);
 
@@ -96,6 +99,7 @@ public class UndoClockPunchTimerTests
     public async Task Handle_UndoneClockOut_ResumesEveryTimerItStopped()
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-2));
         var job = await _h.AddJobAsync("JOB-0210");
         var general = await _h.AddRunningTimerAsync(user.Id, job.Id, _h.Now.AddMinutes(-60));
         var operationTimer = await _h.AddRunningOperationTimerAsync(

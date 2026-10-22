@@ -14,6 +14,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Settings;
 using Forge.Data.Context;
 using Forge.Data.Repositories;
 
@@ -38,6 +39,9 @@ public sealed class TimerTestHarness
     public Mock<IMediator> Mediator { get; } = new();
     public Mock<IClock> Clock { get; } = new();
     public Mock<IClockEventTypeService> ClockEventTypes { get; } = new();
+    public Mock<ISettingsService> LaborSettings { get; } = new();
+    public string LaborSplit { get; set; } = ShopFloorSettings.LaborSplitWeighted;
+    public bool BreaksPauseLabor { get; set; } = true;
     public DateTimeOffset Now { get; set; } = new(2026, 10, 7, 14, 0, 0, TimeSpan.Zero);
 
     public TimerTestHarness()
@@ -70,16 +74,28 @@ public sealed class TimerTestHarness
             new("ClockIn", "Clock In", "In", "ClockOut", "work", true, true, "login", "#22c55e"),
             new("ClockOut", "Clock Out", "Out", "ClockIn", "work", false, false, "logout", "#ef4444"),
             new("BreakStart", "Start Break", "OnBreak", "BreakEnd", "break", true, true, "free_breakfast", "#f59e0b"),
+            new("BreakEnd", "End Break", "In", "BreakStart", "break", true, false, "play_arrow", "#22c55e"),
             new("LunchStart", "Start Lunch", "OnLunch", "LunchEnd", "lunch", true, true, "restaurant", "#f97316"),
+            new("LunchEnd", "End Lunch", "In", "LunchStart", "lunch", true, false, "play_arrow", "#22c55e"),
             new("shift_end", "End Shift", "Out", "ClockIn", "work", false, false, "logout", "#ef4444"),
             new("smoke_break", "Smoke Break", "OnBreak", "ClockIn", "break", true, true, "pause", "#f59e0b"),
-            new("return_from_errand", "Back", "In", null, "work", true, false, "login", "#22c55e"),
+            new("return_from_errand", "Back", "In", "smoke_break", "work", true, false, "login", "#22c55e"),
+            new("toolbox_talk", "Toolbox Talk", "OnBreak", null, "work", true, false, "groups", "#64748b"),
         };
         ClockEventTypes.Setup(t => t.GetByCodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string code, CancellationToken _) => definitions.FirstOrDefault(d => d.Code == code));
+        ClockEventTypes.Setup(t => t.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(definitions);
+
+        LaborSettings.Setup(s => s.GetStringAsync(ShopFloorSettings.LaborSplitKey, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => LaborSplit);
+        LaborSettings.Setup(s => s.GetBoolAsync(ShopFloorSettings.BreaksPauseLaborKey, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => BreaksPauseLabor);
     }
 
-    public IHttpContextAccessor SignedIn(int userId, params Claim[] extraClaims)
+    public IHttpContextAccessor SignedIn(int userId, params string[] roles)
+        => SignedInWithClaims(userId, [.. roles.Select(r => new Claim(ClaimTypes.Role, r))]);
+
+    public IHttpContextAccessor SignedInWithClaims(int userId, params Claim[] extraClaims)
     {
         var accessor = new Mock<IHttpContextAccessor>();
         accessor.Setup(h => h.HttpContext).Returns(() => new DefaultHttpContext
@@ -117,8 +133,12 @@ public sealed class TimerTestHarness
             Jobs,
             Mock.Of<ICustomerRepository>(),
             Mock.Of<ILogger<TimerStopService>>(),
-            new JobCostService(Db));
+            new JobCostService(Db),
+            LaborAllocation());
     }
+
+    public LaborAllocationService LaborAllocation()
+        => new(Db, LaborSettings.Object, ClockEventTypes.Object, Clock.Object, new JobCostService(Db));
 
     public async Task<ApplicationUser> AddUserAsync()
     {
@@ -133,6 +153,23 @@ public sealed class TimerTestHarness
         Db.Users.Add(user);
         await Db.SaveChangesAsync();
         return user;
+    }
+
+    public async Task<ClockEvent> AddClockEventAsync(int userId, string code, DateTimeOffset at)
+    {
+        var definition = await ClockEventTypes.Object.GetByCodeAsync(code)
+            ?? throw new ArgumentException($"Unknown clock event type {code}", nameof(code));
+        var clockEvent = new ClockEvent
+        {
+            UserId = userId,
+            EventType = LegacyClockEventType.From(definition),
+            EventTypeCode = code,
+            Timestamp = at,
+            Source = "kiosk",
+        };
+        Db.ClockEvents.Add(clockEvent);
+        await Db.SaveChangesAsync();
+        return clockEvent;
     }
 
     public async Task<Job> AddJobAsync(string jobNumber, bool isArchived = false, JobDisposition? disposition = null)

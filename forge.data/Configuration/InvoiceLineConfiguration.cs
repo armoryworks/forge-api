@@ -17,10 +17,16 @@ public class InvoiceLineConfiguration : IEntityTypeConfiguration<InvoiceLine>
 
         builder.HasIndex(e => e.InvoiceId);
         builder.HasIndex(e => e.PartId);
+        builder.HasIndex(e => e.SalesOrderLineId);
 
         builder.HasOne(e => e.Part)
             .WithMany()
             .HasForeignKey(e => e.PartId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(e => e.SalesOrderLine)
+            .WithMany()
+            .HasForeignKey(e => e.SalesOrderLineId)
             .OnDelete(DeleteBehavior.SetNull);
     }
 }

@@ -11,6 +11,8 @@ public class JobOperationEvent : BaseEntity
     public int UserId { get; set; }
     public DateTimeOffset OccurredAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public bool GateOverride { get; set; }
+    public string? GateOverrideReason { get; set; }
 
     public JobOperation JobOperation { get; set; } = null!;
 }

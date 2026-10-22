@@ -11,6 +11,7 @@ using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Models.Costing;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Costing.Tier3;
 
@@ -80,11 +81,18 @@ public class ApplyCostingTemplateHandler(
         }
 
         // ── Plant cost center + fiscal-year costing period (reuse by code / dates) ──
-        var center = await db.CostingCostCenters.FirstOrDefaultAsync(c => c.Code == "PLANT", ct);
-        var centerId = center?.Id
-            ?? (await mediator.Send(new CreateCostingCostCenterCommand(
-                "PLANT", "Plant", CostCenterType.Production,
-                ParentId: null, Sqft: null, Headcount: m.DirectHeadcount, IsInventoriable: true), ct)).Id;
+        int centerId;
+        await using (var tx = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null)
+        {
+            await db.AcquireAdvisoryLockAsync("costing-cost-centers.code", "PLANT", ct);
+            var center = await db.CostingCostCenters.FirstOrDefaultAsync(c => c.Code.ToUpper() == "PLANT", ct);
+            centerId = center?.Id
+                ?? (await mediator.Send(new CreateCostingCostCenterCommand(
+                    "PLANT", "Plant", CostCenterType.Production,
+                    ParentId: null, Sqft: null, Headcount: m.DirectHeadcount, IsInventoriable: true), ct)).Id;
+            if (tx is not null)
+                await tx.CommitAsync(ct);
+        }
 
         var periodStart = new DateTime(m.FiscalYear, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var periodEnd = new DateTime(m.FiscalYear, 12, 31, 0, 0, 0, DateTimeKind.Utc);
@@ -104,12 +112,20 @@ public class ApplyCostingTemplateHandler(
                 continue;
             }
 
-            var existing = await db.OverheadCostPools
-                .FirstOrDefaultAsync(p => p.Code == line.Code && p.CostingCostCenterId == centerId, ct);
-            var poolId = existing?.Id
-                ?? (await mediator.Send(new CreateOverheadPoolCommand(
-                    centerId, WorkCenterId: null, line.Code, line.Name, line.Behavior,
-                    FixedPortion: null, line.Driver), ct)).Id;
+            var poolCodeKey = line.Code.Trim().ToUpperInvariant();
+            int poolId;
+            await using (var tx = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null)
+            {
+                await db.AcquireAdvisoryLockAsync("overhead-cost-pools.code", $"{centerId}:{poolCodeKey}", ct);
+                var existing = await db.OverheadCostPools
+                    .FirstOrDefaultAsync(p => p.Code.ToUpper() == poolCodeKey && p.CostingCostCenterId == centerId, ct);
+                poolId = existing?.Id
+                    ?? (await mediator.Send(new CreateOverheadPoolCommand(
+                        centerId, WorkCenterId: null, line.Code, line.Name, line.Behavior,
+                        FixedPortion: null, line.Driver), ct)).Id;
+                if (tx is not null)
+                    await tx.CommitAsync(ct);
+            }
 
             await mediator.Send(new UpsertOverheadPoolBudgetCommand(poolId, periodId, amount, hours), ct);
             configured.Add(line.Code);

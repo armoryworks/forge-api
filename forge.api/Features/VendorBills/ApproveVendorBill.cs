@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -131,11 +132,15 @@ public class ApproveVendorBillHandler(
             poLine!.BilledQuantity += quantity;
 
         // Activity (transactional entity → log on the bill). db is null only in isolated unit tests.
-        db?.LogActivityAt(
-            "approved",
-            $"Bill {bill.BillNumber} approved for payment — {bill.Total:C}"
-            + (poMatches.Count > 0 ? " (3-way matched)" : string.Empty),
-            ("VendorBill", bill.Id));
+        if (db is not null)
+        {
+            var money = await MoneyFormat.ForCurrencyIdAsync(db, bill.CurrencyId, cancellationToken);
+            db.LogActivityAt(
+                "approved",
+                $"Bill {bill.BillNumber} approved for payment — {money.Format(bill.Total)}"
+                + (poMatches.Count > 0 ? " (3-way matched)" : string.Empty),
+                ("VendorBill", bill.Id));
+        }
 
         await repo.SaveChangesAsync(cancellationToken);
 

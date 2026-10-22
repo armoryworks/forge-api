@@ -1,4 +1,7 @@
+using System.Text.RegularExpressions;
+
 using Forge.Core.Interfaces;
+using Forge.Core.Models;
 
 namespace Forge.Api.Services;
 
@@ -6,13 +9,16 @@ namespace Forge.Api.Services;
 /// Machine-translates UI label strings via the self-hosted AI module
 /// (<see cref="IAiService"/> — Ollama in production, mock under MOCK_INTEGRATIONS).
 /// Availability is probed before generating so a downed AI container costs one
-/// fast check, and every failure path returns null — callers flag the row as
-/// pending instead of failing the save (graceful degradation, same contract as
-/// the rest of the AI surface).
+/// fast check, and every failure path reports the translation unavailable — callers
+/// flag the row as pending instead of failing the save (graceful degradation, same
+/// contract as the rest of the AI surface). A reply that does not read as a label is
+/// reported rejected, so it is never stored and never paid for again.
 /// </summary>
-public class AiI18nTranslationService(IAiService aiService, ILogger<AiI18nTranslationService> logger)
+public partial class AiI18nTranslationService(IAiService aiService, ILogger<AiI18nTranslationService> logger)
     : II18nTranslationService
 {
+    private const string PromptPhrase = "software UI label";
+
     private static readonly Dictionary<string, string> LanguageNames = new(StringComparer.OrdinalIgnoreCase)
     {
         ["en"] = "English",
@@ -24,7 +30,7 @@ public class AiI18nTranslationService(IAiService aiService, ILogger<AiI18nTransl
         ["de"] = "German",
     };
 
-    public async Task<string?> TranslateLabelAsync(string text, string sourceLanguageCode, string targetLanguageCode, CancellationToken ct)
+    public async Task<I18nTranslationResult> TranslateLabelAsync(string text, string sourceLanguageCode, string targetLanguageCode, CancellationToken ct)
     {
         try
         {
@@ -32,7 +38,7 @@ public class AiI18nTranslationService(IAiService aiService, ILogger<AiI18nTransl
             {
                 logger.LogWarning("i18n translation skipped — AI service unavailable ({Source} → {Target}).",
                     sourceLanguageCode, targetLanguageCode);
-                return null;
+                return I18nTranslationResult.Unavailable;
             }
 
             var sourceName = LanguageNames.GetValueOrDefault(sourceLanguageCode, sourceLanguageCode);
@@ -48,28 +54,75 @@ public class AiI18nTranslationService(IAiService aiService, ILogger<AiI18nTransl
                 0.1,
                 ct);
 
-            return Sanitize(raw);
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                logger.LogWarning("i18n translation failed — empty reply ({Source} → {Target}).",
+                    sourceLanguageCode, targetLanguageCode);
+                return I18nTranslationResult.Unavailable;
+            }
+
+            var translated = Sanitize(raw);
+            if (!text.EndsWith('.') && translated.EndsWith('.') && !translated.EndsWith(".."))
+            {
+                translated = translated[..^1].TrimEnd();
+            }
+
+            if (!IsPlausibleTranslation(text, translated))
+            {
+                logger.LogWarning("i18n translation rejected — reply does not read as a label ({Source} → {Target}).",
+                    sourceLanguageCode, targetLanguageCode);
+                return I18nTranslationResult.Rejected;
+            }
+
+            return I18nTranslationResult.Translated(translated);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             logger.LogWarning(ex, "i18n translation failed ({Source} → {Target}).",
                 sourceLanguageCode, targetLanguageCode);
-            return null;
+            return I18nTranslationResult.Unavailable;
         }
     }
 
-    /// <summary>Takes the first non-empty line, strips wrapping quotes; null when unusable.</summary>
-    private static string? Sanitize(string? raw)
+    /// <summary>Trims the reply and strips wrapping quotes; inner line breaks are kept so a multi-line reply is rejected.</summary>
+    private static string Sanitize(string raw) =>
+        raw.Trim().Trim('"', '“', '”').Trim();
+
+    /// <summary>
+    /// True when <paramref name="reply"/> can stand in for <paramref name="source"/> as a UI label:
+    /// a single line, not far longer than the source, not sentence-like unless the source is,
+    /// every {{placeholder}} token kept, and no mock or prompt echo.
+    /// </summary>
+    public static bool IsPlausibleTranslation(string source, string reply)
     {
-        var line = raw?
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(line))
+        if (string.IsNullOrWhiteSpace(reply) || reply.Length > 2000 || reply.Contains('\n') || reply.Contains('\r'))
         {
-            return null;
+            return false;
         }
 
-        line = line.Trim().Trim('"', '“', '”').Trim();
-        return string.IsNullOrWhiteSpace(line) || line.Length > 2000 ? null : line;
+        if (reply.Length > Math.Max(source.Length * 4, source.Length + 40))
+        {
+            return false;
+        }
+
+        if (reply.StartsWith("[Mock AI]", StringComparison.OrdinalIgnoreCase)
+            || (reply.Contains(PromptPhrase, StringComparison.OrdinalIgnoreCase)
+                && !source.Contains(PromptPhrase, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        if (SentenceBreak().IsMatch(reply) && !SentenceBreak().IsMatch(source))
+        {
+            return false;
+        }
+
+        return PlaceholderToken().Matches(source).All(m => reply.Contains(m.Value, StringComparison.Ordinal));
     }
+
+    [GeneratedRegex(@"(?:[!?;:…]|(?<!(?:^|[\s(./-])\p{L}{1,4})\.)\s+[¿¡]?\p{Lu}")]
+    private static partial Regex SentenceBreak();
+
+    [GeneratedRegex(@"\{\{[^{}]*\}\}")]
+    private static partial Regex PlaceholderToken();
 }

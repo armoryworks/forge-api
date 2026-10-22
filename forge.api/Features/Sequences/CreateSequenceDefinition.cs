@@ -7,6 +7,7 @@ using Forge.Core.Models;
 using Forge.Core.Sequences;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
+using Forge.Api.Validation;
 
 namespace Forge.Api.Features.Sequences;
 
@@ -19,8 +20,8 @@ public class CreateSequenceDefinitionHandler(AppDbContext db) : IRequestHandler<
     {
         var m = request.Model;
         var code = (m.Code ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(code)) throw new InvalidOperationException("A definition code is required.");
-        if (string.IsNullOrWhiteSpace(m.Name)) throw new InvalidOperationException("A definition name is required.");
+        if (string.IsNullOrWhiteSpace(code)) throw FieldValidation.Fail("code", "A definition code is required.");
+        if (string.IsNullOrWhiteSpace(m.Name)) throw FieldValidation.Fail("name", "A definition name is required.");
 
         var latest = await db.SequenceDefinitions.Where(d => d.Code == code && d.DeletedAt == null)
             .MaxAsync(d => (int?)d.Version, cancellationToken) ?? 0;
@@ -29,7 +30,7 @@ public class CreateSequenceDefinitionHandler(AppDbContext db) : IRequestHandler<
         SequenceDefinitionGraph.Apply(def, m);
 
         var errors = SequenceNetValidator.Validate(def);
-        if (errors.Count > 0) throw new InvalidOperationException("Invalid sequence definition: " + string.Join(" ", errors));
+        if (errors.Count > 0) throw FieldValidation.Fail("steps", "Invalid sequence definition: " + string.Join(" ", errors));
 
         db.SequenceDefinitions.Add(def);
         await db.SaveChangesAsync(cancellationToken); // need the id for the activity row

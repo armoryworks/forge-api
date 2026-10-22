@@ -27,7 +27,7 @@ public class CreateReportScheduleCommandValidator : AbstractValidator<CreateRepo
         RuleFor(x => x.CronExpression)
             .NotEmpty().WithMessage("Cron expression is required.")
             .MaximumLength(100).WithMessage("Cron expression must not exceed 100 characters.")
-            .Must(ReportScheduleCron.IsValid).WithMessage("Cron expression is not valid.");
+            .Must(ReportScheduleCron.IsValid).WithMessage("Cron expression is not valid.").WithErrorCode("cron-invalid");
 
         RuleFor(x => x.RecipientEmailsJson)
             .NotEmpty().WithMessage("At least one recipient email is required.")

@@ -146,4 +146,35 @@ public class BulkPartIntakeHandlerTests
         var act = () => Commit(rows);
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
+
+    [Fact]
+    public async Task Values_too_long_for_their_columns_are_invalid_and_do_not_block_later_rows()
+    {
+        var result = await Commit(
+            Row(new string('Z', 257), key: "long-name"),
+            new BulkPartIntakeRow("long-desc", "Gasket", new string('d', 2001), null, null, null),
+            Row("Washer", ext: new string('x', 101), key: "long-ext"),
+            Row("Gasket", key: "ok"),
+            Row("  " + new string('Y', 256) + "  ", key: "padded"));
+
+        result.Results.Single(r => r.ExternalRowKey == "long-name").Should()
+            .Match<BulkPartIntakeRowResult>(r => r.Status == BulkPartIntakeRowStatus.Invalid && r.Message!.Contains("256"));
+        result.Results.Single(r => r.ExternalRowKey == "long-desc").Message.Should().Contain("2000");
+        result.Results.Single(r => r.ExternalRowKey == "long-ext").Message.Should().Contain("100");
+        result.Results.Single(r => r.ExternalRowKey == "ok").Status.Should().Be(BulkPartIntakeRowStatus.Created);
+        result.Results.Single(r => r.ExternalRowKey == "padded").Status.Should().Be(BulkPartIntakeRowStatus.Created);
+        _db.Parts.Select(p => p.Name).Should().BeEquivalentTo(["Gasket", new string('Y', 256)]);
+    }
+
+    [Fact]
+    public async Task Preview_returns_the_numbers_commit_would_assign_without_ids()
+    {
+        var result = await Preview(Row("Alpha"), Row("Bravo", inv: "raw"), Row("  ", key: "blank"));
+
+        result.Results.Single(r => r.ExternalRowKey == "Alpha").Should()
+            .Match<BulkPartIntakeRowResult>(r => r.CreatedPartNumber == "PRT-00001" && r.CreatedPartId == null);
+        result.Results.Single(r => r.ExternalRowKey == "Bravo").CreatedPartNumber.Should().Be("RAW-00001");
+        result.Results.Single(r => r.ExternalRowKey == "blank").CreatedPartNumber.Should().BeNull();
+        _db.Parts.Should().BeEmpty();
+    }
 }

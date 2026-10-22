@@ -34,6 +34,8 @@ public class GetOperationTimeEntriesHandler(AppDbContext db)
                 IsBillable = t.IsBillable,
                 LaborCost = t.LaborCost,
                 BurdenCost = t.BurdenCost,
+                LaborMinutes = t.LaborMinutes,
+                AllocationMethod = t.AllocationMethod.HasValue ? t.AllocationMethod.Value.ToString() : null,
                 OperationId = t.OperationId,
                 EntryType = t.EntryType.ToString(),
             })

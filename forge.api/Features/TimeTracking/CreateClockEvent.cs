@@ -3,6 +3,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Forge.Api.Extensions;
+using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -42,6 +43,10 @@ public class CreateClockEventHandler(
         var definition = await clockEventTypeService.GetByCodeAsync(data.EventTypeCode, cancellationToken)
             ?? throw new KeyNotFoundException($"Clock event type {data.EventTypeCode} not found");
 
+        var now = clock.UtcNow;
+        await ClockStateRules.EnsureTransitionAllowedAsync(
+            db, clockEventTypeService, userId, definition, now, cancellationToken);
+
         var clockEvent = new ClockEvent
         {
             UserId = userId,
@@ -49,7 +54,7 @@ public class CreateClockEventHandler(
             EventTypeCode = data.EventTypeCode,
             Reason = data.Reason?.Trim(),
             ScanMethod = data.ScanMethod?.Trim(),
-            Timestamp = clock.UtcNow,
+            Timestamp = now,
             Source = data.Source?.Trim(),
         };
         db.ClockEvents.Add(clockEvent);

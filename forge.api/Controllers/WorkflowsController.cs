@@ -69,6 +69,17 @@ public class WorkflowsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Keep the steps the user skipped, so a resumed run still flags them.</summary>
+    [HttpPut("{runId:int}/skipped-steps")]
+    public async Task<ActionResult<WorkflowRunResponseModel>> SaveSkippedSteps(
+        int runId,
+        [FromBody] SaveWorkflowSkippedStepsRequestModel body,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new SaveWorkflowSkippedStepsCommand(runId, body), ct);
+        return Ok(result);
+    }
+
     /// <summary>Jump to a different (current or earlier-completed) step.</summary>
     [HttpPatch("{runId:int}/jump")]
     public async Task<ActionResult<WorkflowRunResponseModel>> Jump(

@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Moq;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Features.Jobs;
 using Forge.Api.Features.Jobs.Operations;
 using Forge.Api.Hubs;
@@ -25,7 +26,12 @@ public sealed class JobOperationTestHarness
     public Mock<IClientProxy> BoardGroup { get; } = new();
     public Mock<IBackflushService> Backflush { get; } = new();
     public bool TrackingEnabled { get; set; } = true;
+    public string? StepGating { get; set; }
+    public bool GateOverrideEnabled { get; set; } = true;
+    public string[] Roles { get; set; } = [];
+    public Mock<ICapabilitySnapshotProvider> Capabilities { get; } = new();
     public JobOperationService Operations { get; }
+    public StepGateService StepGate { get; }
 
     public JobOperationTestHarness()
     {
@@ -40,19 +46,34 @@ public sealed class JobOperationTestHarness
             .Setup(m => m.Send(It.IsAny<GetJobByIdQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((JobDetailResponseModel)null!);
 
+        Settings.Setup(s => s.GetStringAsync(ShopFloorSettings.StepGatingKey, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => StepGating);
+        Capabilities.Setup(c => c.IsEnabled(StepGateService.OverrideCapability)).Returns(() => GateOverrideEnabled);
+
         Operations = new JobOperationService(Timers.Db, Settings.Object, Timers.Clock.Object);
+        StepGate = new StepGateService(Timers.Db, Settings.Object, Capabilities.Object);
+
+        Timers.Mediator
+            .Setup(m => m.Send(It.IsAny<UpdateJobOperationProgressCommand>(), It.IsAny<CancellationToken>()))
+            .Returns((IRequest<JobOperationProgressResponseModel> command, CancellationToken ct) =>
+                ProgressHandler(_actingUserId).Handle((UpdateJobOperationProgressCommand)command, ct));
     }
+
+    private int _actingUserId;
 
     public StartJobOperationTimerHandler StartHandler(int userId) => new(
         Operations, Timers.Repo, Timers.Db, Timers.SignedIn(userId), Timers.TimerHub.Object,
-        BoardHub.Object, Timers.Mediator.Object, Timers.Clock.Object);
+        BoardHub.Object, Timers.Mediator.Object, Timers.Clock.Object, Timers.ClockEventTypes.Object);
 
-    public StopJobOperationTimerHandler StopHandler(int userId) => new(
-        Timers.Repo, Timers.Db, Timers.SignedIn(userId), Timers.Mediator.Object, Timers.Clock.Object);
+    public StopJobOperationTimerHandler StopHandler(int userId)
+    {
+        _actingUserId = userId;
+        return new(Timers.Repo, Timers.Db, Timers.SignedIn(userId), Timers.Mediator.Object, Timers.Clock.Object);
+    }
 
     public UpdateJobOperationProgressHandler ProgressHandler(int userId) => new(
-        Operations, Timers.TimerStopService(), Timers.Db, Timers.SignedIn(userId), BoardHub.Object,
-        Timers.Mediator.Object, Timers.Clock.Object, Backflush.Object);
+        Operations, Timers.TimerStopService(), Timers.Db, Timers.SignedIn(userId, Roles), BoardHub.Object,
+        Timers.Mediator.Object, Timers.Clock.Object, Backflush.Object, StepGate);
 
     public async Task<(Job Job, List<Operation> Routing)> AddJobWithRoutingAsync(decimal quantity, string jobNumber = "JOB-0500")
     {

@@ -163,9 +163,10 @@ public sealed class PaymentBatchService(
         db.PaymentBatches.Add(batch);
         await db.SaveChangesAsync(ct);
 
+        var money = await MoneyFormat.ForBaseCurrencyAsync(db, ct);
         db.LogActivityAt(
             "batch-created",
-            $"Payment batch {batch.BatchNumber} assembled — {batch.EntryCount} payment(s), {batch.TotalAmount:C}",
+            $"Payment batch {batch.BatchNumber} assembled — {batch.EntryCount} payment(s), {money.Format(batch.TotalAmount)}",
             ("PaymentBatch", batch.Id));
         await db.SaveChangesAsync(ct);
 
@@ -219,8 +220,11 @@ public sealed class PaymentBatchService(
         var exposureLimit = decimal.TryParse(
             await settings.GetStringAsync(BankingSettings.ExposureLimitKey, ct), out var lim) ? lim : 0m;
         if (exposureLimit > 0m && batch.TotalAmount > exposureLimit)
+        {
+            var limitMoney = await MoneyFormat.ForBaseCurrencyAsync(db, ct);
             throw new InvalidOperationException(
-                $"Batch total {batch.TotalAmount:C} exceeds the ACH exposure limit {exposureLimit:C}.");
+                $"Batch total {limitMoney.Format(batch.TotalAmount)} exceeds the ACH exposure limit {limitMoney.Format(exposureLimit)}.");
+        }
 
         var origination = await LoadOriginationAsync(ct);
 
@@ -273,9 +277,10 @@ public sealed class PaymentBatchService(
         batch.GeneratedAt = clock.UtcNow;
         batch.Status = PaymentBatchStatus.Generated;
 
+        var money = await MoneyFormat.ForBaseCurrencyAsync(db, ct);
         db.LogActivityAt(
             "batch-generated",
-            $"NACHA file generated for batch {batch.BatchNumber} — {batch.EntryCount} entries, {batch.TotalAmount:C}",
+            $"NACHA file generated for batch {batch.BatchNumber} — {batch.EntryCount} entries, {money.Format(batch.TotalAmount)}",
             ("PaymentBatch", batch.Id));
         await db.SaveChangesAsync(ct);
 
@@ -357,9 +362,10 @@ public sealed class PaymentBatchService(
             }
         }
 
+        var money = await MoneyFormat.ForBaseCurrencyAsync(db, ct);
         db.LogActivityAt(
             "batch-released",
-            $"Batch {batch.BatchNumber} released after portal upload — {batch.EntryCount} entries, {batch.TotalAmount:C}",
+            $"Batch {batch.BatchNumber} released after portal upload — {batch.EntryCount} entries, {money.Format(batch.TotalAmount)}",
             ("PaymentBatch", batch.Id));
         await db.SaveChangesAsync(ct);
 

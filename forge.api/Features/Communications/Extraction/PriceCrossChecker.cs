@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Interfaces.Communications;
@@ -68,12 +69,13 @@ public class PriceCrossChecker(
         }
 
         var variance = (quoted - baseline) / baseline;
+        var money = await MoneyFormat.ForBaseCurrencyAsync(db, ct);
 
         if (Math.Abs(variance) <= Tolerance)
         {
             return new PriceCrossCheck(
                 PriceCrossCheckOutcome.Match, quoted, baseline, variance,
-                $"Quoted {quoted:C} matches {basis} ({baseline:C}).");
+                $"Quoted {money.Format(quoted)} matches {basis} ({money.Format(baseline)}).");
         }
 
         logger.LogInformation(
@@ -82,7 +84,7 @@ public class PriceCrossChecker(
 
         return new PriceCrossCheck(
             PriceCrossCheckOutcome.Mismatch, quoted, baseline, variance,
-            $"Quoted {quoted:C} is {variance:P1} from {basis} ({baseline:C}). "
+            $"Quoted {money.Format(quoted)} is {MoneyFormat.Percent(variance, 1)} from {basis} ({money.Format(baseline)}). "
             + "Confirm before approving — this is where a transposed digit shows up.");
     }
 }

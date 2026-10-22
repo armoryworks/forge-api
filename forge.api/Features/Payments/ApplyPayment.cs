@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.PaymentSchedules;
+using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Core.Settings;
@@ -68,8 +69,20 @@ public class ApplyPaymentHandler(
         var unapplied = payment.UnappliedAmount;
         var requested = request.Applications.Sum(a => a.Amount);
         if (requested > unapplied)
+        {
+            var invoiceIds = request.Applications.Select(a => a.InvoiceId)
+                .Concat(payment.Applications.Select(a => a.InvoiceId))
+                .ToList();
+            var money = await MoneyFormat.ForCurrencyIdsAsync(
+                db,
+                await db.Invoices.AsNoTracking()
+                    .Where(i => invoiceIds.Contains(i.Id))
+                    .Select(i => i.CurrencyId)
+                    .ToListAsync(cancellationToken),
+                cancellationToken);
             throw new InvalidOperationException(
-                $"Applied amounts {requested:C} exceed the payment's unapplied balance of {unapplied:C}");
+                $"Applied amounts {money.Format(requested)} exceed the payment's unapplied balance of {money.Format(unapplied)}");
+        }
 
         var existingApplications = payment.Applications.ToHashSet();
         var completionCandidateSoIds = new HashSet<int>();
@@ -78,10 +91,11 @@ public class ApplyPaymentHandler(
             var invoice = await invoiceRepo.FindWithDetailsAsync(app.InvoiceId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Invoice {app.InvoiceId} not found");
 
-            PaymentApplicationRules.ApplyToInvoice(db, payment, invoice, app, completionCandidateSoIds);
+            await PaymentApplicationRules.ApplyToInvoiceAsync(db, payment, invoice, app, completionCandidateSoIds, cancellationToken);
 
+            var invoiceMoney = await MoneyFormat.ForCurrencyIdAsync(db, invoice.CurrencyId, cancellationToken);
             db.LogActivityAt("applied",
-                $"Applied {app.Amount:C} of payment {payment.PaymentNumber} to invoice {invoice.InvoiceNumber}",
+                $"Applied {invoiceMoney.Format(app.Amount)} of payment {payment.PaymentNumber} to invoice {invoice.InvoiceNumber}",
                 ("Payment", payment.Id), ("Invoice", invoice.Id), ("Customer", payment.CustomerId));
         }
 

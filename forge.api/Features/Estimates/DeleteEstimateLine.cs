@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Enums;
 using Forge.Core.Models;
+using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
 
@@ -43,7 +44,7 @@ public class DeleteEstimateLineHandler(AppDbContext db, IMediator mediator)
             ?? throw new KeyNotFoundException($"Estimate line {request.LineId} not found.");
 
         estimate.Lines.Remove(line);
-        estimate.EstimatedAmount = estimate.Lines.Sum(l => l.Quantity * l.UnitPrice);
+        estimate.EstimatedAmount = estimate.Lines.Sum(l => l.LineTotal);
 
         db.LogActivityAt(
             "line-removed",

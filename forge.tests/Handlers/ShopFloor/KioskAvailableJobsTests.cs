@@ -303,6 +303,112 @@ public class KioskAvailableJobsTests
         idle.NextOperation.Should().BeNull();
     }
 
+    [Fact]
+    public async Task ClockStatus_ListsEveryOpenTimerAndAnUnassignedJobThatHasOne()
+    {
+        await SeedStagesAsync();
+        EnableTracking();
+        var worker = await AddUserAsync();
+        var part = await AddPartAsync("PN-RUN");
+        var turn = await AddStepAsync(part, 20, "Turn");
+        turn.LaborAttendancePercent = 20m;
+        var deburr = await AddStepAsync(part, 80, "Deburr");
+        var mine = await AddJobAsync("J-MINE", assigneeId: worker.Id, partId: part.Id);
+        var unassigned = await AddJobAsync("J-NOBODY", partId: part.Id);
+        AddTimer(worker.Id, mine.Id, turn.Id, Now.AddMinutes(-30));
+        AddTimer(worker.Id, mine.Id, deburr.Id, Now.AddMinutes(-20));
+        AddTimer(worker.Id, unassigned.Id, deburr.Id, Now.AddMinutes(-10));
+        await _db.SaveChangesAsync();
+
+        var worker1 = (await ClockStatusHandler().Handle(new GetClockStatusQuery(), CancellationToken.None)).Single();
+
+        worker1.RunningTimers.Should().HaveCount(3);
+        worker1.RunningTimers!.Select(t => (t.JobNumber, t.StepNumber, t.AttendancePercent)).Should().Equal(
+            ("J-MINE", 20, 20m), ("J-MINE", 80, 100m), ("J-NOBODY", 80, 100m));
+        var nobody = worker1.Assignments.Single(a => a.JobNumber == "J-NOBODY");
+        nobody.HasActiveTimer.Should().BeTrue();
+        nobody.IsAssigned.Should().BeFalse();
+        nobody.IsRecent.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ClockStatus_CycleMinutes_OnlyForRunTimersOnStepsThatOptIntoTheCountdown()
+    {
+        await SeedStagesAsync();
+        EnableTracking();
+        var worker = await AddUserAsync();
+        var part = await AddPartAsync("PN-CYCLE");
+        var press = await AddStepAsync(part, 10, "Press");
+        press.CycleCountdown = true;
+        press.RunMinutesEach = 2.5m;
+        var trim = await AddStepAsync(part, 20, "Trim");
+        trim.RunMinutesEach = 1m;
+        var job = await AddJobAsync("J-CYCLE", assigneeId: worker.Id, partId: part.Id);
+        AddTimer(worker.Id, job.Id, press.Id, Now.AddMinutes(-9));
+        AddTimer(worker.Id, job.Id, trim.Id, Now.AddMinutes(-5));
+        await _db.SaveChangesAsync();
+
+        var timers = (await ClockStatusHandler().Handle(new GetClockStatusQuery(), CancellationToken.None)).Single().RunningTimers!;
+
+        timers.Select(t => (t.StepNumber, t.CycleMinutes)).Should().Equal((10, 2.5m), (20, (decimal?)null));
+    }
+
+    [Fact]
+    public async Task ClockStatus_MyJobs_IncludesOpenJobsWorkedRecentlyButNotOlderOrClosedOnes()
+    {
+        await SeedStagesAsync();
+        var worker = await AddUserAsync();
+        var recent = await AddJobAsync("J-RECENT");
+        var old = await AddJobAsync("J-OLD");
+        var closed = await AddJobAsync("J-CLOSED", configure: j => j.CompletedDate = Now.AddDays(-1));
+        var today = DateOnly.FromDateTime(Now.UtcDateTime);
+        _db.TimeEntries.AddRange(
+            new TimeEntry { UserId = worker.Id, JobId = recent.Id, Date = today.AddDays(-2), DurationMinutes = 30, IsManual = true },
+            new TimeEntry { UserId = worker.Id, JobId = old.Id, Date = today.AddDays(-5), DurationMinutes = 30, IsManual = true },
+            new TimeEntry { UserId = worker.Id, JobId = closed.Id, Date = today.AddDays(-1), DurationMinutes = 30, IsManual = true });
+        await _db.SaveChangesAsync();
+
+        var assignments = (await ClockStatusHandler().Handle(new GetClockStatusQuery(), CancellationToken.None)).Single().Assignments;
+
+        assignments.Select(a => a.JobNumber).Should().Equal("J-RECENT");
+        assignments.Single().IsRecent.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ClockStatus_Suggestion_PrefersAStepThisUserHasRunning()
+    {
+        await SeedStagesAsync();
+        EnableTracking();
+        var worker = await AddUserAsync();
+        var other = new ApplicationUser { FirstName = "Other", LastName = "Hand", UserName = "other@example.com", Email = "other@example.com", IsActive = true };
+        _db.Users.Add(other);
+        await _db.SaveChangesAsync();
+        var part = await AddPartAsync("PN-SUGGEST");
+        var saw = await AddStepAsync(part, 10, "Saw");
+        var mill = await AddStepAsync(part, 20, "Mill");
+        await AddStepAsync(part, 30, "Pack");
+        var job = await AddJobAsync("J-SUGGEST", assigneeId: worker.Id, partId: part.Id);
+        await AddJobOperationAsync(job, saw, JobOperationStatus.InProgress);
+        AddTimer(other.Id, job.Id, saw.Id, Now.AddMinutes(-15));
+        AddTimer(worker.Id, job.Id, mill.Id, Now.AddMinutes(-5));
+        await _db.SaveChangesAsync();
+
+        var result = await ClockStatusHandler().Handle(new GetClockStatusQuery(), CancellationToken.None);
+
+        result.Single(w => w.UserId == worker.Id).Assignments.Single().NextOperation!.Title.Should().Be("Mill");
+    }
+
+    private void AddTimer(int userId, int jobId, int operationId, DateTimeOffset start)
+        => _db.TimeEntries.Add(new TimeEntry
+        {
+            UserId = userId,
+            JobId = jobId,
+            OperationId = operationId,
+            EntryType = TimeEntryType.Run,
+            Date = DateOnly.FromDateTime(start.UtcDateTime),
+            TimerStart = start,
+        });
+
     private GetKioskAvailableJobsHandler Handler() => new(_db, _operations.Object);
 
     private GetShopFloorOverviewHandler OverviewHandler() =>

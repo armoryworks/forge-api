@@ -119,4 +119,22 @@ public sealed class ControllerRoleGateTests
     {
         EffectiveRoles(verb, template).Should().BeEquivalentTo(["Admin", "Manager", "PM"], $"{verb} {template}");
     }
+
+    [Theory]
+    [InlineData("api/v1/time-tracking/overtime/{userId:int}")]
+    [InlineData("api/v1/time-tracking/corrections")]
+    public void Payroll_roles_read_overtime_and_time_corrections(string template)
+    {
+        EffectiveRoles("GET", template).Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager", "Controller"]);
+    }
+
+    [Theory]
+    [InlineData("PATCH", "api/v1/time-tracking/entries/{id:int}/correct")]
+    [InlineData("POST", "api/v1/time-tracking/lock-period")]
+    [InlineData("POST", "api/v1/leave/requests/{id:int}/approve")]
+    [InlineData("POST", "api/v1/leave/requests/{id:int}/deny")]
+    public void Time_and_leave_decisions_stay_with_admin_and_manager(string verb, string template)
+    {
+        EffectiveRoles(verb, template).Should().BeEquivalentTo(["Admin", "Manager"], $"{verb} {template}");
+    }
 }

@@ -147,6 +147,15 @@ public class BankStatementImportTests
     }
 
     [Fact]
+    public void ParseCsv_WithoutDateAndAmountColumns_IsAFileValidationError()
+    {
+        var act = () => BankStatementParser.ParseCsv("Payee,Memo\nACME,Invoice 7\n");
+
+        act.Should().Throw<FluentValidation.ValidationException>()
+            .Which.Errors.Should().ContainSingle(e => e.PropertyName == "file");
+    }
+
+    [Fact]
     public async Task Import_Reimport_DedupesToZero()
     {
         var (db, service) = CreateHarness();

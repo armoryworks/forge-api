@@ -101,7 +101,8 @@ public static class InvoiceDunning
 
         var customerName = WebUtility.HtmlEncode(invoice.Customer.CompanyName ?? invoice.Customer.Name);
         var company = WebUtility.HtmlEncode(companyName);
-        var balance = InvoiceMoneyText.Format(invoice.BalanceDue, await InvoiceMoneyText.CurrencyAsync(db, invoice.CurrencyId, ct));
+        var money = await MoneyFormat.ForCurrencyIdAsync(db, invoice.CurrencyId, ct);
+        var balance = money.Format(invoice.BalanceDue);
         var lateness = bucket == BucketDue ? "is now past due" : $"is more than {bucket} days past due";
 
         var message = new EmailMessage(
@@ -120,7 +121,7 @@ public static class InvoiceDunning
                 new EmailAttachment(
                     $"Invoice-{invoice.InvoiceNumber}.pdf",
                     "application/pdf",
-                    new InvoicePdfDocument(invoice, companyName).GeneratePdf()),
+                    new InvoicePdfDocument(invoice, companyName, money).GeneratePdf()),
             ]);
 
         await outbox.EnqueueEmailAsync(operationKey, message, entityType: "Invoice", entityId: invoice.Id, ct: ct);

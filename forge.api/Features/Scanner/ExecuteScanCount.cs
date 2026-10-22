@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Inventory;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -48,6 +49,9 @@ public class ExecuteScanCountHandler(
             .Select(p => new { p.Id, p.PartNumber })
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw new KeyNotFoundException($"Part {data.PartId} not found");
+
+        await StockQuantityPrecision.EnsureFitsStockUnitAsync(
+            db, part.Id, [(nameof(data.ActualCount), "Counted quantity", data.ActualCount)], cancellationToken);
 
         // Validate location exists
         var locationExists = await db.StorageLocations.AsNoTracking()
@@ -137,7 +141,7 @@ public class ExecuteScanCountHandler(
                         {
                             UserId = managerId,
                             Title = "Cycle Count Variance",
-                            Message = $"Part {part.PartNumber}: expected {recordedQty:0.####}, counted {data.ActualCount:0.####} (variance {variancePercent:P0})",
+                            Message = $"Part {part.PartNumber}: expected {MoneyFormat.Quantity(recordedQty)}, counted {MoneyFormat.Quantity(data.ActualCount)} (variance {MoneyFormat.Percent(variancePercent, 1)})",
                             Severity = "warning",
                             Type = "inventory",
                             Source = "scanner",

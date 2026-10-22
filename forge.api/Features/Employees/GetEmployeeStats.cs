@@ -21,8 +21,8 @@ public class GetEmployeeStatsHandler(AppDbContext db)
         var totalMinutes = await db.TimeEntries
             .Where(t => t.UserId == request.EmployeeId && t.DeletedAt == null
                 && t.Date >= DateOnly.FromDateTime(periodStart.DateTime))
-            .SumAsync(t => t.DurationMinutes, cancellationToken);
-        var hoursThisPeriod = Math.Round((decimal)totalMinutes / 60, 1);
+            .SumAsync(t => t.LaborMinutes ?? t.DurationMinutes, cancellationToken);
+        var hoursThisPeriod = Math.Round(totalMinutes / 60, 1);
 
         // Compliance
         var profile = await db.EmployeeProfiles

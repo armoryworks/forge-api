@@ -170,6 +170,27 @@ public class PartsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<OperationResponseModel>> UpdateOperation(int id, int operationId, [FromBody] UpdateOperationRequestModel request)
         => Ok(await mediator.Send(new UpdateOperationCommand(id, operationId, request)));
 
+    [HttpPut("{id:int}/operations/order")]
+    public async Task<ActionResult<List<OperationResponseModel>>> ReorderOperations(int id, [FromBody] ReorderOperationsRequestModel request)
+        => Ok(await mediator.Send(new ReorderOperationsCommand(id, request)));
+
+    [HttpGet("{id:int}/routing/graph")]
+    public async Task<ActionResult<RoutingGraphResponseModel>> GetRoutingGraph(int id)
+        => Ok(await mediator.Send(new GetRoutingGraphQuery(id)));
+
+    [HttpPut("{id:int}/routing/graph")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
+    public async Task<ActionResult<RoutingGraphResponseModel>> UpdateRoutingGraph(int id, [FromBody] UpdateRoutingGraphRequestModel request)
+        => Ok(await mediator.Send(new UpdateRoutingGraphCommand(id, request)));
+
+    [HttpPut("{id:int}/step-gating")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
+    public async Task<IActionResult> UpdateStepGating(int id, [FromBody] UpdatePartStepGatingRequestModel request)
+    {
+        await mediator.Send(new UpdatePartStepGatingCommand(id, request));
+        return NoContent();
+    }
+
     [HttpDelete("{id:int}/operations/{operationId:int}")]
     public async Task<IActionResult> DeleteOperation(int id, int operationId)
     {

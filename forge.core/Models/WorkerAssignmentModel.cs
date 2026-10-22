@@ -11,4 +11,7 @@ public record WorkerAssignmentModel(
     bool HasActiveTimer,
     DateTimeOffset? TimerStartedAt,
     string? PartNumber,
-    KioskNextOperationResponseModel? NextOperation);
+    KioskNextOperationResponseModel? NextOperation,
+    DateTimeOffset? DueDate = null,
+    bool IsAssigned = true,
+    bool IsRecent = false);

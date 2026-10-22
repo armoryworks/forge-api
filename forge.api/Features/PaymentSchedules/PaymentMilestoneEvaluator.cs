@@ -1,5 +1,6 @@
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Models.Accounting;
 
 namespace Forge.Api.Features.PaymentSchedules;
 
@@ -21,14 +22,11 @@ namespace Forge.Api.Features.PaymentSchedules;
 public static class PaymentMilestoneEvaluator
 {
     /// <summary>
-    /// Commercial money rounding: 2 dp, half away from zero. Mirrors the canonical
-    /// quantize used by <c>Invoice.BalanceDue</c> (F-027) — NOT .NET's default
-    /// banker's rounding, which diverges on half-cents. That helper is private to
-    /// the Invoice entity, so the formula is restated here verbatim; do not add a
-    /// third copy — reuse this one from payment-schedule code.
+    /// Commercial money rounding: 2 dp, half away from zero. Delegates to
+    /// <see cref="Money.Round"/>, the one canonical quantize.
     /// </summary>
     public static decimal QuantizeMoney(decimal value)
-        => Math.Round(value, 2, MidpointRounding.AwayFromZero);
+        => Money.Round(value);
 
     /// <summary>
     /// The amount due for a milestone: the locked amount when set (invoiced/paid

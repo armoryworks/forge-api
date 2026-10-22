@@ -38,7 +38,7 @@ public class UpdateTerminologyHandlerTests
 
     private void Translates(string english, string? spanish) =>
         _translator.Setup(t => t.TranslateLabelAsync($"the {english}", "en", "es", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(spanish);
+            .ReturnsAsync(spanish is null ? I18nTranslationResult.Unavailable : I18nTranslationResult.Translated(spanish));
 
     private TerminologyEntry Row(string key) => _db.TerminologyEntries.Single(e => e.Key == key);
 

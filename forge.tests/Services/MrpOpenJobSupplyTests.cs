@@ -844,4 +844,101 @@ public class MrpOpenJobSupplyTests
         (await db.MrpDemands.Where(d => d.MrpRunId == run.Id && d.PartId == component.Id).ToListAsync())
             .Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task JobWithATarget_SuppliesTheTarget_ButDrawsComponentsForTheStart()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        var component = await SeedComponentAsync(db, part.Id, perUnit: 1);
+        await SeedSoLineAsync(db, part.Id, 100, daysOut: 60);
+
+        var job = NewJob(part.Id, "J-Y1", jobPartQuantity: 112);
+        job.TargetQuantity = 100;
+        job.StartDate = Now.AddDays(10);
+        job.DueDate = Now.AddDays(40);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle()
+            .Which.Quantity.Should().Be(100);
+        (await PlannedOrdersForPartAsync(db, run.Id, part.Id)).Should().BeEmpty();
+        (await db.MrpDemands.SingleAsync(d => d.MrpRunId == run.Id && d.PartId == component.Id))
+            .Quantity.Should().Be(112);
+    }
+
+    [Fact]
+    public async Task JobWithATarget_ShortOfTheLine_LeavesTheGapToBePlanned()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        await SeedSoLineAsync(db, part.Id, 110, daysOut: 60);
+
+        var job = NewJob(part.Id, "J-Y2", jobPartQuantity: 112);
+        job.TargetQuantity = 100;
+        job.DueDate = Now.AddDays(40);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await PlannedOrdersForPartAsync(db, run.Id, part.Id)).Should().ContainSingle()
+            .Which.Quantity.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task JobWithATarget_PartlyBuilt_DrawsComponentsForTheRemainingStartNetOfIssues()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        var component = await SeedComponentAsync(db, part.Id, perUnit: 1);
+
+        var job = NewJob(part.Id, "J-Y3", jobPartQuantity: 112);
+        job.TargetQuantity = 100;
+        job.StartDate = Now.AddDays(5);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+        db.ProductionRuns.Add(new ProductionRun
+        {
+            JobId = job.Id,
+            PartId = part.Id,
+            RunNumber = "PR-Y3",
+            TargetQuantity = 50,
+            CompletedQuantity = 50,
+            ReceivedQuantity = 50,
+            Status = ProductionRunStatus.Completed,
+        });
+        db.MaterialIssues.Add(
+            new MaterialIssue { JobId = job.Id, PartId = component.Id, Quantity = 60, IssueType = MaterialIssueType.Issue, IssuedAt = Now });
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle()
+            .Which.Quantity.Should().Be(50);
+        (await db.MrpDemands.SingleAsync(d => d.MrpRunId == run.Id && d.PartId == component.Id))
+            .Quantity.Should().Be(52);
+    }
+
+    [Fact]
+    public async Task JobWithoutATarget_StillSuppliesItsStartQuantity()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        var component = await SeedComponentAsync(db, part.Id, perUnit: 1);
+
+        var job = NewJob(part.Id, "J-Y4", jobPartQuantity: 112);
+        job.StartDate = Now.AddDays(5);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle()
+            .Which.Quantity.Should().Be(112);
+        (await db.MrpDemands.SingleAsync(d => d.MrpRunId == run.Id && d.PartId == component.Id))
+            .Quantity.Should().Be(112);
+    }
 }

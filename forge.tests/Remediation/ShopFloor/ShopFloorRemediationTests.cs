@@ -208,6 +208,39 @@ public class ShopFloorRemediationTests
     }
 
     [Fact]
+    public async Task A_device_token_alone_cannot_read_order_numbers_or_asset_names_from_a_scan()
+    {
+        var token = await SeedTerminalAsync();
+        var code = Guid.NewGuid().ToString("N")[..8];
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var po = new PurchaseOrder { PONumber = $"PO-{code}", VendorId = 1 };
+            var asset = new Asset { Name = $"Press {code}" };
+            db.AddRange(po, asset);
+            await db.SaveChangesAsync();
+            db.Barcodes.AddRange(
+                new Barcode { Value = $"PO-BC-{code}", EntityType = BarcodeEntityType.PurchaseOrder, PurchaseOrderId = po.Id, IsActive = true },
+                new Barcode { Value = $"AS-BC-{code}", EntityType = BarcodeEntityType.Asset, AssetId = asset.Id, IsActive = true });
+            await db.SaveChangesAsync();
+        }
+        var terminal = _factory.CreateClient();
+        terminal.DefaultRequestHeaders.Add(KioskTerminalAuthAttribute.HeaderName, token);
+
+        foreach (var value in new[] { $"PO-BC-{code}", $"AS-BC-{code}" })
+        {
+            var response = await terminal.PostAsJsonAsync("/api/v1/display/shop-floor/identify-scan", new { scanValue = value });
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var body = await response.Content.ReadAsStringAsync();
+            body.Should().Contain("\"scanType\":\"unknown\"").And.NotContain(code);
+        }
+
+        var signedIn = await AuthClient("ProductionWorker")
+            .PostAsJsonAsync("/api/v1/display/shop-floor/identify-scan", new { scanValue = $"PO-BC-{code}" });
+        (await signedIn.Content.ReadAsStringAsync()).Should().Contain($"PO-{code}");
+    }
+
+    [Fact]
     public async Task A_device_token_alone_cannot_punch_the_clock()
     {
         var token = await SeedTerminalAsync();

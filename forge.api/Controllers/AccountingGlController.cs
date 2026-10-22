@@ -110,7 +110,8 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     /// <summary>
     /// Read-only GL register (ACCOUNTING_SUITE_PLAN §5A): the time-ordered journal for a book with
     /// per-line account labels and drill-back refs, feeding the ledger-view UI. Newest first,
-    /// offset-paginated, optionally filtered by date range, entry status, and account.
+    /// offset-paginated, optionally filtered by date range, entry status, and account. Drafts
+    /// (rejected entries) are listed only when <c>status=Draft</c> is asked for.
     /// </summary>
     [HttpGet("ledger")]
     public async Task<ActionResult<LedgerRegisterPage>> GetLedgerRegister(
@@ -150,6 +151,25 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     [HttpPost("journal-entries/{id:long}/approve")]
     public async Task<ActionResult<ManualJournalEntryResult>> ApproveJournalEntry(long id, CancellationToken ct)
         => Ok(await mediator.Send(new ApproveJournalEntryCommand(id), ct));
+
+    /// <summary>
+    /// Maker-checker edit-and-resubmit (§5.7): the submitter corrects a rejected manual JE (a <c>Draft</c>) and
+    /// returns it to <c>PendingApproval</c>. The body is the create shape; the entry keeps its number, so its
+    /// date must stay in the same fiscal year.
+    /// </summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    [HttpPost("journal-entries/{id:long}/resubmit")]
+    public async Task<ActionResult<ManualJournalEntryResult>> ResubmitJournalEntry(
+        long id, [FromBody] CreateManualJournalEntryRequest request, CancellationToken ct)
+        => Ok(await mediator.Send(
+            new ResubmitJournalEntryCommand(id, new CreateManualJournalEntryCommand(
+                request.BookId,
+                request.EntryDate,
+                request.CurrencyId,
+                request.Memo,
+                request.AllowSoftClosedOverride,
+                request.Lines)),
+            ct));
 
     /// <summary>
     /// Maker-checker async rejection (§5.7): return a <c>PendingApproval</c> manual JE to <c>Draft</c> with an
@@ -239,13 +259,14 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     /// 1099 report — every vendor flagged as a 1099 payee with its total cash paid
     /// in the calendar year, for preparing Form 1099-NEC filings. Read-only
     /// aggregate over vendor payments; sums the disbursed amount and marks each
-    /// vendor that reaches the IRS $600 reporting threshold. Gated on
+    /// vendor that reaches the IRS reporting threshold for the year. Flagged vendors
+    /// paid nothing are listed only with <c>includeZeroPayments</c>. Gated on
     /// <c>CAP-ACCT-GL-VIEW</c> like the sales-tax and aging reports.
     /// </summary>
     [HttpGet("1099-report")]
     public async Task<ActionResult<Form1099Report>> Get1099Report(
-        [FromQuery] int year, CancellationToken ct)
-        => Ok(await mediator.Send(new Get1099ReportQuery(year), ct));
+        [FromQuery] int year, CancellationToken ct, [FromQuery] bool includeZeroPayments = false)
+        => Ok(await mediator.Send(new Get1099ReportQuery(year, includeZeroPayments), ct));
 
     /// <summary>Phase-3 — the book's fiscal calendar (years + periods with statuses) for the close screen.</summary>
     [HttpGet("fiscal-calendar")]

@@ -8,16 +8,18 @@ namespace Forge.Core.Models.Accounting;
 /// mutation, so no <c>ActivityLog</c>.
 ///
 /// <para><b>Threshold.</b> <see cref="Threshold"/> is the IRS 1099-NEC reporting
-/// floor ($600). Every flagged vendor is listed regardless of amount so the
-/// office can see who was set up but under-threshold; <see cref="Form1099VendorRow.MeetsThreshold"/>
-/// marks the ones that actually require a filing.</para>
+/// floor for the year ($600 through tax year 2025, $2,000 from tax year 2026).
+/// Every flagged vendor paid anything in the year is listed so the office can see
+/// who was paid but under-threshold; <see cref="Form1099VendorRow.MeetsThreshold"/>
+/// marks the ones that actually require a filing. Flagged vendors paid nothing are
+/// left out unless asked for and counted in <see cref="ZeroPaymentVendorCount"/>.</para>
 /// </summary>
 public sealed record Form1099Report
 {
     /// <summary>The calendar year the payments were made in.</summary>
     public int Year { get; init; }
 
-    /// <summary>IRS 1099-NEC reporting threshold applied to each vendor's total ($600).</summary>
+    /// <summary>IRS 1099-NEC reporting threshold for <see cref="Year"/>, applied to each vendor's total.</summary>
     public decimal Threshold { get; init; }
 
     /// <summary>One row per 1099-flagged vendor, ordered by total payments descending.</summary>
@@ -28,4 +30,7 @@ public sealed record Form1099Report
 
     /// <summary>Count of vendors whose year total reaches the threshold (i.e. require a 1099 filing).</summary>
     public int ReportableVendorCount { get; init; }
+
+    /// <summary>Count of 1099-flagged vendors paid nothing in the year, whether or not they are listed.</summary>
+    public int ZeroPaymentVendorCount { get; init; }
 }

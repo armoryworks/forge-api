@@ -34,7 +34,7 @@ public class ReceiveItemsValidator : AbstractValidator<ReceiveItemsCommand>
     {
         RuleFor(x => x.PackingSlipNumber)
             .Must(slip => slip is null || slip.Trim().Length <= 100)
-            .WithMessage("Packing slip number must be 100 characters or fewer.");
+            .WithMessage("Packing slip number must be 100 characters or fewer.").WithErrorCode("packing-slip-too-long");
         RuleFor(x => x.Lines)
             .NotEmpty().WithMessage("Choose at least one line to receive.");
         RuleForEach(x => x.Lines).ChildRules(line =>
@@ -43,7 +43,7 @@ public class ReceiveItemsValidator : AbstractValidator<ReceiveItemsCommand>
                 .GreaterThan(0m).WithMessage("Receive quantity must be positive.");
             line.RuleFor(l => l.LotNumber)
                 .Must(lot => lot is null || lot.Trim().Length <= 100)
-                .WithMessage("Lot / heat number must be 100 characters or fewer.");
+                .WithMessage("Lot / heat number must be 100 characters or fewer.").WithErrorCode("lot-number-too-long");
             line.RuleFor(l => l.Notes).MaximumLength(1000);
         });
     }

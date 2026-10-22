@@ -110,6 +110,54 @@ public class TimeEntryAccessTests
         (await _h.Db.TimeEntries.AsNoTracking().SingleAsync(t => t.Id == entry.Id)).DurationMinutes.Should().Be(30);
     }
 
+    [Theory]
+    [InlineData("OfficeManager")]
+    [InlineData("Controller")]
+    public async Task Payroll_roles_read_everyones_time_with_its_cost(string role)
+    {
+        var (ben, rosa, entry) = await SeedAsync();
+        var lena = (await _h.AddUserAsync()).Id;
+        foreach (var e in _h.Db.TimeEntries.Where(e => e.JobId == entry.JobId))
+            e.LaborCost = 50m;
+        await _h.Db.SaveChangesAsync();
+
+        (await EntriesAs(lena, [role])).Select(e => e.UserId).Should().BeEquivalentTo([ben, rosa]);
+        (await EntriesAs(lena, [role], userId: rosa)).Should().ContainSingle().Which.LaborCost.Should().Be(50m);
+        (await EntriesAs(lena, [role], jobId: entry.JobId)).Should().OnlyContain(e => e.LaborCost == 50m);
+        (await new GetClockEventsHandler(_h.Repo, TestCaller.As(lena, [role]))
+            .Handle(new GetClockEventsQuery(rosa, null, null), CancellationToken.None))
+            .Should().ContainSingle().Which.UserId.Should().Be(rosa);
+    }
+
+    [Theory]
+    [InlineData("OfficeManager")]
+    [InlineData("Controller")]
+    public async Task Payroll_roles_cannot_edit_or_delete_another_workers_entry(string role)
+    {
+        var (_, _, entry) = await SeedAsync();
+        var lena = (await _h.AddUserAsync()).Id;
+
+        await FluentActions.Awaiting(() => new UpdateTimeEntryHandler(_h.Repo, _h.Db, _h.Clock.Object, TestCaller.As(lena, [role]))
+                .Handle(new UpdateTimeEntryCommand(entry.Id, new UpdateTimeEntryRequestModel(null, null, 30, null, "edited")), CancellationToken.None))
+            .Should().ThrowAsync<ForbiddenException>();
+        await FluentActions.Awaiting(() => new DeleteTimeEntryHandler(_h.Repo, TestCaller.As(lena, [role]), _h.Db, _h.Clock.Object)
+                .Handle(new DeleteTimeEntryCommand(entry.Id), CancellationToken.None))
+            .Should().ThrowAsync<ForbiddenException>();
+
+        var stored = await _h.Db.TimeEntries.AsNoTracking().SingleAsync(t => t.Id == entry.Id);
+        stored.DurationMinutes.Should().Be(240);
+        stored.DeletedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_production_worker_still_reads_only_their_own_time()
+    {
+        var (ben, rosa, _) = await SeedAsync();
+
+        (await EntriesAs(ben, ["ProductionWorker"])).Should().OnlyContain(e => e.UserId == ben);
+        await FluentActions.Awaiting(() => EntriesAs(ben, ["ProductionWorker"], userId: rosa)).Should().ThrowAsync<ForbiddenException>();
+    }
+
     [Fact]
     public async Task A_manual_entry_keeps_the_billable_flag_it_was_sent()
     {

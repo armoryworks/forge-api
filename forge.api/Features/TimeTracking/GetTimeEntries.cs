@@ -17,10 +17,10 @@ public class GetTimeEntriesHandler(ITimeTrackingRepository repo, IHttpContextAcc
         var jobWide = request.JobId.HasValue && request.UserId is null;
         var userId = jobWide
             ? null
-            : CallerAccess.ScopeToSelf(user, request.UserId, "You can only view your own time entries.");
+            : CallerAccess.ScopeReadToSelf(user, request.UserId, "You can only view your own time entries.");
         var entries = await repo.GetTimeEntriesAsync(userId, request.JobId, request.From, request.To, cancellationToken);
 
-        if (!jobWide || CallerAccess.IsSupervisor(user))
+        if (!jobWide || CallerAccess.CanReadOthers(user))
             return entries;
 
         var callerId = CallerAccess.UserId(user);

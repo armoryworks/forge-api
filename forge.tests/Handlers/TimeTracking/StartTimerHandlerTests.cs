@@ -26,7 +26,7 @@ public class StartTimerHandlerTests
         });
 
         _handler = new StartTimerHandler(
-            _h.Repo, _h.Jobs, _h.Db, _httpContext.Object, _h.TimerHub.Object, _h.Mediator.Object, _h.Clock.Object);
+            _h.Repo, _h.Jobs, _h.Db, _httpContext.Object, _h.TimerHub.Object, _h.Mediator.Object, _h.Clock.Object, _h.ClockEventTypes.Object);
     }
 
     private async Task<int> SignInAsync()

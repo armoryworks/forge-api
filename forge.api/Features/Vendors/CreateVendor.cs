@@ -58,7 +58,7 @@ public class CreateVendorHandler(
 
         var vendor = new Vendor
         {
-            CompanyName = request.CompanyName,
+            CompanyName = request.CompanyName.Trim(),
             VendorNumber = vendorNumber,
             ContactName = request.ContactName,
             Email = request.Email,

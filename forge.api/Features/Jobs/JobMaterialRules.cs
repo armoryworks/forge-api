@@ -56,7 +56,7 @@ public static class JobMaterialRules
             .Select(b => new IssuableComponent(b.ParentPartId, b.ChildPartId, b.Quantity, null))
             .ToList();
         var primaries = result.Select(c => (c.ParentPartId, c.IssuedPartId)).ToHashSet();
-        var added = new HashSet<(int Parent, int Issued)>();
+        var alternateAt = new Dictionary<(int Parent, int Issued), int>();
 
         foreach (var line in bom)
         {
@@ -68,10 +68,18 @@ public static class JobMaterialRules
                     .Select(a => (Part: a.PartId,
                         PerUnit: a.ConversionFactor is decimal factor && factor > 0m ? line.Quantity / factor : line.Quantity)));
 
+            var seen = new HashSet<int>();
             foreach (var (part, perUnit) in substitutes)
             {
-                if (part == line.ChildPartId || primaries.Contains((line.ParentPartId, part)) || !added.Add((line.ParentPartId, part)))
+                if (part == line.ChildPartId || primaries.Contains((line.ParentPartId, part)) || !seen.Add(part))
                     continue;
+                if (alternateAt.TryGetValue((line.ParentPartId, part), out var at))
+                {
+                    if (result[at].AlternateForPartId == line.ChildPartId)
+                        result[at] = result[at] with { PerUnit = result[at].PerUnit + perUnit };
+                    continue;
+                }
+                alternateAt[(line.ParentPartId, part)] = result.Count;
                 result.Add(new IssuableComponent(line.ParentPartId, part, perUnit, line.ChildPartId));
             }
         }

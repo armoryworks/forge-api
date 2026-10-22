@@ -30,13 +30,28 @@ public static class CustomInvalidModelStateResponseFactory
     {
         return context =>
         {
-            var errors = context.ModelState
+            var entries = context.ModelState
                 .Where(kvp => kvp.Value?.Errors.Count > 0)
-                .Select(kvp => new
+                .ToList();
+            if (entries.Any(kvp => kvp.Key.StartsWith('$')))
+            {
+                entries = entries
+                    .Where(kvp => kvp.Key.StartsWith('$')
+                        || !kvp.Value!.Errors.All(e => BodyRequiredRegex.IsMatch(e.ErrorMessage)))
+                    .ToList();
+            }
+
+            var errors = entries
+                .Select(kvp =>
                 {
-                    field = NormalizeFieldName(kvp.Key),
-                    message = HumanizeError(kvp.Value!.Errors[0]),
-                    rejectedValue = kvp.Value!.AttemptedValue
+                    var message = HumanizeError(kvp.Value!.Errors[0]);
+                    return new
+                    {
+                        field = NormalizeFieldName(kvp.Key),
+                        message,
+                        rejectedValue = kvp.Value!.AttemptedValue,
+                        code = BindingErrorCode(message),
+                    };
                 })
                 .ToArray();
 
@@ -51,6 +66,31 @@ public static class CustomInvalidModelStateResponseFactory
     }
 
     internal const string Title = "Validation failed";
+
+    private static readonly string[] CommandWrappers = ["Data.", "Request.", "Body.", "Model."];
+
+    private static readonly Regex BodyRequiredRegex = new(
+        @"^The \w+ field is required\.?$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Drop the leading command-wrapper segment a validator rule picks up from a
+    /// command that wraps its request (e.g. "Data.Title" -> "Title") so the field
+    /// name matches the form control the client posted.
+    /// </summary>
+    internal static string StripCommandWrapper(string propertyName)
+    {
+        if (string.IsNullOrEmpty(propertyName))
+            return propertyName ?? string.Empty;
+
+        foreach (var wrapper in CommandWrappers)
+        {
+            if (propertyName.Length > wrapper.Length && propertyName.StartsWith(wrapper, StringComparison.Ordinal))
+                return propertyName[wrapper.Length..];
+        }
+
+        return propertyName;
+    }
 
     /// <summary>
     /// The distinct messages joined with a space; null when there are none.
@@ -96,6 +136,24 @@ public static class CustomInvalidModelStateResponseFactory
 
         return name;
     }
+
+    /// <summary>
+    /// The stable error code for a humanized binding error, so clients can word it in their
+    /// own language: <c>invalid-date</c>, <c>invalid-number</c>, <c>whole-number-required</c>,
+    /// <c>invalid-boolean</c>, <c>invalid-identifier</c>, <c>invalid-option</c>,
+    /// <c>body-required</c>, or <c>invalid-value</c> for anything else.
+    /// </summary>
+    internal static string BindingErrorCode(string humanizedMessage) => humanizedMessage switch
+    {
+        "Date is not valid" => "invalid-date",
+        "Number is not valid" => "invalid-number",
+        "Whole number is required" => "whole-number-required",
+        "True or false expected" => "invalid-boolean",
+        "Identifier is not valid" => "invalid-identifier",
+        "Value is not one of the allowed values" => "invalid-option",
+        "Request body is required" => "body-required",
+        _ => "invalid-value",
+    };
 
     /// <summary>
     /// Replace common framework binding-error text with friendlier equivalents.
@@ -184,7 +242,7 @@ public static class CustomInvalidModelStateResponseFactory
         // any nested field (most commonly an enum) fails to convert. Without a
         // dedicated message it leaks "Forge.Core.Models.<RequestModel>" to
         // users. (Phase 3 F6.)
-        if (cleaned.Contains("could not be converted to Forge.Core.Models.", StringComparison.Ordinal))
+        if (cleaned.Contains("could not be converted to Forge.", StringComparison.Ordinal))
         {
             return "One or more fields contain an invalid value";
         }

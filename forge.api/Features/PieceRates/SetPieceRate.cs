@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.PieceRates;
@@ -76,8 +77,9 @@ public class SetPieceRateHandler(AppDbContext db, IClock clock)
         db.PieceRates.Add(rate);
         await db.SaveChangesAsync(ct);
 
+        var money = (await MoneyFormat.ForBaseCurrencyAsync(db, ct)).WithDecimalPlaces(4);
         db.LogActivityAt("piece-rate-set",
-            $"Piece rate {request.RatePerPiece:C4}/pc effective {effectiveFrom:MM/dd/yyyy}"
+            $"Piece rate {money.Format(request.RatePerPiece)}/pc effective {effectiveFrom:MM/dd/yyyy}"
             + (request.OperationId is not null ? $" (operation {request.OperationId})" : string.Empty),
             ("Part", part.Id));
         await db.SaveChangesAsync(ct);

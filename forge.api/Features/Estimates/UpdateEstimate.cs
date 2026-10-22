@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Validation;
 using Forge.Core.Enums;
 using Forge.Data.Context;
 
@@ -21,7 +22,7 @@ public class UpdateEstimateValidator : AbstractValidator<UpdateEstimateCommand>
     public UpdateEstimateValidator()
     {
         RuleFor(x => x.Title).MaximumLength(300).When(x => x.Title is not null);
-        RuleFor(x => x.EstimatedAmount).GreaterThanOrEqualTo(0).When(x => x.EstimatedAmount.HasValue);
+        RuleFor(x => x.EstimatedAmount).GreaterThanOrEqualTo(0).MoneyScale().When(x => x.EstimatedAmount.HasValue);
         RuleFor(x => x.Description).MaximumLength(2000).When(x => x.Description is not null);
         RuleFor(x => x.Notes).MaximumLength(2000).When(x => x.Notes is not null);
     }

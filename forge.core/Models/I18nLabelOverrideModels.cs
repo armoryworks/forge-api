@@ -23,4 +23,5 @@ public record UpsertI18nLabelOverrideResponseModel(
 
 public record RetryPendingI18nTranslationsResponseModel(
     int TranslatedCount,
-    int StillPendingCount);
+    int StillPendingCount,
+    int DiscardedCount);

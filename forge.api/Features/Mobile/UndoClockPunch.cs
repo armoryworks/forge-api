@@ -26,7 +26,8 @@ public class UndoClockPunchHandler(
     IClock clock,
     IHttpContextAccessor httpContext,
     IClockEventTypeService clockEventTypeService,
-    ISystemAuditWriter auditWriter)
+    ISystemAuditWriter auditWriter,
+    ILaborAllocationService? laborAllocation = null)
     : IRequestHandler<UndoClockPunchCommand, ClockStateResponseModel>
 {
     private static readonly TimeSpan UndoWindow = TimeSpan.FromSeconds(45);
@@ -54,6 +55,11 @@ public class UndoClockPunchHandler(
         if (wasClockOut)
             await mediator.Send(new ResumeStoppedTimerCommand(userId, latest.Timestamp), ct);
         await db.SaveChangesAsync(ct);
+        if (!wasClockOut && laborAllocation is not null && clock.UtcNow > latest.Timestamp)
+        {
+            await laborAllocation.ReallocateAsync(userId, [(latest.Timestamp, clock.UtcNow)], [], ct);
+            await db.SaveChangesAsync(ct);
+        }
 
         await auditWriter.WriteAsync(
             "ClockEventUndone", userId,

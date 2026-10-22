@@ -440,4 +440,38 @@ public class CreateInvoiceHandlerTests
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*0 shipped*");
     }
+
+    [Fact]
+    public async Task Handle_LineNamingAnOrderLineFromAnotherOrder_IsRefused()
+    {
+        var (customer, order, _) = await SeedOrderAsync();
+        var (_, otherOrder, _) = await SeedOrderAsync("SO-00043");
+        var foreignLine = new SalesOrderLine { SalesOrderId = otherOrder.Id, Description = "Freight", Quantity = 1m, UnitPrice = 10m, LineNumber = 1 };
+        _db.SalesOrderLines.Add(foreignLine);
+        await _db.SaveChangesAsync();
+
+        var act = () => _handler.Handle(
+            OrderCommand(customer.Id, order.Id, null, new CreateInvoiceLineModel(null, "Freight", 1m, 10m, SalesOrderLineId: foreignLine.Id)),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<FluentValidation.ValidationException>();
+    }
+
+    [Fact]
+    public async Task Handle_LineNamingItsOrderLine_KeepsTheLink()
+    {
+        var (customer, order, _) = await SeedOrderAsync();
+        var orderLine = new SalesOrderLine { SalesOrderId = order.Id, Description = "Freight", Quantity = 1m, UnitPrice = 10m, LineNumber = 1 };
+        _db.SalesOrderLines.Add(orderLine);
+        await _db.SaveChangesAsync();
+        Invoice? captured = null;
+        _invoiceRepo.Setup(r => r.AddAsync(It.IsAny<Invoice>(), It.IsAny<CancellationToken>()))
+            .Callback<Invoice, CancellationToken>((inv, _) => captured = inv);
+
+        await _handler.Handle(
+            OrderCommand(customer.Id, order.Id, null, new CreateInvoiceLineModel(null, "Freight", 1m, 10m, SalesOrderLineId: orderLine.Id)),
+            CancellationToken.None);
+
+        captured!.Lines.Should().ContainSingle().Which.SalesOrderLineId.Should().Be(orderLine.Id);
+    }
 }

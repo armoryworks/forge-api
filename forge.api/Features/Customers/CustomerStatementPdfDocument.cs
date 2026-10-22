@@ -2,6 +2,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 
 namespace Forge.Api.Features.Customers;
@@ -11,8 +12,19 @@ public class CustomerStatementPdfDocument(
     List<Invoice> invoices,
     List<Payment> payments,
     string? companyName,
-    DateTimeOffset statementDate) : IDocument
+    DateTimeOffset statementDate,
+    IReadOnlyDictionary<int, MoneyFormatter>? currencyMoney = null,
+    IReadOnlyDictionary<int, MoneyFormatter>? paymentMoney = null,
+    MoneyFormatter? baseMoney = null) : IDocument
 {
+    private readonly MoneyFormatter _baseMoney = baseMoney ?? MoneyFormat.For(null, "USD");
+
+    private MoneyFormatter InvoiceMoney(Invoice invoice)
+        => currencyMoney is not null && currencyMoney.TryGetValue(invoice.CurrencyId, out var money) ? money : _baseMoney;
+
+    private MoneyFormatter PaymentMoney(Payment payment)
+        => paymentMoney is not null && paymentMoney.TryGetValue(payment.Id, out var money) ? money : _baseMoney;
+
     public void Compose(IDocumentContainer container)
     {
         container.Page(page =>
@@ -20,7 +32,7 @@ public class CustomerStatementPdfDocument(
             page.Size(PageSizes.Letter);
             page.MarginHorizontal(50);
             page.MarginVertical(40);
-            page.DefaultTextStyle(x => x.FontSize(10));
+            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10));
 
             page.Header().Column(col =>
             {
@@ -66,13 +78,13 @@ public class CustomerStatementPdfDocument(
                     // Status column intact.
                     table.ColumnsDefinition(cols =>
                     {
-                        cols.ConstantColumn(75);   // Invoice #
-                        cols.ConstantColumn(70);   // Date
-                        cols.ConstantColumn(70);   // Due Date
+                        cols.ConstantColumn(70);   // Invoice #
+                        cols.ConstantColumn(60);   // Date
+                        cols.ConstantColumn(60);   // Due Date
                         cols.RelativeColumn();      // Status
-                        cols.ConstantColumn(65);   // Total
-                        cols.ConstantColumn(65);   // Paid
-                        cols.ConstantColumn(65);   // Balance
+                        cols.ConstantColumn(72);   // Total
+                        cols.ConstantColumn(72);   // Paid
+                        cols.ConstantColumn(72);   // Balance
                     });
 
                     table.Header(header =>
@@ -92,9 +104,10 @@ public class CustomerStatementPdfDocument(
                         table.Cell().Padding(4).Text(inv.InvoiceDate.ToString("MM/dd/yyyy")).FontSize(9);
                         table.Cell().Padding(4).Text(inv.DueDate.ToString("MM/dd/yyyy")).FontSize(9);
                         table.Cell().Padding(4).Text(inv.Status.ToString()).FontSize(9);
-                        table.Cell().Padding(4).AlignRight().Text(inv.Total.ToString("C")).FontSize(9);
-                        table.Cell().Padding(4).AlignRight().Text(inv.AmountPaid.ToString("C")).FontSize(9);
-                        table.Cell().Padding(4).AlignRight().Text(inv.BalanceDue.ToString("C")).FontSize(9);
+                        var money = InvoiceMoney(inv);
+                        table.Cell().Padding(4).AlignRight().Text(money.Format(inv.Total)).FontSize(9);
+                        table.Cell().Padding(4).AlignRight().Text(money.Format(inv.AmountPaid)).FontSize(9);
+                        table.Cell().Padding(4).AlignRight().Text(money.Format(inv.BalanceDue)).FontSize(9);
                     }
                 });
 
@@ -124,17 +137,25 @@ public class CustomerStatementPdfDocument(
                             table.Cell().Padding(4).Text(pmt.PaymentNumber).FontSize(9);
                             table.Cell().Padding(4).Text(pmt.PaymentDate.ToString("MM/dd/yyyy")).FontSize(9);
                             table.Cell().Padding(4).Text(pmt.Method.ToString()).FontSize(9);
-                            table.Cell().Padding(4).AlignRight().Text(pmt.Amount.ToString("C")).FontSize(9);
+                            table.Cell().Padding(4).AlignRight().Text(PaymentMoney(pmt).Format(pmt.Amount)).FontSize(9);
                         }
                     });
                 }
 
-                var totalDue = invoices.Sum(i => i.BalanceDue);
-                content.Item().PaddingTop(20).AlignRight().Row(row =>
+                var totalsDue = invoices
+                    .GroupBy(InvoiceMoney)
+                    .Select(g => g.Key.Format(g.Sum(i => i.BalanceDue)))
+                    .DefaultIfEmpty(_baseMoney.Format(0m))
+                    .ToList();
+                for (var i = 0; i < totalsDue.Count; i++)
                 {
-                    row.ConstantItem(140).Text("Total Balance Due:").Bold().FontSize(12);
-                    row.ConstantItem(100).AlignRight().Text(totalDue.ToString("C")).Bold().FontSize(14);
-                });
+                    var totalDue = totalsDue[i];
+                    content.Item().PaddingTop(i == 0 ? 20 : 4).AlignRight().Row(row =>
+                    {
+                        row.ConstantItem(140).Text("Total Balance Due:").Bold().FontSize(12);
+                        row.ConstantItem(130).AlignRight().Text(totalDue).Bold().FontSize(14);
+                    });
+                }
             });
 
             page.Footer().AlignCenter().Text(text =>

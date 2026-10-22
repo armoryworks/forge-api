@@ -10,7 +10,8 @@ namespace Forge.Api.Services;
 /// Hours worked per person per shop-local day, for overtime and the piece-rate
 /// minimum-wage check. A day counts the larger of clocked attendance (time spent in an
 /// "In" clock status, each stretch capped at <see cref="ClockStateRules.OpenFromPriorShiftHours"/>
-/// and clipped to now) and the time entries dated that day (manual, stopped or running).
+/// and clipped to now) and the time entries dated that day (manual entries added up, stopped or running
+/// timers counted once where they overlap).
 /// </summary>
 public class WorkedHoursService(AppDbContext db, IClockEventTypeService clockEventTypes, IClock clock)
     : IWorkedHoursService
@@ -33,11 +34,33 @@ public class WorkedHoursService(AppDbContext db, IClockEventTypeService clockEve
             .Where(t => ids.Contains(t.UserId) && t.Date >= from && t.Date <= to)
             .Select(t => new { t.UserId, t.Date, t.TimerStart, t.TimerStop, t.DurationMinutes })
             .ToListAsync(ct);
-        foreach (var t in entries)
+        foreach (var day in entries.GroupBy(t => (t.UserId, t.Date)))
         {
-            var key = (t.UserId, t.Date);
-            entryMinutes[key] = entryMinutes.GetValueOrDefault(key)
-                + OperationTimeMath.EntryMinutes(t.TimerStart, t.TimerStop, t.DurationMinutes, now);
+            var manual = day.Where(t => t.TimerStart is null)
+                .Sum(t => OperationTimeMath.EntryMinutes(null, null, t.DurationMinutes, now));
+            var spans = day.Where(t => t.TimerStart is not null)
+                .Select(t => (Start: t.TimerStart!.Value, End: t.TimerStop ?? now))
+                .Where(span => span.End > span.Start)
+                .OrderBy(span => span.Start)
+                .ToList();
+            var timed = 0m;
+            DateTimeOffset? runStart = null;
+            DateTimeOffset runEnd = default;
+            foreach (var span in spans)
+            {
+                if (runStart is null || span.Start > runEnd)
+                {
+                    if (runStart is not null)
+                        timed += (decimal)(runEnd - runStart.Value).TotalMinutes;
+                    runStart = span.Start;
+                    runEnd = span.End;
+                }
+                else if (span.End > runEnd)
+                    runEnd = span.End;
+            }
+            if (runStart is not null)
+                timed += (decimal)(runEnd - runStart.Value).TotalMinutes;
+            entryMinutes[day.Key] = manual + timed;
         }
 
         var clockedMinutes = new Dictionary<(int, DateOnly), decimal>();

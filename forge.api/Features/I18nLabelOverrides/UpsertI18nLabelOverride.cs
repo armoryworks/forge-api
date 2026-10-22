@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -29,9 +30,11 @@ public class UpsertI18nLabelOverrideValidator : AbstractValidator<UpsertI18nLabe
 /// (<see cref="I18nLabelOverride.IsMachineTranslated"/>). Existing human overrides
 /// in other languages are never clobbered. If the translation service is
 /// unreachable the primary override still saves and the fan-out rows are flagged
-/// <see cref="I18nLabelOverride.IsPendingTranslation"/> for the retry job.
+/// <see cref="I18nLabelOverride.IsPendingTranslation"/> for the retry job. A reply
+/// rejected as not reading like a label is not stored: no row is created, and a
+/// machine row left from an earlier value is removed so the shipped text shows.
 /// </summary>
-public class UpsertI18nLabelOverrideHandler(AppDbContext db, II18nTranslationService translator)
+public class UpsertI18nLabelOverrideHandler(AppDbContext db, II18nTranslationService translator, IClock clock)
     : IRequestHandler<UpsertI18nLabelOverrideCommand, UpsertI18nLabelOverrideResponseModel>
 {
     public async Task<UpsertI18nLabelOverrideResponseModel> Handle(UpsertI18nLabelOverrideCommand request, CancellationToken cancellationToken)
@@ -60,6 +63,7 @@ public class UpsertI18nLabelOverrideHandler(AppDbContext db, II18nTranslationSer
         var affected = new List<I18nLabelOverride> { primary };
         var pendingCount = 0;
         var translatedCount = 0;
+        var discardedCount = 0;
 
         if (request.Body.TranslateToOtherLanguages)
         {
@@ -74,7 +78,19 @@ public class UpsertI18nLabelOverrideHandler(AppDbContext db, II18nTranslationSer
                     continue; // A human override in that language always wins — never clobber it.
                 }
 
-                var translated = await translator.TranslateLabelAsync(value, languageCode, target, cancellationToken);
+                var result = await translator.TranslateLabelAsync(value, languageCode, target, cancellationToken);
+                if (result.Outcome == I18nTranslationOutcome.Rejected)
+                {
+                    if (sibling is not null)
+                    {
+                        sibling.DeletedAt = clock.UtcNow;
+                    }
+
+                    discardedCount++;
+                    continue;
+                }
+
+                var translated = result.Value;
                 if (sibling is null)
                 {
                     sibling = new I18nLabelOverride { Key = key, LanguageCode = target };
@@ -96,13 +112,11 @@ public class UpsertI18nLabelOverrideHandler(AppDbContext db, II18nTranslationSer
         // First save persists new rows (assigns ids) so the activity row can reference them.
         await db.SaveChangesAsync(cancellationToken);
 
-        var fanOutSummary = (translatedCount, pendingCount) switch
-        {
-            (0, 0) => string.Empty,
-            (_, 0) => $"; auto-translated to {translatedCount} language(s)",
-            (0, _) => $"; {pendingCount} translation(s) pending",
-            _ => $"; auto-translated to {translatedCount} language(s), {pendingCount} pending",
-        };
+        var fanOutParts = new List<string>();
+        if (translatedCount > 0) { fanOutParts.Add($"auto-translated to {translatedCount} language(s)"); }
+        if (pendingCount > 0) { fanOutParts.Add($"{pendingCount} translation(s) pending"); }
+        if (discardedCount > 0) { fanOutParts.Add($"{discardedCount} translation(s) discarded"); }
+        var fanOutSummary = fanOutParts.Count == 0 ? string.Empty : "; " + string.Join(", ", fanOutParts);
         db.LogActivityAt(
             created ? "created" : "updated",
             $"{(created ? "Overrode" : "Updated override for")} label '{key}' ({languageCode}){fanOutSummary}",

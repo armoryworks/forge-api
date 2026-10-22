@@ -3,14 +3,15 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Services;
 
 namespace Forge.Data.Repositories;
 
 public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
 {
     /// <summary>
-    /// Quote-to-Cash: Estimate → Quote → Sales Order → Invoice → Payment
-    /// Shows how many documents flow through each stage of the pipeline.
+    /// Quote-to-Cash: Estimate → Quote → Sales Order → Invoiced → Paid.
+    /// Counts quotes up to the order, then counts sales orders, so every node after it balances.
     /// </summary>
     public async Task<List<SankeyFlowItem>> GetQuoteToCashFlowAsync(
         DateTimeOffset? start, DateTimeOffset? end, CancellationToken ct)
@@ -21,63 +22,64 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
         if (start.HasValue) quotesQuery = quotesQuery.Where(q => q.CreatedAt >= start.Value);
         if (end.HasValue) quotesQuery = quotesQuery.Where(q => q.CreatedAt <= end.Value);
 
-        // Estimates → Quotes (converted)
         var estimateToQuote = await quotesQuery
             .Where(q => q.Type == Core.Enums.QuoteType.Estimate && q.Status == Core.Enums.QuoteStatus.ConvertedToQuote)
             .CountAsync(ct);
         if (estimateToQuote > 0)
-            flows.Add(new SankeyFlowItem("Estimates", "Quotes", estimateToQuote));
+            flows.Add(new SankeyFlowItem("Estimates", "Quotes", estimateToQuote, SankeyFlowItem.CountUnit));
 
-        // Estimates that didn't convert
         var estimatesDead = await quotesQuery
             .Where(q => q.Type == Core.Enums.QuoteType.Estimate &&
                         (q.Status == Core.Enums.QuoteStatus.Declined || q.Status == Core.Enums.QuoteStatus.Expired))
             .CountAsync(ct);
         if (estimatesDead > 0)
-            flows.Add(new SankeyFlowItem("Estimates", "Lost", estimatesDead));
+            flows.Add(new SankeyFlowItem("Estimates", "Lost", estimatesDead, SankeyFlowItem.CountUnit));
 
-        // Quotes → Accepted
-        var quotesAccepted = await quotesQuery
-            .Where(q => q.Type == Core.Enums.QuoteType.Quote &&
-                        (q.Status == Core.Enums.QuoteStatus.Accepted || q.Status == Core.Enums.QuoteStatus.ConvertedToOrder))
+        var quotesAwaitingOrder = await quotesQuery
+            .Where(q => q.Type == Core.Enums.QuoteType.Quote && q.Status == Core.Enums.QuoteStatus.Accepted)
             .CountAsync(ct);
-        if (quotesAccepted > 0)
-            flows.Add(new SankeyFlowItem("Quotes", "Sales Orders", quotesAccepted));
+        if (quotesAwaitingOrder > 0)
+            flows.Add(new SankeyFlowItem("Quotes", "Accepted, No Order Yet", quotesAwaitingOrder, SankeyFlowItem.CountUnit));
 
-        // Quotes → Declined/Expired
         var quotesLost = await quotesQuery
             .Where(q => q.Type == Core.Enums.QuoteType.Quote &&
                         (q.Status == Core.Enums.QuoteStatus.Declined || q.Status == Core.Enums.QuoteStatus.Expired))
             .CountAsync(ct);
         if (quotesLost > 0)
-            flows.Add(new SankeyFlowItem("Quotes", "Lost", quotesLost));
+            flows.Add(new SankeyFlowItem("Quotes", "Lost", quotesLost, SankeyFlowItem.CountUnit));
 
-        // Sales Orders → Invoices
-        var invoicesQuery = db.Invoices.AsNoTracking();
-        if (start.HasValue) invoicesQuery = invoicesQuery.Where(i => i.CreatedAt >= start.Value);
-        if (end.HasValue) invoicesQuery = invoicesQuery.Where(i => i.CreatedAt <= end.Value);
+        var ordersQuery = db.SalesOrders.AsNoTracking()
+            .Where(so => so.Status != Core.Enums.SalesOrderStatus.Cancelled);
+        if (start.HasValue) ordersQuery = ordersQuery.Where(so => so.CreatedAt >= start.Value);
+        if (end.HasValue) ordersQuery = ordersQuery.Where(so => so.CreatedAt <= end.Value);
 
-        var soToInvoice = await invoicesQuery.Where(i => i.SalesOrderId != null).CountAsync(ct);
-        if (soToInvoice > 0)
-            flows.Add(new SankeyFlowItem("Sales Orders", "Invoices", soToInvoice));
+        var orders = await ordersQuery
+            .Select(so => new
+            {
+                FromQuote = so.QuoteId != null,
+                InvoiceStatuses = so.Invoices
+                    .Where(i => i.Status != Core.Enums.InvoiceStatus.Draft && i.Status != Core.Enums.InvoiceStatus.Voided)
+                    .Select(i => i.Status)
+                    .ToList(),
+            })
+            .ToListAsync(ct);
 
-        // Invoices → Paid
-        var invoicesPaid = await invoicesQuery
-            .Where(i => i.Status == Core.Enums.InvoiceStatus.Paid)
-            .CountAsync(ct);
-        if (invoicesPaid > 0)
-            flows.Add(new SankeyFlowItem("Invoices", "Payments Received", invoicesPaid));
-
-        // Invoices → Outstanding
-        var invoicesOutstanding = await invoicesQuery
-            .Where(i => i.Status == Core.Enums.InvoiceStatus.Sent ||
-                        i.Status == Core.Enums.InvoiceStatus.Overdue ||
-                        i.Status == Core.Enums.InvoiceStatus.PartiallyPaid)
-            .CountAsync(ct);
-        if (invoicesOutstanding > 0)
-            flows.Add(new SankeyFlowItem("Invoices", "Outstanding", invoicesOutstanding));
+        AddCount(flows, "Quotes", "Sales Orders", orders.Count(o => o.FromQuote));
+        AddCount(flows, "Direct Orders", "Sales Orders", orders.Count(o => !o.FromQuote));
+        AddCount(flows, "Sales Orders", "Not Yet Invoiced", orders.Count(o => o.InvoiceStatuses.Count == 0));
+        AddCount(flows, "Sales Orders", "Invoiced", orders.Count(o => o.InvoiceStatuses.Count > 0));
+        AddCount(flows, "Invoiced", "Paid in Full",
+            orders.Count(o => o.InvoiceStatuses.Count > 0 && o.InvoiceStatuses.All(st => st == Core.Enums.InvoiceStatus.Paid)));
+        AddCount(flows, "Invoiced", "Balance Outstanding",
+            orders.Count(o => o.InvoiceStatuses.Any(st => st != Core.Enums.InvoiceStatus.Paid)));
 
         return flows;
+    }
+
+    private static void AddCount(List<SankeyFlowItem> flows, string from, string to, int count)
+    {
+        if (count > 0)
+            flows.Add(new SankeyFlowItem(from, to, count, SankeyFlowItem.CountUnit));
     }
 
     /// <summary>
@@ -193,14 +195,16 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
             .Select(g => new SankeyFlowItem(
                 string.IsNullOrWhiteSpace(g.Key.Category) ? "Uncategorized" : g.Key.Category,
                 g.Key.Status,
-                g.Sum(e => e.Amount)))
+                g.Sum(e => e.Amount),
+                SankeyFlowItem.CurrencyUnit))
             .Where(f => f.Flow > 0)
             .OrderByDescending(f => f.Flow)
             .ToList();
     }
 
     /// <summary>
-    /// Vendor Supply Chain: Vendor → Part (via PO lines)
+    /// Vendor Supply Chain: Vendor → Part (via PO lines), weighted by ordered value in base currency (the PO's locked
+    /// FX rate) so parts bought in different units and currencies compare.
     /// </summary>
     public async Task<List<SankeyFlowItem>> GetVendorSupplyChainFlowAsync(CancellationToken ct)
     {
@@ -212,7 +216,7 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
             {
                 VendorId = l.PurchaseOrder!.VendorId,
                 PartId = l.PartId!.Value,
-                l.OrderedQuantity,
+                Value = l.OrderedQuantity * l.UnitPrice * (l.PurchaseOrder.FxRate ?? 1m),
             })
             .ToListAsync(ct);
 
@@ -232,7 +236,8 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
             .Select(g => new SankeyFlowItem(
                 vendors[g.Key.VendorId],
                 parts[g.Key.PartId],
-                g.Sum(l => l.OrderedQuantity)))
+                Math.Round(g.Sum(l => l.Value), 2, MidpointRounding.AwayFromZero),
+                SankeyFlowItem.CurrencyUnit))
             .Where(f => f.Flow > 0)
             .OrderByDescending(f => f.Flow)
             .Take(50)
@@ -295,13 +300,15 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
     }
 
     /// <summary>
-    /// Inventory Location Flow: Storage Location → Part (quantity in bins)
+    /// Inventory Location Flow: Storage Location → Part, weighted by on-hand value in base currency (quantity in the
+    /// part's stock unit × its average cost, falling back to its standard cost) so parts kept in different units add up.
+    /// Bin quantities with no conversion to the stock unit, and parts with no cost, carry no value and are left out.
     /// </summary>
     public async Task<List<SankeyFlowItem>> GetInventoryLocationFlowAsync(CancellationToken ct)
     {
         var binContents = await db.BinContents.AsNoTracking()
-            .Where(b => b.Quantity > 0)
-            .Select(b => new { b.LocationId, b.EntityId, b.Quantity })
+            .Where(b => b.Quantity > 0 && b.EntityType == "part")
+            .Select(b => new { b.LocationId, b.EntityId, b.Quantity, b.UomId })
             .ToListAsync(ct);
 
         var locationIds = binContents.Select(b => b.LocationId).Distinct().ToList();
@@ -312,15 +319,58 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
         var partIds = binContents.Select(b => b.EntityId).Distinct().ToList();
         var parts = await db.Parts.AsNoTracking()
             .Where(p => partIds.Contains(p.Id))
-            .ToDictionaryAsync(p => p.Id, p => p.PartNumber ?? $"Part #{p.Id}", ct);
+            .Select(p => new
+            {
+                p.Id,
+                p.PartNumber,
+                p.StockUomId,
+                StandardCost = p.ManualCostOverride
+                    ?? (p.CurrentCostCalculation != null ? p.CurrentCostCalculation.ResultAmount : (decimal?)null),
+            })
+            .ToDictionaryAsync(p => p.Id, ct);
+
+        var bookId = await db.Books.AsNoTracking()
+            .Where(b => b.IsActive)
+            .OrderBy(b => b.Id)
+            .Select(b => (int?)b.Id)
+            .FirstOrDefaultAsync(ct);
+        var averageCosts = bookId is int book
+            ? await db.InventoryValuations.AsNoTracking()
+                .Where(v => v.BookId == book && partIds.Contains(v.PartId) && v.AverageUnitCost > 0)
+                .ToDictionaryAsync(v => v.PartId, v => v.AverageUnitCost, ct)
+            : new Dictionary<int, decimal>();
+
+        var uom = new UomService(db);
+        var stockFactors = new Dictionary<(int PartId, int UomId), decimal?>();
+        foreach (var pair in binContents
+                     .Where(b => parts.ContainsKey(b.EntityId))
+                     .Select(b => (PartId: b.EntityId, FromUomId: b.UomId, ToUomId: parts[b.EntityId].StockUomId))
+                     .Where(x => x.FromUomId is int from && x.ToUomId is int to && from != to)
+                     .Select(x => (x.PartId, UomId: x.FromUomId!.Value, StockUomId: x.ToUomId!.Value))
+                     .Distinct())
+        {
+            stockFactors[(pair.PartId, pair.UomId)] =
+                await uom.TryConvertAsync(1m, pair.UomId, pair.StockUomId, pair.PartId, ct);
+        }
 
         return binContents
             .Where(b => locations.ContainsKey(b.LocationId) && parts.ContainsKey(b.EntityId))
-            .GroupBy(b => new { b.LocationId, b.EntityId })
+            .Select(b =>
+            {
+                var part = parts[b.EntityId];
+                var unitCost = averageCosts.TryGetValue(part.Id, out var average) ? average : part.StandardCost ?? 0m;
+                var factor = b.UomId is int from && part.StockUomId is int to && from != to
+                    ? stockFactors.GetValueOrDefault((part.Id, from))
+                    : 1m;
+                var value = factor is decimal f ? b.Quantity * f * unitCost : 0m;
+                return new { b.LocationId, Part = part.PartNumber ?? $"Part #{part.Id}", Value = value };
+            })
+            .GroupBy(b => new { b.LocationId, b.Part })
             .Select(g => new SankeyFlowItem(
                 locations[g.Key.LocationId],
-                parts[g.Key.EntityId],
-                g.Sum(b => b.Quantity)))
+                g.Key.Part,
+                Math.Round(g.Sum(b => b.Value), 2, MidpointRounding.AwayFromZero),
+                SankeyFlowItem.CurrencyUnit))
             .Where(f => f.Flow > 0)
             .OrderByDescending(f => f.Flow)
             .Take(50)
@@ -328,28 +378,29 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
     }
 
     /// <summary>
-    /// Customer Revenue Breakdown: Customer → Revenue Category (by track type of linked jobs via SO → Invoice)
+    /// Customer Revenue Breakdown: Customer → size bucket, from invoiced revenue (excluding sales tax, draft and voided
+    /// invoices) converted to base currency at each invoice's FX rate.
     /// </summary>
     public async Task<List<SankeyFlowItem>> GetCustomerRevenueFlowAsync(
         DateTimeOffset? start, DateTimeOffset? end, CancellationToken ct)
     {
         var query = db.Invoices.AsNoTracking()
-            .Where(i => i.Status == Core.Enums.InvoiceStatus.Paid ||
-                        i.Status == Core.Enums.InvoiceStatus.Sent ||
-                        i.Status == Core.Enums.InvoiceStatus.PartiallyPaid);
-        if (start.HasValue) query = query.Where(i => i.CreatedAt >= start.Value);
-        if (end.HasValue) query = query.Where(i => i.CreatedAt <= end.Value);
+            .Where(i => i.Status != Core.Enums.InvoiceStatus.Draft &&
+                        i.Status != Core.Enums.InvoiceStatus.Voided);
+        if (start.HasValue) query = query.Where(i => i.InvoiceDate >= start.Value);
+        if (end.HasValue) query = query.Where(i => i.InvoiceDate <= end.Value);
 
-        var invoices = await query
-            .Select(i => new { i.CustomerId, i.Total })
-            .ToListAsync(ct);
+        var invoices = (await query
+                .Include(i => i.Lines)
+                .ToListAsync(ct))
+            .Select(i => new { i.CustomerId, Total = Math.Round(i.Subtotal * i.FxRate, 2, MidpointRounding.AwayFromZero) })
+            .ToList();
 
         var customerIds = invoices.Select(i => i.CustomerId).Distinct().ToList();
         var customers = await db.Customers.AsNoTracking()
             .Where(c => customerIds.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id, c => c.Name ?? $"Customer #{c.Id}", ct);
 
-        // Group by customer, bucket by revenue size
         return invoices
             .Where(i => customers.ContainsKey(i.CustomerId))
             .GroupBy(i => i.CustomerId)
@@ -359,7 +410,7 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
                 var bucket = total >= 100000 ? "Large (>$100K)"
                            : total >= 10000 ? "Medium ($10K-$100K)"
                            : "Small (<$10K)";
-                return new SankeyFlowItem(customers[g.Key], bucket, total);
+                return new SankeyFlowItem(customers[g.Key], bucket, total, SankeyFlowItem.CurrencyUnit);
             })
             .Where(f => f.Flow > 0)
             .OrderByDescending(f => f.Flow)

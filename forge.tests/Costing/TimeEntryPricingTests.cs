@@ -136,6 +136,37 @@ public class TimeEntryPricingTests
         stored.BurdenCost.Should().Be(24m);
     }
 
+    [Fact]
+    public async Task Labor_uses_the_split_labor_minutes_and_a_labor_basis_burdens_them_too()
+    {
+        var (db, job, _, op) = await SeedAsync();
+        await using var _ = db;
+        var entry = Entry(job, op, 60);
+        entry.LaborMinutes = 15m;
+
+        await new JobCostService(db).PriceTimeEntryAsync(entry, default);
+
+        entry.LaborCost.Should().Be(10m);
+        entry.ActualLaborCost.Should().Be(10m);
+        entry.BurdenCost.Should().Be(2.5m);
+    }
+
+    [Fact]
+    public async Task A_machine_basis_work_center_burdens_the_full_elapsed_time()
+    {
+        var (db, job, wc, op) = await SeedAsync();
+        await using var _ = db;
+        wc.BurdenBasis = Forge.Core.Enums.BurdenBasis.Machine;
+        await db.SaveChangesAsync();
+        var entry = Entry(job, op, 60);
+        entry.LaborMinutes = 15m;
+
+        await new JobCostService(db).PriceTimeEntryAsync(entry, default);
+
+        entry.LaborCost.Should().Be(10m);
+        entry.BurdenCost.Should().Be(10m);
+    }
+
     private static async Task<Job> AddOrderLinkedJobAsync(AppDbContext db)
     {
         var customer = new Customer { Name = "Acme" };

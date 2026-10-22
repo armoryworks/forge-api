@@ -53,7 +53,7 @@ public sealed class FiscalPeriodCloseService(
                 $"Cannot transition fiscal period {periodId} from {period.Status} to {target}.");
 
         // Close-checklist gate (§12): a HardClose is permanent, so require the book to be clean as of the
-        // period end (GRNI reconciled, AR/AP tie to control). SoftClose is reversible, so it isn't gated.
+        // period end (GRNI reconciled, AR/AP tie to control, nothing awaiting approval). SoftClose is reversible, so it isn't gated.
         if (target == FiscalPeriodStatus.HardClosed && checklist is not null)
         {
             var result = await checklist.EvaluateAsync(period.FiscalYear?.BookId

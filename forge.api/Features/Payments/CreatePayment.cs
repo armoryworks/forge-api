@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.PaymentSchedules;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -122,7 +123,7 @@ public class CreatePaymentHandler(
                 var invoice = await invoiceRepo.FindWithDetailsAsync(app.InvoiceId, cancellationToken)
                     ?? throw new KeyNotFoundException($"Invoice {app.InvoiceId} not found");
 
-                PaymentApplicationRules.ApplyToInvoice(db, payment, invoice, app, completionCandidateSoIds);
+                await PaymentApplicationRules.ApplyToInvoiceAsync(db, payment, invoice, app, completionCandidateSoIds, cancellationToken);
                 appliedTotal += app.Amount;
             }
         }
@@ -149,8 +150,11 @@ public class CreatePaymentHandler(
 
                 var matchingApp = request.Applications!.First(a => a.InvoiceId == inv.Id);
                 if (matchingApp.Amount > freshBalance)
+                {
+                    var money = await MoneyFormat.ForCurrencyIdAsync(db, inv.CurrencyId, cancellationToken);
                     throw new InvalidOperationException(
-                        $"Application amount {matchingApp.Amount:C} exceeds invoice {inv.InvoiceNumber} balance of {freshBalance:C}");
+                        $"Application amount {money.Format(matchingApp.Amount)} exceeds invoice {inv.InvoiceNumber} balance of {money.Format(freshBalance)}");
+                }
             }
 
             throw new InvalidOperationException("Concurrent payment conflict — please retry.");

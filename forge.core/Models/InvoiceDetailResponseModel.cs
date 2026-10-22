@@ -25,4 +25,5 @@ public record InvoiceDetailResponseModel(
     List<PaymentApplicationResponseModel> PaymentApplications,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    uint RowVersion = 0);
+    uint RowVersion = 0,
+    string? CurrencyCode = null);

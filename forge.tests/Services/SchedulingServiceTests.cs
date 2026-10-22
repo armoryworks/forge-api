@@ -452,6 +452,97 @@ public class SchedulingServiceTests
         ops[1].ScheduledEnd.Should().Be(ops[0].ScheduledEnd);
     }
 
+    private async Task<Operation> AddStepAsync(Part part, int stepNumber, WorkCenter wc, long estimatedMs, params Operation[] follows)
+    {
+        var op = new Operation { PartId = part.Id, StepNumber = stepNumber, Title = $"Step {stepNumber}", WorkCenterId = wc.Id, EstimatedMs = estimatedMs };
+        _db.Operations.Add(op);
+        await _db.SaveChangesAsync();
+        foreach (var predecessor in follows)
+            _db.OperationPredecessors.Add(new OperationPredecessor { OperationId = op.Id, PredecessorOperationId = predecessor.Id });
+        await _db.SaveChangesAsync();
+        return op;
+    }
+
+    private async Task<Dictionary<int, ScheduledOperation>> ScheduledByStepAsync()
+        => (await _db.ScheduledOperations.ToListAsync()).ToDictionary(so => so.SequenceNumber);
+
+    [Fact]
+    public async Task Schedule_ParallelSteps_StartTogetherAfterTheirSharedPredecessorAndTheJoinWaitsForBoth()
+    {
+        var mill = await SeedWorkCenterAsync();
+        var lathe = await SeedWorkCenterAsync();
+        var grinder = await SeedWorkCenterAsync();
+        var (part, first) = await SeedPartAsync(mill, estimatedMs: 60000);
+        var turn = await AddStepAsync(part, 20, lathe, 60000, first);
+        var grind = await AddStepAsync(part, 30, grinder, 20000, first);
+        await AddStepAsync(part, 40, mill, 20000, turn, grind);
+        await SeedJobAsync(part, 180m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var ops = await ScheduledByStepAsync();
+        ops[10].ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 5, 11, 0, 0, TimeSpan.Zero));
+        ops[20].ScheduledStart.Should().Be(ops[10].ScheduledEnd);
+        ops[30].ScheduledStart.Should().Be(ops[10].ScheduledEnd, "step 30 runs alongside step 20 instead of after it");
+        ops[30].ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero));
+        ops[40].ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, 14, 0, 0, TimeSpan.Zero), "the join waits for the later of its predecessors");
+    }
+
+    [Fact]
+    public async Task Schedule_ParallelStepsOnOneMachine_StillQueueForIt()
+    {
+        var mill = await SeedWorkCenterAsync();
+        var lathe = await SeedWorkCenterAsync();
+        var (part, first) = await SeedPartAsync(mill, estimatedMs: 60000);
+        await AddStepAsync(part, 20, lathe, 20000, first);
+        await AddStepAsync(part, 30, lathe, 20000, first);
+        await SeedJobAsync(part, 180m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var ops = await ScheduledByStepAsync();
+        ops[20].ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, 11, 0, 0, TimeSpan.Zero));
+        ops[30].ScheduledStart.Should().Be(ops[20].ScheduledEnd);
+    }
+
+    [Fact]
+    public async Task Schedule_StepLinkedPastTheStepBeforeIt_DoesNotWaitForThatStep()
+    {
+        var mill = await SeedWorkCenterAsync();
+        var lathe = await SeedWorkCenterAsync();
+        var paint = await SeedWorkCenterAsync();
+        var (part, first) = await SeedPartAsync(mill, estimatedMs: 60000);
+        await AddStepAsync(part, 20, lathe, 60000);
+        await AddStepAsync(part, 30, paint, 20000, first);
+        await SeedJobAsync(part, 180m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var ops = await ScheduledByStepAsync();
+        ops[20].ScheduledStart.Should().Be(ops[10].ScheduledEnd, "step 20 has no links, so it follows the previous step");
+        ops[30].ScheduledStart.Should().Be(ops[10].ScheduledEnd);
+    }
+
+    [Fact]
+    public async Task Schedule_ParallelStepAfterAnOverlappingPredecessor_UsesThatPredecessorsOverlap()
+    {
+        var mill = await SeedWorkCenterAsync();
+        var lathe = await SeedWorkCenterAsync();
+        var grinder = await SeedWorkCenterAsync();
+        var (part, first) = await SeedPartAsync(mill, estimatedMs: 60000);
+        first.OverlapPercent = 50;
+        await _db.SaveChangesAsync();
+        await AddStepAsync(part, 20, lathe, 60000, first);
+        await AddStepAsync(part, 30, grinder, 60000, first);
+        await SeedJobAsync(part, 180m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var ops = await ScheduledByStepAsync();
+        ops[20].ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, 9, 30, 0, TimeSpan.Zero));
+        ops[30].ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, 9, 30, 0, TimeSpan.Zero));
+    }
+
     [Fact]
     public async Task Schedule_SuccessorPastTheEndOfTheShift_MovesToTheNextDay()
     {

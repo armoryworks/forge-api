@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 
 using Forge.Core.Enums;
+using Forge.Core.Models.Accounting;
 
 namespace Forge.Core.Entities;
 
@@ -55,7 +56,7 @@ public class Quote : BaseAuditableEntity, IConcurrencyVersioned
 
     // Computed (Quote-type only)
     public decimal Subtotal => Lines.Sum(l => l.LineTotal);
-    public decimal TaxAmount => Subtotal * TaxRate;
+    public decimal TaxAmount => Money.Round(Subtotal * TaxRate);
     public decimal Total => Subtotal + TaxAmount;
 
     // Navigation

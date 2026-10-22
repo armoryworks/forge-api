@@ -7,8 +7,8 @@ namespace Forge.Api.Services;
 
 /// <summary>
 /// Copies one part's routing (operations plus their material links) onto another part. References
-/// between operations are remapped to the copies; a reference to an operation outside the routing is
-/// dropped. A material link is carried only when <c>bomMap</c> maps its source BOM line to a line on
+/// and "must follow" links between operations are remapped to the copies; a reference or link to an
+/// operation outside the routing is dropped. A material link is carried only when <c>bomMap</c> maps its source BOM line to a line on
 /// the target. Nothing is saved: the copies are added to the change tracker for the caller to flush.
 /// </summary>
 public static class RoutingCopier
@@ -55,6 +55,8 @@ public static class RoutingCopier
                 BurdenRate = op.BurdenRate,
                 EstimatedLaborCost = op.EstimatedLaborCost,
                 EstimatedBurdenCost = op.EstimatedBurdenCost,
+                LaborAttendancePercent = op.LaborAttendancePercent,
+                CycleCountdown = op.CycleCountdown,
             };
 
             foreach (var material in op.Materials)
@@ -78,6 +80,22 @@ public static class RoutingCopier
         {
             if (op.ReferencedOperationId is { } referencedId && map.TryGetValue(referencedId, out var referenced))
                 map[op.Id].ReferencedOperation = referenced;
+        }
+
+        var sourceIds = map.Keys.ToList();
+        var links = await db.OperationPredecessors.AsNoTracking()
+            .Where(l => sourceIds.Contains(l.OperationId))
+            .ToListAsync(ct);
+        foreach (var link in links)
+        {
+            if (!map.TryGetValue(link.OperationId, out var follower) || !map.TryGetValue(link.PredecessorOperationId, out var predecessor))
+                continue;
+            db.OperationPredecessors.Add(new OperationPredecessor
+            {
+                Operation = follower,
+                PredecessorOperation = predecessor,
+                Gate = link.Gate,
+            });
         }
 
         return operations.Count;

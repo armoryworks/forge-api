@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Notifications;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
@@ -187,13 +188,16 @@ public class PaymentTransmissionJob(
         {
             if (transmission.CreatedByUserId is int userId && userId > 0)
             {
+                var money = transmission.SourceType == "VendorPayment"
+                    ? await MoneyFormat.ForVendorPaymentAsync(db, transmission.SourceId, ct)
+                    : await MoneyFormat.ForBaseCurrencyAsync(db, ct);
                 await mediator.Send(new CreateNotificationCommand(new CreateNotificationRequestModel(
                     UserId: userId,
                     Type: "alert",
                     Severity: "critical",
                     Source: "payment-transmission-failed",
                     Title: "Payment transmission failed",
-                    Message: $"Payment {paymentNumber} ({transmission.Amount:C}) could not be submitted to the bank "
+                    Message: $"Payment {paymentNumber} ({money.Format(transmission.Amount)}) could not be submitted to the bank "
                              + $"after {transmission.AttemptCount} attempts: {Truncate(transmission.LastError, 500)}. "
                              + "Reprocess it from the Payables screen.",
                     EntityType: transmission.SourceType,

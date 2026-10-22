@@ -14,7 +14,7 @@ public interface IJobOperationService
     Task<JobOperation> EnsureRowAsync(Job job, Operation operation, CancellationToken ct);
 
     void ApplyProgress(JobOperation row, decimal completed, decimal scrap, decimal rework,
-        string? reasonCode, int userId, DateTimeOffset occurredAt);
+        string? reasonCode, int userId, DateTimeOffset occurredAt, bool gateOverride = false, string? gateOverrideReason = null);
 
     Task<JobOperationsResponseModel> BuildAsync(int jobId, CancellationToken ct);
 

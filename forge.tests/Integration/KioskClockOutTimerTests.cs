@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Forge.Api.Authorization;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -36,6 +37,16 @@ public class KioskClockOutTimerTests(CapabilityTestWebApplicationFactory factory
                     Metadata = """{"statusMapping":"Out","oppositeCode":"ClockIn","category":"work"}""",
                 });
             }
+            if (!await db.ReferenceData.AnyAsync(r => r.GroupCode == "clock_event_type" && r.Code == "ClockIn"))
+            {
+                db.ReferenceData.Add(new ReferenceData
+                {
+                    GroupCode = "clock_event_type",
+                    Code = "ClockIn",
+                    Label = "Clock In",
+                    Metadata = """{"statusMapping":"In","oppositeCode":"ClockOut","category":"work","countsAsActive":true}""",
+                });
+            }
 
             var user = new ApplicationUser
             {
@@ -57,6 +68,14 @@ public class KioskClockOutTimerTests(CapabilityTestWebApplicationFactory factory
                 IsManual = false,
             };
             db.TimeEntries.Add(entry);
+            db.ClockEvents.Add(new ClockEvent
+            {
+                UserId = user.Id,
+                EventType = ClockEventType.ClockIn,
+                EventTypeCode = "ClockIn",
+                Timestamp = DateTimeOffset.UtcNow.AddMinutes(-50),
+                Source = "kiosk",
+            });
             await db.SaveChangesAsync();
             userId = user.Id;
             entryId = entry.Id;
@@ -75,7 +94,7 @@ public class KioskClockOutTimerTests(CapabilityTestWebApplicationFactory factory
         using (var scope = factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var clockEvent = await db.ClockEvents.AsNoTracking().SingleAsync(e => e.UserId == userId);
+            var clockEvent = await db.ClockEvents.AsNoTracking().SingleAsync(e => e.UserId == userId && e.EventTypeCode == "ClockOut");
             var entry = await db.TimeEntries.AsNoTracking().SingleAsync(t => t.Id == entryId);
             entry.TimerStop.Should().Be(clockEvent.Timestamp);
             entry.DurationMinutes.Should().Be(45);

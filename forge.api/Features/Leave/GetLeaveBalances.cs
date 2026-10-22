@@ -15,7 +15,7 @@ public class GetLeaveBalancesHandler(AppDbContext db, IHttpContextAccessor http)
 {
     public async Task<List<LeaveBalanceResponseModel>> Handle(GetLeaveBalancesQuery request, CancellationToken cancellationToken)
     {
-        var userId = CallerAccess.ScopeToSelf(
+        var userId = CallerAccess.ScopeReadToSelf(
             http.HttpContext?.User, request.UserId, "You can only view your own leave balances.");
 
         return await db.LeaveBalances.AsNoTracking()

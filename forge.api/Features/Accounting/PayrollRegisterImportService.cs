@@ -1,3 +1,4 @@
+using Forge.Api.Services;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Models.Accounting;
 using Forge.Core.Settings;
@@ -46,6 +47,7 @@ public sealed class PayrollRegisterImportService(
             throw new InvalidOperationException("No employee rows found in the register.");
 
         var warnings = new List<string>();
+        var money = await MoneyFormat.ForBaseCurrencyAsync(db, ct);
         var payRun = new PayRun
         {
             BookId = bookId,
@@ -75,8 +77,8 @@ public sealed class PayrollRegisterImportService(
             if (row.Net != 0m && Math.Abs(computedNet - row.Net) > 0.05m)
             {
                 warnings.Add(
-                    $"{row.EmployeeName}: gross {row.Gross:C} − withholdings {line.TotalWithholdings:C} "
-                    + $"= {computedNet:C}, but the register reports net {row.Net:C} — check the column mapping.");
+                    $"{row.EmployeeName}: gross {money.Format(row.Gross)} − withholdings {money.Format(line.TotalWithholdings)} "
+                    + $"= {money.Format(computedNet)}, but the register reports net {money.Format(row.Net)} — check the column mapping.");
             }
         }
 
@@ -89,8 +91,8 @@ public sealed class PayrollRegisterImportService(
 
         db.LogActivityAt(
             "payroll-register-imported",
-            $"Pay run imported from register — {payRun.Lines.Count} employee(s), gross {payRun.GrossWages:C}, "
-            + $"net {payRun.NetPay:C}" + (warnings.Count > 0 ? $" ({warnings.Count} warning(s))" : string.Empty),
+            $"Pay run imported from register — {payRun.Lines.Count} employee(s), gross {money.Format(payRun.GrossWages)}, "
+            + $"net {money.Format(payRun.NetPay)}" + (warnings.Count > 0 ? $" ({warnings.Count} warning(s))" : string.Empty),
             ("PayRun", payRun.Id));
         await db.SaveChangesAsync(ct);
 

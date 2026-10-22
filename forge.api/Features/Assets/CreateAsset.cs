@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -24,7 +25,8 @@ public class CreateAssetCommandValidator : AbstractValidator<CreateAssetCommand>
         RuleFor(x => x.Data.AcquisitionCost)
             .InclusiveBetween(0m, 1_000_000_000m)
             .When(x => x.Data.AcquisitionCost.HasValue)
-            .WithMessage("Acquisition cost must be between 0 and 1,000,000,000.");
+            .WithMessage("Acquisition cost must be between 0 and 1,000,000,000.")
+            .FitsNumeric(18, 2);
 
         RuleFor(x => x.Data.GlAccount)
             .MaximumLength(100)

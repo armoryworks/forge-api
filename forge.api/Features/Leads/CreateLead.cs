@@ -22,7 +22,7 @@ public class CreateLeadCommandValidator : AbstractValidator<CreateLeadCommand>
         // than mandating CompanyName.
         RuleFor(x => x.Data.CompanyName)
             .Must((cmd, _) => !string.IsNullOrWhiteSpace(cmd.Data.CompanyName) || !string.IsNullOrWhiteSpace(cmd.Data.ContactName))
-            .WithMessage("Provide a company name or a contact name.");
+            .WithMessage("Provide a company name or a contact name.").WithErrorCode("lead-name-required");
         RuleFor(x => x.Data.CompanyName).MaximumLength(200);
         RuleFor(x => x.Data.ContactName).MaximumLength(200).When(x => x.Data.ContactName is not null);
         RuleFor(x => x.Data.Email).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Data.Email));

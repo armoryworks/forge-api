@@ -897,4 +897,97 @@ public class Phase2ApPostingServiceTests
             .And.NotContain([ApControlId, 221]);
         accounts.Select(a => a.AccountNumber).Should().BeInAscendingOrder();
     }
+
+    private static async Task<VendorBill> AddSubCentBillAsync(AppDbContext db, int vendorId, decimal taxAmount, params (decimal Qty, decimal Price)[] lines)
+    {
+        var bill = new VendorBill
+        {
+            BillNumber = "BILL-3001",
+            VendorId = vendorId,
+            CurrencyId = UsdId,
+            Status = VendorBillStatus.Approved,
+            BillDate = new DateTimeOffset(2026, 1, 18, 0, 0, 0, TimeSpan.Zero),
+            DueDate = new DateTimeOffset(2026, 2, 17, 0, 0, 0, TimeSpan.Zero),
+            TaxAmount = taxAmount,
+            Lines = lines.Select((l, i) => new VendorBillLine
+            {
+                Description = $"Line {i + 1}", Quantity = l.Qty, UnitPrice = l.Price,
+                LineNumber = i + 1, AccountDeterminationKey = "OPERATING_EXPENSE",
+            }).ToList(),
+        };
+        db.Set<VendorBill>().Add(bill);
+        await db.SaveChangesAsync();
+        return bill;
+    }
+
+    [Fact]
+    public async Task Bill_SubCentTotalWithTax_PostsEveryLineAndTheTaxAtTheCent()
+    {
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        var bill = await AddSubCentBillAsync(db, vendorId, 0.075m, (1.5m, 0.3334m));
+
+        await BillService(db, fullGlOn: true).PostVendorBillApprovedAsync(bill.Id, approvedByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == ApControlId).Credit.Should().Be(0.58m);
+        entry.Lines.Single(l => l.Description == "Line 1").Debit.Should().Be(0.50m);
+        entry.Lines.Single(l => l.Description!.StartsWith("Purchase tax")).Debit.Should().Be(0.08m);
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+
+        var openItem = await db.ApOpenItems.SingleAsync();
+        openItem.OriginalTxnAmount.Should().Be(0.58m);
+        openItem.OriginalFunctionalAmount.Should().Be(0.58m);
+        bill.BalanceDue.Should().Be(0.58m);
+    }
+
+    [Fact]
+    public async Task Bill_SubCentLines_RoundEachLineToTheCent()
+    {
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        var bill = await AddSubCentBillAsync(db, vendorId, 0m, (1m, 0.1234m), (3m, 0.3333m));
+
+        await BillService(db, fullGlOn: true).PostVendorBillApprovedAsync(bill.Id, approvedByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == ApControlId).Credit.Should().Be(1.12m);
+        entry.Lines.Single(l => l.Description == "Line 1").Debit.Should().Be(0.12m);
+        entry.Lines.Single(l => l.Description == "Line 2").Debit.Should().Be(1.00m);
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+    }
+
+    [Fact]
+    public async Task Bill_RoundedLinesShortOfTheTotal_PutTheCentOnTheLargestLine()
+    {
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        var bill = await AddSubCentBillAsync(db, vendorId, 0m, (1m, 0.3333m), (1m, 0.3333m), (2m, 0.1667m));
+
+        await BillService(db, fullGlOn: true).PostVendorBillApprovedAsync(bill.Id, approvedByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == ApControlId).Credit.Should().Be(1.00m);
+        entry.Lines.Single(l => l.Description == "Line 1").Debit.Should().Be(0.34m);
+        entry.Lines.Single(l => l.Description == "Line 2").Debit.Should().Be(0.33m);
+        entry.Lines.Single(l => l.Description == "Line 3").Debit.Should().Be(0.33m);
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+        (await db.ApOpenItems.SingleAsync()).OriginalTxnAmount.Should().Be(1.00m);
+    }
+
+    [Fact]
+    public async Task PoMatchedBill_SubCentTotal_ClearsGrniExactlyAndBalancesThroughPpv()
+    {
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        var bill = await AddPoMatchedBillAsync(db, vendorId, poUnitPrice: 0.3333m, receivedQty: 3m, billQty: 3m, billUnitPrice: 0.3333m);
+
+        await BillService(db, fullGlOn: true).PostVendorBillApprovedAsync(bill.Id, approvedByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == GrniId).Debit.Should().Be(0.9999m);
+        entry.Lines.Single(l => l.GlAccountId == PpvId).Debit.Should().Be(0.0001m);
+        entry.Lines.Single(l => l.GlAccountId == ApControlId).Credit.Should().Be(1.00m);
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+    }
 }

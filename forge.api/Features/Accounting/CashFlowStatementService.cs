@@ -16,6 +16,12 @@ public sealed class CashFlowStatementService(AppDbContext db, IClock clock) : IC
         int bookId, DateOnly? fromDate = null, DateOnly? toDate = null, CancellationToken ct = default)
     {
         var asOf = toDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
+        fromDate ??= await db.FiscalYears
+            .IgnoreQueryFilters()
+            .Where(fy => fy.BookId == bookId && fy.StartDate <= asOf && fy.EndDate >= asOf)
+            .OrderByDescending(fy => fy.StartDate)
+            .Select(fy => (DateOnly?)fy.StartDate)
+            .FirstOrDefaultAsync(ct);
 
         var tolerance = await db.Books.AsNoTracking()
             .Where(b => b.Id == bookId).Select(b => (decimal?)b.RoundingTolerance).FirstOrDefaultAsync(ct) ?? 0.01m;
@@ -34,6 +40,7 @@ public sealed class CashFlowStatementService(AppDbContext db, IClock clock) : IC
              where entry.BookId == bookId
                  && (entry.Status == JournalEntryStatus.Posted || entry.Status == JournalEntryStatus.Reversed)
                  && entry.SourceType != "YearEndClose"
+                 && entry.Source != JournalSource.Conversion
                  && (fromDate == null || entry.EntryDate >= fromDate)
                  && entry.EntryDate <= asOf
              select new Row
@@ -86,6 +93,17 @@ public sealed class CashFlowStatementService(AppDbContext db, IClock clock) : IC
         // Actual cash movement (cash accounts are never touched by the close, so this is exact).
         var actualCashChange = lines.Where(r => cashAccountIds.Contains(r.AccountId)).Sum(r => r.NetDebit);
 
+        var beginningCash = cashAccountIds.Count == 0 ? 0m : await
+            (from line in db.JournalLines.IgnoreQueryFilters()
+             join entry in db.JournalEntries.IgnoreQueryFilters() on line.JournalEntryId equals entry.Id
+             where entry.BookId == bookId
+                 && cashAccountIds.Contains(line.GlAccountId)
+                 && (entry.Status == JournalEntryStatus.Posted || entry.Status == JournalEntryStatus.Reversed)
+                 && entry.EntryDate <= asOf
+                 && ((fromDate != null && entry.EntryDate < fromDate) || entry.Source == JournalSource.Conversion)
+             select line.Debit > 0 ? line.FunctionalAmount : -line.FunctionalAmount)
+            .SumAsync(ct);
+
         return new CashFlowStatement
         {
             BookId = bookId,
@@ -100,6 +118,8 @@ public sealed class CashFlowStatementService(AppDbContext db, IClock clock) : IC
             NetCashFromFinancing = netCashFinancing,
             NetChangeInCash = netCashOperating + netCashInvesting + netCashFinancing,
             ActualCashChange = actualCashChange,
+            BeginningCash = beginningCash,
+            EndingCash = beginningCash + actualCashChange,
             RoundingTolerance = tolerance,
         };
     }

@@ -137,9 +137,9 @@ public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db, ICl
         var weekEnd = DateOnly.FromDateTime(today);
         var totalMinutes = await db.TimeEntries
             .Where(t => t.Date >= weekStart && t.Date <= weekEnd)
-            .SumAsync(t => t.DurationMinutes, cancellationToken);
-        var totalHoursValue = Math.Round((decimal)totalMinutes / 60, 1);
-        var hoursLabel = totalHoursValue >= 1 ? $"{totalHoursValue}h" : $"{totalMinutes}m";
+            .SumAsync(t => t.LaborMinutes ?? t.DurationMinutes, cancellationToken);
+        var totalHoursValue = Math.Round(totalMinutes / 60, 1);
+        var hoursLabel = totalHoursValue >= 1 ? $"{totalHoursValue}h" : $"{Math.Round(totalMinutes):0}m";
 
         var kpis = new DashboardKPIsResponseModel(
             activeCount,

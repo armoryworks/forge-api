@@ -4,6 +4,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
@@ -25,7 +26,8 @@ public record UpdateWorkCenterCommand(
     int? CompanyLocationId,
     int SortOrder,
     int? TeamId = null,
-    decimal? IdealCycleTimeSeconds = null) : IRequest<WorkCenterResponseModel>, IWorkCenterFields;
+    decimal? IdealCycleTimeSeconds = null,
+    BurdenBasis? BurdenBasis = null) : IRequest<WorkCenterResponseModel>, IWorkCenterFields;
 
 public class UpdateWorkCenterValidator : AbstractValidator<UpdateWorkCenterCommand>
 {
@@ -62,6 +64,7 @@ public class UpdateWorkCenterHandler(AppDbContext db) : IRequestHandler<UpdateWo
         if (request.CompanyLocationId != wc.CompanyLocationId) { wc.CompanyLocationId = request.CompanyLocationId; changedFields.Add("companyLocationId"); }
         if (request.SortOrder != wc.SortOrder) { wc.SortOrder = request.SortOrder; changedFields.Add("sortOrder"); }
         if (request.TeamId != wc.TeamId) { wc.TeamId = request.TeamId; changedFields.Add("teamId"); }
+        if (request.BurdenBasis is { } burdenBasis && burdenBasis != wc.BurdenBasis) { wc.BurdenBasis = burdenBasis; changedFields.Add("burdenBasis"); }
         if (request.IdealCycleTimeSeconds != wc.IdealCycleTimeSeconds) { wc.IdealCycleTimeSeconds = request.IdealCycleTimeSeconds; changedFields.Add("idealCycleTimeSeconds"); }
 
         if (changedFields.Count > 0)
@@ -80,6 +83,6 @@ public class UpdateWorkCenterHandler(AppDbContext db) : IRequestHandler<UpdateWo
             wc.NumberOfMachines, wc.LaborCostPerHour,
             wc.BurdenRatePerHour, wc.IsActive,
             wc.AssetId, null, wc.CompanyLocationId, null, wc.SortOrder,
-            wc.TeamId, teamName, wc.IdealCycleTimeSeconds);
+            wc.TeamId, teamName, wc.IdealCycleTimeSeconds, wc.BurdenBasis);
     }
 }

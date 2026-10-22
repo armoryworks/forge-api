@@ -6,7 +6,7 @@ namespace Forge.Api.Features.Parts;
 
 public sealed record DeleteOperationCommand(int PartId, int OperationId) : IRequest;
 
-public sealed class DeleteOperationHandler(IPartRepository repo) : IRequestHandler<DeleteOperationCommand>
+public sealed class DeleteOperationHandler(IPartRepository repo, IClock clock) : IRequestHandler<DeleteOperationCommand>
 {
     public async Task Handle(DeleteOperationCommand request, CancellationToken cancellationToken)
     {
@@ -16,7 +16,8 @@ public sealed class DeleteOperationHandler(IPartRepository repo) : IRequestHandl
         if (operation.PartId != request.PartId)
             throw new KeyNotFoundException($"Operation {request.OperationId} does not belong to part {request.PartId}");
 
-        operation.DeletedAt = DateTimeOffset.UtcNow;
+        await RoutingPredecessorEditor.RemoveStepAsync(repo, request.PartId, operation, cancellationToken);
+        operation.DeletedAt = clock.UtcNow;
         await repo.SaveChangesAsync(cancellationToken);
     }
 }

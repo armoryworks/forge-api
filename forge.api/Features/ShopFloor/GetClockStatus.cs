@@ -3,8 +3,12 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
+using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Settings;
 using Forge.Data.Context;
 
 using ApplicationUser = Forge.Data.Context.ApplicationUser;
@@ -27,7 +31,8 @@ public record ClockWorkerModel(
     List<WorkerAssignmentModel> Assignments,
     string Role,
     bool OpenFromPriorShift = false,
-    DateTimeOffset? OpenSince = null);
+    DateTimeOffset? OpenSince = null,
+    IReadOnlyList<KioskRunningTimerResponseModel>? RunningTimers = null);
 
 public record GetClockStatusQuery(int? TeamId = null) : IRequest<List<ClockWorkerModel>>;
 
@@ -36,9 +41,12 @@ public class GetClockStatusHandler(
     UserManager<ApplicationUser> userManager,
     IClockEventTypeService clockEventTypeService,
     IJobOperationService operations,
-    IClock clock)
+    IClock clock,
+    ISettingsService? settings = null)
     : IRequestHandler<GetClockStatusQuery, List<ClockWorkerModel>>
 {
+    private const int DefaultRecentJobDays = 3;
+
     public async Task<List<ClockWorkerModel>> Handle(GetClockStatusQuery request, CancellationToken ct)
     {
         var now = clock.UtcNow;
@@ -78,6 +86,8 @@ public class GetClockStatusHandler(
         // Get active timers for all users
         var activeTimers = await db.TimeEntries
             .Include(t => t.Job)
+            .Include(t => t.Operation)
+                .ThenInclude(o => o!.WorkCenter)
             .Where(t => t.TimerStart != null && t.TimerStop == null)
             .ToListAsync(ct);
 
@@ -85,30 +95,54 @@ public class GetClockStatusHandler(
             .GroupBy(t => t.UserId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(t => t.TimerStart).First());
 
-        // Load assigned jobs in shop-floor stages only (physical work, not admin/office stages)
-        var assignedJobs = await db.Jobs
-            .Include(j => j.CurrentStage)
+        var recentDays = settings is null ? DefaultRecentJobDays : await settings.GetIntAsync(ShopFloorSettings.RecentJobDaysKey, ct);
+        var recentSince = DateOnly.FromDateTime(shopToday).AddDays(-Math.Max(recentDays, 0));
+        var recentPairs = recentDays <= 0
+            ? []
+            : await db.TimeEntries.AsNoTracking()
+                .Where(t => t.JobId != null && userIds.Contains(t.UserId) && t.Date >= recentSince)
+                .Select(t => new { t.UserId, JobId = t.JobId!.Value })
+                .Distinct()
+                .ToListAsync(ct);
+
+        var assignedIds = await db.Jobs.AsNoTracking()
             .Where(j => j.AssigneeId.HasValue
                 && userIds.Contains(j.AssigneeId.Value)
                 && j.CurrentStage.IsShopFloor
                 && !j.IsArchived
                 && j.CompletedDate == null
                 && j.Disposition == null)
-            .OrderBy(j => j.Priority)
-            .ThenBy(j => j.DueDate ?? DateTimeOffset.MaxValue)
+            .Select(j => new { UserId = j.AssigneeId!.Value, JobId = j.Id })
+            .ToListAsync(ct);
+
+        var runningPairs = activeTimers
+            .Where(t => t.JobId.HasValue)
+            .Select(t => new { t.UserId, JobId = t.JobId!.Value })
+            .Distinct()
+            .ToList();
+
+        var allJobIds = assignedIds.Select(p => p.JobId)
+            .Concat(runningPairs.Select(p => p.JobId))
+            .Concat(recentPairs.Select(p => p.JobId))
+            .Distinct()
+            .ToList();
+
+        var jobRows = await db.Jobs.AsNoTracking()
+            .Where(j => allJobIds.Contains(j.Id))
             .Select(j => new
             {
                 j.Id,
-                j.AssigneeId,
                 j.JobNumber,
                 j.Title,
                 PartNumber = j.Part != null ? j.Part.PartNumber : null,
                 Priority = j.Priority.ToString(),
+                PriorityOrder = j.Priority,
                 StageName = j.CurrentStage.Name,
                 StageColor = j.CurrentStage.Color ?? "#94a3b8",
                 j.DueDate,
+                IsOpen = !j.IsArchived && j.CompletedDate == null && j.Disposition == null,
             })
-            .ToListAsync(ct);
+            .ToDictionaryAsync(j => j.Id, ct);
 
         var timerStartByUserJob = activeTimers
             .Where(t => t.JobId.HasValue && t.TimerStart.HasValue)
@@ -116,15 +150,40 @@ public class GetClockStatusHandler(
             .ToDictionary(g => g.Key, g => g.Max(t => t.TimerStart!.Value));
 
         var tracking = await operations.IsTrackingEnabledAsync(ct);
-        var nextOperations = await KioskWork.NextOperationsAsync(db, assignedJobs.Select(j => j.Id), tracking, ct);
+        var nextOperations = await KioskWork.NextOperationsAsync(db, allJobIds, tracking, ct);
+        var ownRunningStep = !tracking
+            ? []
+            : activeTimers
+                .Where(t => t.JobId.HasValue && t.Operation is not null)
+                .GroupBy(t => (t.UserId, JobId: t.JobId!.Value))
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(t => t.Operation!)
+                        .OrderBy(o => o.StepNumber).ThenBy(o => o.Id)
+                        .Select(o => new KioskNextOperationResponseModel(
+                            o.Id, o.StepNumber, o.Title, o.WorkCenterId, o.WorkCenter?.Name))
+                        .First());
 
-        var assignmentsByUser = assignedJobs
-            .GroupBy(j => j.AssigneeId!.Value)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Select(j =>
+        var assignedSet = assignedIds.Select(p => (p.UserId, p.JobId)).ToHashSet();
+        var recentSet = recentPairs.Select(p => (p.UserId, p.JobId)).ToHashSet();
+        var runningSet = runningPairs.Select(p => (p.UserId, p.JobId)).ToHashSet();
+        var assignmentsByUser = new Dictionary<int, List<WorkerAssignmentModel>>();
+        foreach (var userId in userIds)
+        {
+            var jobIds = allJobIds
+                .Where(id => jobRows.TryGetValue(id, out var row)
+                    && (runningSet.Contains((userId, id))
+                        || (row.IsOpen && (assignedSet.Contains((userId, id)) || recentSet.Contains((userId, id))))))
+                .ToList();
+            if (jobIds.Count == 0)
+                continue;
+
+            assignmentsByUser[userId] = jobIds
+                .Select(id => jobRows[id])
+                .Select(j =>
                 {
-                    var hasTimer = timerStartByUserJob.TryGetValue((g.Key, j.Id), out var timerStartedAt);
+                    var hasTimer = timerStartByUserJob.TryGetValue((userId, j.Id), out var timerStartedAt);
+                    var isAssigned = assignedSet.Contains((userId, j.Id));
                     return new WorkerAssignmentModel(
                         j.Id,
                         j.JobNumber,
@@ -136,8 +195,38 @@ public class GetClockStatusHandler(
                         hasTimer,
                         hasTimer ? timerStartedAt : null,
                         j.PartNumber,
-                        nextOperations.GetValueOrDefault(j.Id));
-                }).ToList());
+                        ownRunningStep.GetValueOrDefault((userId, j.Id)) ?? nextOperations.GetValueOrDefault(j.Id),
+                        j.DueDate,
+                        isAssigned,
+                        !isAssigned && !hasTimer);
+                })
+                .OrderBy(a => a.HasActiveTimer ? 0 : a.IsAssigned ? 1 : 2)
+                .ThenBy(a => jobRows[a.JobId].PriorityOrder)
+                .ThenBy(a => a.DueDate ?? DateTimeOffset.MaxValue)
+                .ThenBy(a => a.JobNumber)
+                .ToList();
+        }
+
+        var runningByUser = activeTimers
+            .Where(t => t.TimerStart.HasValue)
+            .GroupBy(t => t.UserId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<KioskRunningTimerResponseModel>)g
+                    .OrderBy(t => t.TimerStart)
+                    .Select(t => new KioskRunningTimerResponseModel(
+                        t.Id,
+                        t.JobId,
+                        t.Job?.JobNumber,
+                        t.JobOperationId,
+                        t.OperationId,
+                        t.Operation?.StepNumber,
+                        t.Operation?.Title,
+                        t.EntryType,
+                        t.TimerStart!.Value,
+                        t.EntryType == TimeEntryType.Run && t.Operation is not null ? t.Operation.LaborAttendancePercent : 100m,
+                        CycleMinutesOf(t)))
+                    .ToList());
 
         // Load clock event type definitions from reference data
         var eventTypeDefs = await clockEventTypeService.GetAllAsync(ct);
@@ -188,9 +277,16 @@ public class GetClockStatusHandler(
                 userAssignments ?? [],
                 userRoles.GetValueOrDefault(u.Id, "ProductionWorker"),
                 openFromPriorShift,
-                openFromPriorShift ? evt!.Timestamp : null);
+                openFromPriorShift ? evt!.Timestamp : null,
+                runningByUser.GetValueOrDefault(u.Id) ?? []);
         }).OrderBy(w => w.Status == ClockStateRules.StatusOut).ThenBy(w => w.Name).ToList();
     }
+
+    private static decimal? CycleMinutesOf(TimeEntry entry)
+        => entry.EntryType == TimeEntryType.Run && entry.Operation is { CycleCountdown: true } operation
+            && OperationTimeMath.PerPieceRunMinutes(operation) is var each && each > 0m
+            ? Math.Round(each, 4)
+            : null;
 
     private static string FormatDuration(TimeSpan duration)
     {

@@ -29,9 +29,12 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             var errors = ex.Errors
                 .Select(e => new
                 {
-                    field = CustomInvalidModelStateResponseFactory.NormalizeFieldName(e.PropertyName),
+                    field = CustomInvalidModelStateResponseFactory.NormalizeFieldName(
+                        CustomInvalidModelStateResponseFactory.StripCommandWrapper(e.PropertyName)),
                     message = e.ErrorMessage,
                     rejectedValue = (string?)null,
+                    code = string.IsNullOrEmpty(e.ErrorCode) ? null : e.ErrorCode,
+                    @params = ValidationErrorParams.From(e),
                 })
                 .ToArray();
 
@@ -163,6 +166,18 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 Type = "about:blank",
             });
         }
+        catch (ServiceUnavailableException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            context.Response.Headers.RetryAfter = "30";
+            await context.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Status = StatusCodes.Status503ServiceUnavailable,
+                Title = "Service unavailable",
+                Detail = ex.Message,
+                Type = "about:blank",
+            }, options: null, contentType: "application/problem+json");
+        }
         catch (Features.Devices.DeviceRevokedException ex)
         {
             // Mobile device revoked by an admin. 401 with code
@@ -186,6 +201,74 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             });
             await context.Response.WriteAsync(json);
+        }
+        catch (Features.Jobs.Operations.StepGateException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Step gate",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = Features.Jobs.Operations.StepGateException.Code;
+            problem.Extensions["gate"] = JsonSerializer.SerializeToElement(ex.Violation, CamelCaseEnums);
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
+        catch (Features.Parts.PredecessorConflictException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Step order conflict",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = Features.Parts.PredecessorConflictException.Code;
+            problem.Extensions["conflicts"] = JsonSerializer.SerializeToElement(ex.Conflicts, CamelCaseEnums);
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
+        catch (Features.Parts.RoutingGraphInvalidException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status422UnprocessableEntity;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status422UnprocessableEntity,
+                Title = "Routing can't be saved",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = Features.Parts.RoutingGraphInvalidException.Code;
+            problem.Extensions["issues"] = JsonSerializer.SerializeToElement(ex.Issues, CamelCaseEnums);
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
+        catch (Features.Parts.RoutingGraphStaleException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Routing changed",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = Features.Parts.RoutingGraphStaleException.Code;
+            problem.Extensions["version"] = ex.CurrentVersion;
+
+            await context.Response.WriteAsJsonAsync(problem);
         }
         catch (Features.Mobile.ConfirmationRequiredException ex)
         {
@@ -356,6 +439,12 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             await context.Response.WriteAsJsonAsync(problem);
         }
     }
+
+    private static readonly JsonSerializerOptions CamelCaseEnums = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+    };
 
     private static readonly JsonSerializerOptions CamelCase = new()
     {

@@ -2,6 +2,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 
 namespace Forge.Api.Features.CustomerPoDocuments;
@@ -19,12 +20,14 @@ public class CustomerPoPdfDocument : IDocument
     private readonly CustomerPoDocument _document;
     private readonly SalesOrder _order;
     private readonly string? _companyName;
+    private readonly MoneyFormatter _money;
 
-    public CustomerPoPdfDocument(CustomerPoDocument document, string? companyName)
+    public CustomerPoPdfDocument(CustomerPoDocument document, string? companyName, MoneyFormatter? money = null)
     {
         _document = document;
         _order = document.SalesOrder;
         _companyName = companyName;
+        _money = money ?? MoneyFormat.For(null, "USD");
     }
 
     public void Compose(IDocumentContainer container)
@@ -34,7 +37,7 @@ public class CustomerPoPdfDocument : IDocument
             page.Size(PageSizes.Letter);
             page.MarginHorizontal(50);
             page.MarginVertical(40);
-            page.DefaultTextStyle(x => x.FontSize(10));
+            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10));
 
             page.Header().Element(ComposeHeader);
             page.Content().Element(ComposeContent);
@@ -142,9 +145,9 @@ public class CustomerPoPdfDocument : IDocument
                     table.Cell().Background(bg).Padding(5).Text(line.LineNumber.ToString());
                     table.Cell().Background(bg).Padding(5).Text(line.Description);
                     table.Cell().Background(bg).Padding(5).Text(line.Part?.PartNumber ?? "—");
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.Quantity.ToString("0.####"));
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.UnitPrice.ToString("C"));
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.LineTotal.ToString("C"));
+                    table.Cell().Background(bg).Padding(5).AlignRight().Text(MoneyFormat.Quantity(line.Quantity));
+                    table.Cell().Background(bg).Padding(5).AlignRight().Text(_money.Format(line.UnitPrice));
+                    table.Cell().Background(bg).Padding(5).AlignRight().Text(_money.Format(line.LineTotal));
                 }
             });
 
@@ -153,15 +156,15 @@ public class CustomerPoPdfDocument : IDocument
                 totals.Item().Row(row =>
                 {
                     row.RelativeItem().Text("Subtotal:").SemiBold();
-                    row.ConstantItem(100).AlignRight().Text(_order.Subtotal.ToString("C"));
+                    row.ConstantItem(100).AlignRight().Text(_money.Format(_order.Subtotal));
                 });
 
                 if (_order.TaxRate > 0)
                 {
                     totals.Item().Row(row =>
                     {
-                        row.RelativeItem().Text($"Tax ({_order.TaxRate:P0}):").SemiBold();
-                        row.ConstantItem(100).AlignRight().Text(_order.TaxAmount.ToString("C"));
+                        row.RelativeItem().Text($"Tax ({MoneyFormat.Percent(_order.TaxRate)}):").SemiBold();
+                        row.ConstantItem(100).AlignRight().Text(_money.Format(_order.TaxAmount));
                     });
                 }
 
@@ -170,7 +173,7 @@ public class CustomerPoPdfDocument : IDocument
                 totals.Item().PaddingTop(4).Row(row =>
                 {
                     row.RelativeItem().Text("Total:").Bold().FontSize(12);
-                    row.ConstantItem(100).AlignRight().Text(_order.Total.ToString("C")).Bold().FontSize(12);
+                    row.ConstantItem(100).AlignRight().Text(_money.Format(_order.Total)).Bold().FontSize(12);
                 });
             });
 

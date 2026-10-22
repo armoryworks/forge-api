@@ -24,4 +24,6 @@ public record TimeEntryResponseModel
     public string? EntryType { get; init; }
     public decimal LaborCost { get; init; }
     public decimal BurdenCost { get; init; }
+    public decimal? LaborMinutes { get; init; }
+    public string? AllocationMethod { get; init; }
 }

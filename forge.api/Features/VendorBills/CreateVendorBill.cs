@@ -2,10 +2,13 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
+using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
 
@@ -35,21 +38,22 @@ public class CreateVendorBillValidator : AbstractValidator<CreateVendorBillComma
     {
         RuleFor(x => x.VendorId).GreaterThan(0);
         RuleFor(x => x.Lines).NotEmpty().WithMessage("At least one line item is required");
-        RuleFor(x => x.TaxAmount).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.DueDate).GreaterThanOrEqualTo(x => x.BillDate);
+        RuleFor(x => x.TaxAmount).GreaterThanOrEqualTo(0).MoneyScale();
+        RuleFor(x => x.DueDate).GreaterThanOrEqualTo(x => x.BillDate)
+            .WithMessage("Due date must be on or after the bill date.");
         // FX booking rate must be positive (a 0 or negative rate would zero/invert the functional amount).
         RuleFor(x => x.FxRate).GreaterThan(0m);
         // A zero-total bill would flip to Approved yet post no journal (the engine skips non-positive
         // totals) — a silent status/ledger divergence. Require a positive total.
         RuleFor(x => x)
-            .Must(c => c.Lines.Sum(l => l.Quantity * l.UnitPrice) + c.TaxAmount > 0m)
+            .Must(c => Money.Round(c.Lines.Sum(l => l.Quantity * l.UnitPrice) + c.TaxAmount) > 0m)
             .WithMessage("Bill total must be greater than zero")
             .When(x => x.Lines is { Count: > 0 });
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
             line.RuleFor(l => l.Description).NotEmpty();
-            line.RuleFor(l => l.Quantity).GreaterThan(0m);
-            line.RuleFor(l => l.UnitPrice).GreaterThanOrEqualTo(0);
+            line.RuleFor(l => l.Quantity).GreaterThan(0m).UnitScale();
+            line.RuleFor(l => l.UnitPrice).GreaterThanOrEqualTo(0).UnitScale();
         });
         // 3-way match (STAGE D): a PO-linked bill must match each line to a PO line so the posting can
         // clear GRNI at the PO price; a standalone (non-PO) bill must NOT carry PO-line links.
@@ -142,9 +146,10 @@ public class CreateVendorBillHandler(
         await repo.SaveChangesAsync(cancellationToken);
 
         // Activity (transactional entity → log on the bill): after the first save so the id is assigned.
+        var money = await MoneyFormat.ForCurrencyIdAsync(db, bill.CurrencyId, cancellationToken);
         db.LogActivityAt(
             "created",
-            $"Bill {bill.BillNumber} created for {vendor.CompanyName} — {bill.Total:C}"
+            $"Bill {bill.BillNumber} created for {vendor.CompanyName} — {money.Format(bill.Total)}"
             + (bill.PurchaseOrderId is int poId ? $" (PO {poId})" : string.Empty),
             ("VendorBill", bill.Id));
         await db.SaveChangesAsync(cancellationToken);

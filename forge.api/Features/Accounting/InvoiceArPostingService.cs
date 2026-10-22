@@ -674,9 +674,9 @@ public sealed class InvoiceArPostingService(
         ComputePostedAmounts(Invoice invoice)
     {
         var ordered = invoice.Lines.OrderBy(l => l.LineNumber).ToList();
-        var amounts = ordered.Select(l => Math.Round(l.LineTotal, 2, MidpointRounding.AwayFromZero)).ToArray();
+        var amounts = ordered.Select(l => Money.Round(l.LineTotal)).ToArray();
         var subtotal = ordered.Sum(l => l.LineTotal);
-        var roundedSubtotal = Math.Round(subtotal, 2, MidpointRounding.AwayFromZero);
+        var roundedSubtotal = Money.Round(subtotal);
 
         var residual = roundedSubtotal - amounts.Sum();
         if (residual != 0m && amounts.Length > 0)
@@ -688,7 +688,7 @@ public sealed class InvoiceArPostingService(
             amounts[largest] += residual;
         }
 
-        var arTotal = Math.Round(invoice.Total, 2, MidpointRounding.AwayFromZero);
+        var arTotal = Money.Round(invoice.Total);
 
         return (arTotal, arTotal - roundedSubtotal, ordered.Select((l, i) => (l, amounts[i])).ToList());
     }

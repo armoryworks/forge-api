@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities.Costing;
 using Forge.Core.Enums;
@@ -36,11 +37,23 @@ public class CreateOverheadPoolHandler(AppDbContext db)
 {
     public async Task<OverheadPoolResponseModel> Handle(CreateOverheadPoolCommand request, CancellationToken ct)
     {
+        var code = request.Code.Trim();
+        var codeKey = code.ToUpperInvariant();
+
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(ct)
+            : null;
+        await db.AcquireAdvisoryLockAsync("overhead-cost-pools.code", $"{request.CostingCostCenterId}:{codeKey}", ct);
+
+        if (await db.OverheadCostPools.AnyAsync(
+                p => p.CostingCostCenterId == request.CostingCostCenterId && p.Code.ToUpper() == codeKey, ct))
+            throw new InvalidOperationException($"An overhead pool with code '{code}' already exists on this cost center.");
+
         var pool = new OverheadCostPool
         {
             CostingCostCenterId = request.CostingCostCenterId,
             WorkCenterId = request.WorkCenterId,
-            Code = request.Code,
+            Code = code,
             Name = request.Name,
             Behavior = request.Behavior,
             FixedPortion = request.FixedPortion,
@@ -52,6 +65,9 @@ public class CreateOverheadPoolHandler(AppDbContext db)
         db.LogActivityAt("created", $"Created overhead pool {pool.Code} ({pool.Behavior}/{pool.Driver})",
             ("OverheadCostPool", pool.Id), ("CostingCostCenter", pool.CostingCostCenterId));
         await db.SaveChangesAsync(ct);
+
+        if (tx is not null)
+            await tx.CommitAsync(ct);
 
         return new OverheadPoolResponseModel(
             pool.Id, pool.CostingCostCenterId, pool.WorkCenterId, pool.Code, pool.Name,

@@ -3,6 +3,7 @@ using Moq;
 
 using Forge.Api.Features.Dashboard;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 using Forge.Tests.Helpers;
@@ -22,7 +23,7 @@ public class GetMarginSummaryCostTests : IDisposable
 
     public void Dispose() => _db.Dispose();
 
-    private async Task<Job> SeedInvoicedJobAsync(int id, decimal invoicedAmount)
+    private async Task<Job> SeedInvoicedJobAsync(int id, decimal invoicedAmount, InvoiceStatus status = InvoiceStatus.Sent)
     {
         var order = new SalesOrder { Id = id, OrderNumber = $"SO-{id}", CustomerId = 1 };
         var line = new SalesOrderLine { Id = id, SalesOrder = order, LineNumber = 1, Description = "Bracket", Quantity = 1, UnitPrice = invoicedAmount };
@@ -32,6 +33,7 @@ public class GetMarginSummaryCostTests : IDisposable
             InvoiceNumber = $"INV-{id}",
             CustomerId = 1,
             SalesOrder = order,
+            Status = status,
             InvoiceDate = _now,
             DueDate = _now.AddDays(30),
             Lines = { new InvoiceLine { LineNumber = 1, Description = "Bracket", Quantity = 1, UnitPrice = invoicedAmount } },
@@ -94,5 +96,62 @@ public class GetMarginSummaryCostTests : IDisposable
 
         result.JobCount.Should().Be(0);
         result.CostedJobCount.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(InvoiceStatus.Draft)]
+    [InlineData(InvoiceStatus.Voided)]
+    public async Task Handle_DraftAndVoidedInvoices_AreNotRevenue(InvoiceStatus status)
+    {
+        await SeedInvoicedJobAsync(1, 1000m, status);
+
+        var result = await RunAsync();
+
+        result.TotalRevenue.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task Handle_InvoiceLinesForOtherOrderLines_AreNotCreditedToTheJob()
+    {
+        var job = await SeedInvoicedJobAsync(1, 1000m);
+        var invoice = _db.Invoices.Single(i => i.Id == 1);
+        invoice.Lines.Add(new InvoiceLine { LineNumber = 2, Description = "Freight", Quantity = 1, UnitPrice = 400m });
+        _db.Expenses.Add(new Expense { JobId = job.Id, UserId = 1, Amount = 500m, Category = "Material", Description = "Bar stock" });
+        await _db.SaveChangesAsync();
+
+        var result = await RunAsync();
+
+        result.TotalRevenue.Should().Be(1000m);
+        result.AverageMarginPercentage.Should().Be(50.0m);
+    }
+
+    [Fact]
+    public async Task Handle_AverageMarginIsWeightedByRevenue()
+    {
+        var large = await SeedInvoicedJobAsync(1, 9000m);
+        var small = await SeedInvoicedJobAsync(2, 1000m);
+        _db.Expenses.Add(new Expense { JobId = large.Id, UserId = 1, Amount = 8100m, Category = "Material", Description = "Bar stock" });
+        _db.Expenses.Add(new Expense { JobId = small.Id, UserId = 1, Amount = 1m, Category = "Material", Description = "Shim" });
+        await _db.SaveChangesAsync();
+
+        var result = await RunAsync();
+
+        result.CostedJobCount.Should().Be(2);
+        result.AverageMarginPercentage.Should().Be(19.0m);
+    }
+
+    [Fact]
+    public async Task Handle_TotalMarginLeavesOutJobsWithNoRecordedCost()
+    {
+        var costed = await SeedInvoicedJobAsync(1, 1000m);
+        await SeedInvoicedJobAsync(2, 5000m);
+        _db.Expenses.Add(new Expense { JobId = costed.Id, UserId = 1, Amount = 600m, Category = "Material", Description = "Bar stock" });
+        await _db.SaveChangesAsync();
+
+        var result = await RunAsync();
+
+        result.TotalRevenue.Should().Be(6000m);
+        result.TotalMargin.Should().Be(400m);
+        result.AverageMarginPercentage.Should().Be(40.0m);
     }
 }
