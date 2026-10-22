@@ -321,6 +321,63 @@ public sealed class DoubleSubmitSerializationTests(PostgresFixture fixture)
         (await verify.OverheadCostPools.CountAsync(p => p.CostingCostCenterId == centerId && p.Code == "PWR")).Should().Be(1);
     }
 
+    [Fact]
+    public async Task CostCenter_code_that_differs_only_in_case_is_refused()
+    {
+        var code = $"cc{Guid.NewGuid():N}"[..12];
+
+        await using (var first = fixture.CreateContext())
+            await new CreateCostingCostCenterHandler(first).Handle(
+                new CreateCostingCostCenterCommand(code, "Molding", CostCenterType.Production, null, null, null, true), CancellationToken.None);
+
+        await using var db = fixture.CreateContext();
+        var act = () => new CreateCostingCostCenterHandler(db).Handle(
+            new CreateCostingCostCenterCommand(code.ToUpperInvariant(), "Molding", CostCenterType.Production, null, null, null, true), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        (await db.CostingCostCenters.CountAsync(c => c.Code.ToUpper() == code.ToUpperInvariant())).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task CostCenter_double_submit_in_different_case_creates_one()
+    {
+        var code = $"cc{Guid.NewGuid():N}"[..12];
+        var command = new CreateCostingCostCenterCommand(code, "Molding", CostCenterType.Production, null, null, null, true);
+        await using var a = fixture.CreateContext();
+        await using var b = fixture.CreateContext();
+
+        var results = await Task.WhenAll(
+            Outcome(new CreateCostingCostCenterHandler(a).Handle(command, CancellationToken.None)),
+            Outcome(new CreateCostingCostCenterHandler(b).Handle(command with { Code = code.ToUpperInvariant() }, CancellationToken.None)));
+
+        results.Count(ok => ok).Should().Be(1);
+        await using var verify = fixture.CreateContext();
+        (await verify.CostingCostCenters.CountAsync(c => c.Code.ToUpper() == code.ToUpperInvariant())).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task OverheadPool_code_that_differs_only_in_case_is_refused_on_the_same_cost_center()
+    {
+        int centerId;
+        await using (var seed = fixture.CreateContext())
+        {
+            var cc = new CostingCostCenter { Code = $"OC{Guid.NewGuid():N}"[..12], Name = "Mold", Type = CostCenterType.Production, IsInventoriable = true };
+            seed.CostingCostCenters.Add(cc);
+            await seed.SaveChangesAsync();
+            centerId = cc.Id;
+        }
+
+        var command = new CreateOverheadPoolCommand(centerId, null, "Pwr", "Power", OverheadBehavior.Variable, null, OverheadDriver.MachineHour);
+        await using (var first = fixture.CreateContext())
+            await new CreateOverheadPoolHandler(first).Handle(command, CancellationToken.None);
+
+        await using var db = fixture.CreateContext();
+        var act = () => new CreateOverheadPoolHandler(db).Handle(command with { Code = "PWR" }, CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        (await db.OverheadCostPools.CountAsync(p => p.CostingCostCenterId == centerId)).Should().Be(1);
+    }
+
     private static DateTime UniqueYearStart() =>
         new(3000 + Random.Shared.Next(0, 6000), 1, 1, 0, 0, 0, DateTimeKind.Utc);
 

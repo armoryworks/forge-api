@@ -35,13 +35,14 @@ public class CreateCostingCostCenterHandler(AppDbContext db)
     public async Task<CostingCostCenterResponseModel> Handle(CreateCostingCostCenterCommand request, CancellationToken ct)
     {
         var code = request.Code.Trim();
+        var codeKey = code.ToUpperInvariant();
 
         await using var tx = db.Database.CurrentTransaction is null
             ? await db.Database.BeginTransactionAsync(ct)
             : null;
-        await db.AcquireAdvisoryLockAsync("costing-cost-centers.code", code, ct);
+        await db.AcquireAdvisoryLockAsync("costing-cost-centers.code", codeKey, ct);
 
-        if (await db.CostingCostCenters.AnyAsync(c => c.Code == code, ct))
+        if (await db.CostingCostCenters.AnyAsync(c => c.Code.ToUpper() == codeKey, ct))
             throw new InvalidOperationException($"A cost center with code '{code}' already exists.");
 
         var cc = new CostingCostCenter

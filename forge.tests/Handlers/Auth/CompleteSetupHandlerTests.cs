@@ -43,8 +43,12 @@ public class CompleteSetupHandlerTests
         var roles = new Mock<IRoleClaimsExpander>();
         roles.Setup(r => r.GetEffectiveRolesAsync(It.IsAny<Microsoft.AspNetCore.Identity.IdentityUser<int>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<string>());
+        var grace = new Mock<IMfaEnrollmentGrace>();
+        grace.Setup(g => g.EvaluateAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(MfaEnrollmentState.NotRequired);
         return new CompleteSetupHandler(
-            _userManager.Object, _tokens.Object, Mock.Of<ISessionStore>(), Mock.Of<IHttpContextAccessor>(), roles.Object);
+            _userManager.Object, _tokens.Object, Mock.Of<ISessionStore>(), Mock.Of<IHttpContextAccessor>(), roles.Object,
+            grace.Object);
     }
 
     private static IdentityResult ConcurrencyFailure() =>
