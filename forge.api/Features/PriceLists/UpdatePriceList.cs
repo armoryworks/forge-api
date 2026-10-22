@@ -21,7 +21,7 @@ public class UpdatePriceListValidator : AbstractValidator<UpdatePriceListCommand
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Description).MaximumLength(500);
         RuleFor(x => x).Must(c => c.EffectiveFrom == null || c.EffectiveTo == null || c.EffectiveTo > c.EffectiveFrom)
-            .WithMessage("Effective To must be after Effective From");
+            .WithMessage("Effective To must be after Effective From").WithErrorCode("effective-range-order");
     }
 }
 

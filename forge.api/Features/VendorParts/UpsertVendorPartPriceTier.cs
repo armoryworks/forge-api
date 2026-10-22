@@ -38,7 +38,7 @@ public class UpsertVendorPartPriceTierValidator : AbstractValidator<UpsertVendor
         RuleFor(x => x.Body)
             .Must(b => !b.EffectiveTo.HasValue || !b.EffectiveFrom.HasValue
                 || b.EffectiveTo.Value >= b.EffectiveFrom.Value)
-            .WithMessage("EffectiveTo must be on or after EffectiveFrom.");
+            .WithMessage("EffectiveTo must be on or after EffectiveFrom.").WithErrorCode("effective-range-order");
     }
 }
 

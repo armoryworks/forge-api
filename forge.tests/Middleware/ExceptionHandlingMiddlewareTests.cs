@@ -189,4 +189,47 @@ public sealed class ExceptionHandlingMiddlewareTests
         status.Should().Be(StatusCodes.Status500InternalServerError);
         body.TryGetProperty("code", out _).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Validator_failures_carry_a_stable_code_and_the_rule_limits_but_not_the_value()
+    {
+        var validator = new InlineValidator<string>();
+        validator.RuleFor(v => v).MaximumLength(5).OverridePropertyName("Name");
+        var result = await validator.ValidateAsync("far-too-long-value");
+
+        var (_, body) = await Run(new ValidationException(result.Errors));
+
+        var error = body.GetProperty("errors")[0];
+        error.GetProperty("field").GetString().Should().Be("name");
+        error.GetProperty("code").GetString().Should().Be("MaximumLengthValidator");
+        error.GetProperty("params").GetProperty("maxLength").GetInt32().Should().Be(5);
+        body.GetRawText().Should().NotContain("far-too-long-value");
+    }
+
+    [Fact]
+    public async Task A_rule_with_an_explicit_error_code_sends_that_code()
+    {
+        var validator = new InlineValidator<string>();
+        validator.RuleFor(v => v).Must(v => v.Length > 10)
+            .WithMessage("Provide a company name or a contact name.").WithErrorCode("lead-name-required")
+            .OverridePropertyName("CompanyName");
+        var result = await validator.ValidateAsync("short");
+
+        var (_, body) = await Run(new ValidationException(result.Errors));
+
+        var error = body.GetProperty("errors")[0];
+        error.GetProperty("code").GetString().Should().Be("lead-name-required");
+        error.GetProperty("params").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task A_failure_built_by_hand_without_a_code_sends_a_null_code()
+    {
+        var (_, body) = await Run(new ValidationException(new[]
+        {
+            new ValidationFailure("Quantity", "Quantity must be greater than zero."),
+        }));
+
+        body.GetProperty("errors")[0].GetProperty("code").ValueKind.Should().Be(JsonValueKind.Null);
+    }
 }

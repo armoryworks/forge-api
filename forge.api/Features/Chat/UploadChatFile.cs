@@ -30,7 +30,7 @@ public class UploadChatFileCommandValidator : AbstractValidator<UploadChatFileCo
         RuleFor(x => x.File)
             .NotNull().WithMessage("File is required.")
             .Must(f => f == null || f.Length <= MaxFileSizeBytes)
-                .WithMessage("File size must not exceed 10MB.")
+                .WithMessage("File size must not exceed 10MB.").WithErrorCode("file-too-large")
             .Must(f =>
             {
                 if (f == null) return true;

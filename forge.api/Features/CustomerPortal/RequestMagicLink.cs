@@ -40,7 +40,7 @@ public class RequestMagicLinkCommandValidator : AbstractValidator<RequestMagicLi
         RuleFor(x => x.Email)
             .NotEmpty()
             .MaximumLength(200)
-            .Must(e => e is null || !e.Contains('\0')).WithMessage("Email contains an invalid character.")
+            .Must(e => e is null || !e.Contains('\0')).WithMessage("Email contains an invalid character.").WithErrorCode("email-invalid-character")
             .EmailAddress().WithMessage("A valid email address is required.");
     }
 }

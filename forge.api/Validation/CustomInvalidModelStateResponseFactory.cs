@@ -32,11 +32,16 @@ public static class CustomInvalidModelStateResponseFactory
         {
             var errors = context.ModelState
                 .Where(kvp => kvp.Value?.Errors.Count > 0)
-                .Select(kvp => new
+                .Select(kvp =>
                 {
-                    field = NormalizeFieldName(kvp.Key),
-                    message = HumanizeError(kvp.Value!.Errors[0]),
-                    rejectedValue = kvp.Value!.AttemptedValue
+                    var message = HumanizeError(kvp.Value!.Errors[0]);
+                    return new
+                    {
+                        field = NormalizeFieldName(kvp.Key),
+                        message,
+                        rejectedValue = kvp.Value!.AttemptedValue,
+                        code = BindingErrorCode(message),
+                    };
                 })
                 .ToArray();
 
@@ -96,6 +101,24 @@ public static class CustomInvalidModelStateResponseFactory
 
         return name;
     }
+
+    /// <summary>
+    /// The stable error code for a humanized binding error, so clients can word it in their
+    /// own language: <c>invalid-date</c>, <c>invalid-number</c>, <c>whole-number-required</c>,
+    /// <c>invalid-boolean</c>, <c>invalid-identifier</c>, <c>invalid-option</c>,
+    /// <c>body-required</c>, or <c>invalid-value</c> for anything else.
+    /// </summary>
+    internal static string BindingErrorCode(string humanizedMessage) => humanizedMessage switch
+    {
+        "Date is not valid" => "invalid-date",
+        "Number is not valid" => "invalid-number",
+        "Whole number is required" => "whole-number-required",
+        "True or false expected" => "invalid-boolean",
+        "Identifier is not valid" => "invalid-identifier",
+        "Value is not one of the allowed values" => "invalid-option",
+        "Request body is required" => "body-required",
+        _ => "invalid-value",
+    };
 
     /// <summary>
     /// Replace common framework binding-error text with friendlier equivalents.

@@ -37,7 +37,7 @@ public class CreateTermsDocumentValidator : AbstractValidator<CreateTermsDocumen
             .WithMessage("Effective From is required");
         RuleFor(x => x.Body)
             .Must(b => b.EffectiveTo == null || b.EffectiveTo > b.EffectiveFrom)
-            .WithMessage("Effective To must be after Effective From");
+            .WithMessage("Effective To must be after Effective From").WithErrorCode("effective-range-order");
 
         // Scope ↔ FK consistency: Customer scope requires CustomerId (and no
         // PartId), Part scope requires PartId (and no CustomerId), Company

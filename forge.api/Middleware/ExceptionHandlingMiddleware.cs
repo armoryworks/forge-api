@@ -32,6 +32,8 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                     field = CustomInvalidModelStateResponseFactory.NormalizeFieldName(e.PropertyName),
                     message = e.ErrorMessage,
                     rejectedValue = (string?)null,
+                    code = string.IsNullOrEmpty(e.ErrorCode) ? null : e.ErrorCode,
+                    @params = ValidationErrorParams.From(e),
                 })
                 .ToArray();
 
