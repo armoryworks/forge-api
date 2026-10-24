@@ -28,9 +28,9 @@ namespace Forge.Api.Controllers;
 [ApiController]
 [Route("api/v1/auth/passkeys")]
 [CapabilityBootstrap]
-public class PasskeysController(IMediator mediator) : ControllerBase
+public class PasskeysController(IMediator mediator, IConfiguration configuration) : ControllerBase
 {
-    private string Origin => $"{Request.Scheme}://{Request.Host}";
+    private PasskeyRelyingParty RelyingParty => PasskeyRelyingParty.Resolve(configuration, Request);
 
     public record RegisterCompleteRequestModel(JsonElement Response, string? DeviceName);
 
@@ -38,7 +38,7 @@ public class PasskeysController(IMediator mediator) : ControllerBase
     [Authorize]
     [Produces("application/json", Type = typeof(CredentialCreateOptions))]
     public async Task<IActionResult> RegisterOptions()
-        => FidoContent((await mediator.Send(new BeginPasskeyRegistrationCommand(Origin))).ToJson());
+        => FidoContent((await mediator.Send(new BeginPasskeyRegistrationCommand(RelyingParty))).ToJson());
 
     [HttpPost("register")]
     [Authorize]
@@ -49,7 +49,7 @@ public class PasskeysController(IMediator mediator) : ControllerBase
         if (response is null) return BadRequest(new { message = "Malformed passkey registration response." });
 
         var name = await mediator.Send(new CompletePasskeyRegistrationCommand(
-            Origin, response, request.DeviceName));
+            RelyingParty, response, request.DeviceName));
         return Ok(new { deviceName = name });
     }
 
@@ -62,7 +62,7 @@ public class PasskeysController(IMediator mediator) : ControllerBase
         [FromBody] ChallengeOptionsRequestModel request)
     {
         var options = await mediator.Send(
-            new BeginPasskeyMfaCommand(request.MfaPendingToken, Origin));
+            new BeginPasskeyMfaCommand(request.MfaPendingToken, RelyingParty));
         if (options is null) return NotFound();
         return FidoContent(options.ToJson());
     }
@@ -78,7 +78,7 @@ public class PasskeysController(IMediator mediator) : ControllerBase
         if (response is null) return BadRequest(new { message = "Malformed passkey assertion response." });
 
         var result = await mediator.Send(new ValidatePasskeyMfaCommand(
-            request.MfaPendingToken, Origin, response));
+            request.MfaPendingToken, RelyingParty, response));
         if (result is null) return Unauthorized();
         return Ok(result);
     }

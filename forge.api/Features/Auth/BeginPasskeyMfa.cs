@@ -6,7 +6,7 @@ using Forge.Api.Services;
 
 namespace Forge.Api.Features.Auth;
 
-public record BeginPasskeyMfaCommand(string MfaPendingToken, string Origin)
+public record BeginPasskeyMfaCommand(string MfaPendingToken, PasskeyRelyingParty RelyingParty)
     : IRequest<AssertionOptions?>;
 
 public class BeginPasskeyMfaValidator : AbstractValidator<BeginPasskeyMfaCommand>
@@ -33,6 +33,6 @@ public class BeginPasskeyMfaHandler(
     {
         var userId = preAuth.ValidateAndGetUserId(request.MfaPendingToken)
             ?? throw new UnauthorizedAccessException("Invalid or expired MFA session");
-        return passkeys.BeginAssertionAsync(userId, request.Origin, cancellationToken);
+        return passkeys.BeginAssertionAsync(userId, request.RelyingParty, cancellationToken);
     }
 }

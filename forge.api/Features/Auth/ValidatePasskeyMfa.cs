@@ -12,7 +12,7 @@ namespace Forge.Api.Features.Auth;
 
 public record ValidatePasskeyMfaCommand(
     string MfaPendingToken,
-    string Origin,
+    PasskeyRelyingParty RelyingParty,
     AuthenticatorAssertionRawResponse Response) : IRequest<MfaValidateResponseModel?>;
 
 public class ValidatePasskeyMfaValidator : AbstractValidator<ValidatePasskeyMfaCommand>
@@ -46,7 +46,7 @@ public class ValidatePasskeyMfaHandler(
             ?? throw new UnauthorizedAccessException("Invalid or expired MFA session");
 
         var verified = await passkeys.CompleteAssertionAsync(
-            userId, request.Origin, request.Response, cancellationToken);
+            userId, request.RelyingParty, request.Response, cancellationToken);
         if (!verified) return null;
 
         var user = await userManager.FindByIdAsync(userId.ToString());

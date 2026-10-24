@@ -18,7 +18,7 @@ public class PasskeyServiceTests
         public DateTimeOffset UtcNow => new(2026, 8, 25, 12, 0, 0, TimeSpan.Zero);
     }
 
-    private const string Origin = "https://shop.example.com";
+    private static readonly PasskeyRelyingParty Origin = PasskeyRelyingParty.ForOrigin("https://shop.example.com");
 
     private static (PasskeyService service, AppDbContext db, IMemoryCache cache) Create()
     {

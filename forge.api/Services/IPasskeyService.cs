@@ -10,14 +10,14 @@ namespace Forge.Api.Services;
 /// </summary>
 public interface IPasskeyService
 {
-    Task<CredentialCreateOptions> BeginRegistrationAsync(int userId, string origin, CancellationToken ct);
+    Task<CredentialCreateOptions> BeginRegistrationAsync(int userId, PasskeyRelyingParty relyingParty, CancellationToken ct);
 
     Task<string> CompleteRegistrationAsync(
-        int userId, string origin, AuthenticatorAttestationRawResponse response,
+        int userId, PasskeyRelyingParty relyingParty, AuthenticatorAttestationRawResponse response,
         string? deviceName, CancellationToken ct);
 
-    Task<AssertionOptions?> BeginAssertionAsync(int userId, string origin, CancellationToken ct);
+    Task<AssertionOptions?> BeginAssertionAsync(int userId, PasskeyRelyingParty relyingParty, CancellationToken ct);
 
     Task<bool> CompleteAssertionAsync(
-        int userId, string origin, AuthenticatorAssertionRawResponse response, CancellationToken ct);
+        int userId, PasskeyRelyingParty relyingParty, AuthenticatorAssertionRawResponse response, CancellationToken ct);
 }
