@@ -24,7 +24,8 @@ namespace Forge.Api.Features.Accounting;
 /// valuation store (the cost receipts feed via <see cref="IInventoryValuationService.ApplyReceiptAsync"/>):
 /// <list type="bullet">
 ///   <item><b>Issue</b> → Dr INVENTORY_WIP / Cr INVENTORY_{RAW|WIP|FG} (the issued part's class); the store is
-///         relieved via <c>ApplyIssueAsync</c> and that relieved value is the posted amount.</item>
+///         relieved via <c>ApplyIssueAsync</c> and that relieved value is the posted amount; it is written back
+///         as the issue's unit cost, so the job's material cost matches what its WIP was debited.</item>
 ///   <item><b>Scrap</b> → Dr OPERATING_EXPENSE / Cr INVENTORY_… (consumed, not capitalized into WIP).</item>
 ///   <item><b>Return</b> → Dr INVENTORY_… / Cr INVENTORY_WIP (the reverse of an issue); the store is
 ///         re-credited via <c>ApplyReceiptAsync</c> at the issue's recorded unit cost.</item>
@@ -124,6 +125,8 @@ public sealed class MaterialIssuePostingService(
             if (hasStoreRow)
             {
                 amount = await valuation!.ApplyIssueAsync(book.Id, issue.PartId, issue.Quantity, ct);
+                if (amount > 0m)
+                    issue.UnitCost = Math.Round(amount / issue.Quantity, 4, MidpointRounding.AwayFromZero);
             }
             else
             {

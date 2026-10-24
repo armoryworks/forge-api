@@ -43,4 +43,26 @@ public class ProductionRun : BaseAuditableEntity
         var total = completedQuantity + scrapQuantity;
         return total > 0 ? completedQuantity * 100.0m / total : 0m;
     }
+
+    /// <summary>
+    /// Run time in minutes derived from the run's timestamps: elapsed (CompletedAt − StartedAt) less
+    /// <paramref name="setupTimeMinutes"/>, rounded to 2 dp and never negative. Null when either timestamp is
+    /// missing or the elapsed time is not positive.
+    /// </summary>
+    public static decimal? DerivedRunTimeMinutes(
+        DateTimeOffset? startedAt, DateTimeOffset? completedAt, decimal? setupTimeMinutes)
+    {
+        if (startedAt is not DateTimeOffset start || completedAt is not DateTimeOffset end || end <= start)
+            return null;
+
+        var elapsed = (decimal)(end - start).TotalMinutes - (setupTimeMinutes ?? 0m);
+        return Math.Round(Math.Max(0m, elapsed), 2, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>
+    /// The run time OEE performance uses: the recorded <see cref="RunTimeMinutes"/> when it is positive, else
+    /// <see cref="DerivedRunTimeMinutes"/> from the run's timestamps.
+    /// </summary>
+    public decimal? EffectiveRunTimeMinutes() =>
+        RunTimeMinutes is > 0 ? RunTimeMinutes : DerivedRunTimeMinutes(StartedAt, CompletedAt, SetupTimeMinutes);
 }

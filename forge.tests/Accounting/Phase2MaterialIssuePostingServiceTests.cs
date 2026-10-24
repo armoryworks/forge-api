@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Terminology;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums;
@@ -157,6 +158,24 @@ public class Phase2MaterialIssuePostingServiceTests
         var store = await db.Set<InventoryValuation>().SingleAsync(v => v.PartId == issue.PartId);
         store.OnHandQuantity.Should().Be(6m);   // 10 − 4
         store.TotalValue.Should().Be(30m);       // 50 − 20
+    }
+
+    [Fact]
+    public async Task Issue_WithStoreRow_RecordsTheRelievedCostOnTheIssue_SoJobMaterialCostMatchesWip()
+    {
+        using var db = await SeedAsync();
+        var issueId = await AddIssueAsync(db, InventoryClass.Raw, 10m, 0m);
+        var issue = await db.Set<MaterialIssue>().FindAsync(issueId);
+        await SeedValuationAsync(db, issue!.PartId, qty: 20m, totalValue: 68m);
+
+        await Service(db, fullGlOn: true).PostMaterialIssueAsync(issueId, EntryDate, issuedByUserId: 7);
+
+        var wipDebit = (await db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines).SingleAsync())
+            .Lines.Single(l => l.GlAccountId == InvWipId).Debit;
+        wipDebit.Should().Be(34m);
+        var stored = await db.Set<MaterialIssue>().AsNoTracking().SingleAsync(i => i.Id == issueId);
+        stored.UnitCost.Should().Be(3.4m);
+        (await new JobCostService(db).GetActualMaterialCostAsync(555, CancellationToken.None)).Should().Be(wipDebit);
     }
 
     [Fact]

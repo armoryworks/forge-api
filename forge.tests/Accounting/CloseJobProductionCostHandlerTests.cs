@@ -59,6 +59,20 @@ public class CloseJobProductionCostHandlerTests
     }
 
     [Fact]
+    public async Task JobOnHoldForReview_IsStillOpen_AndNothingPosts()
+    {
+        await using var db = TestDbContextFactory.Create();
+        db.Jobs.Add(new Job { Id = 1, JobNumber = "J-1", Title = "Held", Disposition = JobDisposition.HoldForReview });
+        await db.SaveChangesAsync();
+
+        var act = () => new CloseJobProductionCostHandler(db, _posting.Object, new SystemClock())
+            .Handle(new CloseJobProductionCostCommand(1), default);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*J-1 is still open*");
+        _posting.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task MissingJob_IsNotFound()
     {
         await using var db = TestDbContextFactory.Create();

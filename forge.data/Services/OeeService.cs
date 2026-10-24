@@ -46,7 +46,7 @@ public class OeeService(AppDbContext db) : IOeeService
         var reworkQuantity = runs.Sum(r => (decimal)r.ReworkQuantity);
         var totalQuantity = goodQuantity + scrapQuantity + reworkQuantity;
 
-        var runTimeMinutes = runs.Sum(r => r.RunTimeMinutes ?? 0m);
+        var runTimeMinutes = runs.Sum(r => r.EffectiveRunTimeMinutes() ?? 0m);
 
         // OEE factors
         var availableTime = scheduledMinutes - plannedDowntimeMinutes;
@@ -180,12 +180,13 @@ public class OeeService(AppDbContext db) : IOeeService
         foreach (var run in runs)
         {
             var idealSeconds = run.IdealCycleTimeSeconds ?? workCenterIdealCycleSeconds;
-            if (run.RunTimeMinutes is not > 0 || idealSeconds is not > 0)
+            var runTime = run.EffectiveRunTimeMinutes();
+            if (runTime is not > 0 || idealSeconds is not > 0)
                 continue;
 
             var processed = (decimal)run.CompletedQuantity + run.ScrapQuantity + run.ReworkQuantity;
             idealMinutes += processed * idealSeconds.Value / 60m;
-            timedMinutes += run.RunTimeMinutes.Value;
+            timedMinutes += runTime.Value;
         }
 
         return timedMinutes > 0 ? Math.Min(1m, idealMinutes / timedMinutes) : 0m;

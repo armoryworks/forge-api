@@ -3,6 +3,7 @@ using FluentAssertions;
 using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
+using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
 using Forge.Data.Context;
 using Forge.Tests.Helpers;
@@ -63,6 +64,23 @@ public class JobCostCloseCandidatesTests
         result[0].WipBalance.Should().Be(50m);
         result[1].WipBalance.Should().Be(80m);
         result.Select(r => r.IsComplete).Should().Equal(true, false);
+    }
+
+    [Fact]
+    public async Task HeldJob_IsNotComplete_whileADisposedJobIs()
+    {
+        await using var db = SeededDb();
+        db.Jobs.AddRange(
+            new Job { Id = 15, JobNumber = "J-0015", Title = "On hold", Disposition = JobDisposition.HoldForReview },
+            new Job { Id = 16, JobNumber = "J-0016", Title = "Scrapped", Disposition = JobDisposition.Scrap });
+        db.SaveChanges();
+        Post(db, 15, 30m, 0m);
+        Post(db, 16, 20m, 0m);
+
+        var result = await new GetJobCostCloseCandidatesHandler(db).Handle(new GetJobCostCloseCandidatesQuery(), default);
+
+        result.Single(r => r.JobNumber == "J-0015").IsComplete.Should().BeFalse();
+        result.Single(r => r.JobNumber == "J-0016").IsComplete.Should().BeTrue();
     }
 
     [Fact]

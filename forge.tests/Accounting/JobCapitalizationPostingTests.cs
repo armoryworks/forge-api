@@ -33,7 +33,9 @@ namespace Forge.Tests.Accounting;
 /// Capitalizing a job as a company asset under CAP-ACCT-FULLGL. Proves the job's conversion cost is absorbed into
 /// WIP once, its whole WIP balance moves to a fixed-asset account (explicit, else FIXED_ASSETS of an asset type),
 /// a later job-cost close neither re-absorbs nor sweeps it to variance, nothing posts for a zero-cost job or with
-/// the GL dark, and the dispose handler records the capitalized amount as the asset's acquisition cost.
+/// the GL dark, and the dispose handler records the capitalized amount as the asset's acquisition cost. Also proves
+/// that disposing a job to inventory or scrap runs the job-cost close, so its WIP residual goes to production
+/// variance once.
 /// </summary>
 public class JobCapitalizationPostingTests
 {
@@ -320,5 +322,80 @@ public class JobCapitalizationPostingTests
         asset.AcquisitionCost.Should().Be(200m);
         (await EntryByKeyAsync(db, $"Inventory:Job:{JobId}:CAPITALIZE")).Should().NotBeNull();
         job.ActivityLogs.Should().Contain(l => l.Description.Contains("200.00"));
+    }
+
+    private static async Task RelieveWipAtStandardAsync(AppDbContext db, decimal standard) =>
+        await Engine(db).PostAsync(new PostingRequest
+        {
+            BookId = BookId, EntryDate = EntryDate, Source = JournalSource.Inventory, CurrencyId = UsdId,
+            IdempotencyKey = $"fg:{JobId}",
+            Lines =
+            [
+                new PostingLine { AccountKey = "INVENTORY_RAW", Debit = standard },
+                new PostingLine { AccountKey = "INVENTORY_WIP", Credit = standard, JobId = JobId },
+            ],
+        }, 7);
+
+    private static DisposeJobHandler DisposeHandler(AppDbContext db, Job job, ProductionVariancePostingService service)
+    {
+        var jobRepo = new Mock<IJobRepository>();
+        jobRepo.Setup(r => r.FindAsync(job.Id, It.IsAny<CancellationToken>())).ReturnsAsync(job);
+        var mediator = new Mock<IMediator>();
+        mediator.Setup(m => m.Send(It.IsAny<GetJobByIdQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((JobDetailResponseModel)null!);
+        var clients = new Mock<IHubClients>();
+        clients.Setup(c => c.Group(It.IsAny<string>())).Returns(new Mock<IClientProxy>().Object);
+        var hub = new Mock<IHubContext<BoardHub>>();
+        hub.Setup(h => h.Clients).Returns(clients.Object);
+        var clock = new Mock<IClock>();
+        clock.Setup(c => c.UtcNow).Returns(new DateTimeOffset(2026, 1, 20, 12, 0, 0, TimeSpan.Zero));
+
+        return new DisposeJobHandler(
+            jobRepo.Object, new AssetRepository(db), mediator.Object, hub.Object, clock.Object,
+            new FakeCapabilities(true), db, service);
+    }
+
+    [Theory]
+    [InlineData(JobDisposition.AddToInventory)]
+    [InlineData(JobDisposition.Scrap)]
+    public async Task DisposeJob_AfterStandardReliefAboveActual_SweepsTheWipResidualToVarianceOnce(JobDisposition disposition)
+    {
+        using var db = await SeedAsync();
+        await SeedJobCostAsync(db, materialIn: 100m, labor: 0m);
+        await RelieveWipAtStandardAsync(db, 300m);
+        (await WipByJobAsync(db)).Should().Be(-200m);
+        var job = new Job { Id = JobId, JobNumber = "J-42", Title = "Bracket", TrackTypeId = 1, CurrentStageId = 1, PartId = 9 };
+
+        await DisposeHandler(db, job, ServiceForRole(db, "Manager")).Handle(
+            new DisposeJobCommand(JobId, new DisposeJobRequestModel(disposition, "done"), 7),
+            CancellationToken.None);
+
+        (await WipByJobAsync(db)).Should().Be(0m);
+        var variance = await EntryByKeyAsync(db, $"Inventory:Job:{JobId}:PRODVARIANCE");
+        variance!.Lines.Single(l => l.GlAccountId == ProdVarId).Credit.Should().Be(200m);
+        job.ActivityLogs.Should().Contain(l => l.Description.Contains("200.00"));
+
+        var again = await Service(db).CloseJobProductionCostAsync(JobId, EntryDate, 7);
+
+        again.Posted.Should().BeFalse();
+        (await db.JournalEntries.IgnoreQueryFilters()
+            .CountAsync(e => e.IdempotencyKey == $"Inventory:Job:{JobId}:PRODVARIANCE")).Should().Be(1);
+        (await WipByJobAsync(db)).Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task DisposeJob_HoldForReview_LeavesWipForTheLaterDisposition()
+    {
+        using var db = await SeedAsync();
+        await SeedJobCostAsync(db, materialIn: 100m, labor: 0m);
+        await RelieveWipAtStandardAsync(db, 300m);
+        var job = new Job { Id = JobId, JobNumber = "J-42", Title = "Bracket", TrackTypeId = 1, CurrentStageId = 1, PartId = 9 };
+
+        await DisposeHandler(db, job, Service(db)).Handle(
+            new DisposeJobCommand(JobId, new DisposeJobRequestModel(JobDisposition.HoldForReview, "check"), 7),
+            CancellationToken.None);
+
+        (await WipByJobAsync(db)).Should().Be(-200m);
+        (await EntryByKeyAsync(db, $"Inventory:Job:{JobId}:PRODVARIANCE")).Should().BeNull();
     }
 }
