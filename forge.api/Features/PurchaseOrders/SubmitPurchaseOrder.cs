@@ -4,6 +4,8 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 
 using Forge.Api.Features.Approvals;
+using Forge.Api.Features.DomainEvents;
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -54,23 +56,32 @@ public class SubmitPurchaseOrderHandler(
             }
         }
 
-        po.Status = PurchaseOrderStatus.Submitted;
-        po.SubmittedDate = clock.UtcNow;
-
-        db.LogActivityAt("submitted", "Submitted to vendor", ("PurchaseOrder", po.Id));
-
-        await repo.SaveChangesAsync(cancellationToken);
-
-        // Submit for approval if a workflow matches. Approval is advisory here —
-        // it does not gate the PO submission itself. This populates the generic
-        // /approvals inbox so Managers can review high-value POs.
         var claim = httpContext.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        ApprovalRequest? approval = null;
         if (int.TryParse(claim, out var userId) && userId > 0)
         {
             var totalAmount = po.Lines.Sum(l => l.OrderedQuantity * l.UnitPrice);
             var summary = $"PO {po.PONumber} — {po.Lines.Count} line(s)";
-            await approvalService.SubmitAndPublishAsync(
-                publisher, "PurchaseOrder", po.Id, userId, totalAmount, summary, cancellationToken);
+            po.Status = PurchaseOrderStatus.PendingApproval;
+            approval = await approvalService.SubmitForApprovalAsync(
+                "PurchaseOrder", po.Id, userId, totalAmount, summary, cancellationToken);
+        }
+
+        if (approval is { Status: ApprovalRequestStatus.Pending or ApprovalRequestStatus.Escalated })
+        {
+            db.LogActivityAt("approval-requested", "Waiting for approval before it is sent to the vendor", ("PurchaseOrder", po.Id));
+            await repo.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        PurchaseOrderSubmission.MarkSubmitted(po, clock.UtcNow, db);
+        await repo.SaveChangesAsync(cancellationToken);
+
+        if (approval?.Status == ApprovalRequestStatus.AutoApproved)
+        {
+            await publisher.Publish(
+                new ApprovalCompletedEvent("PurchaseOrder", po.Id, Approved: true, approval.RequestedById, ApprovalSubmission.AutoApprovedNote),
+                cancellationToken);
         }
     }
 }

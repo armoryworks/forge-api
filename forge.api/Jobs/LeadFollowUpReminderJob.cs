@@ -12,9 +12,10 @@ namespace Forge.Api.Jobs;
 
 /// <summary>
 /// Phase 1j.5 — daily check for leads whose <c>FollowUpDate</c> falls on
-/// today or tomorrow. For each match, creates one notification anchored
-/// to the lead's <c>CreatedBy</c> user (the rep who owns the relationship)
-/// so they get a heads-up in the bell + a digest line.
+/// today or tomorrow. For each match, creates one notification for the
+/// lead's assigned rep (<c>AssignedToUserId</c>), falling back to the user
+/// who created it when the lead has no owner, so they get a heads-up in the
+/// bell + a digest line. A lead with neither is skipped.
 ///
 /// De-duplicated per (lead, scheduled date) — re-running the job within
 /// the same day doesn't spam the rep. The Notification table's existing
@@ -46,7 +47,8 @@ public class LeadFollowUpReminderJob(
                 && l.Status != LeadStatus.Converted)
             .Select(l => new
             {
-                l.Id, l.CompanyName, l.ContactName, l.FollowUpDate, l.CreatedBy,
+                l.Id, l.CompanyName, l.ContactName, l.FollowUpDate,
+                RecipientId = l.AssignedToUserId ?? l.CreatedBy,
             })
             .ToListAsync(ct);
 
@@ -60,6 +62,7 @@ public class LeadFollowUpReminderJob(
         foreach (var lead in due)
         {
             ct.ThrowIfCancellationRequested();
+            if (lead.RecipientId <= 0) continue;
 
             // Dedup: skip if we already notified this rep for this lead
             // since the day boundary. Re-run safety for in-day reruns.
@@ -67,7 +70,7 @@ public class LeadFollowUpReminderJob(
                 n.EntityType == "Lead"
                 && n.EntityId == lead.Id
                 && n.Source == "lead-followup-due"
-                && n.UserId == lead.CreatedBy
+                && n.UserId == lead.RecipientId
                 && n.CreatedAt >= todayStart, ct);
             if (alreadyNotified) continue;
 
@@ -80,12 +83,12 @@ public class LeadFollowUpReminderJob(
             try
             {
                 await mediator.Send(new CreateNotificationCommand(new CreateNotificationRequestModel(
-                    UserId: lead.CreatedBy,
+                    UserId: lead.RecipientId,
                     Type: "alert",
                     Severity: "info",
                     Source: "lead-followup-due",
                     Title: $"Follow up {when}: {lead.CompanyName}",
-                    Message: $"You scheduled a follow-up with {displayName} for {when}.",
+                    Message: $"A follow-up with {displayName} is due {when}.",
                     EntityType: "Lead",
                     EntityId: lead.Id,
                     SenderId: null)), ct);
@@ -95,7 +98,7 @@ public class LeadFollowUpReminderJob(
             {
                 logger.LogError(ex,
                     "LeadFollowUpReminderJob: failed to notify user {UserId} about lead {LeadId}",
-                    lead.CreatedBy, lead.Id);
+                    lead.RecipientId, lead.Id);
             }
         }
 

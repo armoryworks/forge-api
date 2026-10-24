@@ -1,5 +1,9 @@
+using System.Security.Claims;
+
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
+
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -17,7 +21,8 @@ public record CreateQuoteCommand(
     List<CreateQuoteLineModel> Lines,
     string? CustomerPO = null,
     // Optional caller-supplied quote number — see CreateQuoteRequestModel.QuoteNumber.
-    string? QuoteNumber = null) : IRequest<QuoteListItemModel>;
+    string? QuoteNumber = null,
+    int? AssignedToId = null) : IRequest<QuoteListItemModel>;
 
 public class CreateQuoteValidator : AbstractValidator<CreateQuoteCommand>
 {
@@ -29,6 +34,7 @@ public class CreateQuoteValidator : AbstractValidator<CreateQuoteCommand>
         RuleFor(x => x.CustomerPO).MaximumLength(50).When(x => x.CustomerPO is not null);
         // Matches the quotes.quote_number column (varchar(20)). Uniqueness is
         // checked in the handler since it needs a DB lookup.
+        RuleFor(x => x.AssignedToId).GreaterThan(0).When(x => x.AssignedToId is not null);
         RuleFor(x => x.QuoteNumber).MaximumLength(20).When(x => !string.IsNullOrWhiteSpace(x.QuoteNumber));
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
@@ -50,7 +56,8 @@ public class CreateQuoteHandler(
     Forge.Api.Services.TaxOverrideGuard? taxGuard = null,
     // Optional/null-default for the same reason; DI supplies both.
     ISystemSettingRepository? systemSettings = null,
-    IBusinessIdentifierService? identifiers = null)
+    IBusinessIdentifierService? identifiers = null,
+    IHttpContextAccessor? httpContext = null)
     : IRequestHandler<CreateQuoteCommand, QuoteListItemModel>
 {
     // System setting that gates caller-supplied quote numbers. Stored as "true"/"false".
@@ -84,6 +91,7 @@ public class CreateQuoteHandler(
             TaxRate = request.TaxRate,
             TaxDocumentId = taxDocumentId,
             CustomerPO = string.IsNullOrWhiteSpace(request.CustomerPO) ? null : request.CustomerPO.Trim(),
+            AssignedToId = request.AssignedToId ?? ActingUserId(),
         };
 
         var lineNumber = 1;
@@ -127,6 +135,9 @@ public class CreateQuoteHandler(
             quote.Status.ToString(), quote.Lines.Count, quote.Subtotal,
             quote.ExpirationDate, quote.CreatedAt);
     }
+
+    private int? ActingUserId() =>
+        int.TryParse(httpContext?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) && id > 0 ? id : null;
 
     // Uses a caller-supplied quote number when manual numbers are enabled and one
     // was provided; otherwise auto-generates the next sequential "QT" number.

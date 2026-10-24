@@ -137,7 +137,9 @@ public class OllamaAiService(
             Content = JsonContent.Create(request, options: JsonOptions),
         };
 
-        using var response = await httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, ct);
+        var idleLimit = TimeSpan.FromSeconds(c.TimeoutSeconds);
+        using var idle = LinkedTimeout(ct, c.TimeoutSeconds);
+        using var response = await SendForStreamAsync(httpRequest, idle.Token, ct, c.TimeoutSeconds);
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
@@ -147,7 +149,17 @@ public class OllamaAiService(
         // ReadLineAsync returns null at end of stream, so loop on that.
         while (!ct.IsCancellationRequested)
         {
-            var line = await reader.ReadLineAsync(ct);
+            idle.CancelAfter(idleLimit);
+            string? line;
+            try
+            {
+                line = await reader.ReadLineAsync(idle.Token);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw StreamTimedOut(c.TimeoutSeconds);
+            }
+
             if (line is null) break; // end of stream
             if (string.IsNullOrWhiteSpace(line)) continue;
 
@@ -197,6 +209,22 @@ public class OllamaAiService(
         var t2 = int.TryParse(await settings.GetStringAsync(AiSettings.KeyVisionTimeoutSeconds, ct), out var vt) ? vt : 600;
         return new AiResolved(baseUrl.TrimEnd('/'), chat, emb, vis, t1, t2);
     }
+
+    private async Task<HttpResponseMessage> SendForStreamAsync(
+        HttpRequestMessage request, CancellationToken timed, CancellationToken caller, int timeoutSeconds)
+    {
+        try
+        {
+            return await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timed);
+        }
+        catch (OperationCanceledException) when (!caller.IsCancellationRequested)
+        {
+            throw StreamTimedOut(timeoutSeconds);
+        }
+    }
+
+    private static TimeoutException StreamTimedOut(int timeoutSeconds) =>
+        new($"The AI model sent nothing for {timeoutSeconds} seconds (ai.timeout-seconds), so the answer was stopped.");
 
     private static CancellationTokenSource LinkedTimeout(CancellationToken outer, int timeoutSeconds)
     {

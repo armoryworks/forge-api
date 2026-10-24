@@ -1,6 +1,7 @@
 using FluentAssertions;
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 
 using Forge.Api.Features.Quotes;
@@ -245,5 +246,36 @@ public class DuplicateQuoteTests
             .Handle(new Forge.Api.Features.CustomerPortal.GetPortalQuotesQuery(2), CancellationToken.None);
 
         portal.Items.Select(q => q.Id).Should().Equal(revision.Id);
+    }
+
+    [Fact]
+    public async Task A_revision_takes_over_the_estimate_link_and_keeps_the_owner()
+    {
+        var quote = await SeedAsync(QuoteStatus.Sent);
+        _db.Quotes.Add(new Quote { Id = 4, Type = QuoteType.Estimate, CustomerId = 2, Status = QuoteStatus.ConvertedToQuote });
+        quote.SourceEstimateId = 4;
+        quote.AssignedToId = 31;
+        await _db.SaveChangesAsync();
+        _db.CurrentUserId = 9;
+
+        var revision = await Handler().Handle(new DuplicateQuoteCommand(5, AsRevision: true), CancellationToken.None);
+
+        var stored = await _db.Quotes.AsNoTracking().SingleAsync(q => q.Id == revision.Id);
+        stored.SourceEstimateId.Should().Be(4);
+        stored.AssignedToId.Should().Be(31);
+        (await _db.Quotes.AsNoTracking().SingleAsync(q => q.Id == 5)).SourceEstimateId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_duplicate_is_owned_by_the_user_who_made_it()
+    {
+        var quote = await SeedAsync();
+        quote.AssignedToId = 31;
+        await _db.SaveChangesAsync();
+        _db.CurrentUserId = 9;
+
+        var copy = await Handler().Handle(new DuplicateQuoteCommand(5), CancellationToken.None);
+
+        (await _db.Quotes.AsNoTracking().SingleAsync(q => q.Id == copy.Id)).AssignedToId.Should().Be(9);
     }
 }

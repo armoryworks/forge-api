@@ -1,5 +1,8 @@
+using System.Security.Claims;
+
 using Bogus;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Moq;
 
 using Forge.Api.Features.Quotes;
@@ -240,5 +243,27 @@ public class CreateQuoteHandlerTests
 
         // Assert
         result.Status.Should().Be(QuoteStatus.Draft.ToString());
+    }
+
+    [Theory]
+    [InlineData(null, 9)]
+    [InlineData(31, 31)]
+    public async Task The_quote_is_owned_by_the_supplied_rep_or_else_the_creating_user(int? supplied, int expected)
+    {
+        _customerRepo.Setup(r => r.FindAsync(4, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Customer { Id = 4, Name = "Owner Co" });
+        _quoteRepo.Setup(r => r.GenerateNextQuoteNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("QT-00009");
+        var http = new Mock<IHttpContextAccessor>();
+        http.Setup(h => h.HttpContext).Returns(new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "9")], "test")),
+        });
+        var handler = new CreateQuoteHandler(_quoteRepo.Object, _customerRepo.Object, _partRepo.Object, httpContext: http.Object);
+
+        await handler.Handle(new CreateQuoteCommand(
+            4, null, null, null, 0m, [new CreateQuoteLineModel(null, "Setup", 1, 100m, null)], AssignedToId: supplied),
+            CancellationToken.None);
+
+        _quoteRepo.Verify(r => r.AddAsync(It.Is<Quote>(q => q.AssignedToId == expected), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

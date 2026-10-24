@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 
 using FluentValidation;
 using MediatR;
+
+using Forge.Api.Features.AssignmentRules;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -101,6 +103,7 @@ public class CreateLeadHandler(
             LeadSourceId = leadSourceId,
         };
 
+        var assignedByRule = await LeadAssignmentEngine.AssignAsync(db, [lead], cancellationToken);
         await repo.AddAsync(lead, cancellationToken);
 
         // Repo.AddAsync already saved (gives us lead.Id). Log + flush.
@@ -116,6 +119,7 @@ public class CreateLeadHandler(
             "created",
             $"Created lead: {lead.DisplayName}{contactFragment}{(string.IsNullOrEmpty(lead.Source) ? "" : $" (source: {lead.Source})")}{shapeFragment}",
             ("Lead", lead.Id));
+        await LeadAssignmentEngine.LogAssignmentsAsync(db, assignedByRule, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
         // Record the number in the identifier registry (history + resolution).

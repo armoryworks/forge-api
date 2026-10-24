@@ -20,7 +20,7 @@ public class ReplyInThreadValidator : AbstractValidator<ReplyInThreadCommand>
     }
 }
 
-public class ReplyInThreadHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
+public class ReplyInThreadHandler(AppDbContext db, IHubContext<ChatHub> chatHub, ISender? mediator = null)
     : IRequestHandler<ReplyInThreadCommand, ChatMessageResponseModel>
 {
     public async Task<ChatMessageResponseModel> Handle(ReplyInThreadCommand request, CancellationToken ct)
@@ -62,6 +62,7 @@ public class ReplyInThreadHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
         }
 
         var senderName = $"{sender.LastName}, {sender.FirstName}".Trim(',', ' ');
+        await ChatMentionNotifications.NotifyAsync(db, mediator, reply, mentions, senderName, ct);
         var mentionModels = mentions.Select(m =>
             new ChatMessageMentionResponseModel(m.EntityType, m.EntityId, m.DisplayText)).ToList();
 

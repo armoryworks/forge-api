@@ -34,6 +34,7 @@ public class ReorderAnalysisJob(
     private static readonly PurchaseOrderStatus[] OpenPoStatuses =
     [
         PurchaseOrderStatus.Draft,
+        PurchaseOrderStatus.PendingApproval,
         PurchaseOrderStatus.Submitted,
         PurchaseOrderStatus.Acknowledged,
         PurchaseOrderStatus.PartiallyReceived,

@@ -10,7 +10,8 @@ public record CreateQuoteRequestModel(
     string? CustomerPO = null,
     // Optional caller-supplied quote number — honored only when the
     // quotes.allow_manual_numbers setting is on; otherwise auto-generated.
-    string? QuoteNumber = null);
+    string? QuoteNumber = null,
+    int? AssignedToId = null);
 
 public record CreateQuoteLineModel(
     int? PartId,

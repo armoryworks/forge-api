@@ -40,7 +40,7 @@ public class PurchaseOrderPdfDocument : IDocument
         _companyLocation = companyLocation ?? shipTo;
     }
 
-    public bool IsDraft => _po.Status == PurchaseOrderStatus.Draft;
+    public bool IsDraft => _po.Status is PurchaseOrderStatus.Draft or PurchaseOrderStatus.PendingApproval;
 
     public CompanyLocation? ShipTo => _shipTo;
 

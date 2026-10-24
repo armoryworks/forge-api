@@ -30,6 +30,7 @@ public class CancelPurchaseOrderHandlerTests
     [InlineData(PurchaseOrderStatus.Draft)]
     [InlineData(PurchaseOrderStatus.Submitted)]
     [InlineData(PurchaseOrderStatus.Acknowledged)]
+    [InlineData(PurchaseOrderStatus.PendingApproval)]
     public async Task Handle_WhitelistStatus_SetsCancelled(PurchaseOrderStatus status)
     {
         var po = PoInStatus(status);
@@ -55,7 +56,7 @@ public class CancelPurchaseOrderHandlerTests
         var act = () => _handler.Handle(new CancelPurchaseOrderCommand(1), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*Allowed: Draft, Submitted, Acknowledged*");
+            .WithMessage("*Allowed: Draft, PendingApproval, Submitted, Acknowledged*");
         _repo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 

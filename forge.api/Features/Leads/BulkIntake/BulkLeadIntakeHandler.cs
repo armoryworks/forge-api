@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.AssignmentRules;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -217,6 +218,7 @@ public class BulkLeadIntakeHandler(AppDbContext db, IClock clock)
                     ? row.Source.Trim()
                     : DefaultSourceForStrategy(strategy, request.Request.CampaignTag),
                 Notes = row.Notes?.Trim(),
+                CreatedBy = db.CurrentUserId ?? 0,
                 Status = LeadStatus.New,
                 // Phase 1r / Batch 5 — Campaign FK + initial OutreachState
                 // (Queued — workers pull from the queue; until then the
@@ -235,6 +237,7 @@ public class BulkLeadIntakeHandler(AppDbContext db, IClock clock)
 
         if (request.Commit && leadsToCreate.Count > 0)
         {
+            var assignedByRule = await LeadAssignmentEngine.AssignAsync(db, leadsToCreate, ct);
             db.Leads.AddRange(leadsToCreate);
             await db.SaveChangesAsync(ct);
 
@@ -258,6 +261,7 @@ public class BulkLeadIntakeHandler(AppDbContext db, IClock clock)
             {
                 db.LogActivityAt("bulk-intake-created", summary, ("Lead", lead.Id));
             }
+            await LeadAssignmentEngine.LogAssignmentsAsync(db, assignedByRule, ct);
             await db.SaveChangesAsync(ct);
         }
 

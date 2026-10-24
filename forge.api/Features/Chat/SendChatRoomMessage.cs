@@ -26,7 +26,7 @@ public class SendChatRoomMessageValidator : AbstractValidator<SendChatRoomMessag
     }
 }
 
-public class SendChatRoomMessageHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
+public class SendChatRoomMessageHandler(AppDbContext db, IHubContext<ChatHub> chatHub, ISender? mediator = null)
     : IRequestHandler<SendChatRoomMessageCommand, ChatMessageResponseModel>
 {
     public async Task<ChatMessageResponseModel> Handle(SendChatRoomMessageCommand request, CancellationToken ct)
@@ -62,6 +62,7 @@ public class SendChatRoomMessageHandler(AppDbContext db, IHubContext<ChatHub> ch
         }
 
         var senderName = $"{sender.LastName}, {sender.FirstName}".Trim(',', ' ');
+        await ChatMentionNotifications.NotifyAsync(db, mediator, message, mentions, senderName, ct);
         var mentionModels = mentions.Select(m =>
             new ChatMessageMentionResponseModel(m.EntityType, m.EntityId, m.DisplayText)).ToList();
 

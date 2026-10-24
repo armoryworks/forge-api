@@ -72,12 +72,7 @@ public class ReceiveItemsHandler(
             ?? throw new KeyNotFoundException($"Purchase order {request.PurchaseOrderId} not found");
 
         // F-033: source-state whitelist — Draft POs haven't been sent to vendor
-        if (po.Status != PurchaseOrderStatus.Submitted &&
-            po.Status != PurchaseOrderStatus.Acknowledged &&
-            po.Status != PurchaseOrderStatus.PartiallyReceived)
-            throw new InvalidOperationException(
-                $"Cannot receive items on a purchase order in status {po.Status}. " +
-                "Allowed: Submitted, Acknowledged, PartiallyReceived.");
+        PurchaseOrderSubmission.EnsureReceivable(po);
 
         // Bought-parts effort PR3 — receipt-level freight capture. All
         // ReceivingRecords created in this call share a ReceiptNumber and

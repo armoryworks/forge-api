@@ -1050,8 +1050,7 @@ try
         builder.Services.AddScoped<Forge.Api.Features.Edi.IEdiPartNumberMapService,
                                    Forge.Api.Features.Edi.EdiPartNumberMapService>();
         builder.Services.AddSingleton<IEdiTransportService, MockEdiTransportService>();
-        // CPQ, Localization, Plant — mock for now until real engines built
-        builder.Services.AddSingleton<ICpqService, MockCpqService>();
+        builder.Services.AddSingleton<ICpqService, Forge.Api.Services.Unavailable.UnavailableCpqService>();
         // Currency: real CurrencyService reads currency.base from system_settings
         // (FX methods still stubbed; base currency is the only piece in use today)
         builder.Services.AddScoped<ICurrencyService, CurrencyService>();
@@ -1075,13 +1074,12 @@ try
         builder.Services.AddSingleton<IECommerceService, WooCommerceECommerceService>();
         builder.Services.AddSingleton<IECommerceServiceFactory, ECommerceServiceFactory>();
         builder.Services.AddSingleton<IBiService, MockBiService>();
-        // Consignment, ABC, Pick Wave, Drop Ship — mock for now until real engines built
+        // Consignment, ABC, Pick Wave — mock for now until real engines built
         builder.Services.AddSingleton<IConsignmentService, MockConsignmentService>();
         builder.Services.AddSingleton<IAbcClassificationService, MockAbcClassificationService>();
         builder.Services.AddSingleton<IPickWaveService, MockPickWaveService>();
-        builder.Services.AddSingleton<IDropShipService, MockDropShipService>();
-        // Back-to-back, Project Accounting — mock for now until real engines built
-        builder.Services.AddSingleton<IBackToBackService, MockBackToBackService>();
+        builder.Services.AddSingleton<IDropShipService, Forge.Api.Services.Unavailable.UnavailableDropShipService>();
+        builder.Services.AddSingleton<IBackToBackService, Forge.Api.Services.Unavailable.UnavailableBackToBackService>();
         builder.Services.AddSingleton<IProjectAccountingService, MockProjectAccountingService>();
         // COPQ and Predictive Maintenance — mock for now until real engines built
         builder.Services.AddSingleton<ICopqService, MockCopqService>();

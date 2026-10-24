@@ -8,5 +8,6 @@ public enum PurchaseOrderStatus
     PartiallyReceived,
     Received,
     Closed,
-    Cancelled
+    Cancelled,
+    PendingApproval
 }

@@ -75,6 +75,7 @@ public class GetBurnRatesHandler(AppDbContext db, IPartSourcingResolver sourcing
         var openStatuses = new[]
         {
             PurchaseOrderStatus.Draft,
+            PurchaseOrderStatus.PendingApproval,
             PurchaseOrderStatus.Submitted,
             PurchaseOrderStatus.Acknowledged,
             PurchaseOrderStatus.PartiallyReceived,

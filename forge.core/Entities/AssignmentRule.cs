@@ -3,17 +3,19 @@ using Forge.Core.Enums;
 namespace Forge.Core.Entities;
 
 /// <summary>
-/// Phase 1r / Batch 11 — admin-configured lead-assignment rules, intended to
-/// run in <see cref="Priority"/> order with the first match winning. Not yet
-/// evaluated: nothing applies these rules today, so leads are assigned by
-/// hand (the lead owner field or bulk assign) or pulled from the queue.
+/// Phase 1r / Batch 11 — admin-configured lead-assignment rules, evaluated in
+/// <see cref="Priority"/> order (then name) whenever a lead is created without
+/// an owner — manual entry, web-form intake and bulk import. The first active
+/// rule that matches and names an active rep wins.
 ///
-/// Rule kinds:
-///   • RoundRobin — rotates among a configured set of rep ids
-///   • Territory — matches against the lead's state / zip / country
-///   • Industry — matches against the lead's industry / SIC code
-///   • AccountBased — sticky: if the company already has a related
-///     lead/customer, assign to that owner
+/// Rule kinds (every kind except AccountBased hands the lead to the spec's
+/// <c>repIds</c> in rotation):
+///   • RoundRobin — matches every lead
+///   • Territory — matches the lead's account state (<c>states</c>) or
+///     postal-code prefix (<c>zipPrefixes</c>)
+///   • Industry — matches the lead's account industry (<c>industries</c>)
+///   • AccountBased — sticky: the lead's account owner, else the owner of
+///     an earlier lead for the same company
 /// </summary>
 public class AssignmentRule : BaseAuditableEntity
 {
@@ -23,4 +25,9 @@ public class AssignmentRule : BaseAuditableEntity
     public bool IsActive { get; set; } = true;
     /// <summary>JSON spec for the rule body — values vary by Kind (zip ranges, rep ids, etc.).</summary>
     public string? Spec { get; set; }
+    /// <summary>
+    /// Round-robin cursor: the rep this rule assigned most recently. The next lead goes to the
+    /// rep after this one in the spec's <c>repIds</c> list (the first rep when null or no longer listed).
+    /// </summary>
+    public int? LastAssignedUserId { get; set; }
 }

@@ -18,9 +18,9 @@ public class CancelPurchaseOrderHandler(IPurchaseOrderRepository repo, AppDbCont
 
         // F-033: source-state whitelist — only pre-receipt POs may be cancelled;
         // re-cancel of Cancelled is a silent duplicate; PartiallyReceived/Received/Closed have committed stock
-        if (po.Status is not (PurchaseOrderStatus.Draft or PurchaseOrderStatus.Submitted or PurchaseOrderStatus.Acknowledged))
+        if (po.Status is not (PurchaseOrderStatus.Draft or PurchaseOrderStatus.PendingApproval or PurchaseOrderStatus.Submitted or PurchaseOrderStatus.Acknowledged))
             throw new InvalidOperationException(
-                $"Cannot cancel a purchase order in status {po.Status}. Allowed: Draft, Submitted, Acknowledged.");
+                $"Cannot cancel a purchase order in status {po.Status}. Allowed: Draft, PendingApproval, Submitted, Acknowledged.");
 
         var previousStatus = po.Status;
         po.Status = PurchaseOrderStatus.Cancelled;

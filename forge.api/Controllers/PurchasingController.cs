@@ -67,10 +67,9 @@ public class PurchasingController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("rfqs/{id:int}/send")]
-    public async Task<IActionResult> SendRfqToVendors(int id, SendRfqToVendorsRequestModel request)
+    public async Task<ActionResult<SendRfqToVendorsResponseModel>> SendRfqToVendors(int id, SendRfqToVendorsRequestModel request)
     {
-        await mediator.Send(new SendRfqToVendorsCommand(id, request.VendorIds));
-        return NoContent();
+        return Ok(await mediator.Send(new SendRfqToVendorsCommand(id, request.VendorIds)));
     }
 
     [HttpPost("rfqs/{id:int}/responses")]
