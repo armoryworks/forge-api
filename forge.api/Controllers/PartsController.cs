@@ -163,14 +163,17 @@ public class PartsController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new GetOperationsQuery(id)));
 
     [HttpPost("{id:int}/operations")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
     public async Task<ActionResult<OperationResponseModel>> CreateOperation(int id, [FromBody] CreateOperationRequestModel request)
         => StatusCode(201, await mediator.Send(new CreateOperationCommand(id, request)));
 
     [HttpPatch("{id:int}/operations/{operationId:int}")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
     public async Task<ActionResult<OperationResponseModel>> UpdateOperation(int id, int operationId, [FromBody] UpdateOperationRequestModel request)
         => Ok(await mediator.Send(new UpdateOperationCommand(id, operationId, request)));
 
     [HttpPut("{id:int}/operations/order")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
     public async Task<ActionResult<List<OperationResponseModel>>> ReorderOperations(int id, [FromBody] ReorderOperationsRequestModel request)
         => Ok(await mediator.Send(new ReorderOperationsCommand(id, request)));
 
@@ -192,6 +195,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}/operations/{operationId:int}")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
     public async Task<IActionResult> DeleteOperation(int id, int operationId)
     {
         await mediator.Send(new DeleteOperationCommand(id, operationId));
@@ -204,10 +208,12 @@ public class PartsController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new RecalculatePartStandardCostCommand(id), ct));
 
     [HttpPost("{id:int}/operations/{operationId:int}/materials")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
     public async Task<ActionResult<OperationMaterialResponseModel>> CreateOperationMaterial(int id, int operationId, [FromBody] CreateOperationMaterialRequestModel request)
         => StatusCode(201, await mediator.Send(new CreateOperationMaterialCommand(id, operationId, request)));
 
     [HttpDelete("{id:int}/operations/{operationId:int}/materials/{materialId:int}")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
     public async Task<IActionResult> DeleteOperationMaterial(int id, int operationId, int materialId)
     {
         await mediator.Send(new DeleteOperationMaterialCommand(id, operationId, materialId));

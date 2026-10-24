@@ -11,7 +11,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1")]
-[Authorize(Roles = "Admin,Manager,Engineer,PM")]
+[Authorize(Roles = "Admin,Manager,Engineer,PM,Procurement")]
 [RequiresCapability("CAP-P2P-SUBCONTRACT")]
 public class SubcontractController(IMediator mediator) : ControllerBase
 {
@@ -23,6 +23,7 @@ public class SubcontractController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("subcontract-orders/{id:int}/receive")]
+    [Authorize(Roles = "Admin,Manager,Engineer,PM")]
     public async Task<ActionResult<SubcontractOrderResponseModel>> ReceiveBack(int id, [FromBody] ReceiveBackRequestModel data)
     {
         var result = await mediator.Send(new ReceiveBackSubcontractCommand(id, data));

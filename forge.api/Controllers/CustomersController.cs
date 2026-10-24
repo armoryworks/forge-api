@@ -160,6 +160,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager")]
     [IfMatch(typeof(Customer))]
     public async Task<IActionResult> DeleteCustomer(int id)
     {

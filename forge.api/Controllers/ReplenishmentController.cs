@@ -14,7 +14,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/replenishment")]
-[Authorize(Roles = "Admin,Manager")]
+[Authorize(Roles = "Admin,Manager,Procurement")]
 [RequiresCapability("CAP-PLAN-SAFETYSTOCK")]
 public class ReplenishmentController(IMediator mediator) : ControllerBase
 {
@@ -76,6 +76,7 @@ public class ReplenishmentController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("settings")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<ReplenishmentSettingsResponseModel>> UpdateSettings(
         [FromBody] UpdateReplenishmentSettingsRequestModel request, CancellationToken ct)
     {
