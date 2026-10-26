@@ -1,7 +1,9 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.Reports;
 using Forge.Core.Entities;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -21,11 +23,12 @@ public class CreateScheduledTaskValidator : AbstractValidator<CreateScheduledTas
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.TrackTypeId).GreaterThan(0);
-        RuleFor(x => x.CronExpression).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.CronExpression).NotEmpty().MaximumLength(100)
+            .Must(ReportScheduleCron.IsValid).WithMessage("Cron expression is not valid.").WithErrorCode("cron-invalid");
     }
 }
 
-public class CreateScheduledTaskHandler(AppDbContext db) : IRequestHandler<CreateScheduledTaskCommand, ScheduledTaskResponseModel>
+public class CreateScheduledTaskHandler(AppDbContext db, IClock clock) : IRequestHandler<CreateScheduledTaskCommand, ScheduledTaskResponseModel>
 {
     public async Task<ScheduledTaskResponseModel> Handle(CreateScheduledTaskCommand request, CancellationToken ct)
     {
@@ -40,7 +43,7 @@ public class CreateScheduledTaskHandler(AppDbContext db) : IRequestHandler<Creat
             InternalProjectTypeId = request.InternalProjectTypeId,
             AssigneeId = request.AssigneeId,
             CronExpression = request.CronExpression,
-            NextRunAt = DateTimeOffset.UtcNow, // Will be calculated by the job runner
+            NextRunAt = await ScheduledTaskCron.NextRunAfterAsync(db, request.CronExpression, clock.UtcNow, ct),
         };
 
         db.ScheduledTasks.Add(task);

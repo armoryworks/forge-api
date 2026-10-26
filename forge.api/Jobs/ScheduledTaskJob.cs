@@ -21,7 +21,7 @@ public class ScheduledTaskJob(AppDbContext db, IMediator mediator, IClock clock,
         {
             try
             {
-                var jobId = await mediator.Send(new RunScheduledTaskCommand(task.Id), ct);
+                var jobId = await mediator.Send(new RunScheduledTaskCommand(task.Id, AdvanceSchedule: true), ct);
                 logger.LogInformation("Scheduled task {TaskId} ({Name}) created job {JobId}", task.Id, task.Name, jobId);
             }
             catch (Exception ex)

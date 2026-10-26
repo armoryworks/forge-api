@@ -8,7 +8,7 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.ScheduledTasks;
 
-public record RunScheduledTaskCommand(int Id) : IRequest<int>;
+public record RunScheduledTaskCommand(int Id, bool AdvanceSchedule = false) : IRequest<int>;
 
 public class RunScheduledTaskHandler(
     AppDbContext db,
@@ -52,7 +52,10 @@ public class RunScheduledTaskHandler(
 
         db.Jobs.Add(job);
 
-        task.LastRunAt = clock.UtcNow;
+        var now = clock.UtcNow;
+        task.LastRunAt = now;
+        if (request.AdvanceSchedule)
+            task.NextRunAt = await ScheduledTaskCron.NextRunAfterAsync(db, task.CronExpression, now, ct);
         await db.SaveChangesAsync(ct);
 
         await identifiers.IssueAsync(BusinessEntityType.Job, job.Id, job.JobNumber, ct);
