@@ -119,7 +119,7 @@ public class MultiCurrencyUnitTests
         var ex = (await act.Should().ThrowAsync<FxRateMissingException>()).Which;
         ex.FromCode.Should().Be("CAD");
         ex.ToCode.Should().Be("USD");
-        ex.Message.Should().Be("No exchange rate for CAD to USD on or before 2026-09-30. Add one under Admin > Currencies.");
+        ex.Message.Should().Be("No exchange rate for CAD to USD on or before 2026-09-30. Add one under Accounting > Exchange Rates (or Admin > Currencies).");
     }
 
     [Fact]

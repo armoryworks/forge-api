@@ -6,7 +6,7 @@ namespace Forge.Api.Services.Fx;
 /// pair and date, so the UI can show its own translated message.
 /// </summary>
 public class FxRateMissingException(string fromCode, string toCode, DateOnly date)
-    : Exception($"No exchange rate for {fromCode} to {toCode} on or before {date:yyyy-MM-dd}. Add one under Admin > Currencies.")
+    : Exception($"No exchange rate for {fromCode} to {toCode} on or before {date:yyyy-MM-dd}. Add one under Accounting > Exchange Rates (or Admin > Currencies).")
 {
     public const string Code = "fx-rate-missing";
 
