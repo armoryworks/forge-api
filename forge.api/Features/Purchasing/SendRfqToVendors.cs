@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.PurchaseOrders;
 using Forge.Api.Services;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -41,6 +42,9 @@ public class SendRfqToVendorsHandler(
             .Include(r => r.Part)
             .FirstOrDefaultAsync(r => r.Id == request.RfqId, ct)
             ?? throw new KeyNotFoundException($"RFQ {request.RfqId} not found");
+
+        if (rfq.Status is RfqStatus.Awarded or RfqStatus.Cancelled or RfqStatus.Expired)
+            throw new InvalidOperationException($"Cannot send an RFQ in status {rfq.Status}.");
 
         var vendorIds = request.VendorIds.Distinct().ToList();
         var vendors = await db.Vendors

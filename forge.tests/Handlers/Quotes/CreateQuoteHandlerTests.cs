@@ -266,4 +266,25 @@ public class CreateQuoteHandlerTests
 
         _quoteRepo.Verify(r => r.AddAsync(It.Is<Quote>(q => q.AssignedToId == expected), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Theory]
+    [InlineData(31, false)]
+    [InlineData(32, true)]
+    public async Task A_supplied_rep_who_is_unknown_or_inactive_is_refused(int supplied, bool exists)
+    {
+        var db = Forge.Tests.Helpers.TestDbContextFactory.Create();
+        if (exists)
+            db.Users.Add(new Forge.Data.Context.ApplicationUser { Id = supplied, UserName = "former.rep", FirstName = "Former", LastName = "Rep", IsActive = false });
+        await db.SaveChangesAsync();
+        _customerRepo.Setup(r => r.FindAsync(4, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Customer { Id = 4, Name = "Owner Co" });
+        var handler = new CreateQuoteHandler(_quoteRepo.Object, _customerRepo.Object, _partRepo.Object, db: db);
+
+        var act = () => handler.Handle(new CreateQuoteCommand(
+            4, null, null, null, 0m, [new CreateQuoteLineModel(null, "Setup", 1, 100m, null)], AssignedToId: supplied),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<FluentValidation.ValidationException>();
+        _quoteRepo.Verify(r => r.AddAsync(It.IsAny<Quote>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

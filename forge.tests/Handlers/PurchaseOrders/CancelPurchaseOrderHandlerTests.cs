@@ -19,7 +19,7 @@ public class CancelPurchaseOrderHandlerTests
 
     public CancelPurchaseOrderHandlerTests()
     {
-        _handler = new CancelPurchaseOrderHandler(_repo.Object, TestDbContextFactory.Create());
+        _handler = new CancelPurchaseOrderHandler(_repo.Object, TestDbContextFactory.Create(), Mock.Of<IClock>());
     }
 
     private PurchaseOrder PoInStatus(PurchaseOrderStatus status) => new() { Id = 1, Status = status };

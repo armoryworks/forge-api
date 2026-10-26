@@ -119,4 +119,21 @@ public class SendRfqToVendorsTests
         await act.Should().ThrowAsync<KeyNotFoundException>().WithMessage("Vendor 99 not found");
         _sent.Should().BeEmpty();
     }
+
+    [Theory]
+    [InlineData(RfqStatus.Awarded)]
+    [InlineData(RfqStatus.Cancelled)]
+    [InlineData(RfqStatus.Expired)]
+    public async Task A_closed_rfq_is_not_sent(RfqStatus status)
+    {
+        await SeedAsync();
+        _db.RequestForQuotes.Single().Status = status;
+        await _db.SaveChangesAsync();
+
+        var act = () => _handler.Handle(new SendRfqToVendorsCommand(9, [4]), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage($"*status {status}*");
+        _sent.Should().BeEmpty();
+        _db.RequestForQuotes.Single().Status.Should().Be(status);
+    }
 }

@@ -121,12 +121,38 @@ public class PurchaseOrderApprovalGateTests
     {
         var po = await SeedAsync();
         await SubmitHandler().Handle(new SubmitPurchaseOrderCommand(9), CancellationToken.None);
+        var request = _db.ApprovalRequests.Single(r => r.EntityType == "PurchaseOrder" && r.EntityId == 9);
+        await _approvals.ApproveAsync(request.Id, ManagerId, null, CancellationToken.None);
 
         await CompleteAsync(approved: true, notes: null);
 
         po.Status.Should().Be(PurchaseOrderStatus.Submitted);
         po.SubmittedDate.Should().Be(Now);
         _db.ActivityLogs.Should().ContainSingle(a => a.EntityId == 9 && a.Action == "submitted");
+    }
+
+    [Fact]
+    public async Task An_approval_does_not_release_the_po_while_its_own_request_is_still_open()
+    {
+        var po = await SeedAsync();
+        await SubmitHandler().Handle(new SubmitPurchaseOrderCommand(9), CancellationToken.None);
+
+        await CompleteAsync(approved: true, notes: "Auto-approved (below threshold)");
+
+        po.Status.Should().Be(PurchaseOrderStatus.PendingApproval);
+        po.SubmittedDate.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Cancelling_a_pending_po_withdraws_its_open_approval_request()
+    {
+        await SeedAsync();
+        await SubmitHandler().Handle(new SubmitPurchaseOrderCommand(9), CancellationToken.None);
+
+        await new CancelPurchaseOrderHandler(_repo, _db, _clock.Object).Handle(new CancelPurchaseOrderCommand(9), CancellationToken.None);
+
+        _db.ApprovalRequests.Should().ContainSingle(r => r.EntityType == "PurchaseOrder" && r.EntityId == 9)
+            .Which.Status.Should().Be(ApprovalRequestStatus.Cancelled);
     }
 
     [Fact]

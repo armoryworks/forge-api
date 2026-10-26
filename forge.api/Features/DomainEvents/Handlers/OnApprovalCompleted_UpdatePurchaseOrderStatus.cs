@@ -12,7 +12,9 @@ namespace Forge.Api.Features.DomainEvents.Handlers;
 /// <summary>
 /// Releases a purchase order held in <see cref="PurchaseOrderStatus.PendingApproval"/> once its approval
 /// workflow reaches a terminal decision: an approval submits it to the vendor, a rejection returns it to Draft
-/// with the reviewer's comments on its activity log. Purchase orders in any other status are left alone.
+/// with the reviewer's comments on its activity log. Purchase orders in any other status are left alone, and an
+/// approval is ignored while another approval request for the same purchase order is still open, so a request
+/// raised outside the PO's own submit cannot release it.
 /// </summary>
 public class OnApprovalCompleted_UpdatePurchaseOrderStatus(AppDbContext db, IClock clock)
     : INotificationHandler<ApprovalCompletedEvent>
@@ -28,6 +30,14 @@ public class OnApprovalCompleted_UpdatePurchaseOrderStatus(AppDbContext db, IClo
 
         if (notification.Approved)
         {
+            var stillAwaitingDecision = await db.ApprovalRequests
+                .AsNoTracking()
+                .AnyAsync(r => r.EntityType == "PurchaseOrder"
+                    && r.EntityId == po.Id
+                    && (r.Status == ApprovalRequestStatus.Pending || r.Status == ApprovalRequestStatus.Escalated), ct);
+            if (stillAwaitingDecision)
+                return;
+
             PurchaseOrderSubmission.MarkSubmitted(po, clock.UtcNow, db);
         }
         else

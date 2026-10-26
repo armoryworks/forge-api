@@ -1,14 +1,17 @@
 using System.Security.Claims;
 
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Quotes;
 
@@ -57,7 +60,8 @@ public class CreateQuoteHandler(
     // Optional/null-default for the same reason; DI supplies both.
     ISystemSettingRepository? systemSettings = null,
     IBusinessIdentifierService? identifiers = null,
-    IHttpContextAccessor? httpContext = null)
+    IHttpContextAccessor? httpContext = null,
+    AppDbContext? db = null)
     : IRequestHandler<CreateQuoteCommand, QuoteListItemModel>
 {
     // System setting that gates caller-supplied quote numbers. Stored as "true"/"false".
@@ -78,6 +82,11 @@ public class CreateQuoteHandler(
             taxDocumentId = await taxGuard.EnsureCanOverrideAsync(
                 request.CustomerId, request.TaxRate, defaultRate, cancellationToken);
         }
+
+        if (request.AssignedToId is int assigneeId && db is not null
+            && !await db.Users.AsNoTracking().AnyAsync(u => u.Id == assigneeId && u.IsActive, cancellationToken))
+            throw new ValidationException([new ValidationFailure(
+                nameof(request.AssignedToId), $"User {assigneeId} does not exist or is inactive.")]);
 
         var quoteNumber = await ResolveQuoteNumberAsync(request, cancellationToken);
 
