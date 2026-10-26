@@ -22,7 +22,7 @@ public static class PartyCurrency
     {
         var currencies = new DocumentCurrencyResolver(db);
         var target = await TargetAsync(currencies, currencyId, code, clear, ct);
-        if (target is null || target.Value.Id == customer.CurrencyId)
+        if (target is null || await SameEffectiveAsync(currencies, target.Value.Id, customer.CurrencyId, ct))
         {
             if (target is { Code: { } sameCode } && customer.DefaultCurrency != sameCode)
                 customer.DefaultCurrency = sameCode;
@@ -45,7 +45,7 @@ public static class PartyCurrency
     {
         var currencies = new DocumentCurrencyResolver(db);
         var target = await TargetAsync(currencies, currencyId, null, clear, ct);
-        if (target is null || target.Value.Id == vendor.CurrencyId)
+        if (target is null || await SameEffectiveAsync(currencies, target.Value.Id, vendor.CurrencyId, ct))
             return false;
 
         if (vendor.Id > 0 && await VendorHasPostedDocumentsAsync(db, vendor.Id, ct))
@@ -69,6 +69,11 @@ public static class PartyCurrency
         => await db.PurchaseOrders.AnyAsync(p => p.VendorId == vendorId && p.Status != PurchaseOrderStatus.Draft, ct)
            || await db.VendorBills.AnyAsync(b => b.VendorId == vendorId && b.Status != VendorBillStatus.Draft, ct)
            || await db.VendorPayments.AnyAsync(p => p.VendorId == vendorId, ct);
+
+    private static async Task<bool> SameEffectiveAsync(
+        DocumentCurrencyResolver currencies, int? target, int? current, CancellationToken ct)
+        => target == current
+           || await currencies.EffectiveCurrencyIdAsync(target, ct) == await currencies.EffectiveCurrencyIdAsync(current, ct);
 
     private static async Task<(int? Id, string? Code)?> TargetAsync(
         DocumentCurrencyResolver currencies, int? currencyId, string? code, bool clear, CancellationToken ct)

@@ -289,6 +289,23 @@ public class MultiCurrencyUnitTests
     }
 
     [Fact]
+    public async Task PartyCurrency_NamingTheFunctionalCurrencyForALegacyParty_IsNotAChange()
+    {
+        using var db = Seed();
+        var vendor = new Vendor { CompanyName = "Northern Steel", IsActive = true };
+        db.Vendors.Add(vendor);
+        await db.SaveChangesAsync();
+        db.PurchaseOrders.Add(new PurchaseOrder { PONumber = "PO-1", VendorId = vendor.Id, Status = PurchaseOrderStatus.Submitted });
+        await db.SaveChangesAsync();
+
+        (await PartyCurrency.ApplyToVendorAsync(db, vendor, UsdId, clear: false, CancellationToken.None)).Should().BeFalse();
+        vendor.CurrencyId.Should().BeNull();
+
+        vendor.CurrencyId = UsdId;
+        (await PartyCurrency.ApplyToVendorAsync(db, vendor, null, clear: true, CancellationToken.None)).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task PartyCurrency_VendorWithASubmittedPo_IsLocked()
     {
         using var db = Seed();
