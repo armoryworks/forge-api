@@ -19,9 +19,10 @@ public class EdiController(IMediator mediator, IEdiPartNumberMapService partNumb
 
     [HttpGet("trading-partners")]
     public async Task<ActionResult<List<EdiTradingPartnerResponseModel>>> GetTradingPartners(
-        [FromQuery] bool? isActive)
+        [FromQuery] bool? isActive,
+        [FromQuery] int? customerId)
     {
-        var result = await mediator.Send(new GetEdiTradingPartnersQuery(isActive));
+        var result = await mediator.Send(new GetEdiTradingPartnersQuery(isActive, customerId));
         return Ok(result);
     }
 
@@ -73,10 +74,13 @@ public class EdiController(IMediator mediator, IEdiPartNumberMapService partNumb
         [FromQuery] DateTimeOffset? dateFrom,
         [FromQuery] DateTimeOffset? dateTo,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 25)
+        [FromQuery] int pageSize = 25,
+        [FromQuery] string? relatedEntityType = null,
+        [FromQuery] int? relatedEntityId = null)
     {
         var result = await mediator.Send(new GetEdiTransactionsQuery(
-            direction, transactionSet, status, tradingPartnerId, dateFrom, dateTo, page, pageSize));
+            direction, transactionSet, status, tradingPartnerId, dateFrom, dateTo, page, pageSize,
+            relatedEntityType, relatedEntityId));
         return Ok(result);
     }
 

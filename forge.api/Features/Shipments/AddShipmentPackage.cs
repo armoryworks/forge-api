@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Shipments;
 
@@ -21,6 +22,11 @@ public class AddShipmentPackageValidator : AbstractValidator<AddShipmentPackageC
     public AddShipmentPackageValidator()
     {
         RuleFor(x => x.ShipmentId).GreaterThan(0);
+        RuleFor(x => x.Weight).GreaterThanOrEqualTo(0).When(x => x.Weight.HasValue);
+        RuleFor(x => x.Length).GreaterThanOrEqualTo(0).When(x => x.Length.HasValue);
+        RuleFor(x => x.Width).GreaterThanOrEqualTo(0).When(x => x.Width.HasValue);
+        RuleFor(x => x.Height).GreaterThanOrEqualTo(0).When(x => x.Height.HasValue);
+        RuleFor(x => x.TrackingNumber).MaximumLength(200);
     }
 }
 
@@ -43,6 +49,7 @@ public class AddShipmentPackageHandler(AppDbContext db) : IRequestHandler<AddShi
         };
 
         db.ShipmentPackages.Add(package);
+        db.LogActivityAt("package-added", $"Package added{(package.Weight is decimal w ? $" ({w:0.##} lb)" : string.Empty)}", ("Shipment", shipment.Id));
         await db.SaveChangesAsync(ct);
 
         return new ShipmentPackageResponseModel(

@@ -6,7 +6,7 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Edi;
 
-public record GetEdiTradingPartnersQuery(bool? IsActive) : IRequest<List<EdiTradingPartnerResponseModel>>;
+public record GetEdiTradingPartnersQuery(bool? IsActive, int? CustomerId = null) : IRequest<List<EdiTradingPartnerResponseModel>>;
 
 public class GetEdiTradingPartnersHandler(AppDbContext db)
     : IRequestHandler<GetEdiTradingPartnersQuery, List<EdiTradingPartnerResponseModel>>
@@ -22,6 +22,9 @@ public class GetEdiTradingPartnersHandler(AppDbContext db)
 
         if (request.IsActive.HasValue)
             query = query.Where(p => p.IsActive == request.IsActive.Value);
+
+        if (request.CustomerId.HasValue)
+            query = query.Where(p => p.CustomerId == request.CustomerId.Value);
 
         var partners = await query
             .OrderBy(p => p.Name)

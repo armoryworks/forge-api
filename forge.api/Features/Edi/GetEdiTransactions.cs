@@ -15,7 +15,9 @@ public record GetEdiTransactionsQuery(
     DateTimeOffset? DateFrom,
     DateTimeOffset? DateTo,
     int Page = 1,
-    int PageSize = 25
+    int PageSize = 25,
+    string? RelatedEntityType = null,
+    int? RelatedEntityId = null
 ) : IRequest<PaginatedResponse<EdiTransactionResponseModel>>;
 
 public record PaginatedResponse<T>(List<T> Data, int Page, int PageSize, int TotalCount, int TotalPages);
@@ -39,6 +41,10 @@ public class GetEdiTransactionsHandler(AppDbContext db)
             query = query.Where(t => t.Status == request.Status.Value);
         if (request.TradingPartnerId.HasValue)
             query = query.Where(t => t.TradingPartnerId == request.TradingPartnerId.Value);
+        if (!string.IsNullOrEmpty(request.RelatedEntityType))
+            query = query.Where(t => t.RelatedEntityType == request.RelatedEntityType);
+        if (request.RelatedEntityId.HasValue)
+            query = query.Where(t => t.RelatedEntityId == request.RelatedEntityId.Value);
         if (request.DateFrom.HasValue)
             query = query.Where(t => t.ReceivedAt >= request.DateFrom.Value);
         if (request.DateTo.HasValue)
@@ -50,7 +56,7 @@ public class GetEdiTransactionsHandler(AppDbContext db)
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
         var transactions = await query
-            .OrderByDescending(t => t.ReceivedAt)
+            .OrderByDescending(t => t.ReceivedAt).ThenByDescending(t => t.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(t => new EdiTransactionResponseModel

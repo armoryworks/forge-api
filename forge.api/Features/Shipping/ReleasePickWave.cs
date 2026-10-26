@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Shipping;
 
@@ -22,6 +23,8 @@ public class ReleasePickWaveHandler(AppDbContext db, IClock clock) : IRequestHan
 
         wave.Status = PickWaveStatus.Released;
         wave.ReleasedAt = clock.UtcNow;
+
+        db.LogActivityAt("released", $"Pick wave {wave.WaveNumber} released", ("PickWave", wave.Id));
 
         await db.SaveChangesAsync(cancellationToken);
     }

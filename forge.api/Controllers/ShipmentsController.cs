@@ -161,6 +161,13 @@ public class ShipmentsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("pickup-origin")]
+    public async Task<ActionResult<PickupOriginResponseModel>> GetPickupOrigin()
+    {
+        var result = await mediator.Send(new GetPickupOriginQuery());
+        return Ok(result);
+    }
+
     [HttpPost("{id:int}/pickup")]
     public async Task<ActionResult<PickupConfirmation>> SchedulePickup(
         int id, [FromBody] SchedulePickupRequestModel? request = null)
