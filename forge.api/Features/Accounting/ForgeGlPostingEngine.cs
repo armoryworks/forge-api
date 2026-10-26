@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 using Forge.Api.Services;
 using Forge.Core.Entities;
@@ -63,6 +64,7 @@ public sealed class ForgeGlPostingEngine(
         PostingRequest request, int postedByUserId, JournalEntryStatus status, bool applyBalances, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
+        await using var tx = await BeginOwnTransactionAsync(ct);
 
         // SoD boundary check (§5.7): a posting requires POST_JE in the caller's
         // effective capability set. Enforced only when the authorizer seam is
@@ -101,6 +103,8 @@ public sealed class ForgeGlPostingEngine(
             applyBalances: applyBalances);
 
         await db.SaveChangesAsync(ct);
+        if (tx is not null)
+            await tx.CommitAsync(ct);
         await TryAuditAsync(
             status == JournalEntryStatus.PendingApproval ? "GlJournalSubmitted" : "GlJournalPosted",
             entry, postedByUserId, reason: null, ct);
@@ -111,6 +115,7 @@ public sealed class ForgeGlPostingEngine(
     {
         // SoD (§5.7): finalizing a posting reaches the books only with POST_JE.
         authorizer?.EnsureAuthorized(GlCapability.PostJournalEntry);
+        await using var tx = await BeginOwnTransactionAsync(ct);
 
         var entry = await db.JournalEntries
             .Include(e => e.Lines)
@@ -143,6 +148,8 @@ public sealed class ForgeGlPostingEngine(
 
         await ApplyToLedgerBalancesAsync(entry, entry.FiscalPeriodId, ct);
         await db.SaveChangesAsync(ct);
+        if (tx is not null)
+            await tx.CommitAsync(ct);
         await TryAuditAsync("GlJournalApproved", entry, approvedByUserId, reason: null, ct);
         return entry;
     }
@@ -233,6 +240,7 @@ public sealed class ForgeGlPostingEngine(
         // SoD boundary check (§5.7): reversal requires REVERSE_JE. Enforced only
         // when the authorizer seam is wired (see ctor note).
         authorizer?.EnsureAuthorized(GlCapability.ReverseJournalEntry);
+        await using var tx = await BeginOwnTransactionAsync(ct);
 
         var original = await db.JournalEntries
             .Include(e => e.Lines)
@@ -319,9 +327,24 @@ public sealed class ForgeGlPostingEngine(
         original.ReversedByEntry = reversal;
 
         await db.SaveChangesAsync(ct);
+        if (tx is not null)
+            await tx.CommitAsync(ct);
         await TryAuditAsync("GlJournalReversed", reversal, reversedByUserId, reason, ct);
         return reversal;
     }
+
+    /// <summary>
+    /// Opens a transaction for one posting when the caller has none, so the fiscal-period row lock taken in
+    /// <see cref="ResolveAndLockPeriodAsync"/> is held until the entry and its <see cref="LedgerBalance"/>
+    /// increments commit. Without it the lock ends with its own statement and two postings into the same period
+    /// can read the same balance row and each write back its own total, losing one increment. Returns null when
+    /// the caller already has a transaction (the lock is then held until the caller commits) or the provider
+    /// is not Postgres.
+    /// </summary>
+    private async Task<IDbContextTransaction?> BeginOwnTransactionAsync(CancellationToken ct)
+        => db.Database.IsNpgsql() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(ct)
+            : null;
 
     private async Task TryAuditAsync(
         string action, JournalEntry entry, int actorUserId, string? reason, CancellationToken ct)
@@ -680,6 +703,9 @@ public sealed class ForgeGlPostingEngine(
                   && b.GlAccountId == g.GlAccountId
                   && b.FiscalPeriodId == fiscalPeriodId
                   && b.CurrencyId == g.CurrencyId, ct);
+
+            if (balance is not null && db.Database.IsNpgsql() && db.Entry(balance).State == EntityState.Unchanged)
+                await db.Entry(balance).ReloadAsync(ct);
 
             if (balance is null)
             {
