@@ -237,22 +237,7 @@ public sealed class DepreciationService(
             .FirstOrDefaultAsync(a => a.Id == fixedAssetId, ct)
             ?? throw new KeyNotFoundException($"Fixed asset {fixedAssetId} not found.");
 
-        if (asset.Status == FixedAssetStatus.Disposed)
-            throw new InvalidOperationException($"Fixed asset {asset.Name} has already been disposed.");
-        if (model.DisposalDate < asset.InServiceDate)
-            throw Invalid(nameof(model.DisposalDate), "The disposal date cannot be before the asset's in-service date.");
-        if (model.Proceeds < 0m)
-            throw Invalid(nameof(model.Proceeds), "Proceeds cannot be negative.");
-
-        var disposalMonth = new DateOnly(model.DisposalDate.Year, model.DisposalDate.Month, 1);
-        var laterMonth = asset.DepreciationEntries
-            .Where(d => d.PeriodMonth > disposalMonth)
-            .OrderBy(d => d.PeriodMonth)
-            .Select(d => (DateOnly?)d.PeriodMonth)
-            .FirstOrDefault();
-        if (laterMonth is DateOnly posted)
-            throw new InvalidOperationException(
-                $"Depreciation is already posted for {posted:yyyy-MM}, after the disposal date. Dispose on or after that month.");
+        var disposalMonth = EnsureDisposable(asset, model.DisposalDate, model.Proceeds);
 
         var proceedsAccount = model.Proceeds > 0m
             ? await PostableGlAccountLookup.ResolveAsync(db, asset.BookId, model.ProceedsGlAccountId, null,
@@ -319,6 +304,45 @@ public sealed class DepreciationService(
 
         return new FixedAssetDisposalResult(
             Map(asset, accumulated), journalEntryId, catchUp, netBookValue, model.Proceeds, gainLoss);
+    }
+
+    public async Task<FixedAssetDisposalPreview> PreviewDisposalAsync(
+        int fixedAssetId, DateOnly disposalDate, decimal proceeds, CancellationToken ct = default)
+    {
+        var asset = await db.FixedAssets.AsNoTracking()
+            .Include(a => a.DepreciationEntries)
+            .Include(a => a.LinkedAsset)
+            .FirstOrDefaultAsync(a => a.Id == fixedAssetId, ct)
+            ?? throw new KeyNotFoundException($"Fixed asset {fixedAssetId} not found.");
+
+        var disposalMonth = EnsureDisposable(asset, disposalDate, proceeds);
+        var (catchUp, _, _) = CatchUpCharge(asset, disposalMonth);
+        var netBookValue = asset.Cost - asset.DepreciationEntries.Sum(d => d.Amount) - catchUp;
+
+        return new FixedAssetDisposalPreview(
+            asset.Id, disposalDate, catchUp, netBookValue, proceeds, proceeds - netBookValue);
+    }
+
+    private static DateOnly EnsureDisposable(FixedAsset asset, DateOnly disposalDate, decimal proceeds)
+    {
+        if (asset.Status == FixedAssetStatus.Disposed)
+            throw new InvalidOperationException($"Fixed asset {asset.Name} has already been disposed.");
+        if (disposalDate < asset.InServiceDate)
+            throw Invalid(nameof(DisposeFixedAssetModel.DisposalDate), "The disposal date cannot be before the asset's in-service date.");
+        if (proceeds < 0m)
+            throw Invalid(nameof(DisposeFixedAssetModel.Proceeds), "Proceeds cannot be negative.");
+
+        var disposalMonth = new DateOnly(disposalDate.Year, disposalDate.Month, 1);
+        var laterMonth = asset.DepreciationEntries
+            .Where(d => d.PeriodMonth > disposalMonth)
+            .OrderBy(d => d.PeriodMonth)
+            .Select(d => (DateOnly?)d.PeriodMonth)
+            .FirstOrDefault();
+        if (laterMonth is DateOnly posted)
+            throw new InvalidOperationException(
+                $"Depreciation is already posted for {posted:yyyy-MM}, after the disposal date. Dispose on or after that month.");
+
+        return disposalMonth;
     }
 
     private async Task ValidateAsync(

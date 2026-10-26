@@ -142,6 +142,21 @@ public class AccountingGlHandlerTests
     }
 
     [Fact]
+    public async Task CreateManualJournalEntry_FromAnAutoReversingTemplate_FlagsTheEntryToReverse()
+    {
+        using var db = await SeedAsync();
+        var handler = new CreateManualJournalEntryHandler(CreateEngine(db), HttpAccessorFor(PostingUserId));
+
+        var flagged = await handler.Handle(BalancedCommand(250m) with { AutoReverseNextPeriod = true }, CancellationToken.None);
+        var plain = await handler.Handle(BalancedCommand(100m), CancellationToken.None);
+
+        (await db.JournalEntries.IgnoreQueryFilters().SingleAsync(e => e.Id == flagged.Id))
+            .AutoReverseNextPeriod.Should().BeTrue();
+        (await db.JournalEntries.IgnoreQueryFilters().SingleAsync(e => e.Id == plain.Id))
+            .AutoReverseNextPeriod.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task CreateManualJournalEntry_OverThreshold_WithoutApprover_RoutesToPendingApproval()
     {
         using var db = await SeedAsync();

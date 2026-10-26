@@ -235,4 +235,71 @@ public class FixedAssetScheduleAndEditTests
         options.Single(o => o.Id == press.Id).LinkedFixedAssetId.Should().BeNull();
         options.Single(o => o.Id == press.Id).AcquisitionCost.Should().Be(18000m);
     }
+
+    [Fact]
+    public async Task Disposal_preview_shows_the_catch_up_and_loss_the_disposal_then_posts()
+    {
+        using var db = await SeedAsync();
+        var svc = Service(db);
+        var asset = await svc.CreateAssetAsync(Model());
+        await svc.RunDepreciationAsync(BookId, new DateOnly(2026, 1, 1), 7);
+        var date = new DateOnly(2026, 4, 15);
+        var entriesBefore = await db.JournalEntries.IgnoreQueryFilters().CountAsync();
+
+        var preview = await svc.PreviewDisposalAsync(asset.Id, date, 0m);
+
+        preview.CatchUpDepreciation.Should().Be(200m);
+        preview.NetBookValue.Should().Be(900m);
+        preview.GainLoss.Should().Be(-900m);
+        (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(entriesBefore);
+
+        var disposed = await svc.DisposeAssetAsync(
+            asset.Id, new DisposeFixedAssetModel(date, 0m, null, OtherExpId), 7);
+
+        disposed.CatchUpDepreciation.Should().Be(preview.CatchUpDepreciation);
+        disposed.NetBookValue.Should().Be(preview.NetBookValue);
+        disposed.GainLoss.Should().Be(preview.GainLoss);
+    }
+
+    [Fact]
+    public async Task Disposal_preview_of_a_units_asset_counts_the_shots_not_yet_depreciated()
+    {
+        using var db = await SeedAsync();
+        var mold = new Asset { Name = "Mold A", AssetType = AssetType.Tooling, CurrentShotCount = 250 };
+        db.Assets.Add(mold);
+        await db.SaveChangesAsync();
+        var svc = Service(db);
+        var asset = await svc.CreateAssetAsync(Model(method: DepreciationMethod.UnitsOfProduction) with
+        {
+            LinkedAssetId = mold.Id, UsefulLifeUnits = 1000m,
+        });
+        var date = new DateOnly(2026, 3, 10);
+
+        var preview = await svc.PreviewDisposalAsync(asset.Id, date, 300m);
+
+        preview.CatchUpDepreciation.Should().Be(300m);
+        preview.NetBookValue.Should().Be(900m);
+        preview.GainLoss.Should().Be(-600m);
+
+        var disposed = await svc.DisposeAssetAsync(
+            asset.Id, new DisposeFixedAssetModel(date, 0m, null, OtherExpId), 7);
+
+        disposed.CatchUpDepreciation.Should().Be(preview.CatchUpDepreciation);
+        disposed.NetBookValue.Should().Be(preview.NetBookValue);
+    }
+
+    [Fact]
+    public async Task Disposal_preview_applies_the_disposal_rules()
+    {
+        using var db = await SeedAsync();
+        var svc = Service(db);
+        var asset = await svc.CreateAssetAsync(Model());
+        await svc.DisposeAssetAsync(asset.Id, new DisposeFixedAssetModel(new DateOnly(2026, 1, 20), 0m, null, OtherExpId), 7);
+
+        var disposed = () => svc.PreviewDisposalAsync(asset.Id, new DateOnly(2026, 2, 1), 0m);
+        var unknown = () => svc.PreviewDisposalAsync(999, new DateOnly(2026, 2, 1), 0m);
+
+        await disposed.Should().ThrowAsync<InvalidOperationException>();
+        await unknown.Should().ThrowAsync<KeyNotFoundException>();
+    }
 }

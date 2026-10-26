@@ -32,3 +32,15 @@ public class DisposeFixedAssetHandler(
         return result;
     }
 }
+
+/// <summary>What disposing of a fixed asset would post for a date and proceeds; posts nothing. CAP-ACCT-DEPRECIATION gated.</summary>
+[RequiresCapability("CAP-ACCT-DEPRECIATION")]
+public record PreviewFixedAssetDisposalQuery(int FixedAssetId, DateOnly DisposalDate, decimal Proceeds)
+    : IRequest<FixedAssetDisposalPreview>;
+
+public class PreviewFixedAssetDisposalHandler(IDepreciationService service)
+    : IRequestHandler<PreviewFixedAssetDisposalQuery, FixedAssetDisposalPreview>
+{
+    public Task<FixedAssetDisposalPreview> Handle(PreviewFixedAssetDisposalQuery request, CancellationToken ct)
+        => service.PreviewDisposalAsync(request.FixedAssetId, request.DisposalDate, request.Proceeds, ct);
+}

@@ -57,6 +57,7 @@ public sealed class AccountingAssetsTemplatesGateTests
     [InlineData("POST", "api/v1/accounting/depreciation/preview", "CAP-ACCT-DEPRECIATION")]
     [InlineData("POST", "api/v1/accounting/depreciation/run", "CAP-ACCT-DEPRECIATION")]
     [InlineData("POST", "api/v1/accounting/fixed-assets/{id:int}/dispose", "CAP-ACCT-DEPRECIATION")]
+    [InlineData("POST", "api/v1/accounting/fixed-assets/{id:int}/dispose/preview", "CAP-ACCT-DEPRECIATION")]
     [InlineData("GET", "api/v1/accounting/journal-templates/{id:int}", "CAP-ACCT-GL-VIEW")]
     [InlineData("GET", "api/v1/accounting/journal-templates/parties", "CAP-ACCT-GL-VIEW")]
     [InlineData("PUT", "api/v1/accounting/journal-templates/{id:int}", "CAP-ACCT-FULLGL")]

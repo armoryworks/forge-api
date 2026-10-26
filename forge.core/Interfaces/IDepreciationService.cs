@@ -35,4 +35,8 @@ public interface IDepreciationService
     /// </summary>
     Task<FixedAssetDisposalResult> DisposeAssetAsync(
         int fixedAssetId, DisposeFixedAssetModel model, int disposedByUserId, CancellationToken ct = default);
+
+    /// <summary>What <see cref="DisposeAssetAsync"/> would post for the date and proceeds, without posting.</summary>
+    Task<FixedAssetDisposalPreview> PreviewDisposalAsync(
+        int fixedAssetId, DateOnly disposalDate, decimal proceeds, CancellationToken ct = default);
 }

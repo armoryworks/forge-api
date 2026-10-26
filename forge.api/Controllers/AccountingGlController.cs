@@ -59,7 +59,8 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
                 request.CurrencyId,
                 request.Memo,
                 request.AllowSoftClosedOverride,
-                request.Lines),
+                request.Lines,
+                request.AutoReverseNextPeriod),
             ct);
 
         return CreatedAtAction(
@@ -605,6 +606,13 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         int id, [FromBody] DisposeFixedAssetModel model, CancellationToken ct)
         => Ok(await mediator.Send(new DisposeFixedAssetCommand(id, model), ct));
 
+    /// <summary>Phase-4 — what disposing of a fixed asset would post (catch-up, book value, gain/loss), posting nothing.</summary>
+    [HttpPost("fixed-assets/{id:int}/dispose/preview")]
+    [RequiresCapability("CAP-ACCT-DEPRECIATION")]
+    public async Task<ActionResult<FixedAssetDisposalPreview>> PreviewFixedAssetDisposal(
+        int id, [FromBody] DisposeFixedAssetModel model, CancellationToken ct)
+        => Ok(await mediator.Send(new PreviewFixedAssetDisposalQuery(id, model.DisposalDate, model.Proceeds), ct));
+
     // ─────────────────────────── Phase-2 STAGE E inventory valuation ───────────────────────────
 
     /// <summary>STAGE E — the perpetual inventory valuation (on-hand qty, avg cost, value) per part.</summary>
@@ -818,4 +826,5 @@ public record CreateManualJournalEntryRequest(
     int CurrencyId,
     string? Memo,
     bool AllowSoftClosedOverride,
-    IReadOnlyList<CreateManualJournalLineModel> Lines);
+    IReadOnlyList<CreateManualJournalLineModel> Lines,
+    bool AutoReverseNextPeriod = false);

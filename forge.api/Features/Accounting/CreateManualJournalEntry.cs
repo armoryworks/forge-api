@@ -37,7 +37,8 @@ public record CreateManualJournalEntryCommand(
     int CurrencyId,
     string? Memo,
     bool AllowSoftClosedOverride,
-    IReadOnlyList<CreateManualJournalLineModel> Lines)
+    IReadOnlyList<CreateManualJournalLineModel> Lines,
+    bool AutoReverseNextPeriod = false)
     : IRequest<ManualJournalEntryResult>;
 
 /// <summary>
@@ -158,6 +159,7 @@ public class CreateManualJournalEntryHandler(
         CurrencyId = request.CurrencyId,
         Memo = request.Memo,
         AllowSoftClosedOverride = request.AllowSoftClosedOverride,
+        AutoReverseNextPeriod = request.AutoReverseNextPeriod,
         Lines = request.Lines.Select(l => new PostingLine
         {
             GlAccountId = l.GlAccountId,
