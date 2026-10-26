@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 
 using MediatR;
@@ -9,6 +10,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Shipments;
 
@@ -28,6 +30,13 @@ public class ShipShipmentHandler(
 {
     public async Task Handle(ShipShipmentCommand request, CancellationToken cancellationToken)
     {
+        await using var tx = db is not null && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        if (db is not null)
+            await db.AcquireAdvisoryLockAsync(
+                "shipments.ship", request.Id.ToString(CultureInfo.InvariantCulture), cancellationToken);
+
         // Load with Lines + each line's SalesOrderLine so relief can resolve PartId; fall back to the lean
         // load when relief isn't wired (keeps the no-relief path identical to before).
         var shipment = (relief is not null
@@ -104,6 +113,9 @@ public class ShipShipmentHandler(
         });
 
         await repo.SaveChangesAsync(cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
     }
 
     private static async Task<string> ComputeScanCodeAsync(

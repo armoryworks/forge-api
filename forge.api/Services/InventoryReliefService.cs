@@ -6,6 +6,7 @@ using Forge.Api.Features.Quality;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Services;
 
@@ -27,6 +28,9 @@ namespace Forge.Api.Services;
 /// preserving the never-negative invariant (INV-INV1a) without shipping goods the books never relieve.
 /// Stock on quality hold that would cover a short line throws <see cref="QualityHoldException"/> instead.
 /// Lines with no part, or a service part that is never stocked, are skipped.
+///
+/// Inside a caller's transaction, each part's stock is read under an advisory lock taken in part-id order,
+/// so two shipments of one part cannot both draw the same free units.
 /// </summary>
 public class InventoryReliefService(AppDbContext db, ILogger<InventoryReliefService> logger)
 {
@@ -66,7 +70,11 @@ public class InventoryReliefService(AppDbContext db, ILogger<InventoryReliefServ
             pending.Add((line, partId.Value));
         }
 
-        var partIds = pending.Select(p => p.PartId).Distinct().ToList();
+        var partIds = pending.Select(p => p.PartId).Distinct().Order().ToList();
+        if (db.Database.CurrentTransaction is not null)
+            foreach (var id in partIds)
+                await db.AcquireAdvisoryLockAsync("inventory.ship-relief", id.ToString(CultureInfo.InvariantCulture), ct);
+
         var parts = await db.Parts.IgnoreQueryFilters().AsNoTracking()
             .Where(p => partIds.Contains(p.Id))
             .Select(p => new { p.Id, p.PartNumber, p.InventoryClass })
