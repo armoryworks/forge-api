@@ -181,6 +181,25 @@ public class Phase2GrniReconciliationServiceTests
     }
 
     [Fact]
+    public async Task ForeignCurrencyPo_ValuesTheOpenSideAtTheReceiptRate()
+    {
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        var (poId, poLineId) = await AddPoLineWithReceiptAsync(db, vendorId, unitPrice: 10m, received: 100m, billed: 40m, receivedOn: AsOf);
+        var receipt = await db.Set<ReceivingRecord>().SingleAsync(r => r.PurchaseOrderLineId == poLineId);
+        receipt.FxRate = 0.74m;
+        await db.SaveChangesAsync();
+        await PostGrniReceiptAsync(db, poId, "R-1", amount: 740m, date: AsOf);
+        await PostGrniClearAsync(db, billId: 901, amount: 296m, date: AsOf);
+
+        var r = await Service(db).GetGrniReconciliationAsync(BookId, AsOf);
+
+        r.GlBalance.Should().Be(444m);
+        r.OperationalOpen.Should().Be(444m);
+        r.IsReconciled.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task ReceiptNotAccrued_ShowsVarianceAndUncovered()
     {
         using var db = await SeedAsync();

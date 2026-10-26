@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
@@ -15,7 +16,8 @@ namespace Forge.Api.Features.Accounting;
 ///
 /// <para><b>Two sources, one truth.</b> The <b>GL balance</b> is the net of the GRNI account(s) (resolved
 /// from the <c>GRNI</c> determination key), credit-positive, Posted + Reversed, on/before <c>AsOf</c>. The
-/// <b>operational open</b> is Σ <c>UnbilledReceivedQuantity × PO UnitPrice</c> over open PO lines — exactly
+/// <b>operational open</b> is Σ <c>UnbilledReceivedQuantity × PO UnitPrice</c> over open PO lines, in the
+/// functional currency at the line's quantity-weighted receipt rate (1 for a functional-currency PO) — exactly
 /// what each receipt accrued (STAGE C, Cr GRNI base) and each 3-way-match bill clears (STAGE D.2, Dr GRNI),
 /// so the two agree by construction when every receipt was posted and every bill matched. The variance is
 /// the §12 control.</para>
@@ -93,6 +95,17 @@ public sealed class GrniReconciliationService(AppDbContext db, IClock clock, For
             .Select(g => new { LineId = g.Key, Earliest = g.Min(r => r.CreatedAt) })
             .ToDictionaryAsync(x => x.LineId, x => x.Earliest, ct);
 
+        var receiptRates = await db.Set<ReceivingRecord>()
+            .Where(r => lineIds.Contains(r.PurchaseOrderLineId) && r.QuantityReceived > 0m)
+            .GroupBy(r => r.PurchaseOrderLineId)
+            .Select(g => new
+            {
+                LineId = g.Key,
+                Weighted = g.Sum(r => r.QuantityReceived * r.FxRate),
+                Quantity = g.Sum(r => r.QuantityReceived),
+            })
+            .ToDictionaryAsync(x => x.LineId, x => x.Quantity > 0m ? x.Weighted / x.Quantity : 1m, ct);
+
         var vendorIds = openLines.Select(l => l.VendorId).Distinct().ToList();
         var vendorNames = await db.Set<Vendor>()
             .IgnoreQueryFilters()
@@ -108,7 +121,8 @@ public sealed class GrniReconciliationService(AppDbContext db, IClock clock, For
             var bucketAmounts = new decimal[BucketDefs.Count];
             foreach (var line in poGroup)
             {
-                var openAmount = line.OpenQuantity * line.UnitPrice;
+                var openAmount = FxMath.ToFunctional(
+                    line.OpenQuantity * line.UnitPrice, receiptRates.GetValueOrDefault(line.LineId, 1m));
                 if (openAmount == 0m)
                     continue; // open quantity at a zero PO price contributes no GRNI
 
