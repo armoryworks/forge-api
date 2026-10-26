@@ -297,4 +297,35 @@ public class UpdateAdminUserHandlerTests
 
         _db.ClockEvents.Count(e => e.UserId == 28).Should().Be(1);
     }
+
+    [Fact]
+    public async Task Handle_HireDate_SetsTheEmployeeStartDate_CreatingTheProfileWhenMissing()
+    {
+        SeedUser(1, "ben@example.com");
+        var hired = new DateTimeOffset(2019, 9, 16, 0, 0, 0, TimeSpan.Zero);
+
+        await _handler.Handle(
+            new UpdateAdminUserCommand(1, null, null, null, null, null, null, HireDate: hired),
+            CancellationToken.None);
+
+        _db.EmployeeProfiles.Single(p => p.UserId == 1).StartDate.Should().Be(hired);
+    }
+
+    [Fact]
+    public async Task Handle_HireDate_UpdatesAnExistingProfile_AndOmittingItLeavesItAlone()
+    {
+        SeedUser(1, "lena@example.com");
+        _db.EmployeeProfiles.Add(new EmployeeProfile { UserId = 1, StartDate = new DateTimeOffset(2016, 6, 13, 0, 0, 0, TimeSpan.Zero) });
+        await _db.SaveChangesAsync();
+        var corrected = new DateTimeOffset(2016, 6, 20, 0, 0, 0, TimeSpan.Zero);
+
+        await _handler.Handle(
+            new UpdateAdminUserCommand(1, null, null, null, null, null, null, HireDate: corrected),
+            CancellationToken.None);
+        await _handler.Handle(
+            new UpdateAdminUserCommand(1, "Lena", null, null, null, null, null),
+            CancellationToken.None);
+
+        _db.EmployeeProfiles.Single(p => p.UserId == 1).StartDate.Should().Be(corrected);
+    }
 }

@@ -62,6 +62,7 @@ public class CompleteI9Section2Validator : AbstractValidator<CompleteI9Section2C
 
 public class CompleteI9Section2Handler(
     AppDbContext db,
+    IMediator mediator,
     IDocumentSigningService signingService,
     IOptions<MinioOptions> minioOptions,
     IStorageService storageService)
@@ -138,6 +139,8 @@ public class CompleteI9Section2Handler(
         submission.SignedAt = DateTimeOffset.UtcNow;
 
         await db.SaveChangesAsync(ct);
+
+        await mediator.Send(new EmployeeProfile.AcknowledgeFormCommand(submission.UserId, "i9"), ct);
 
         return new ComplianceFormSubmissionResponseModel(
             submission.Id, submission.TemplateId, submission.Template.Name,

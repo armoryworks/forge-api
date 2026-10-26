@@ -31,7 +31,11 @@ namespace Forge.Api.Features.Accounting;
 ///         a vendor — i.e. <see cref="Expense.SettlementTarget"/> is
 ///         <see cref="ExpenseSettlementTarget.AccountsPayable"/>, or it is unset
 ///         but a <see cref="Expense.VendorId"/> is present.</item>
-///   <item><b>Cr CASH</b> otherwise (out-of-pocket / card / petty cash — no party).</item>
+///   <item><b>Cr CASH</b> when the company paid directly — <see cref="Expense.SettlementTarget"/> is
+///         <see cref="ExpenseSettlementTarget.Cash"/> (company card / petty cash — no party).</item>
+///   <item><b>Cr EMPLOYEE_REIMBURSEMENT_PAYABLE</b> otherwise — an out-of-pocket expense the
+///         employee paid and the company now owes back. <see cref="PostExpenseReimbursedAsync"/>
+///         clears it when the expense is marked reimbursed (Dr EMPLOYEE_REIMBURSEMENT_PAYABLE / Cr CASH).</item>
 /// </list>
 /// AP is a control account, so the engine requires the vendor party on the AP
 /// credit line (§5.2): a vendor-settled expense with no vendor is a hard error
@@ -59,6 +63,17 @@ public interface IExpenseApPostingService
     /// <param name="expenseId">The expense being approved.</param>
     /// <param name="approvedByUserId">Server-trusted actor (recorded as PostedBy + audit actor).</param>
     Task PostExpenseApprovedAsync(int expenseId, int approvedByUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Posts the reimbursement payout (Dr EMPLOYEE_REIMBURSEMENT_PAYABLE / Cr CASH) for an
+    /// out-of-pocket expense whose approval credited Employee Reimbursements Payable, when
+    /// CAP-ACCT-FULLGL is enabled. A no-op while the capability is off, and for expenses whose
+    /// approval posted to AP, Cash or nothing. Idempotent per expense.
+    /// </summary>
+    /// <param name="expenseId">The expense being reimbursed.</param>
+    /// <param name="reimbursedByUserId">Server-trusted actor (recorded as PostedBy).</param>
+    /// <param name="reimbursedOn">The payout date, used as the entry date.</param>
+    Task PostExpenseReimbursedAsync(int expenseId, int reimbursedByUserId, DateOnly reimbursedOn, CancellationToken ct = default);
 }
 
 /// <inheritdoc />
@@ -76,6 +91,7 @@ public sealed class ExpenseApPostingService(
     private const string KeyOperatingExpense = "OPERATING_EXPENSE";
     private const string KeyApControl = "AP_CONTROL";
     private const string KeyCash = "CASH";
+    private const string KeyEmployeeReimbursement = "EMPLOYEE_REIMBURSEMENT_PAYABLE";
 
     public async Task PostExpenseApprovedAsync(
         int expenseId, int approvedByUserId, CancellationToken ct = default)
@@ -144,13 +160,14 @@ public sealed class ExpenseApPostingService(
         // ── Settlement disambiguation (§7 "Expense approved" / §6 Phase-1 row).
         // Explicit SettlementTarget wins; otherwise a present VendorId implies
         // AP (the expense is owed to that vendor), and the absence of either
-        // means a directly-paid (cash) expense.
+        // means the employee paid out of pocket and is owed a reimbursement.
         var settlesToAp = expense.SettlementTarget switch
         {
             ExpenseSettlementTarget.AccountsPayable => true,
             ExpenseSettlementTarget.Cash => false,
             _ => expense.VendorId is not null, // null target → infer from vendor
         };
+        var owedToEmployee = !settlesToAp && expense.SettlementTarget is null;
 
         var lines = new List<PostingLine>(2)
         {
@@ -187,9 +204,18 @@ public sealed class ExpenseApPostingService(
                             + (expense.Vendor is not null ? $" ({expense.Vendor.CompanyName})" : string.Empty),
             });
         }
+        else if (owedToEmployee)
+        {
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyEmployeeReimbursement,
+                Credit = amount,
+                Description = $"Owed to employee (user {expense.UserId}) — expense EXP-{expense.Id}",
+            });
+        }
         else
         {
-            // Cr Cash — directly paid expense (out-of-pocket / card / petty cash).
+            // Cr Cash — directly paid expense (company card / petty cash).
             lines.Add(new PostingLine
             {
                 AccountKey = KeyCash,
@@ -210,8 +236,7 @@ public sealed class ExpenseApPostingService(
             SourceType = "Expense",
             SourceId = expense.Id,
             CurrencyId = book.FunctionalCurrencyId, // Phase-0/1 single-currency invariant
-            Memo = $"Expense approved — EXP-{expense.Id}"
-                 + (settlesToAp ? " (Cr AP)" : " (Cr Cash)"),
+            Memo = $"Expense approved — EXP-{expense.Id} ({CreditLegLabel(settlesToAp, owedToEmployee)})",
             IdempotencyKey = idempotencyKey,
             Lines = lines,
         };
@@ -223,14 +248,78 @@ public sealed class ExpenseApPostingService(
 
         // ── Audit (§5.8): actor + before/after + reason on post. Best-effort —
         // an audit hiccup must not unwind a successful, committed posting.
-        await TryAuditAsync(expense, entry, amount, settlesToAp, approvedByUserId, ct);
+        await TryAuditAsync(expense, entry, amount, CreditLegKey(settlesToAp, owedToEmployee),
+            CreditLegLabel(settlesToAp, owedToEmployee), approvedByUserId, ct);
+    }
+
+    private static string CreditLegKey(bool settlesToAp, bool owedToEmployee)
+        => settlesToAp ? KeyApControl : owedToEmployee ? KeyEmployeeReimbursement : KeyCash;
+
+    private static string CreditLegLabel(bool settlesToAp, bool owedToEmployee)
+        => settlesToAp ? "Cr AP" : owedToEmployee ? "Cr Employee Reimbursements Payable" : "Cr Cash";
+
+    public async Task PostExpenseReimbursedAsync(
+        int expenseId, int reimbursedByUserId, DateOnly reimbursedOn, CancellationToken ct = default)
+    {
+        if (!capabilities.IsEnabled(FullGlCapability))
+            return;
+
+        var approvalKey = $"{JournalSource.AP}:Expense:{expenseId}:EXPENSE";
+        var approval = await db.JournalEntries.AsNoTracking()
+            .Include(e => e.Lines)
+            .FirstOrDefaultAsync(e => e.IdempotencyKey == approvalKey && e.Status == JournalEntryStatus.Posted, ct);
+        if (approval is null)
+            return;
+
+        var payableAccountId = await db.AccountDeterminationRules.AsNoTracking()
+            .Where(r => r.BookId == approval.BookId && r.Key == KeyEmployeeReimbursement)
+            .Select(r => (int?)r.GlAccountId)
+            .FirstOrDefaultAsync(ct);
+        if (payableAccountId is null)
+            return;
+
+        var owed = approval.Lines.Where(l => l.GlAccountId == payableAccountId).Sum(l => l.Credit - l.Debit);
+        if (owed <= 0m)
+            return;
+
+        var book = await db.Books.AsNoTracking().FirstAsync(b => b.Id == approval.BookId, ct);
+
+        var request = new PostingRequest
+        {
+            BookId = book.Id,
+            EntryDate = reimbursedOn,
+            Source = JournalSource.AP,
+            SourceType = "Expense",
+            SourceId = expenseId,
+            CurrencyId = book.FunctionalCurrencyId,
+            Memo = $"Expense reimbursed — EXP-{expenseId}",
+            IdempotencyKey = $"{JournalSource.AP}:Expense:{expenseId}:REIMBURSEMENT",
+            Lines =
+            [
+                new PostingLine
+                {
+                    GlAccountId = payableAccountId,
+                    Debit = owed,
+                    Description = $"Reimbursement paid — expense EXP-{expenseId}",
+                },
+                new PostingLine
+                {
+                    AccountKey = KeyCash,
+                    Credit = owed,
+                    Description = $"Cash — reimbursement of expense EXP-{expenseId}",
+                },
+            ],
+        };
+
+        await postingEngine.PostAsSystemAsync(request, reimbursedByUserId, ct);
     }
 
     private async Task TryAuditAsync(
         Expense expense,
         JournalEntry entry,
         decimal amount,
-        bool settlesToAp,
+        string creditLeg,
+        string creditLabel,
         int actorUserId,
         CancellationToken ct)
     {
@@ -250,11 +339,10 @@ public sealed class ExpenseApPostingService(
                     source = entry.Source.ToString(),
                     entryDate = entry.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     amount,
-                    creditLeg = settlesToAp ? "AP_CONTROL" : "CASH",
+                    creditLeg,
                     vendorId = expense.VendorId,
                 },
-                reason = $"Expense EXP-{expense.Id} approved — expense posted ("
-                       + (settlesToAp ? "Cr AP" : "Cr Cash") + ").",
+                reason = $"Expense EXP-{expense.Id} approved — expense posted ({creditLabel}).",
             });
 
             await auditWriter.WriteAsync(

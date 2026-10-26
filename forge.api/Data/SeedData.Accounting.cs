@@ -132,6 +132,7 @@ public static partial class SeedData
             // ── Liabilities (2xxxx) ─────────────────────────────────────────
             ("20000", "Accounts Payable",            AccountType.Liability, NormalBalance.Credit, true,  ControlAccountType.AP,        "AP_CONTROL"),
             ("21000", "Goods Received Not Invoiced", AccountType.Liability, NormalBalance.Credit, false, null,                         "GRNI"),
+            ("21500", "Employee Reimbursements Payable", AccountType.Liability, NormalBalance.Credit, false, null,                     "EMPLOYEE_REIMBURSEMENT_PAYABLE"),
             ("22000", "Freight Clearing",            AccountType.Liability, NormalBalance.Credit, false, null,                         "FREIGHT_CLEARING"),
             ("23000", "Sales Tax Payable",           AccountType.Liability, NormalBalance.Credit, false, null,                         "SALES_TAX_PAYABLE"),
             ("24000", "Deferred Revenue",            AccountType.Liability, NormalBalance.Credit, false, null,                         "DEFERRED_REVENUE"),
@@ -590,6 +591,7 @@ public static partial class SeedData
     internal static readonly (string Key, string Number, string Name, AccountType Type, NormalBalance Normal)[] PatchedDeterminationAccounts =
     [
         ("FX_REVALUATION", "19900", "FX Revaluation Adjustment", AccountType.Asset, NormalBalance.Debit),
+        ("EMPLOYEE_REIMBURSEMENT_PAYABLE", "21500", "Employee Reimbursements Payable", AccountType.Liability, NormalBalance.Credit),
         ("EMPLOYEE_TAX_PAYABLE", "26200", "Employee Taxes Withheld", AccountType.Liability, NormalBalance.Credit),
         ("EMPLOYER_TAX_PAYABLE", "26300", "Employer Payroll Taxes Payable", AccountType.Liability, NormalBalance.Credit),
         ("NET_PAY_PAYABLE", "26400", "Net Pay Payable", AccountType.Liability, NormalBalance.Credit),

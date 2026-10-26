@@ -45,6 +45,12 @@ public class VendorBill : BaseAuditableEntity, IConcurrencyVersioned
     /// </summary>
     public int? ExpenseId { get; set; }
 
+    /// <summary>
+    /// The user who entered the bill. Approval refuses this user (segregation of duties). Null for bills
+    /// created by the system (expense promotion, conversion) or recorded before the column existed.
+    /// </summary>
+    public int? CreatedByUserId { get; set; }
+
     public VendorBillStatus Status { get; set; } = VendorBillStatus.Draft;
     public DateTimeOffset BillDate { get; set; }
     public DateTimeOffset DueDate { get; set; }

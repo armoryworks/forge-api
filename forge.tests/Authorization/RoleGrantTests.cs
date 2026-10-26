@@ -90,6 +90,15 @@ public sealed class RoleGrantTests
     }
 
     [Fact]
+    public void Filing_an_expense_is_limited_to_the_roles_the_expenses_screen_admits()
+    {
+        string[] filers = ["Admin", "Manager", "Engineer", "OfficeManager"];
+        EffectiveRoles(Single("POST", "api/v1/expenses")).Should().BeEquivalentTo(filers);
+        EffectiveRoles(Single("PUT", "api/v1/expenses/{id:int}")).Should().BeEquivalentTo(filers);
+        EffectiveRoles(Single("POST", "api/v1/expenses/receipts")).Should().BeEquivalentTo(filers);
+    }
+
+    [Fact]
     public void Expense_policy_is_readable_by_every_role_that_files_expenses()
     {
         EffectiveRoles(Single("GET", "api/v1/expenses/settings")).Should().BeEquivalentTo(AllRoles);

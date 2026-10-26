@@ -26,6 +26,7 @@ public class ExpensesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Manager,Engineer,OfficeManager")]
     public async Task<ActionResult<ExpenseResponseModel>> CreateExpense([FromBody] CreateExpenseRequestModel request)
     {
         var result = await mediator.Send(new CreateExpenseCommand(request));
@@ -33,6 +34,7 @@ public class ExpensesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin,Manager,Engineer,OfficeManager")]
     public async Task<ActionResult<ExpenseResponseModel>> UpdateExpense(int id, [FromBody] UpdateExpenseRequestModel request)
     {
         var result = await mediator.Send(new UpdateExpenseCommand(id, request));
@@ -71,6 +73,7 @@ public class ExpensesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("receipts")]
+    [Authorize(Roles = "Admin,Manager,Engineer,OfficeManager")]
     [RequestSizeLimit(52_428_800)]
     public async Task<ActionResult<FileAttachmentResponseModel>> UploadReceipt(IFormFile file)
     {

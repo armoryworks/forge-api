@@ -19,6 +19,7 @@ namespace Forge.Api.Features.VendorBills;
 /// SendInvoice): when CAP-ACCT-FULLGL is enabled, approving posts the AP / expense journal
 /// <b>inline, in this command's transaction</b> via <see cref="IVendorBillApPostingService"/>. While the
 /// capability is OFF (the default) the posting call is a no-op and the handler just flips the status.
+/// Segregation of duties: the user who entered the bill cannot approve it (409).
 /// </summary>
 public record ApproveVendorBillCommand(int Id) : IRequest;
 
@@ -41,6 +42,17 @@ public class ApproveVendorBillHandler(
 
         if (bill.Status != VendorBillStatus.Draft)
             throw new InvalidOperationException("Only Draft bills can be approved");
+
+        var approvedByUserId =
+            int.TryParse(
+                httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier),
+                out var uid)
+                ? uid
+                : 0;
+
+        if (approvedByUserId != 0 && approvedByUserId == await ResolveCreatorAsync(bill, cancellationToken))
+            throw new InvalidOperationException(
+                "Segregation of duties: a bill must be approved by a different user than the one who entered it.");
 
         bill.Status = VendorBillStatus.Approved;
 
@@ -115,16 +127,7 @@ public class ApproveVendorBillHandler(
         }
 
         if (apPosting is not null)
-        {
-            var approvedByUserId =
-                int.TryParse(
-                    httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier),
-                    out var uid)
-                    ? uid
-                    : 0;
-
             await apPosting.PostVendorBillApprovedAsync(bill.Id, approvedByUserId, cancellationToken);
-        }
 
         // Advance operational 3-way-match state AFTER the posting read the pre-bill BilledQuantity. Persisted
         // by the SaveChanges below within the same transaction (PO lines are tracked by the shared context).
@@ -146,5 +149,17 @@ public class ApproveVendorBillHandler(
 
         if (tx is not null)
             await tx.CommitAsync(cancellationToken);
+    }
+
+    private async Task<int?> ResolveCreatorAsync(VendorBill bill, CancellationToken cancellationToken)
+    {
+        if (bill.CreatedByUserId is not null || db is null)
+            return bill.CreatedByUserId;
+
+        return await db.ActivityLogs.AsNoTracking()
+            .Where(a => a.EntityType == "VendorBill" && a.EntityId == bill.Id && a.Action == "created")
+            .OrderBy(a => a.Id)
+            .Select(a => a.UserId)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 }
