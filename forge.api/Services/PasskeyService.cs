@@ -23,19 +23,16 @@ public class PasskeyService(
     private static string RegKey(int userId) => $"passkey:reg:{userId}";
     private static string AssertKey(int userId) => $"passkey:assert:{userId}";
 
-    private static IFido2 CreateFido2(string origin)
-    {
-        var host = new Uri(origin).Host;
-        return new Fido2(new Fido2Configuration
+    private static IFido2 CreateFido2(PasskeyRelyingParty relyingParty)
+        => new Fido2(new Fido2Configuration
         {
-            ServerDomain = host,
+            ServerDomain = relyingParty.RpId,
             ServerName = "Forge",
-            Origins = new HashSet<string> { origin },
+            Origins = new HashSet<string>(relyingParty.Origins),
         });
-    }
 
     public async Task<CredentialCreateOptions> BeginRegistrationAsync(
-        int userId, string origin, CancellationToken ct)
+        int userId, PasskeyRelyingParty relyingParty, CancellationToken ct)
     {
         var user = await db.Users.AsNoTracking()
             .FirstAsync(u => u.Id == userId, ct);
@@ -49,7 +46,7 @@ public class PasskeyService(
 
         var existing = await ExistingCredentialsAsync(userId, ct);
 
-        var options = CreateFido2(origin).RequestNewCredential(new RequestNewCredentialParams
+        var options = CreateFido2(relyingParty).RequestNewCredential(new RequestNewCredentialParams
         {
             User = fidoUser,
             ExcludeCredentials = existing,
@@ -66,7 +63,7 @@ public class PasskeyService(
     }
 
     public async Task<string> CompleteRegistrationAsync(
-        int userId, string origin, AuthenticatorAttestationRawResponse response,
+        int userId, PasskeyRelyingParty relyingParty, AuthenticatorAttestationRawResponse response,
         string? deviceName, CancellationToken ct)
     {
         if (!cache.TryGetValue<string>(RegKey(userId), out var optionsJson) || optionsJson is null)
@@ -75,14 +72,23 @@ public class PasskeyService(
 
         var options = CredentialCreateOptions.FromJson(optionsJson);
 
-        var credential = await CreateFido2(origin).MakeNewCredentialAsync(new MakeNewCredentialParams
+        RegisteredPublicKeyCredential credential;
+        try
         {
-            AttestationResponse = response,
-            OriginalOptions = options,
-            IsCredentialIdUniqueToUserCallback = async (args, token) =>
-                !await db.UserMfaDevices.AnyAsync(
-                    d => d.CredentialId == Convert.ToBase64String(args.CredentialId), token),
-        }, ct);
+            credential = await CreateFido2(relyingParty).MakeNewCredentialAsync(new MakeNewCredentialParams
+            {
+                AttestationResponse = response,
+                OriginalOptions = options,
+                IsCredentialIdUniqueToUserCallback = async (args, token) =>
+                    !await db.UserMfaDevices.AnyAsync(
+                        d => d.CredentialId == Convert.ToBase64String(args.CredentialId), token),
+            }, ct);
+        }
+        catch (Fido2VerificationException ex)
+        {
+            logger.LogWarning(ex, "Passkey registration failed verification for user {UserId}", userId);
+            throw new InvalidOperationException("The passkey could not be verified for this site. Start over.");
+        }
 
         var name = string.IsNullOrWhiteSpace(deviceName) ? "Passkey" : deviceName.Trim();
         db.UserMfaDevices.Add(new UserMfaDevice
@@ -103,12 +109,12 @@ public class PasskeyService(
     }
 
     public async Task<AssertionOptions?> BeginAssertionAsync(
-        int userId, string origin, CancellationToken ct)
+        int userId, PasskeyRelyingParty relyingParty, CancellationToken ct)
     {
         var credentials = await ExistingCredentialsAsync(userId, ct);
         if (credentials.Count == 0) return null;
 
-        var options = CreateFido2(origin).GetAssertionOptions(new GetAssertionOptionsParams
+        var options = CreateFido2(relyingParty).GetAssertionOptions(new GetAssertionOptionsParams
         {
             AllowedCredentials = credentials,
             UserVerification = UserVerificationRequirement.Required,
@@ -119,7 +125,7 @@ public class PasskeyService(
     }
 
     public async Task<bool> CompleteAssertionAsync(
-        int userId, string origin, AuthenticatorAssertionRawResponse response, CancellationToken ct)
+        int userId, PasskeyRelyingParty relyingParty, AuthenticatorAssertionRawResponse response, CancellationToken ct)
     {
         if (!cache.TryGetValue<string>(AssertKey(userId), out var optionsJson) || optionsJson is null)
             return false;
@@ -134,7 +140,7 @@ public class PasskeyService(
 
         try
         {
-            var result = await CreateFido2(origin).MakeAssertionAsync(new MakeAssertionParams
+            var result = await CreateFido2(relyingParty).MakeAssertionAsync(new MakeAssertionParams
             {
                 AssertionResponse = response,
                 OriginalOptions = options,

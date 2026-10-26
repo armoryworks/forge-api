@@ -7,7 +7,7 @@ using Forge.Api.Services;
 
 namespace Forge.Api.Features.Auth;
 
-public record BeginPasskeyRegistrationCommand(string Origin) : IRequest<CredentialCreateOptions>;
+public record BeginPasskeyRegistrationCommand(PasskeyRelyingParty RelyingParty) : IRequest<CredentialCreateOptions>;
 
 public class BeginPasskeyRegistrationHandler(
     IPasskeyService passkeys,
@@ -19,6 +19,6 @@ public class BeginPasskeyRegistrationHandler(
     {
         var userId = int.Parse(
             httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        return passkeys.BeginRegistrationAsync(userId, request.Origin, cancellationToken);
+        return passkeys.BeginRegistrationAsync(userId, request.RelyingParty, cancellationToken);
     }
 }

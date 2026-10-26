@@ -8,7 +8,7 @@ using Forge.Api.Services;
 namespace Forge.Api.Features.Auth;
 
 public record CompletePasskeyRegistrationCommand(
-    string Origin,
+    PasskeyRelyingParty RelyingParty,
     AuthenticatorAttestationRawResponse Response,
     string? DeviceName) : IRequest<string>;
 
@@ -23,6 +23,6 @@ public class CompletePasskeyRegistrationHandler(
         var userId = int.Parse(
             httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         return passkeys.CompleteRegistrationAsync(
-            userId, request.Origin, request.Response, request.DeviceName, cancellationToken);
+            userId, request.RelyingParty, request.Response, request.DeviceName, cancellationToken);
     }
 }
