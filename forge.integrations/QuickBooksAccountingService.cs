@@ -129,11 +129,9 @@ public class QuickBooksAccountingService(
                 Amount = Math.Round(li.Quantity * li.UnitPrice, 2, MidpointRounding.AwayFromZero),
                 ItemBasedExpenseLineDetail = new
                 {
-                    ItemRef = li.ItemExternalId is not null ? new { value = li.ItemExternalId }
-                        : li.IsFreight ? new { value = ShippingItemId } : null,
+                    ItemRef = li.ItemExternalId is not null ? new { value = li.ItemExternalId } : null,
                     Qty = li.Quantity,
                     UnitPrice = li.UnitPrice,
-                    TaxCodeRef = li.Taxable is bool taxable ? new { value = taxable ? "TAX" : "NON" } : null,
                 },
                 Description = li.Description,
             }).ToArray(),
@@ -599,9 +597,11 @@ public class QuickBooksAccountingService(
                 Amount = Math.Round(li.Quantity * li.UnitPrice, 2, MidpointRounding.AwayFromZero),
                 SalesItemLineDetail = new
                 {
-                    ItemRef = li.ItemExternalId is not null ? new { value = li.ItemExternalId } : null,
+                    ItemRef = li.ItemExternalId is not null ? new { value = li.ItemExternalId }
+                        : li.IsFreight ? new { value = ShippingItemId } : null,
                     Qty = li.Quantity,
                     UnitPrice = li.UnitPrice,
+                    TaxCodeRef = li.Taxable is bool taxable ? new { value = taxable ? "TAX" : "NON" } : null,
                 },
                 Description = li.Description,
             }).ToArray(),

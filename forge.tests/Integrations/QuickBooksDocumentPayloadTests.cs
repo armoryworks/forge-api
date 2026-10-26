@@ -126,4 +126,58 @@ public class QuickBooksDocumentPayloadTests
         (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message
             .Should().StartWith("QuickBooks multicurrency is off");
     }
+
+    private static AccountingDocument FreightInvoice(string? freightItemId, bool taxable) => new(
+        AccountingDocumentType.Invoice,
+        "cust-1",
+        [
+            new AccountingLineItem("Bracket", 2m, 50m, null),
+            new AccountingLineItem("Freight", 1m, 25m, freightItemId, IsFreight: true, Taxable: taxable),
+        ],
+        "INV-2",
+        125m,
+        new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero));
+
+    private static JsonElement SalesDetail(string body, int index)
+    {
+        using var doc = JsonDocument.Parse(body);
+        return doc.RootElement.GetProperty("Line")[index].GetProperty("SalesItemLineDetail").Clone();
+    }
+
+    [Fact]
+    public async Task CreateInvoiceAsync_FreightLine_UsesTheMappedFreightItemAndPassesItsTaxCode()
+    {
+        var (service, handler) = Create("""{"Invoice":{"Id":"45"}}""");
+
+        await service.CreateInvoiceAsync(FreightInvoice("77", taxable: false), CancellationToken.None);
+
+        var body = handler.Bodies.Single();
+        var freight = SalesDetail(body, 1);
+        freight.GetProperty("ItemRef").GetProperty("value").GetString().Should().Be("77");
+        freight.GetProperty("TaxCodeRef").GetProperty("value").GetString().Should().Be("NON");
+        SalesDetail(body, 0).GetProperty("TaxCodeRef").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public void BuildDocumentPayload_UnmappedFreightLine_GoesOnTheShippingItem()
+    {
+        var body = JsonSerializer.Serialize(
+            QuickBooksAccountingService.BuildDocumentPayload(FreightInvoice(null, taxable: true)));
+
+        var freight = SalesDetail(body, 1);
+        freight.GetProperty("ItemRef").GetProperty("value").GetString().Should().Be(QuickBooksAccountingService.ShippingItemId);
+        freight.GetProperty("TaxCodeRef").GetProperty("value").GetString().Should().Be("TAX");
+    }
+
+    [Fact]
+    public async Task CreatePurchaseOrderAsync_SendsNoTaxCodeRef()
+    {
+        var (service, handler) = Create("""{"PurchaseOrder":{"Id":"8"}}""");
+
+        await service.CreatePurchaseOrderAsync(Document(AccountingDocumentType.PurchaseOrder), CancellationToken.None);
+
+        using var doc = JsonDocument.Parse(handler.Bodies.Single());
+        doc.RootElement.GetProperty("Line")[0].GetProperty("ItemBasedExpenseLineDetail")
+            .TryGetProperty("TaxCodeRef", out _).Should().BeFalse();
+    }
 }
