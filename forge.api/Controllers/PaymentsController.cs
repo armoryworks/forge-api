@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Capabilities;
 using Forge.Api.Concurrency;
+using Forge.Api.Features.CreditMemos;
 using Forge.Api.Features.Payments;
 using Forge.Core.Entities;
 using Forge.Core.Models;
@@ -78,6 +79,12 @@ public class PaymentsController(IMediator mediator) : ControllerBase
         await mediator.Send(new VoidPaymentCommand(id, request));
         return NoContent();
     }
+
+    /// <summary>Pays back unapplied cash on the payment to the customer.</summary>
+    [HttpPost("{id:int}/refund")]
+    [RequiresCapability("CAP-O2C-CREDITMEMO")]
+    public async Task<ActionResult<CustomerRefundModel>> RefundPayment(int id, CustomerRefundRequestModel request, CancellationToken ct)
+        => Ok(await mediator.Send(new RefundPaymentCommand(id, request), ct));
 
     [HttpDelete("{id:int}")]
     [IfMatch(typeof(Payment))]

@@ -31,9 +31,14 @@ public class Payment : BaseAuditableEntity, IConcurrencyVersioned
     public DateTimeOffset? LastSyncedAt { get; set; }
 
     public decimal AppliedAmount => Applications.Sum(a => a.Amount);
-    public decimal UnappliedAmount => Amount - AppliedAmount;
+
+    /// <summary>Unapplied cash paid back to the customer by recorded refunds.</summary>
+    public decimal RefundedAmount => Refunds.Where(r => r.Status == CustomerRefundStatus.Recorded).Sum(r => r.Amount);
+
+    public decimal UnappliedAmount => Amount - AppliedAmount - RefundedAmount;
 
     public Customer Customer { get; set; } = null!;
     public Currency? Currency { get; set; }
     public ICollection<PaymentApplication> Applications { get; set; } = [];
+    public ICollection<CustomerRefund> Refunds { get; set; } = [];
 }

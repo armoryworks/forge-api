@@ -33,6 +33,7 @@ public class GetPortalInvoicesHandler(AppDbContext db, IAccountingService accoun
         var invoices = await scope
             .Include(i => i.Lines)
             .Include(i => i.PaymentApplications)
+            .Include(i => i.CreditApplications)
             .Include(i => i.Currency)
             .OrderByDescending(i => i.InvoiceDate)
             .Take(PortalReadRules.ListCap)

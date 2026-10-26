@@ -103,6 +103,15 @@ public class CustomerPortalController(IMediator mediator, IConfiguration config)
         return PortalListResult(result);
     }
 
+    [HttpGet("me/credits")]
+    [Authorize(AuthenticationSchemes = PortalTokenService.SchemeName)]
+    public async Task<ActionResult<List<PortalCreditListItem>>> Credits()
+    {
+        var (customerId, _) = RequirePortalClaims();
+        var result = await mediator.Send(new GetPortalCreditsQuery(customerId));
+        return PortalListResult(result);
+    }
+
     [HttpGet("me/shipments")]
     [Authorize(AuthenticationSchemes = PortalTokenService.SchemeName)]
     public async Task<ActionResult<List<PortalShipmentListItem>>> Shipments()

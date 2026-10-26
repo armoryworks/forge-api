@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -88,7 +89,7 @@ public class PaymentRepository(AppDbContext db) : IPaymentRepository
                 p.Method.ToString(),
                 p.Amount,
                 p.Applications.Sum(a => a.Amount),
-                p.Amount - p.Applications.Sum(a => a.Amount),
+                p.Amount - p.Applications.Sum(a => a.Amount) - p.Refunds.Where(r => r.Status == CustomerRefundStatus.Recorded).Sum(r => r.Amount),
                 p.PaymentDate,
                 p.ReferenceNumber,
                 p.CreatedAt,
@@ -116,6 +117,7 @@ public class PaymentRepository(AppDbContext db) : IPaymentRepository
             .Include(p => p.Customer)
             .Include(p => p.Applications)
                 .ThenInclude(a => a.Invoice)
+            .Include(p => p.Refunds)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
     }
 

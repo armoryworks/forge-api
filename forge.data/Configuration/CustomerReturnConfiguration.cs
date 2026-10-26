@@ -17,6 +17,9 @@ public class CustomerReturnConfiguration : IEntityTypeConfiguration<CustomerRetu
         builder.Property(e => e.ExternalRmaId).HasMaxLength(200);
         builder.Property(e => e.RefundAmount).HasPrecision(18, 2);
         builder.Property(e => e.Quantity).HasPrecision(18, 4);
+        builder.Property(e => e.QuantityRestocked).HasPrecision(18, 4);
+        builder.Property(e => e.QuantityScrapped).HasPrecision(18, 4);
+        builder.Property(e => e.RestockLotNumber).HasMaxLength(100);
 
         builder.HasIndex(e => e.ReturnNumber).IsUnique();
         builder.HasIndex(e => e.Status);
@@ -52,6 +55,36 @@ public class CustomerReturnConfiguration : IEntityTypeConfiguration<CustomerRetu
         builder.HasOne(e => e.ReworkJob)
             .WithMany()
             .HasForeignKey(e => e.ReworkJobId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(e => e.InvoiceId);
+        builder.HasOne(e => e.Invoice)
+            .WithMany()
+            .HasForeignKey(e => e.InvoiceId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(e => e.InvoiceLineId);
+        builder.HasOne(e => e.InvoiceLine)
+            .WithMany()
+            .HasForeignKey(e => e.InvoiceLineId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(e => e.RestockLocationId);
+        builder.HasOne(e => e.RestockLocation)
+            .WithMany()
+            .HasForeignKey(e => e.RestockLocationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(e => e.RestockBinMovementId);
+        builder.HasOne<BinMovement>()
+            .WithMany()
+            .HasForeignKey(e => e.RestockBinMovementId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(e => e.CreditMemoId);
+        builder.HasOne(e => e.CreditMemo)
+            .WithMany()
+            .HasForeignKey(e => e.CreditMemoId)
             .OnDelete(DeleteBehavior.SetNull);
     }
 }

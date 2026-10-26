@@ -19,4 +19,6 @@ public record PaymentDetailResponseModel(
     bool CanVoid = false,
     int? CurrencyId = null,
     string? CurrencyCode = null,
-    decimal FxRate = 1m);
+    decimal FxRate = 1m,
+    decimal RefundedAmount = 0m,
+    List<CustomerRefundModel>? Refunds = null);

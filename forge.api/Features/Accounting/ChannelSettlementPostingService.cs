@@ -202,6 +202,7 @@ public sealed class ChannelSettlementPostingService(
         var invoices = await db.Invoices
             .Include(i => i.Lines)
             .Include(i => i.PaymentApplications)
+            .Include(i => i.CreditApplications)
             .Where(i => i.SalesOrderId != null && orderIds.Contains(i.SalesOrderId.Value)
                 && (i.Status == InvoiceStatus.Sent || i.Status == InvoiceStatus.PartiallyPaid || i.Status == InvoiceStatus.Overdue)
                 && i.CurrencyId == book.FunctionalCurrencyId && i.FxRate == 1m)

@@ -25,6 +25,7 @@ public class GenerateInvoicePdfHandler(
             .Include(i => i.Lines)
                 .ThenInclude(l => l.Part)
             .Include(i => i.PaymentApplications)
+            .Include(i => i.CreditApplications)
             .FirstOrDefaultAsync(i => i.Id == request.Id, ct)
             ?? throw new KeyNotFoundException($"Invoice {request.Id} not found");
 

@@ -30,7 +30,7 @@ public class GetPaymentByIdHandler(IPaymentRepository repo, ISettingsService? se
             payment.Method.ToString(),
             payment.Amount,
             appliedAmount,
-            payment.Amount - appliedAmount,
+            payment.UnappliedAmount,
             payment.PaymentDate,
             payment.ReferenceNumber,
             payment.Notes,
@@ -45,6 +45,12 @@ public class GetPaymentByIdHandler(IPaymentRepository repo, ISettingsService? se
             CurrencyCode: db is not null && payment.CurrencyId is int currencyId
                 ? await db.Currencies.AsNoTracking().Where(c => c.Id == currencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken)
                 : null,
-            FxRate: payment.FxRate);
+            FxRate: payment.FxRate,
+            RefundedAmount: payment.RefundedAmount,
+            Refunds: payment.Refunds.OrderBy(r => r.RefundDate)
+                .Select(r => new CustomerRefundModel(
+                    r.Id, r.RefundNumber, r.CustomerId, r.Amount, r.Method.ToString(), r.RefundDate, r.Reference,
+                    r.Status.ToString(), null, null, payment.Id, payment.PaymentNumber, null, r.FxRate))
+                .ToList());
     }
 }

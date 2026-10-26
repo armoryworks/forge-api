@@ -35,6 +35,7 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
             .Include(i => i.Customer)
             .Include(i => i.Lines)
             .Include(i => i.PaymentApplications)
+            .Include(i => i.CreditApplications)
             .AsQueryable();
 
         // — Filters —
@@ -48,7 +49,7 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
             q = q.Where(i =>
                 i.Status != InvoiceStatus.Draft &&
                 i.Status != InvoiceStatus.Voided &&
-                i.Lines.Sum(l => l.Quantity * l.UnitPrice) + i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice) * i.TaxRate - i.PaymentApplications.Sum(pa => pa.Amount) - i.PaymentApplications.Sum(pa => pa.DiscountAmount) > 0);
+                i.Lines.Sum(l => l.Quantity * l.UnitPrice) + i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice) * i.TaxRate - i.PaymentApplications.Sum(pa => pa.Amount) - i.PaymentApplications.Sum(pa => pa.DiscountAmount) - i.CreditApplications.Where(a => a.ReversedAt == null).Sum(a => a.Amount) > 0);
 
         if (!string.IsNullOrWhiteSpace(query.Q))
         {
@@ -101,7 +102,7 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
                 i.DueDate,
                 i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) + Math.Round(i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) * i.TaxRate, 2),
                 i.PaymentApplications.Sum(pa => pa.Amount),
-                i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) + Math.Round(i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) * i.TaxRate, 2) - i.PaymentApplications.Sum(pa => pa.Amount) - i.PaymentApplications.Sum(pa => pa.DiscountAmount),
+                i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) + Math.Round(i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) * i.TaxRate, 2) - i.PaymentApplications.Sum(pa => pa.Amount) - i.PaymentApplications.Sum(pa => pa.DiscountAmount) - i.CreditApplications.Where(a => a.ReversedAt == null).Sum(a => a.Amount),
                 i.CreatedAt,
                 db.Currencies.Where(c => c.Id == i.CurrencyId).Select(c => c.Code).FirstOrDefault(),
                 i.CurrencyId,
@@ -145,6 +146,8 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
                 .ThenInclude(l => l.Part)
             .Include(i => i.PaymentApplications)
                 .ThenInclude(pa => pa.Payment)
+            .Include(i => i.CreditApplications)
+                .ThenInclude(a => a.CreditMemo)
             .FirstOrDefaultAsync(i => i.Id == id, ct);
         if (invoice is not null)
             await db.Entry(invoice).Reference(i => i.Currency).LoadAsync(ct);

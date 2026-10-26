@@ -166,6 +166,7 @@ public class CreatePaymentHandler(
                 await entry.ReloadAsync(cancellationToken);
                 var inv = (Invoice)entry.Entity;
                 await db.Entry(inv).Collection(i => i.PaymentApplications).LoadAsync(cancellationToken);
+                await db.Entry(inv).Collection(i => i.CreditApplications).LoadAsync(cancellationToken);
                 await db.Entry(inv).Collection(i => i.Lines).LoadAsync(cancellationToken);
 
                 var freshBalance = inv.BalanceDue;

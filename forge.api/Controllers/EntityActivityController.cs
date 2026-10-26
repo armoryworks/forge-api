@@ -20,7 +20,7 @@ public class EntityActivityController(IMediator mediator, IEntityAccessResolver 
     {
         "Job", "Part", "Asset", "Lead", "Customer", "Expense",
         "SalesOrder", "Invoice", "Quote", "Shipment", "Payment",
-        "PurchaseOrder", "Vendor", "CustomerReturn", "Lot",
+        "PurchaseOrder", "Vendor", "CustomerReturn", "CreditMemo", "Lot",
         "VendorBill", "VendorPayment", "QcInspection", "NonConformance",
     };
 

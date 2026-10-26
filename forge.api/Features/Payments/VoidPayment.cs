@@ -44,6 +44,10 @@ public class VoidPaymentHandler(
         var payment = await repo.FindWithDetailsAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Payment {request.Id} not found");
 
+        if (payment.RefundedAmount > 0m)
+            throw new InvalidOperationException(
+                $"Payment {payment.PaymentNumber} has refunds recorded against it. Void the refunds first.");
+
         // Reverse the cash-receipt origination journal (Dr CASH / Cr AR + FX plug) BEFORE the soft
         // delete — without this the GL kept the cash and the relieved AR for a payment that no longer
         // exists operationally. No-op while CAP-ACCT-FULLGL is off or when nothing was posted.
@@ -72,6 +76,7 @@ public class VoidPaymentHandler(
         {
             var invoice = await db.Invoices
                 .Include(i => i.PaymentApplications)
+                .Include(i => i.CreditApplications)
                 .Include(i => i.Lines)
                 .FirstOrDefaultAsync(i => i.Id == invoiceId, cancellationToken);
             if (invoice is null) continue;

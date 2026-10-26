@@ -14,6 +14,7 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Ignore(e => e.IsDeleted);
         builder.Ignore(e => e.AppliedAmount);
         builder.Ignore(e => e.UnappliedAmount);
+        builder.Ignore(e => e.RefundedAmount);
 
         // WU-11 / TODO E1 — optimistic locking
         builder.Property(e => e.Version).HasDefaultValue(1u);
@@ -39,6 +40,11 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .WithOne(a => a.Payment)
             .HasForeignKey(a => a.PaymentId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(e => e.Refunds)
+            .WithOne(r => r.Payment)
+            .HasForeignKey(r => r.PaymentId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(e => e.FxRate).HasPrecision(18, 8).HasDefaultValue(1m);
         builder.HasOne(e => e.Currency)

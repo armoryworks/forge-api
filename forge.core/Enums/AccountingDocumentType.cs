@@ -6,5 +6,6 @@ public enum AccountingDocumentType
     SalesOrder,
     PurchaseOrder,
     Invoice,
-    Payment
+    Payment,
+    CreditMemo
 }

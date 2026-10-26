@@ -31,6 +31,7 @@ public static class EntityAccessRules
         ["shipment"] = Allow(FinanceRoles),
         ["payment"] = Allow(FinanceRoles),
         ["customerreturn"] = Allow(FinanceRoles),
+        ["creditmemo"] = Allow("Admin,Manager,OfficeManager,Controller"),
         ["purchaseorder"] = Allow(PurchasingRoles),
         ["vendor"] = Allow(PurchasingRoles),
         ["vendorbill"] = Allow("Admin,Manager,OfficeManager,Procurement,Controller"),

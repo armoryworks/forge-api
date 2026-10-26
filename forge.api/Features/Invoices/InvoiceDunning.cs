@@ -63,6 +63,7 @@ public static class InvoiceDunning
             .Include(i => i.SalesOrder)
             .Include(i => i.Lines).ThenInclude(l => l.Part)
             .Include(i => i.PaymentApplications)
+            .Include(i => i.CreditApplications)
             .AsNoTracking()
             .FirstOrDefaultAsync(i => i.Id == invoiceId, ct);
         if (invoice is null

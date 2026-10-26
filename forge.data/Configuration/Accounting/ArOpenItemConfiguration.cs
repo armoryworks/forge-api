@@ -21,6 +21,7 @@ public class ArOpenItemConfiguration : IEntityTypeConfiguration<ArOpenItem>
         builder.Property(e => e.AppliedTxnAmount).HasPrecision(18, 4);
         builder.Property(e => e.AppliedFunctionalAmount).HasPrecision(18, 4);
         builder.Property(e => e.FxRate).HasPrecision(18, 8);
+        builder.Property(e => e.Sign).HasDefaultValue((short)1);
 
         // One open item per source document — the posting-time exists-guard's DB backstop.
         builder.HasIndex(e => new { e.SourceType, e.SourceId })

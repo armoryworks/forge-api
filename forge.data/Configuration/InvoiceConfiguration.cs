@@ -19,6 +19,7 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Ignore(e => e.AmountPaid);
         builder.Ignore(e => e.BalanceDue);
         builder.Ignore(e => e.DiscountsTaken);
+        builder.Ignore(e => e.CreditsApplied);
 
         // WU-11 / F-026 — optimistic locking; token causes WHERE version=@orig on UPDATE
         // so concurrent SaveChanges on the same invoice throws DbUpdateConcurrencyException.
@@ -91,5 +92,10 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
             .WithOne(pa => pa.Invoice)
             .HasForeignKey(pa => pa.InvoiceId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(e => e.CreditApplications)
+            .WithOne(a => a.Invoice)
+            .HasForeignKey(a => a.InvoiceId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

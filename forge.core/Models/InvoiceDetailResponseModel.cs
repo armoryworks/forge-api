@@ -37,4 +37,6 @@ public record InvoiceDetailResponseModel(
     DateTimeOffset? DiscountDeadline = null,
     decimal DiscountsTaken = 0m,
     decimal DiscountAvailable = 0m,
-    PaymentTermsModel? PaymentTerms = null);
+    PaymentTermsModel? PaymentTerms = null,
+    decimal CreditsApplied = 0m,
+    List<CreditMemoApplicationModel>? CreditApplications = null);

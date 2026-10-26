@@ -66,6 +66,13 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db, ICapabilitySnapshotPro
             ? await LedgerContributionsAsync(id, request, cancellationToken)
             : await InvoiceContributionsAsync(request, cancellationToken);
 
+        var credits = bookId is int creditBook
+            ? await LedgerCreditsAsync(creditBook, request, cancellationToken)
+            : await DocumentCreditsAsync(request, cancellationToken);
+        var creditsByJurisdiction = credits
+            .GroupBy(c => NormalizeJurisdiction(c.State))
+            .ToDictionary(g => g.Key ?? string.Empty, g => (Base: g.Sum(c => c.Base), Tax: g.Sum(c => c.Tax)));
+
         var rows = new List<SalesTaxLiabilityJurisdictionRow>();
 
         foreach (var group in contributions.GroupBy(c => NormalizeJurisdiction(c.Invoice.State)))
@@ -91,6 +98,12 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db, ICapabilitySnapshotPro
                 liability += tax;
             }
 
+            if (creditsByJurisdiction.Remove(group.Key ?? string.Empty, out var credit))
+            {
+                taxableBase += credit.Base;
+                liability += credit.Tax;
+            }
+
             if (invoiceCount == 0)
                 continue;
 
@@ -100,6 +113,19 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db, ICapabilitySnapshotPro
                 TaxableBase = taxableBase,
                 Liability = liability,
                 InvoiceCount = invoiceCount,
+            });
+        }
+
+        foreach (var (jurisdiction, credit) in creditsByJurisdiction)
+        {
+            if (credit.Base == 0m && credit.Tax == 0m)
+                continue;
+            rows.Add(new SalesTaxLiabilityJurisdictionRow
+            {
+                Jurisdiction = jurisdiction.Length == 0 ? null : jurisdiction,
+                TaxableBase = credit.Base,
+                Liability = credit.Tax,
+                InvoiceCount = 0,
             });
         }
 
@@ -173,6 +199,115 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db, ICapabilitySnapshotPro
             .ToList();
     }
 
+    /// <summary>
+    /// Credit memo tax, ledger basis: each issue entry's Sales Tax Payable debit (negative liability) by entry date, its
+    /// void reversal positive in the reversal's period, with the memo's taxable lines as a negative base.
+    /// </summary>
+    private async Task<List<CreditRow>> LedgerCreditsAsync(int bookId, GetSalesTaxLiabilityQuery request, CancellationToken ct)
+    {
+        var taxAccounts = await db.AccountDeterminationRules.AsNoTracking()
+            .Where(r => r.BookId == bookId && r.Key == KeySalesTaxPayable)
+            .Select(r => r.GlAccountId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var entries = db.JournalEntries.AsNoTracking()
+            .Where(e => e.BookId == bookId
+                && (e.Status == JournalEntryStatus.Posted || e.Status == JournalEntryStatus.Reversed));
+        if (request.FromDate is { } from)
+            entries = entries.Where(e => e.EntryDate >= from);
+        if (request.ToDate is { } to)
+            entries = entries.Where(e => e.EntryDate <= to);
+
+        var originals = await entries
+            .Where(e => e.ReversalOfEntryId == null && e.Source == JournalSource.AR
+                && e.SourceType == "CreditMemo" && e.SourceId != null)
+            .Select(e => new LedgerRow(
+                e.SourceId!.Value, 1,
+                e.Lines.Where(l => taxAccounts.Contains(l.GlAccountId))
+                    .Sum(l => l.Credit > 0m ? l.FunctionalAmount : -l.FunctionalAmount)))
+            .ToListAsync(ct);
+        var reversals = await entries
+            .Where(e => e.ReversalOfEntry != null && e.ReversalOfEntry.Source == JournalSource.AR
+                && e.ReversalOfEntry.SourceType == "CreditMemo" && e.ReversalOfEntry.SourceId != null)
+            .Select(e => new LedgerRow(
+                e.ReversalOfEntry!.SourceId!.Value, -1,
+                e.Lines.Where(l => taxAccounts.Contains(l.GlAccountId))
+                    .Sum(l => l.Credit > 0m ? l.FunctionalAmount : -l.FunctionalAmount)))
+            .ToListAsync(ct);
+
+        var ledger = originals.Concat(reversals).ToList();
+        var memoIds = ledger.Select(r => (int)r.InvoiceId).Distinct().ToList();
+        var memos = (await LoadCreditMemosAsync(db.CreditMemos.IgnoreQueryFilters().Where(m => memoIds.Contains(m.Id)), ct))
+            .ToDictionary(m => m.Id);
+
+        return ledger
+            .Where(r => memos.ContainsKey((int)r.InvoiceId))
+            .Select(r =>
+            {
+                var memo = memos[(int)r.InvoiceId];
+                return new CreditRow(memo.State, -r.Direction * ToFunctional(memo.TaxableSubtotal, memo.FxRate), r.Tax);
+            })
+            .ToList();
+    }
+
+    /// <summary>Credit memo tax, document basis: issued (not voided) memos by credit date, as negative base and liability.</summary>
+    private async Task<List<CreditRow>> DocumentCreditsAsync(GetSalesTaxLiabilityQuery request, CancellationToken ct)
+    {
+        var query = db.CreditMemos
+            .Where(m => m.Status != CreditMemoStatus.Draft && m.Status != CreditMemoStatus.Voided);
+        if (request.FromDate is { } f)
+        {
+            var fromBound = new DateTimeOffset(f.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+            query = query.Where(m => m.CreditDate >= fromBound);
+        }
+        if (request.ToDate is { } t)
+        {
+            var toBound = new DateTimeOffset(t.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero);
+            query = query.Where(m => m.CreditDate <= toBound);
+        }
+
+        return (await LoadCreditMemosAsync(query, ct))
+            .Select(m => new CreditRow(
+                m.State,
+                -ToFunctional(m.TaxableSubtotal, m.FxRate),
+                -ToFunctional(Money.Round(m.TaxableSubtotal * m.TaxRate), m.FxRate)))
+            .ToList();
+    }
+
+    private static async Task<List<CreditTaxRow>> LoadCreditMemosAsync(IQueryable<CreditMemo> query, CancellationToken ct)
+    {
+        var rows = await query.AsNoTracking()
+            .Select(m => new
+            {
+                m.Id,
+                m.FxRate,
+                m.TaxRate,
+                State = m.Invoice != null && m.Invoice.SalesOrder != null && m.Invoice.SalesOrder.ShippingAddress != null
+                    ? m.Invoice.SalesOrder.ShippingAddress.State
+                    : m.Invoice != null && m.Invoice.SalesOrder != null && m.Invoice.SalesOrder.ShipTo != null
+                        ? m.Invoice.SalesOrder.ShipTo.State
+                        : m.Customer.Addresses
+                            .Where(a => a.AddressType == AddressType.Shipping || a.AddressType == AddressType.Both)
+                            .OrderByDescending(a => a.IsDefault)
+                            .ThenBy(a => a.Id)
+                            .Select(a => a.State)
+                            .FirstOrDefault(),
+                Lines = m.Lines.Select(l => new CreditMemoLine
+                {
+                    LineType = l.LineType,
+                    Quantity = l.Quantity,
+                    UnitPrice = l.UnitPrice,
+                    TaxCode = l.TaxCode,
+                }).ToList(),
+            })
+            .ToListAsync(ct);
+
+        return rows
+            .Select(r => new CreditTaxRow(r.Id, r.State, r.TaxRate, r.FxRate, r.Lines.Where(l => l.IsTaxable).Sum(l => l.SignedTotal)))
+            .ToList();
+    }
+
     private async Task<List<Contribution>> InvoiceContributionsAsync(
         GetSalesTaxLiabilityQuery request, CancellationToken ct)
     {
@@ -239,4 +374,8 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db, ICapabilitySnapshotPro
     private sealed record LedgerRow(long InvoiceId, int Direction, decimal Tax);
 
     private sealed record Contribution(InvoiceTaxRow Invoice, int Direction, decimal Tax);
+
+    private sealed record CreditTaxRow(int Id, string? State, decimal TaxRate, decimal FxRate, decimal TaxableSubtotal);
+
+    private sealed record CreditRow(string? State, decimal Base, decimal Tax);
 }

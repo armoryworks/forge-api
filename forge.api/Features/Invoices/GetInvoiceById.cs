@@ -65,6 +65,14 @@ public class GetInvoiceByIdHandler(IInvoiceRepository repo, AppDbContext? db = n
             EarlyPaymentDiscount.Deadline(invoice.DiscountDueDate, discounts.GraceDays),
             invoice.DiscountsTaken,
             invoice.BalanceDue > 0m ? EarlyPaymentDiscountRules.RemainingMaximum(invoice, discounts) : 0m,
-            db is null ? null : await new PaymentTermsResolver(db).ModelAsync(invoice.PaymentTermsId, invoice.CreditTerms, cancellationToken));
+            db is null ? null : await new PaymentTermsResolver(db).ModelAsync(invoice.PaymentTermsId, invoice.CreditTerms, cancellationToken),
+            invoice.CreditsApplied,
+            invoice.CreditApplications
+                .Where(a => a.ReversedAt == null)
+                .OrderBy(a => a.AppliedAt)
+                .Select(a => new CreditMemoApplicationModel(
+                    a.Id, a.CreditMemoId, a.CreditMemo?.CreditMemoNumber, a.InvoiceId, invoice.InvoiceNumber,
+                    a.Amount, a.AppliedAt, a.ReversedAt))
+                .ToList());
     }
 }

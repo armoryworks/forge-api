@@ -325,6 +325,7 @@ public class ReportRepository(AppDbContext db) : IReportRepository
             .Include(i => i.Customer)
             .Include(i => i.Lines)
             .Include(i => i.PaymentApplications)
+            .Include(i => i.CreditApplications)
             .Where(i => i.Status != Forge.Core.Enums.InvoiceStatus.Voided
                 && i.Status != Forge.Core.Enums.InvoiceStatus.Draft)
             .ToListAsync(ct);
@@ -358,7 +359,40 @@ public class ReportRepository(AppDbContext db) : IReportRepository
                     daysOverdue, bucket,
                     discountAvailable > 0m ? deadline : null, discountAvailable);
             })
+            .Concat(await OpenCreditMemoAgingAsync(today, ct))
             .OrderByDescending(r => r.DaysOverdue)
+            .ToList();
+    }
+
+    private async Task<List<ArAgingReportItem>> OpenCreditMemoAgingAsync(DateTime today, CancellationToken ct)
+    {
+        var memos = await db.CreditMemos.AsNoTracking()
+            .Include(m => m.Customer)
+            .Include(m => m.Lines)
+            .Include(m => m.Applications)
+            .Include(m => m.Refunds)
+            .Where(m => m.Status == Forge.Core.Enums.CreditMemoStatus.Issued
+                || m.Status == Forge.Core.Enums.CreditMemoStatus.PartiallyApplied)
+            .ToListAsync(ct);
+
+        return memos
+            .Where(m => m.OpenAmount > 0m)
+            .Select(m =>
+            {
+                var days = Math.Max(0, (int)(today - m.CreditDate.Date).TotalDays);
+                var bucket = days switch
+                {
+                    0 => "Current",
+                    <= 30 => "1-30 Days",
+                    <= 60 => "31-60 Days",
+                    <= 90 => "61-90 Days",
+                    _ => "90+ Days",
+                };
+                return new ArAgingReportItem(
+                    m.Id, m.CreditMemoNumber, m.Customer.Name, m.CreditDate, m.CreditDate,
+                    -m.Total, -(m.AmountApplied + m.AmountRefunded), -m.OpenAmount, days, bucket,
+                    DocumentType: "CreditMemo");
+            })
             .ToList();
     }
 
@@ -372,6 +406,7 @@ public class ReportRepository(AppDbContext db) : IReportRepository
             .Include(i => i.Customer)
             .Include(i => i.Lines)
             .Include(i => i.PaymentApplications)
+            .Include(i => i.CreditApplications)
             .Where(i => i.InvoiceDate >= startUtc && i.InvoiceDate <= endUtc
                 && i.Status != Forge.Core.Enums.InvoiceStatus.Voided
                 && i.Status != Forge.Core.Enums.InvoiceStatus.Draft)

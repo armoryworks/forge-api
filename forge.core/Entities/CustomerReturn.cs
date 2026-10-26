@@ -59,8 +59,35 @@ public class CustomerReturn : BaseAuditableEntity
     /// <summary>Quantity returned. Null on legacy job-based returns, which predate line-level tracking.</summary>
     public decimal? Quantity { get; set; }
 
+    /// <summary>The invoice the returned goods were billed on, when known. Drives the return's credit and original cost.</summary>
+    public int? InvoiceId { get; set; }
+
+    /// <summary>The invoice line the returned goods were billed on, when known.</summary>
+    public int? InvoiceLineId { get; set; }
+
+    /// <summary>What was done with the goods when the return was resolved. Null until then.</summary>
+    public ReturnDisposition? Disposition { get; set; }
+
+    public decimal? QuantityRestocked { get; set; }
+
+    public decimal? QuantityScrapped { get; set; }
+
+    public int? RestockLocationId { get; set; }
+
+    public string? RestockLotNumber { get; set; }
+
+    /// <summary>The bin movement that put returned goods back into stock.</summary>
+    public int? RestockBinMovementId { get; set; }
+
+    /// <summary>The credit memo issued for the return.</summary>
+    public int? CreditMemoId { get; set; }
+
     // Navigation
     public Customer Customer { get; set; } = null!;
     public Job? OriginalJob { get; set; }
     public Job? ReworkJob { get; set; }
+    public Invoice? Invoice { get; set; }
+    public InvoiceLine? InvoiceLine { get; set; }
+    public StorageLocation? RestockLocation { get; set; }
+    public CreditMemo? CreditMemo { get; set; }
 }

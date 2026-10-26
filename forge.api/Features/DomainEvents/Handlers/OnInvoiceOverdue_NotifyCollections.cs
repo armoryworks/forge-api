@@ -35,6 +35,7 @@ public class OnInvoiceOverdue_NotifyCollections(
             .Include(i => i.Customer)
             .Include(i => i.Lines)
             .Include(i => i.PaymentApplications)
+            .Include(i => i.CreditApplications)
             .AsNoTracking()
             .FirstOrDefaultAsync(i => i.Id == notification.InvoiceId, ct);
         if (invoice is null)

@@ -183,6 +183,50 @@ public class SyncQueueProcessorJob(
                 break;
             }
 
+            case Features.CreditMemos.CreditMemoSync.CreateCreditMemoOperation:
+            case Features.CreditMemos.CreditMemoSync.CreateWriteOffOperation:
+            {
+                var document = Deserialize<AccountingDocument>(payload, entryId, operation);
+                if (accountingService is not IAccountingCreditMemoService credits)
+                    throw new InvalidOperationException(Features.CreditMemos.CreditMemoSync.ProviderUnsupportedMessage);
+                if (operation == Features.CreditMemos.CreditMemoSync.CreateWriteOffOperation
+                    && document.LineItems.Any(li => li.ItemExternalId is null))
+                    throw new InvalidOperationException(Features.CreditMemos.CreditMemoSync.BadDebtItemMissingMessage);
+
+                var externalId = await credits.CreateCreditMemoAsync(document, ct);
+                logger.LogInformation(
+                    "Created credit memo in accounting provider — ExternalId: {ExternalId}", externalId);
+                var memo = await db.CreditMemos.FindAsync([entityId], ct);
+                if (memo is not null)
+                {
+                    memo.ExternalId = externalId;
+                    memo.Provider = accountingService.ProviderId;
+                    await db.SaveChangesAsync(ct);
+                }
+                break;
+            }
+
+            case Features.CreditMemos.CreditMemoSync.CreateRefundReceiptOperation:
+            {
+                var refund = Deserialize<AccountingRefund>(payload, entryId, operation);
+                if (accountingService is not IAccountingCreditMemoService credits)
+                    throw new InvalidOperationException(Features.CreditMemos.CreditMemoSync.ProviderUnsupportedMessage);
+                if (refund.ItemExternalId is null || refund.DepositAccountExternalId is null)
+                    throw new InvalidOperationException(Features.CreditMemos.CreditMemoSync.RefundMappingMissingMessage);
+
+                var externalId = await credits.CreateRefundReceiptAsync(refund, ct);
+                logger.LogInformation(
+                    "Created refund receipt in accounting provider — ExternalId: {ExternalId}", externalId);
+                var local = await db.CustomerRefunds.FindAsync([entityId], ct);
+                if (local is not null)
+                {
+                    local.ExternalId = externalId;
+                    local.Provider = accountingService.ProviderId;
+                    await db.SaveChangesAsync(ct);
+                }
+                break;
+            }
+
             default:
                 throw new InvalidOperationException(
                     $"Unknown sync operation '{operation}' on entry {entryId}");

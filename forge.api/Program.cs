@@ -501,6 +501,11 @@ try
     // Posts Dr Cash / Cr AR (applied) / Cr Customer Deposits (unapplied).
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IPaymentCashPostingService,
                                Forge.Api.Features.Accounting.PaymentCashPostingService>();
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.ICreditMemoPostingService,
+                               Forge.Api.Features.Accounting.CreditMemoPostingService>();
+    builder.Services.AddScoped<Forge.Api.Features.CreditMemos.CreditMemoIssuer>();
+    builder.Services.AddScoped<Forge.Api.Features.CreditMemos.CreditMemoRefundSync>();
+    builder.Services.AddScoped<Forge.Api.Features.CustomerReturns.ReturnDispositionService>();
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IChannelSettlementPostingService,
                                Forge.Api.Features.Accounting.ChannelSettlementPostingService>();
     // Phase-1 STAGE C — Expense / AP posting wired INLINE into the approved

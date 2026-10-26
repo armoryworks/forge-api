@@ -5,7 +5,7 @@ using Forge.Core.Models;
 
 namespace Forge.Integrations;
 
-public class MockAccountingService : IAccountingService
+public class MockAccountingService : IAccountingService, IAccountingCreditMemoService
 {
     private readonly ILogger<MockAccountingService> _logger;
 
@@ -53,6 +53,20 @@ public class MockAccountingService : IAccountingService
     {
         var id = $"MOCK-INV-{Guid.NewGuid().ToString("N")[..8]}";
         _logger.LogInformation("[MockAccounting] CreateInvoice for {Customer}, {Amount:C} — assigned {Id}", document.CustomerExternalId, document.Amount, id);
+        return Task.FromResult(id);
+    }
+
+    public Task<string> CreateCreditMemoAsync(AccountingDocument document, CancellationToken ct)
+    {
+        var id = $"MOCK-CM-{Guid.NewGuid().ToString("N")[..8]}";
+        _logger.LogInformation("[MockAccounting] CreateCreditMemo for {Customer}, {Amount:C} — assigned {Id}", document.CustomerExternalId, document.Amount, id);
+        return Task.FromResult(id);
+    }
+
+    public Task<string> CreateRefundReceiptAsync(AccountingRefund refund, CancellationToken ct)
+    {
+        var id = $"MOCK-RF-{Guid.NewGuid().ToString("N")[..8]}";
+        _logger.LogInformation("[MockAccounting] CreateRefundReceipt for {Customer}, {Amount:C} — assigned {Id}", refund.CustomerExternalId, refund.Amount, id);
         return Task.FromResult(id);
     }
 

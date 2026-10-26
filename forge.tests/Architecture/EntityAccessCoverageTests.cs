@@ -34,6 +34,7 @@ public sealed partial class EntityAccessCoverageTests
         ["shipment"] = [typeof(ShipmentsController)],
         ["payment"] = [typeof(PaymentsController)],
         ["customerreturn"] = [typeof(CustomerReturnsController)],
+        ["creditmemo"] = [typeof(CreditMemosController), typeof(CreditMemoReadsController)],
         ["purchaseorder"] = [typeof(PurchaseOrdersController)],
         ["vendor"] = [typeof(VendorsController)],
         ["vendorbill"] = [typeof(VendorBillsController), typeof(VendorBillReadsController)],

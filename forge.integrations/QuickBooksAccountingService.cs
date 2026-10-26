@@ -31,7 +31,7 @@ public class QuickBooksAccountingService(
     IExternalIdentityResolver identityResolver,
     IHttpClientFactory httpClientFactory,
     IOptions<QuickBooksOptions> options,
-    ILogger<QuickBooksAccountingService> logger) : IAccountingService
+    ILogger<QuickBooksAccountingService> logger) : IAccountingService, IAccountingCreditMemoService
 {
     public async Task<List<AccountingCustomer>> GetCustomersAsync(CancellationToken ct)
     {
@@ -117,6 +117,69 @@ public class QuickBooksAccountingService(
         logger.LogInformation("[QuickBooks] CreateInvoice for {Customer}, {Amount:C} — assigned {Id}",
             document.CustomerExternalId, document.Amount, id);
         return id;
+    }
+
+    public async Task<string> CreateCreditMemoAsync(AccountingDocument document, CancellationToken ct)
+    {
+        if (document.LineItems.Any(li => li.IsFreight && li.ItemExternalId is null)
+            && !await ShippingPreferenceOnAsync(ct))
+            throw new InvalidOperationException(FreightItemMissingMessage);
+
+        var payload = BuildDocumentPayload(document);
+        var result = await PostEntityAsync("creditmemo", payload, ct, document.CurrencyCode);
+        var id = result?.RootElement.GetProperty("CreditMemo").GetProperty("Id").GetString()
+            ?? throw new InvalidOperationException("Failed to create QuickBooks credit memo");
+
+        logger.LogInformation("[QuickBooks] CreateCreditMemo for {Customer}, {Amount:C} — assigned {Id}",
+            document.CustomerExternalId, document.Amount, id);
+        return id;
+    }
+
+    public async Task<string> CreateRefundReceiptAsync(AccountingRefund refund, CancellationToken ct)
+    {
+        var result = await PostEntityAsync("refundreceipt", BuildRefundReceiptPayload(refund), ct, refund.CurrencyCode);
+        var id = result?.RootElement.GetProperty("RefundReceipt").GetProperty("Id").GetString()
+            ?? throw new InvalidOperationException("Failed to create QuickBooks refund receipt");
+
+        logger.LogInformation("[QuickBooks] CreateRefundReceipt for {Customer}, {Amount:C} — assigned {Id}",
+            refund.CustomerExternalId, refund.Amount, id);
+        return id;
+    }
+
+    /// <summary>A QuickBooks RefundReceipt: one line on the mapped refund item, paid from the mapped bank account.</summary>
+    internal static Dictionary<string, object?> BuildRefundReceiptPayload(AccountingRefund refund)
+    {
+        var payload = new Dictionary<string, object?>
+        {
+            ["CustomerRef"] = new { value = refund.CustomerExternalId },
+            ["DepositToAccountRef"] = new { value = refund.DepositAccountExternalId },
+            ["DocNumber"] = refund.RefNumber,
+            ["TxnDate"] = refund.Date.ToString("yyyy-MM-dd"),
+            ["PrivateNote"] = refund.Description,
+            ["Line"] = new[]
+            {
+                new
+                {
+                    Id = "1",
+                    DetailType = "SalesItemLineDetail",
+                    Amount = refund.Amount,
+                    Description = refund.Description,
+                    SalesItemLineDetail = new
+                    {
+                        ItemRef = new { value = refund.ItemExternalId },
+                        Qty = 1m,
+                        UnitPrice = refund.Amount,
+                    },
+                },
+            },
+        };
+        if (refund.CurrencyCode is { Length: > 0 } currency)
+        {
+            payload["CurrencyRef"] = new { value = currency };
+            if (refund.ExchangeRate is decimal rate and > 0m)
+                payload["ExchangeRate"] = rate;
+        }
+        return payload;
     }
 
     public async Task<string> CreatePurchaseOrderAsync(AccountingDocument document, CancellationToken ct)

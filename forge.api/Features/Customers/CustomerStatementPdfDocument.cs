@@ -15,9 +15,18 @@ public class CustomerStatementPdfDocument(
     DateTimeOffset statementDate,
     IReadOnlyDictionary<int, MoneyFormatter>? currencyMoney = null,
     IReadOnlyDictionary<int, MoneyFormatter>? paymentMoney = null,
-    MoneyFormatter? baseMoney = null) : IDocument
+    MoneyFormatter? baseMoney = null,
+    List<CreditMemo>? creditMemos = null,
+    List<CustomerRefund>? refunds = null) : IDocument
 {
     private readonly MoneyFormatter _baseMoney = baseMoney ?? MoneyFormat.For(null, "USD");
+
+    private readonly List<CreditMemo> _creditMemos = creditMemos ?? [];
+
+    private readonly List<CustomerRefund> _refunds = refunds ?? [];
+
+    private MoneyFormatter CurrencyMoney(int currencyId)
+        => currencyMoney is not null && currencyMoney.TryGetValue(currencyId, out var money) ? money : _baseMoney;
 
     private MoneyFormatter InvoiceMoney(Invoice invoice)
         => currencyMoney is not null && currencyMoney.TryGetValue(invoice.CurrencyId, out var money) ? money : _baseMoney;
@@ -142,9 +151,77 @@ public class CustomerStatementPdfDocument(
                     });
                 }
 
-                var totalsDue = invoices
-                    .GroupBy(InvoiceMoney)
-                    .Select(g => g.Key.Format(g.Sum(i => i.BalanceDue)))
+                var openCredits = _creditMemos.Where(m => m.OpenAmount > 0m).ToList();
+                if (_creditMemos.Count > 0)
+                {
+                    content.Item().PaddingTop(15).Text("Credit Memos").FontSize(12).Bold();
+                    content.Item().PaddingTop(5).Table(table =>
+                    {
+                        table.ColumnsDefinition(cols =>
+                        {
+                            cols.ConstantColumn(80);
+                            cols.ConstantColumn(70);
+                            cols.RelativeColumn();
+                            cols.ConstantColumn(80);
+                            cols.ConstantColumn(80);
+                        });
+
+                        table.Header(header =>
+                        {
+                            header.Cell().Background("#f0f0f0").Padding(4).Text("Credit #").Bold().FontSize(9);
+                            header.Cell().Background("#f0f0f0").Padding(4).Text("Date").Bold().FontSize(9);
+                            header.Cell().Background("#f0f0f0").Padding(4).Text("Reason").Bold().FontSize(9);
+                            header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Credit").Bold().FontSize(9);
+                            header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Unused").Bold().FontSize(9);
+                        });
+
+                        foreach (var memo in _creditMemos.OrderByDescending(m => m.CreditDate))
+                        {
+                            var money = CurrencyMoney(memo.CurrencyId);
+                            table.Cell().Padding(4).Text(memo.CreditMemoNumber).FontSize(9);
+                            table.Cell().Padding(4).Text(memo.CreditDate.ToString("MM/dd/yyyy")).FontSize(9);
+                            table.Cell().Padding(4).Text(memo.Reason).FontSize(9);
+                            table.Cell().Padding(4).AlignRight().Text(money.Format(memo.Total)).FontSize(9);
+                            table.Cell().Padding(4).AlignRight().Text(money.Format(memo.OpenAmount)).FontSize(9);
+                        }
+                    });
+                }
+
+                if (_refunds.Count > 0)
+                {
+                    content.Item().PaddingTop(15).Text("Refunds").FontSize(12).Bold();
+                    content.Item().PaddingTop(5).Table(table =>
+                    {
+                        table.ColumnsDefinition(cols =>
+                        {
+                            cols.ConstantColumn(100);
+                            cols.ConstantColumn(90);
+                            cols.RelativeColumn();
+                            cols.ConstantColumn(100);
+                        });
+
+                        table.Header(header =>
+                        {
+                            header.Cell().Background("#f0f0f0").Padding(4).Text("Refund #").Bold().FontSize(9);
+                            header.Cell().Background("#f0f0f0").Padding(4).Text("Date").Bold().FontSize(9);
+                            header.Cell().Background("#f0f0f0").Padding(4).Text("Method").Bold().FontSize(9);
+                            header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Amount").Bold().FontSize(9);
+                        });
+
+                        foreach (var refund in _refunds.OrderByDescending(r => r.RefundDate))
+                        {
+                            table.Cell().Padding(4).Text(refund.RefundNumber).FontSize(9);
+                            table.Cell().Padding(4).Text(refund.RefundDate.ToString("MM/dd/yyyy")).FontSize(9);
+                            table.Cell().Padding(4).Text(refund.Method.ToString()).FontSize(9);
+                            table.Cell().Padding(4).AlignRight().Text(CurrencyMoney(refund.CurrencyId).Format(refund.Amount)).FontSize(9);
+                        }
+                    });
+                }
+
+                var totalsDue = invoices.Select(i => (Money: InvoiceMoney(i), Amount: i.BalanceDue))
+                    .Concat(openCredits.Select(m => (Money: CurrencyMoney(m.CurrencyId), Amount: -m.OpenAmount)))
+                    .GroupBy(x => x.Money)
+                    .Select(g => g.Key.Format(g.Sum(x => x.Amount)))
                     .DefaultIfEmpty(_baseMoney.Format(0m))
                     .ToList();
                 for (var i = 0; i < totalsDue.Count; i++)

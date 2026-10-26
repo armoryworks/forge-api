@@ -186,6 +186,11 @@
       "prefix": "parts",
       "capability": "CAP-P2P-PO",
       "reason": "The distinguishing segment follows the part id (parts/{id}/purchase-history, parts/{id}/landed-cost), so no prefix entry can single it out; it is only reached from a part's page, which needs CAP-MD-PARTS."
+    },
+    {
+      "prefix": "payments",
+      "capability": "CAP-O2C-CREDITMEMO",
+      "reason": "Only the unapplied-cash refund action. The payments screens it sits on need CAP-O2C-CASH anyway, so the UI's CASH gate never blocks a refund the server would allow; the server still refuses it while CAP-O2C-CREDITMEMO is off."
     }
   ]
 }

@@ -24,6 +24,7 @@ public class GenerateCustomerStatementHandler(AppDbContext db, IClock clock)
         var invoices = await db.Invoices
             .Include(i => i.Lines)
             .Include(i => i.PaymentApplications)
+            .Include(i => i.CreditApplications)
             .Where(i => i.CustomerId == request.CustomerId
                 && i.Status != Forge.Core.Enums.InvoiceStatus.Voided
                 && i.Status != Forge.Core.Enums.InvoiceStatus.Draft)
@@ -32,6 +33,18 @@ public class GenerateCustomerStatementHandler(AppDbContext db, IClock clock)
         var payments = await db.Payments
             .Include(p => p.Applications)
             .Where(p => p.CustomerId == request.CustomerId)
+            .ToListAsync(ct);
+
+        var creditMemos = await db.CreditMemos.AsNoTracking()
+            .Include(m => m.Lines)
+            .Include(m => m.Applications)
+            .Include(m => m.Refunds)
+            .Where(m => m.CustomerId == request.CustomerId
+                && m.Status != Forge.Core.Enums.CreditMemoStatus.Draft
+                && m.Status != Forge.Core.Enums.CreditMemoStatus.Voided)
+            .ToListAsync(ct);
+        var refunds = await db.CustomerRefunds.AsNoTracking()
+            .Where(r => r.CustomerId == request.CustomerId && r.Status == Forge.Core.Enums.CustomerRefundStatus.Recorded)
             .ToListAsync(ct);
 
         var companyName = await CompanyIdentity.GetCompanyNameAsync(db, ct);
@@ -43,7 +56,8 @@ public class GenerateCustomerStatementHandler(AppDbContext db, IClock clock)
             .ToDictionaryAsync(i => i.Id, i => i.CurrencyId, ct);
 
         var baseCode = await MoneyFormat.BaseCodeAsync(db, ct);
-        var currencyIds = invoices.Select(i => i.CurrencyId).Concat(appliedInvoiceCurrency.Values).Distinct().ToList();
+        var currencyIds = invoices.Select(i => i.CurrencyId).Concat(appliedInvoiceCurrency.Values)
+            .Concat(creditMemos.Select(m => m.CurrencyId)).Concat(refunds.Select(r => r.CurrencyId)).Distinct().ToList();
         var currencies = await db.Currencies.AsNoTracking()
             .Where(c => currencyIds.Contains(c.Id) || c.Code.ToUpper() == baseCode)
             .ToListAsync(ct);
@@ -63,7 +77,7 @@ public class GenerateCustomerStatementHandler(AppDbContext db, IClock clock)
         });
 
         var document = new CustomerStatementPdfDocument(
-            customer, invoices, payments, companyName, clock.UtcNow, currencyMoney, paymentMoney, baseMoney);
+            customer, invoices, payments, companyName, clock.UtcNow, currencyMoney, paymentMoney, baseMoney, creditMemos, refunds);
 
         return document.GeneratePdf();
     }

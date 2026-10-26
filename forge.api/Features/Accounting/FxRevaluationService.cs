@@ -131,7 +131,7 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
                 && i.Status != OpenItemStatus.Voided)
             .Select(i => new OpenItemRow(
                 i.SourceType, i.SourceId, i.Status, i.FxRate,
-                i.OriginalTxnAmount, i.OriginalFunctionalAmount, i.AppliedTxnAmount, i.AppliedFunctionalAmount))
+                i.OriginalTxnAmount, i.OriginalFunctionalAmount, i.AppliedTxnAmount, i.AppliedFunctionalAmount, i.Sign))
             .ToListAsync(ct);
         var payableItems = await db.ApOpenItems.AsNoTracking()
             .Where(i => i.BookId == bookId && i.CurrencyId == currencyId && i.DocumentDate <= asOfEnd
@@ -176,8 +176,8 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
             }
             else if (item.Status is OpenItemStatus.Open or OpenItemStatus.PartiallyApplied)
             {
-                foreign += item.OriginalTxn - item.AppliedTxn;
-                functional += item.OriginalFunctional - item.AppliedFunctional;
+                foreign += item.Sign * (item.OriginalTxn - item.AppliedTxn);
+                functional += item.Sign * (item.OriginalFunctional - item.AppliedFunctional);
             }
         }
         return (foreign, functional);
@@ -192,7 +192,11 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
 
         var applications = await db.Set<PaymentApplication>().AsNoTracking()
             .Where(a => invoiceIds.Contains(a.InvoiceId))
-            .Select(a => new { a.Id, a.InvoiceId, a.Amount, a.Payment.PaymentDate })
+            .Select(a => new { a.Id, a.InvoiceId, Amount = a.Amount + a.DiscountAmount, a.Payment.PaymentDate })
+            .ToListAsync(ct);
+        var credits = await db.CreditMemoApplications.AsNoTracking()
+            .Where(a => invoiceIds.Contains(a.InvoiceId) && a.ReversedAt == null)
+            .Select(a => new { a.InvoiceId, a.Amount, a.AppliedAt })
             .ToListAsync(ct);
 
         var applyKeys = applications
@@ -210,6 +214,7 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
                 applyDates.TryGetValue($"{JournalSource.AR}:PaymentApplication:{a.Id}:APPLY", out var applied)
                     ? applied
                     : DateOnly.FromDateTime(a.PaymentDate.UtcDateTime)))
+            .Concat(credits.Select(c => (c.InvoiceId, c.Amount, DateOnly.FromDateTime(c.AppliedAt.UtcDateTime))))
             .ToList();
     }
 
@@ -232,5 +237,5 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
 
     private sealed record OpenItemRow(
         string SourceType, int SourceId, OpenItemStatus Status, decimal FxRate,
-        decimal OriginalTxn, decimal OriginalFunctional, decimal AppliedTxn, decimal AppliedFunctional);
+        decimal OriginalTxn, decimal OriginalFunctional, decimal AppliedTxn, decimal AppliedFunctional, short Sign = 1);
 }

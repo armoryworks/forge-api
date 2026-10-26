@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Capabilities;
 using Forge.Api.Concurrency;
+using Forge.Api.Features.CreditMemos;
 using Forge.Api.Features.Invoices;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -85,6 +86,17 @@ public class InvoicesController(IMediator mediator) : ControllerBase
         await mediator.Send(new VoidInvoiceCommand(id));
         return NoContent();
     }
+
+    /// <summary>
+    /// Writes off the invoice balance (or part of it) as bad debt through a write-off credit memo that is issued and
+    /// applied at once.
+    /// </summary>
+    [HttpPost("{id:int}/write-off")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RequiresCapability("CAP-O2C-CREDITMEMO")]
+    public async Task<ActionResult<CreditMemoDetailResponseModel>> WriteOffInvoice(
+        int id, WriteOffInvoiceRequestModel request, CancellationToken ct)
+        => Ok(await mediator.Send(new WriteOffInvoiceCommand(id, request.Amount, request.Reason), ct));
 
     [HttpPatch("{id:int}/number")]
     [IfMatch(typeof(Invoice))]

@@ -53,7 +53,8 @@ public static class CustomerCreditExposure
                 LineTotal = i.Lines.Sum(l => l.Quantity * l.UnitPrice),
                 TaxableLineTotal = i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice),
                 i.TaxRate,
-                Paid = i.PaymentApplications.Sum(pa => pa.Amount + pa.DiscountAmount),
+                Paid = i.PaymentApplications.Sum(pa => pa.Amount + pa.DiscountAmount)
+                    + i.CreditApplications.Where(a => a.ReversedAt == null).Sum(a => a.Amount),
             })
             .ToListAsync(ct);
 

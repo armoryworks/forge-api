@@ -191,6 +191,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<RecurringOrder> RecurringOrders => Set<RecurringOrder>();
     public DbSet<RecurringOrderLine> RecurringOrderLines => Set<RecurringOrderLine>();
     public DbSet<CustomerReturn> CustomerReturns => Set<CustomerReturn>();
+    public DbSet<CreditMemo> CreditMemos => Set<CreditMemo>();
+    public DbSet<CreditMemoLine> CreditMemoLines => Set<CreditMemoLine>();
+    public DbSet<CreditMemoApplication> CreditMemoApplications => Set<CreditMemoApplication>();
+    public DbSet<CustomerRefund> CustomerRefunds => Set<CustomerRefund>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChatRoom> ChatRooms => Set<ChatRoom>();
     public DbSet<ChatRoomMember> ChatRoomMembers => Set<ChatRoomMember>();

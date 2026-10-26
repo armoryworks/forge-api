@@ -192,6 +192,7 @@ public static partial class SeedData
             ("60000", "General & Administrative",    AccountType.Expense,   NormalBalance.Debit,  false, null,                         "OPERATING_EXPENSE"),
             ("61200", "Freight-Out (Delivery Expense)", AccountType.Expense, NormalBalance.Debit, false, null,                        "FREIGHT_OUT"),
             ("61500", "Marketplace Fees",            AccountType.Expense,   NormalBalance.Debit,  false, null,                         "MARKETPLACE_FEES"),
+            ("69500", "Bad Debt Expense",            AccountType.Expense,   NormalBalance.Debit,  false, null,                         "BAD_DEBT_EXPENSE"),
             ("66000", "Wages",                       AccountType.Expense,   NormalBalance.Debit,  false, null,                         "WAGE_EXPENSE"),
             ("66100", "Employer Payroll Tax",        AccountType.Expense,   NormalBalance.Debit,  false, null,                         "EMPLOYER_PAYROLL_TAX_EXPENSE"),
 
@@ -616,6 +617,7 @@ public static partial class SeedData
         ("FREIGHT_OUT", "61200", "Freight-Out (Delivery Expense)", AccountType.Expense, NormalBalance.Debit),
         ("SALES_DISCOUNTS", "41500", "Sales Discounts", AccountType.Income, NormalBalance.Debit),
         ("PURCHASE_DISCOUNTS", "50500", "Purchase Discounts", AccountType.Expense, NormalBalance.Credit),
+        ("BAD_DEBT_EXPENSE", "69500", "Bad Debt Expense", AccountType.Expense, NormalBalance.Debit),
     ];
 
     internal static async Task EnsureDeterminationAccountsAsync(AppDbContext db)

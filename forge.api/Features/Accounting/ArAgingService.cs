@@ -174,6 +174,7 @@ public sealed class ArAgingService(AppDbContext db, IClock clock, Forge.Core.Set
         var invoices = await db.Invoices.AsNoTracking()
             .Include(i => i.Lines)
             .Include(i => i.PaymentApplications)
+            .Include(i => i.CreditApplications)
             .Where(i => invoiceIds.Contains(i.Id) && i.DiscountPercent > 0m && i.DiscountDueDate != null)
             .ToListAsync(ct);
         var asOfDate = new DateTimeOffset(asOf.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);

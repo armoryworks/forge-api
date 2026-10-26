@@ -31,7 +31,7 @@ public class ArOpenItem : BaseEntity
     /// <summary>The customer that owes the receivable (the sub-ledger party).</summary>
     public int CustomerId { get; set; }
 
-    /// <summary>Source-document type — "Invoice" (matches the posting idempotency key shape).</summary>
+    /// <summary>Source-document type — "Invoice" or "CreditMemo" (matches the posting idempotency key shape).</summary>
     public string SourceType { get; set; } = "Invoice";
 
     /// <summary>Source-document id (the Invoice id).</summary>
@@ -66,11 +66,17 @@ public class ArOpenItem : BaseEntity
 
     public OpenItemStatus Status { get; set; } = OpenItemStatus.Open;
 
-    /// <summary>Outstanding amount in the transaction currency (computed — not mapped).</summary>
-    public decimal OpenTxnAmount => OriginalTxnAmount - AppliedTxnAmount;
+    /// <summary>
+    /// 1 for a receivable (invoice), -1 for a credit owed to the customer (credit memo). Original and applied amounts
+    /// are always positive; the open amounts carry the sign, so aging, statements and the control reconciliation net.
+    /// </summary>
+    public short Sign { get; set; } = 1;
 
-    /// <summary>Outstanding amount in functional currency at the booking rate (computed — not mapped).</summary>
-    public decimal OpenFunctionalAmount => OriginalFunctionalAmount - AppliedFunctionalAmount;
+    /// <summary>Signed outstanding amount in the transaction currency (computed — not mapped).</summary>
+    public decimal OpenTxnAmount => Sign * (OriginalTxnAmount - AppliedTxnAmount);
+
+    /// <summary>Signed outstanding amount in functional currency at the booking rate (computed — not mapped).</summary>
+    public decimal OpenFunctionalAmount => Sign * (OriginalFunctionalAmount - AppliedFunctionalAmount);
 
     /// <summary>
     /// Recomputes <see cref="Status"/> from the applied-vs-original transaction amounts:

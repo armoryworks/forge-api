@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.CreditMemos;
 using Forge.Api.Features.ShopFloor;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -45,6 +46,10 @@ public class VoidInvoiceHandler(
 
         if (invoice.PaymentApplications.Any())
             throw new InvalidOperationException("Cannot void an invoice with payments applied");
+
+        if (invoice.CreditApplications.Any(a => a.ReversedAt == null))
+            throw CreditMemoRules.Failure("Id", CreditMemoRules.InvoiceHasCreditsCode,
+                $"Invoice {invoice.InvoiceNumber} has credit memos applied. Unapply them before voiding the invoice.");
 
         if (invoice.Provider == ConversionOpenItems.Provider)
             throw new InvalidOperationException(

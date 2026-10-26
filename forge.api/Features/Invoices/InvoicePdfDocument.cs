@@ -166,13 +166,25 @@ public class InvoicePdfDocument : IDocument
                     row.ConstantItem(100).AlignRight().Text(_money.Format(_invoice.Total)).Bold().FontSize(12);
                 });
 
-                if (_invoice.AmountPaid > 0)
+                if (_invoice.AmountPaid > 0 || _invoice.CreditsApplied > 0)
                 {
-                    totals.Item().Row(row =>
+                    if (_invoice.AmountPaid > 0)
                     {
-                        row.RelativeItem().Text("Paid:").FontColor(Colors.Green.Darken2);
-                        row.ConstantItem(100).AlignRight().Text($"({_money.Format(_invoice.AmountPaid)})").FontColor(Colors.Green.Darken2);
-                    });
+                        totals.Item().Row(row =>
+                        {
+                            row.RelativeItem().Text("Paid:").FontColor(Colors.Green.Darken2);
+                            row.ConstantItem(100).AlignRight().Text($"({_money.Format(_invoice.AmountPaid)})").FontColor(Colors.Green.Darken2);
+                        });
+                    }
+
+                    if (_invoice.CreditsApplied > 0)
+                    {
+                        totals.Item().Row(row =>
+                        {
+                            row.RelativeItem().Text("Credits applied:").FontColor(Colors.Green.Darken2);
+                            row.ConstantItem(100).AlignRight().Text($"({_money.Format(_invoice.CreditsApplied)})").FontColor(Colors.Green.Darken2);
+                        });
+                    }
 
                     if (_invoice.DiscountsTaken > 0)
                     {
