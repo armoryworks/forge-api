@@ -31,12 +31,17 @@ public sealed record OverheadPoolCloseResult(decimal ActualOverhead, decimal App
 /// </summary>
 public interface IOverheadPoolService
 {
-    /// <summary>Records actual overhead incurred into the pool: Dr OVERHEAD_CONTROL / Cr ACCRUED_EXPENSE.</summary>
-    Task RecordActualOverheadAsync(decimal amount, string memo, DateOnly entryDate, int userId, CancellationToken ct = default);
+    /// <summary>Records actual overhead incurred into the pool: Dr OVERHEAD_CONTROL / Cr ACCRUED_EXPENSE, or Cr the
+    /// given source account (an expense being reclassed into the pool, or the cash/payable it was paid from).</summary>
+    Task RecordActualOverheadAsync(
+        decimal amount, string memo, DateOnly entryDate, int userId, int? sourceGlAccountId = null, CancellationToken ct = default);
 
     /// <summary>Closes the pool as of a date: posts the spending variance (actual − applied) and clears the
     /// OVERHEAD_CONTROL + OVERHEAD_APPLIED balances to zero. Idempotent per close date.</summary>
     Task<OverheadPoolCloseResult> CloseOverheadPoolAsync(DateOnly asOf, int userId, CancellationToken ct = default);
+
+    /// <summary>The pool's actual, applied and pending variance as of a date, and whether that date is closed.</summary>
+    Task<OverheadPoolStatusModel> GetStatusAsync(DateOnly asOf, CancellationToken ct = default);
 }
 
 /// <inheritdoc />
@@ -51,14 +56,21 @@ public sealed class OverheadPoolService(
     private const string KeyOverheadApplied = "OVERHEAD_APPLIED";
     private const string KeyOverheadSpendingVariance = "OVERHEAD_SPENDING_VARIANCE";
     private const string KeyAccruedExpense = "ACCRUED_EXPENSE";
+    private const string CloseKeyPrefix = "Overhead:Close:";
+
+    private static readonly AccountType[] SourceAccountTypes = [AccountType.Asset, AccountType.Liability, AccountType.Expense];
 
     public async Task RecordActualOverheadAsync(
-        decimal amount, string memo, DateOnly entryDate, int userId, CancellationToken ct = default)
+        decimal amount, string memo, DateOnly entryDate, int userId, int? sourceGlAccountId = null, CancellationToken ct = default)
     {
         if (!capabilities.IsEnabled(FullGlCapability) || amount <= 0m)
             return;
 
         var book = await ActiveBookAsync(ct);
+        var source = sourceGlAccountId is null
+            ? null
+            : await PostableGlAccountLookup.ResolveAsync(
+                db, book.Id, sourceGlAccountId, null, "sourceGlAccountId", SourceAccountTypes, ct);
 
         await postingEngine.PostAsync(new PostingRequest
         {
@@ -74,7 +86,9 @@ public sealed class OverheadPoolService(
             Lines =
             [
                 new PostingLine { AccountKey = KeyOverheadControl, Debit = amount, Description = $"Actual overhead — {memo}" },
-                new PostingLine { AccountKey = KeyAccruedExpense, Credit = amount, Description = $"Accrued overhead — {memo}" },
+                source is null
+                    ? new PostingLine { AccountKey = KeyAccruedExpense, Credit = amount, Description = $"Accrued overhead — {memo}" }
+                    : new PostingLine { GlAccountId = source.Id, Credit = amount, Description = $"Overhead reclassed — {memo}" },
             ],
         }, userId, ct);
     }
@@ -87,7 +101,7 @@ public sealed class OverheadPoolService(
 
         var book = await ActiveBookAsync(ct);
 
-        var closeKey = $"{JournalSource.Inventory}:Overhead:Close:{asOf:yyyyMMdd}";
+        var closeKey = CloseKey(asOf);
         var alreadyClosed = await db.JournalEntries.IgnoreQueryFilters()
             .AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == closeKey, ct);
         if (alreadyClosed)
@@ -139,6 +153,35 @@ public sealed class OverheadPoolService(
 
         return new OverheadPoolCloseResult(actualPool, applied, spending, Posted: true);
     }
+
+    public async Task<OverheadPoolStatusModel> GetStatusAsync(DateOnly asOf, CancellationToken ct = default)
+    {
+        if (!capabilities.IsEnabled(FullGlCapability))
+            return new OverheadPoolStatusModel(asOf, 0m, 0m, 0m, false, null, IsConfigured: false);
+
+        var book = await ActiveBookAsync(ct);
+
+        var closeKey = CloseKey(asOf);
+        var closePrefix = $"{JournalSource.Inventory}:{CloseKeyPrefix}";
+        var closes = await db.JournalEntries.IgnoreQueryFilters().AsNoTracking()
+            .Where(e => e.BookId == book.Id && e.IdempotencyKey != null && e.IdempotencyKey.StartsWith(closePrefix))
+            .Select(e => new { e.IdempotencyKey, e.EntryDate })
+            .ToListAsync(ct);
+        var closedOnDate = closes.Any(c => c.IdempotencyKey == closeKey);
+        DateOnly? lastClosedOn = closes.Count > 0 ? closes.Max(c => c.EntryDate) : null;
+
+        var controlId = await AccountIdAsync(book.Id, KeyOverheadControl, ct);
+        var appliedId = await AccountIdAsync(book.Id, KeyOverheadApplied, ct);
+        if (controlId is null || appliedId is null)
+            return new OverheadPoolStatusModel(asOf, 0m, 0m, 0m, closedOnDate, lastClosedOn, IsConfigured: false);
+
+        var actualPool = Math.Round(await AccountBalanceAsync(book.Id, controlId.Value, asOf, debitPositive: true, ct), 2);
+        var applied = Math.Round(await AccountBalanceAsync(book.Id, appliedId.Value, asOf, debitPositive: false, ct), 2);
+        return new OverheadPoolStatusModel(
+            asOf, actualPool, applied, Math.Round(actualPool - applied, 2), closedOnDate, lastClosedOn, IsConfigured: true);
+    }
+
+    private static string CloseKey(DateOnly asOf) => $"{JournalSource.Inventory}:{CloseKeyPrefix}{asOf:yyyyMMdd}";
 
     private async Task<Book> ActiveBookAsync(CancellationToken ct)
         => await db.Books.AsNoTracking().Where(b => b.IsActive).OrderBy(b => b.Id).FirstOrDefaultAsync(ct)

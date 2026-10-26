@@ -21,37 +21,12 @@ public sealed class DepreciationService(
 
     private static readonly AccountType[] ProceedsAccountTypes = [AccountType.Asset];
     private static readonly AccountType[] GainLossAccountTypes = [AccountType.Income, AccountType.Expense];
+    private const int MaxProjectedMonths = 1200;
 
     public async Task<FixedAssetModel> CreateAssetAsync(CreateFixedAssetModel model, CancellationToken ct = default)
     {
-        if (model.UsefulLifeMonths <= 0)
-            throw new InvalidOperationException("Useful life must be a positive number of months.");
-        if (model.Cost < model.SalvageValue)
-            throw new InvalidOperationException("Salvage value cannot exceed cost.");
-
-        if (model.Method == DepreciationMethod.UnitsOfProduction)
-        {
-            if (model.UsefulLifeUnits is not > 0)
-                throw new InvalidOperationException(
-                    "Units-of-production depreciation requires a positive useful life in units (total expected shots).");
-            if (model.LinkedAssetId is null)
-                throw new InvalidOperationException(
-                    "Units-of-production depreciation requires a linked operational asset supplying the shot count.");
-        }
-
-        if (model.LinkedAssetId is int linkedAssetId)
-        {
-            var linked = await db.Assets.AsNoTracking()
-                .Where(a => a.Id == linkedAssetId)
-                .Select(a => new { a.IsCustomerOwned })
-                .FirstOrDefaultAsync(ct)
-                ?? throw new KeyNotFoundException($"Linked operational asset {linkedAssetId} not found.");
-
-            if (linked.IsCustomerOwned)
-                throw new InvalidOperationException(
-                    "Customer-owned tooling cannot be capitalized — it stays off the balance sheet and is " +
-                    "memo-tracked operationally only. Link a company-owned asset instead.");
-        }
+        await ValidateAsync(model.UsefulLifeMonths, model.Cost, model.SalvageValue, model.Method,
+            model.UsefulLifeUnits, model.LinkedAssetId, ct);
 
         var asset = new FixedAsset
         {
@@ -98,16 +73,11 @@ public sealed class DepreciationService(
             .Where(b => b.Id == bookId).Select(b => (int?)b.FunctionalCurrencyId).FirstOrDefaultAsync(ct)
             ?? throw new PostingException("NO_POSTING_BOOK", $"Book {bookId} not found for depreciation.");
 
-        var assets = await db.FixedAssets
-            .Include(a => a.DepreciationEntries)
-            .Include(a => a.LinkedAsset) // soft-deleted linked assets are filtered → nav stays null
-            .Where(a => a.BookId == bookId
-                && a.Status == FixedAssetStatus.Active
-                && a.InServiceDate <= month.AddMonths(1).AddDays(-1)) // in service by month end
-            .ToListAsync(ct);
+        var assets = await EligibleAssets(bookId, month).ToListAsync(ct);
 
         var count = 0;
         var total = 0m;
+        var journalEntryIds = new List<long>();
 
         foreach (var asset in assets)
         {
@@ -116,46 +86,13 @@ public sealed class DepreciationService(
                 continue;
 
             var accumulated = asset.DepreciationEntries.Sum(d => d.Amount);
-            var remaining = asset.DepreciableBase - accumulated;
-            if (remaining <= 0m)
+            if (asset.DepreciableBase - accumulated <= 0m)
             {
                 asset.Status = FixedAssetStatus.FullyDepreciated;
                 continue;
             }
 
-            decimal amount;
-            decimal unitsThisPeriod = 0m;
-            if (asset.Method == DepreciationMethod.UnitsOfProduction)
-            {
-                // The filtered include leaves the nav null for soft-deleted assets; the DeletedAt check
-                // covers same-context tracker fix-up reattaching an already-tracked deleted instance.
-                if (asset.LinkedAsset is null || asset.LinkedAsset.DeletedAt is not null || asset.UsefulLifeUnits is not > 0)
-                {
-                    logger?.LogWarning(
-                        "Skipping units-of-production depreciation for fixed asset {FixedAssetId} ({AssetName}) — " +
-                        "linked operational asset is missing/deleted or useful-life units are not set.",
-                        asset.Id, asset.Name);
-                    continue;
-                }
-
-                unitsThisPeriod = Math.Max(0m, asset.LinkedAsset.CurrentShotCount - asset.LastDepreciatedUnits);
-                if (unitsThisPeriod <= 0m)
-                {
-                    logger?.LogDebug(
-                        "No new units for fixed asset {FixedAssetId} ({AssetName}) in {PeriodMonth:yyyy-MM} — nothing to depreciate.",
-                        asset.Id, asset.Name, month);
-                    continue;
-                }
-
-                // (Cost − Salvage) × unitsThisPeriod / UsefulLifeUnits, capped below at remaining book value.
-                amount = Math.Round(asset.DepreciableBase * unitsThisPeriod / asset.UsefulLifeUnits.Value, 2);
-            }
-            else
-            {
-                amount = TimeBasedCharge(asset, accumulated, asset.DepreciationEntries.Count);
-            }
-
-            amount = Math.Min(amount, remaining);
+            var (amount, unitsThisPeriod) = ChargeFor(asset, month, accumulated);
             if (amount <= 0m)
                 continue;
 
@@ -189,10 +126,106 @@ public sealed class DepreciationService(
 
             count++;
             total += amount;
+            journalEntryIds.Add(entry.Id);
         }
 
         await db.SaveChangesAsync(ct);
-        return new DepreciationRunResult(bookId, month, count, total);
+        return new DepreciationRunResult(bookId, month, count, total, journalEntryIds);
+    }
+
+    public async Task<DepreciationPreviewResult> PreviewDepreciationAsync(
+        int bookId, DateOnly periodMonth, CancellationToken ct = default)
+    {
+        var month = new DateOnly(periodMonth.Year, periodMonth.Month, 1);
+
+        if (!await db.Books.AsNoTracking().AnyAsync(b => b.Id == bookId, ct))
+            throw new KeyNotFoundException($"Book {bookId} not found for depreciation.");
+
+        var assets = await EligibleAssets(bookId, month).AsNoTracking().ToListAsync(ct);
+
+        var lines = new List<DepreciationPreviewLine>();
+        foreach (var asset in assets.OrderBy(a => a.Name))
+        {
+            if (asset.DepreciationEntries.Any(d => d.PeriodMonth == month))
+                continue;
+
+            var accumulated = asset.DepreciationEntries.Sum(d => d.Amount);
+            if (asset.DepreciableBase - accumulated <= 0m)
+                continue;
+
+            var (amount, _) = ChargeFor(asset, month, accumulated);
+            if (amount <= 0m)
+                continue;
+
+            lines.Add(new DepreciationPreviewLine(
+                asset.Id, asset.Name, asset.AssetTag, amount, asset.Cost - accumulated - amount));
+        }
+
+        return new DepreciationPreviewResult(bookId, month, lines, lines.Sum(l => l.Amount));
+    }
+
+    public async Task<FixedAssetDetailModel> GetAssetAsync(int fixedAssetId, CancellationToken ct = default)
+    {
+        var asset = await db.FixedAssets.AsNoTracking()
+            .Include(a => a.DepreciationEntries)
+            .FirstOrDefaultAsync(a => a.Id == fixedAssetId, ct)
+            ?? throw new KeyNotFoundException($"Fixed asset {fixedAssetId} not found.");
+
+        return Detail(asset);
+    }
+
+    public async Task<FixedAssetDetailModel> UpdateAssetAsync(
+        int fixedAssetId, UpdateFixedAssetModel model, CancellationToken ct = default)
+    {
+        var asset = await db.FixedAssets
+            .Include(a => a.DepreciationEntries)
+            .FirstOrDefaultAsync(a => a.Id == fixedAssetId, ct)
+            ?? throw new KeyNotFoundException($"Fixed asset {fixedAssetId} not found.");
+
+        if (asset.Status != FixedAssetStatus.Active || asset.DepreciationEntries.Count > 0)
+            throw new InvalidOperationException(
+                $"Fixed asset {asset.Name} can no longer be edited: depreciation has already posted for it. " +
+                "Dispose of it and register a new asset to change its cost, life or accounts.");
+
+        await ValidateAsync(model.UsefulLifeMonths, model.Cost, model.SalvageValue, model.Method,
+            model.UsefulLifeUnits, model.LinkedAssetId, ct);
+
+        asset.Name = model.Name;
+        asset.AssetTag = model.AssetTag;
+        asset.Cost = model.Cost;
+        asset.SalvageValue = model.SalvageValue;
+        asset.InServiceDate = model.InServiceDate;
+        asset.UsefulLifeMonths = model.UsefulLifeMonths;
+        asset.Method = model.Method;
+        asset.UsefulLifeUnits = model.Method == DepreciationMethod.UnitsOfProduction ? model.UsefulLifeUnits : null;
+        asset.LinkedAssetId = model.LinkedAssetId;
+        asset.AssetGlAccountId = model.AssetGlAccountId;
+        asset.AccumulatedDepreciationGlAccountId = model.AccumulatedDepreciationGlAccountId;
+        asset.DepreciationExpenseGlAccountId = model.DepreciationExpenseGlAccountId;
+        await db.SaveChangesAsync(ct);
+
+        return Detail(asset);
+    }
+
+    public async Task<IReadOnlyList<LinkableAssetModel>> ListLinkableAssetsAsync(int bookId, CancellationToken ct = default)
+    {
+        var linked = await db.FixedAssets.AsNoTracking()
+            .Where(f => f.BookId == bookId && f.LinkedAssetId != null && f.Status != FixedAssetStatus.Disposed)
+            .Select(f => new { f.Id, LinkedAssetId = f.LinkedAssetId!.Value })
+            .ToListAsync(ct);
+        var byAsset = linked.GroupBy(f => f.LinkedAssetId).ToDictionary(g => g.Key, g => g.Min(f => f.Id));
+
+        var assets = await db.Assets.AsNoTracking()
+            .Where(a => !a.IsCustomerOwned)
+            .OrderBy(a => a.Name)
+            .Select(a => new { a.Id, a.Name, a.SerialNumber, a.AcquisitionCost, a.CurrentShotCount })
+            .ToListAsync(ct);
+
+        return assets
+            .Select(a => new LinkableAssetModel(
+                a.Id, a.Name, a.SerialNumber, a.AcquisitionCost, a.CurrentShotCount,
+                byAsset.TryGetValue(a.Id, out var fixedAssetId) ? fixedAssetId : null))
+            .ToList();
     }
 
     public async Task<FixedAssetDisposalResult> DisposeAssetAsync(
@@ -288,6 +321,40 @@ public sealed class DepreciationService(
             Map(asset, accumulated), journalEntryId, catchUp, netBookValue, model.Proceeds, gainLoss);
     }
 
+    private async Task ValidateAsync(
+        int usefulLifeMonths, decimal cost, decimal salvageValue, DepreciationMethod method,
+        decimal? usefulLifeUnits, int? linkedAssetId, CancellationToken ct)
+    {
+        if (usefulLifeMonths <= 0)
+            throw new InvalidOperationException("Useful life must be a positive number of months.");
+        if (cost < salvageValue)
+            throw new InvalidOperationException("Salvage value cannot exceed cost.");
+
+        if (method == DepreciationMethod.UnitsOfProduction)
+        {
+            if (usefulLifeUnits is not > 0)
+                throw new InvalidOperationException(
+                    "Units-of-production depreciation requires a positive useful life in units (total expected shots).");
+            if (linkedAssetId is null)
+                throw new InvalidOperationException(
+                    "Units-of-production depreciation requires a linked operational asset supplying the shot count.");
+        }
+
+        if (linkedAssetId is int linkedId)
+        {
+            var linked = await db.Assets.AsNoTracking()
+                .Where(a => a.Id == linkedId)
+                .Select(a => new { a.IsCustomerOwned })
+                .FirstOrDefaultAsync(ct)
+                ?? throw new KeyNotFoundException($"Linked operational asset {linkedId} not found.");
+
+            if (linked.IsCustomerOwned)
+                throw new InvalidOperationException(
+                    "Customer-owned tooling cannot be capitalized — it stays off the balance sheet and is " +
+                    "memo-tracked operationally only. Link a company-owned asset instead.");
+        }
+    }
+
     private async Task<decimal> PostCatchUpDepreciationAsync(
         FixedAsset asset, DateOnly disposalMonth, DateOnly entryDate, int currencyId, int userId, CancellationToken ct)
     {
@@ -368,6 +435,97 @@ public sealed class DepreciationService(
 
         catchUp = Math.Min(catchUp, remaining);
         return catchUp > 0m ? (catchUp, lastMonth, 0m) : (0m, null, 0m);
+    }
+
+    private IQueryable<FixedAsset> EligibleAssets(int bookId, DateOnly month) =>
+        db.FixedAssets
+            .Include(a => a.DepreciationEntries)
+            .Include(a => a.LinkedAsset) // soft-deleted linked assets are filtered → nav stays null
+            .Where(a => a.BookId == bookId
+                && a.Status == FixedAssetStatus.Active
+                && a.InServiceDate <= month.AddMonths(1).AddDays(-1)); // in service by month end
+
+    private (decimal Amount, decimal Units) ChargeFor(FixedAsset asset, DateOnly month, decimal accumulated)
+    {
+        var remaining = asset.DepreciableBase - accumulated;
+        decimal amount;
+        decimal unitsThisPeriod = 0m;
+        if (asset.Method == DepreciationMethod.UnitsOfProduction)
+        {
+            // The filtered include leaves the nav null for soft-deleted assets; the DeletedAt check
+            // covers same-context tracker fix-up reattaching an already-tracked deleted instance.
+            if (asset.LinkedAsset is null || asset.LinkedAsset.DeletedAt is not null || asset.UsefulLifeUnits is not > 0)
+            {
+                logger?.LogWarning(
+                    "Skipping units-of-production depreciation for fixed asset {FixedAssetId} ({AssetName}) — " +
+                    "linked operational asset is missing/deleted or useful-life units are not set.",
+                    asset.Id, asset.Name);
+                return (0m, 0m);
+            }
+
+            unitsThisPeriod = Math.Max(0m, asset.LinkedAsset.CurrentShotCount - asset.LastDepreciatedUnits);
+            if (unitsThisPeriod <= 0m)
+            {
+                logger?.LogDebug(
+                    "No new units for fixed asset {FixedAssetId} ({AssetName}) in {PeriodMonth:yyyy-MM} — nothing to depreciate.",
+                    asset.Id, asset.Name, month);
+                return (0m, 0m);
+            }
+
+            // (Cost − Salvage) × unitsThisPeriod / UsefulLifeUnits, capped below at remaining book value.
+            amount = Math.Round(asset.DepreciableBase * unitsThisPeriod / asset.UsefulLifeUnits.Value, 2);
+        }
+        else
+        {
+            amount = TimeBasedCharge(asset, accumulated, asset.DepreciationEntries.Count);
+        }
+
+        amount = Math.Min(amount, remaining);
+        return amount > 0m ? (amount, unitsThisPeriod) : (0m, 0m);
+    }
+
+    private static FixedAssetDetailModel Detail(FixedAsset asset)
+    {
+        var accumulated = asset.DepreciationEntries.Sum(d => d.Amount);
+        return new FixedAssetDetailModel(
+            Map(asset, accumulated),
+            asset.AssetGlAccountId,
+            asset.AccumulatedDepreciationGlAccountId,
+            asset.DepreciationExpenseGlAccountId,
+            asset.Status == FixedAssetStatus.Active && asset.DepreciationEntries.Count == 0,
+            Schedule(asset));
+    }
+
+    private static List<DepreciationScheduleRowModel> Schedule(FixedAsset asset)
+    {
+        var rows = new List<DepreciationScheduleRowModel>();
+        var running = 0m;
+        foreach (var posted in asset.DepreciationEntries.OrderBy(d => d.PeriodMonth))
+        {
+            running += posted.Amount;
+            rows.Add(new DepreciationScheduleRowModel(
+                posted.PeriodMonth, posted.Amount, running, asset.Cost - running, true, posted.JournalEntryId));
+        }
+
+        if (asset.Status != FixedAssetStatus.Active || asset.Method == DepreciationMethod.UnitsOfProduction)
+            return rows;
+
+        var periods = asset.DepreciationEntries.Count;
+        var month = periods > 0
+            ? asset.DepreciationEntries.Max(d => d.PeriodMonth).AddMonths(1)
+            : new DateOnly(asset.InServiceDate.Year, asset.InServiceDate.Month, 1);
+        for (var i = 0; i < MaxProjectedMonths && running < asset.DepreciableBase; i++, month = month.AddMonths(1))
+        {
+            var charge = TimeBasedCharge(asset, running, periods);
+            if (charge <= 0m)
+                break;
+
+            running += charge;
+            periods++;
+            rows.Add(new DepreciationScheduleRowModel(month, charge, running, asset.Cost - running, false, null));
+        }
+
+        return rows;
     }
 
     private static decimal TimeBasedCharge(FixedAsset asset, decimal accumulated, int periodsPosted)

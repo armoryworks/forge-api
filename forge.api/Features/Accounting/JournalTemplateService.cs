@@ -12,10 +12,8 @@ public sealed class JournalTemplateService(AppDbContext db, IPostingEngine posti
 {
     public async Task<JournalTemplateModel> CreateAsync(CreateJournalTemplateModel model, CancellationToken ct = default)
     {
-        if (model.Lines is not { Count: > 0 })
-            throw new InvalidOperationException("A journal template needs at least one line.");
+        ValidateLines(model.Lines);
 
-        var lineNumber = 1;
         var template = new JournalTemplate
         {
             BookId = model.BookId,
@@ -24,17 +22,7 @@ public sealed class JournalTemplateService(AppDbContext db, IPostingEngine posti
             Memo = model.Memo,
             AutoReverseNextPeriod = model.AutoReverseNextPeriod,
             IsActive = true,
-            Lines = model.Lines.Select(l => new JournalTemplateLine
-            {
-                LineNumber = lineNumber++,
-                AccountDeterminationKey = l.AccountDeterminationKey,
-                GlAccountId = l.GlAccountId,
-                Debit = l.Debit,
-                Credit = l.Credit,
-                Description = l.Description,
-                PartyType = l.PartyType,
-                PartyId = l.PartyId,
-            }).ToList(),
+            Lines = ToLines(model.Lines),
         };
 
         db.JournalTemplates.Add(template);
@@ -61,6 +49,29 @@ public sealed class JournalTemplateService(AppDbContext db, IPostingEngine posti
             .Include(t => t.Lines)
             .FirstOrDefaultAsync(t => t.Id == templateId, ct);
         return template is null ? null : Map(template);
+    }
+
+    public async Task<JournalTemplateModel> UpdateAsync(
+        int templateId, UpdateJournalTemplateModel model, CancellationToken ct = default)
+    {
+        ValidateLines(model.Lines);
+
+        var template = await db.JournalTemplates
+            .Include(t => t.Lines)
+            .FirstOrDefaultAsync(t => t.Id == templateId, ct)
+            ?? throw new KeyNotFoundException($"Journal template {templateId} not found.");
+
+        template.Name = model.Name;
+        template.Description = model.Description;
+        template.Memo = model.Memo;
+        template.AutoReverseNextPeriod = model.AutoReverseNextPeriod;
+        template.IsActive = model.IsActive;
+
+        db.JournalTemplateLines.RemoveRange(template.Lines);
+        template.Lines = ToLines(model.Lines);
+        await db.SaveChangesAsync(ct);
+
+        return Map(template);
     }
 
     public async Task<PostedFromTemplateModel> PostFromTemplateAsync(
@@ -109,6 +120,41 @@ public sealed class JournalTemplateService(AppDbContext db, IPostingEngine posti
 
         var entry = await postingEngine.PostAsync(request, postedByUserId, ct);
         return new PostedFromTemplateModel(entry.Id, entry.EntryNumber, entry.EntryDate);
+    }
+
+    private static void ValidateLines(List<JournalTemplateLineModel>? lines)
+    {
+        if (lines is not { Count: > 0 })
+            throw new InvalidOperationException("A journal template needs at least one line.");
+
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line.AccountDeterminationKey) == line.GlAccountId is null)
+                throw new InvalidOperationException(
+                    "Each template line needs exactly one of an account or an account-determination key.");
+            if (line.Debit < 0m || line.Credit < 0m)
+                throw new InvalidOperationException("Template line amounts cannot be negative.");
+            if (line.Debit > 0m && line.Credit > 0m)
+                throw new InvalidOperationException("A template line is either a debit or a credit, not both.");
+            if ((line.PartyType is null) != (line.PartyId is null))
+                throw new InvalidOperationException("A template line's party needs both its type and the party.");
+        }
+    }
+
+    private static List<JournalTemplateLine> ToLines(IEnumerable<JournalTemplateLineModel> lines)
+    {
+        var lineNumber = 1;
+        return lines.Select(l => new JournalTemplateLine
+        {
+            LineNumber = lineNumber++,
+            AccountDeterminationKey = string.IsNullOrWhiteSpace(l.AccountDeterminationKey) ? null : l.AccountDeterminationKey,
+            GlAccountId = l.GlAccountId,
+            Debit = l.Debit,
+            Credit = l.Credit,
+            Description = l.Description,
+            PartyType = l.PartyType,
+            PartyId = l.PartyId,
+        }).ToList();
     }
 
     private static JournalTemplateModel Map(JournalTemplate t) => new(

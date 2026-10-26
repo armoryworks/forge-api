@@ -6,13 +6,13 @@ using Microsoft.AspNetCore.Http;
 namespace Forge.Api.Features.Accounting;
 
 /// <summary>Request body for recording actual overhead into the pool.</summary>
-public record RecordActualOverheadRequest(decimal Amount, string? Memo, DateOnly EntryDate);
+public record RecordActualOverheadRequest(decimal Amount, string? Memo, DateOnly EntryDate, int? SourceGlAccountId = null);
 
 /// <summary>Request body for the period overhead-pool close.</summary>
 public record CloseOverheadPoolRequest(DateOnly AsOf);
 
 /// <summary>Record actual overhead incurred into the OVERHEAD_CONTROL pool (dark behind CAP-ACCT-FULLGL).</summary>
-public record RecordActualOverheadCommand(decimal Amount, string Memo, DateOnly EntryDate) : IRequest;
+public record RecordActualOverheadCommand(decimal Amount, string Memo, DateOnly EntryDate, int? SourceGlAccountId = null) : IRequest;
 
 public class RecordActualOverheadHandler(
     IOverheadPoolService pool,
@@ -23,7 +23,8 @@ public class RecordActualOverheadHandler(
         var userId = int.TryParse(
             httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier),
             out var uid) ? uid : 0;
-        await pool.RecordActualOverheadAsync(request.Amount, request.Memo, request.EntryDate, userId, cancellationToken);
+        await pool.RecordActualOverheadAsync(
+            request.Amount, request.Memo, request.EntryDate, userId, request.SourceGlAccountId, cancellationToken);
     }
 }
 
