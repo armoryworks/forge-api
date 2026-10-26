@@ -195,8 +195,10 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                     decimal totalHours = setupHours + runHours;
 
                     var cursor = predecessorSpans.Count == 0 ? jobStart : release.NotBefore;
-                    var notBefore = cursor ?? capacity.MidnightUtc(parameters.ScheduleFrom);
-                    var earliest = notBefore > run.RunDate ? notBefore : run.RunDate;
+                    var runStart = capacity.MidnightUtc(parameters.ScheduleFrom);
+                    var floor = parameters.Direction == ScheduleDirection.Forward && runStart > run.RunDate ? runStart : run.RunDate;
+                    var notBefore = cursor ?? runStart;
+                    var earliest = notBefore > floor ? notBefore : floor;
                     var slot = FindAvailableSlot(
                         wcId, earliest, totalHours, capacity, laneFill, parameters.ScheduleTo);
 
@@ -206,7 +208,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                             wcId, earliest + (mustNotEndBefore - early.End), totalHours, capacity, laneFill, parameters.ScheduleTo);
                         if (slot is { } shifted && shifted.End < mustNotEndBefore)
                         {
-                            var afterPredecessor = mustNotEndBefore > run.RunDate ? mustNotEndBefore : run.RunDate;
+                            var afterPredecessor = mustNotEndBefore > floor ? mustNotEndBefore : floor;
                             slot = FindAvailableSlot(
                                 wcId, afterPredecessor, totalHours, capacity, laneFill, parameters.ScheduleTo);
                         }

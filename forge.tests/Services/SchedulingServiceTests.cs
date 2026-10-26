@@ -653,6 +653,36 @@ public class SchedulingServiceTests
     }
 
     [Fact]
+    public async Task Schedule_ForwardRunFromAFutureDate_StartsTheSuccessorOfALockedOperationOnThatDate()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var (part, first) = await SeedPartAsync(wc, estimatedMs: 60000);
+        _db.Operations.Add(new Operation { PartId = part.Id, StepNumber = 20, Title = "Trim", WorkCenterId = wc.Id, EstimatedMs = 60000 });
+        await _db.SaveChangesAsync();
+        var job = await SeedJobAsync(part, 60m);
+        _db.ScheduledOperations.Add(new ScheduledOperation
+        {
+            JobId = job.Id,
+            OperationId = first.Id,
+            WorkCenterId = wc.Id,
+            ScheduledStart = new DateTimeOffset(2026, 10, 5, 8, 0, 0, TimeSpan.Zero),
+            ScheduledEnd = new DateTimeOffset(2026, 10, 5, 9, 0, 0, TimeSpan.Zero),
+            RunHours = 1m,
+            TotalHours = 1m,
+            Status = ScheduledOperationStatus.Scheduled,
+            IsLocked = true,
+        });
+        await _db.SaveChangesAsync();
+        var from = new DateOnly(2026, 10, 19);
+
+        await _service.ScheduleAsync(
+            new ScheduleParameters(ScheduleDirection.Forward, from, from.AddDays(14), null, "DueDate", null), CancellationToken.None);
+
+        var successor = await _db.ScheduledOperations.SingleAsync(so => so.JobId == job.Id && !so.IsLocked);
+        DateOnly.FromDateTime(successor.ScheduledStart.UtcDateTime).Should().Be(from);
+    }
+
+    [Fact]
     public async Task Schedule_OverloadedSingleMachine_SpillsEachJobOverInDueDateOrder()
     {
         var wc = await SeedWorkCenterAsync();
