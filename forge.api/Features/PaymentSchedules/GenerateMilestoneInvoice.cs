@@ -97,7 +97,8 @@ public class GenerateMilestoneInvoiceHandler(
                     Description: $"Payment milestone {milestone.Sequence}: {milestone.Name} ({milestone.Percentage:0.##}%)",
                     Quantity: 1m,
                     UnitPrice: amount),
-            ]), cancellationToken);
+            ],
+            ApplyCustomerDeposits: false), cancellationToken);
 
         milestone.InvoiceId = invoice.Id;
         milestone.AmountLocked ??= amount;

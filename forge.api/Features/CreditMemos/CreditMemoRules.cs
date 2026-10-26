@@ -29,6 +29,7 @@ internal static class CreditMemoRules
     public const string CreditExceedsOpenCode = "credit-exceeds-open";
     public const string CreditExceedsBalanceCode = "credit-exceeds-balance";
     public const string CreditMemoInvoiceCode = "credit-memo-invoice";
+    public const string CreditedDepositLineCode = "credited-deposit-line";
     public const string RefundExceedsOpenCode = "refund-exceeds-open";
     public const string WriteOffExceedsBalanceCode = "writeoff-exceeds-balance";
     public const string WriteOffReservedCode = "credit-memo-write-off-reserved";
@@ -113,6 +114,9 @@ internal static class CreditMemoRules
             if (!invoiceLines.TryGetValue(lineId, out var line) || memo.InvoiceId != line.InvoiceId)
                 throw Failure($"Lines[{i}].InvoiceLineId", CreditMemoInvoiceCode,
                     "A credited invoice line must belong to the credit memo's invoice.");
+            if (line.LineType == DocumentLineType.Deposit)
+                throw Failure($"Lines[{i}].InvoiceLineId", CreditedDepositLineCode,
+                    "A deposit line can't be credited. Credit the deposit invoice instead.");
         }
 
         memo.Lines.Clear();

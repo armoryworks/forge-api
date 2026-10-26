@@ -37,7 +37,8 @@ public record CreateInvoiceCommand(
     // Optional caller-supplied invoice number — see CreateInvoiceRequestModel.InvoiceNumber.
     string? InvoiceNumber = null,
     int? SalesTaxRateId = null,
-    int? PaymentTermsId = null) : IRequest<InvoiceListItemModel>;
+    int? PaymentTermsId = null,
+    bool ApplyCustomerDeposits = true) : IRequest<InvoiceListItemModel>;
 
 public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
 {
@@ -65,6 +66,9 @@ public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
             line.RuleFor(l => l.LineType).IsInEnum();
+            line.RuleFor(l => l.LineType).NotEqual(DocumentLineType.Deposit)
+                .WithMessage("Deposit lines are added from the sales order's deposit invoices.")
+                .WithErrorCode(CustomerDeposits.ManualLineCode);
             line.RuleFor(l => l.Description).NotEmpty().When(l => l.LineType != DocumentLineType.Freight);
             line.RuleFor(l => l.Description).MaximumLength(500);
             line.RuleFor(l => l.PartId).Null()
@@ -329,6 +333,9 @@ public class CreateInvoiceHandler(
                 SalesOrderLineId = line.SalesOrderLineId,
             });
         }
+
+        if (request.ApplyCustomerDeposits)
+            await CustomerDeposits.ApplyAsync(db, invoice, cancellationToken);
 
         await repo.AddAsync(invoice, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);

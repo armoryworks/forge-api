@@ -14,4 +14,10 @@ public enum DocumentLineType
     /// (AR) or Freight Clearing / Freight-In (AP) instead of revenue or expense.
     /// </summary>
     Freight = 1,
+
+    /// <summary>
+    /// Invoices only: the customer deposit already billed on the sales order's payment-milestone invoices, taken off
+    /// this invoice. Negative, non-taxable, added by the system (never by a caller), and posted Dr Customer Deposits.
+    /// </summary>
+    Deposit = 2,
 }

@@ -68,6 +68,9 @@ public class VoidInvoiceHandler(
                 $"Invoice {invoice.InvoiceNumber} carries an opening balance brought over at conversion, so voiding it "
                 + "would leave that balance on the receivables account. Correct the opening balance with a journal entry instead.");
 
+        if (db is not null)
+            await CustomerDeposits.EnsureVoidableAsync(db, invoice, cancellationToken);
+
         invoice.Status = InvoiceStatus.Voided;
 
         await using var tx = db is not null
