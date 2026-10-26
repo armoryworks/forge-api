@@ -1,12 +1,16 @@
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Payments;
 using Forge.Core.Entities;
+using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
+using Forge.Core.Models;
 using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 using Serilog;
 
 namespace Forge.Api.Features.Accounting;
@@ -15,12 +19,14 @@ namespace Forge.Api.Features.Accounting;
 public sealed class ChannelSettlementPostingService(
     AppDbContext db,
     IPostingEngine postingEngine,
-    ICapabilitySnapshotProvider capabilities) : IChannelSettlementPostingService
+    ICapabilitySnapshotProvider capabilities,
+    IPaymentCashPostingService cashPosting,
+    IPaymentRepository paymentNumbers,
+    IBusinessIdentifierService? identifiers = null) : IChannelSettlementPostingService
 {
     private const string FullGlCapability = "CAP-ACCT-FULLGL";
 
     internal const string KeyCash = "CASH";
-    internal const string KeyArControl = "AR_CONTROL";
     internal const string KeyCustomerDeposits = "CUSTOMER_DEPOSITS";
     internal const string KeySalesTaxPayable = "SALES_TAX_PAYABLE";
     internal const string KeySalesReturns = "SALES_RETURNS";
@@ -29,6 +35,9 @@ public sealed class ChannelSettlementPostingService(
 
     internal static string IdempotencyKey(int settlementId) =>
         $"{JournalSource.AR}:ChannelSettlement:{settlementId}:SETTLEMENT";
+
+    internal static string PayoutPaymentNotes(int settlementId, string externalSettlementId) =>
+        $"Marketplace payout — channel settlement {settlementId} ({externalSettlementId})";
 
     public async Task<IReadOnlySet<int>> PostedSettlementIdsAsync(
         IReadOnlyCollection<int> settlementIds, CancellationToken ct = default)
@@ -42,7 +51,20 @@ public sealed class ChannelSettlementPostingService(
             .Select(e => e.IdempotencyKey!)
             .ToListAsync(ct);
 
-        return settlementIds.Where(id => posted.Contains(IdempotencyKey(id))).ToHashSet();
+        var notes = await db.ChannelSettlements.AsNoTracking()
+            .Where(s => settlementIds.Contains(s.Id))
+            .Select(s => new { s.Id, s.ExternalSettlementId })
+            .ToListAsync(ct);
+        var markers = notes.Select(n => PayoutPaymentNotes(n.Id, n.ExternalSettlementId)).ToList();
+        var paid = await db.Payments.IgnoreQueryFilters().AsNoTracking()
+            .Where(p => p.Notes != null && markers.Contains(p.Notes))
+            .Select(p => p.Notes!)
+            .ToListAsync(ct);
+
+        return notes
+            .Where(n => posted.Contains(IdempotencyKey(n.Id)) || paid.Contains(PayoutPaymentNotes(n.Id, n.ExternalSettlementId)))
+            .Select(n => n.Id)
+            .ToHashSet();
     }
 
     public async Task PostSettlementAsync(int settlementId, int actingUserId, CancellationToken ct = default)
@@ -71,6 +93,10 @@ public sealed class ChannelSettlementPostingService(
             Log.Warning("Settlement posting skipped: settlement {SettlementId} not found (FULLGL on).", settlementId);
             return;
         }
+
+        var payoutNotes = PayoutPaymentNotes(settlement.Id, settlement.ExternalSettlementId);
+        if (await db.Payments.IgnoreQueryFilters().AnyAsync(p => p.Notes == payoutNotes, ct))
+            return;
 
         if (!string.Equals(settlement.CurrencyCode, book.FunctionalCurrency.Code, StringComparison.OrdinalIgnoreCase))
         {
@@ -116,9 +142,14 @@ public sealed class ChannelSettlementPostingService(
 
         Add(KeyMarketplaceFees, -settlement.Variance);
 
-        var arCredits = await RelieveOpenItemsAsync(book.Id, proceedsByOrder, ct);
-        var relieved = arCredits.Values.Sum();
-        Add(KeyCustomerDeposits, -(proceedsByOrder.Values.Sum() + unappliedProceeds - relieved));
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(ct)
+            : null;
+
+        var entryDateTime = settlement.DepositedAt ?? settlement.PeriodEnd;
+        var applied = await PayInvoicesAsync(book, settlement, payoutNotes, entryDateTime, proceedsByOrder, actingUserId, ct);
+        Add(KeyCash, -applied);
+        Add(KeyCustomerDeposits, -(proceedsByOrder.Values.Sum() + unappliedProceeds - applied));
 
         var label = $"settlement {settlement.ExternalSettlementId}";
         var lines = new List<PostingLine>();
@@ -135,83 +166,102 @@ public sealed class ChannelSettlementPostingService(
             });
         }
 
-        foreach (var (customerId, amount) in arCredits.OrderBy(kv => kv.Key))
+        if (lines.Count > 0)
         {
-            if (amount == 0m)
-                continue;
-            lines.Add(new PostingLine
+            await postingEngine.PostAsSystemAsync(new PostingRequest
             {
-                AccountKey = KeyArControl,
-                PartyType = SubledgerPartyType.Customer,
-                PartyId = customerId,
-                Credit = amount > 0m ? amount : 0m,
-                Debit = amount < 0m ? -amount : 0m,
-                Description = $"AR settled by marketplace payout — {label}",
-            });
+                BookId = book.Id,
+                EntryDate = DateOnly.FromDateTime(entryDateTime.UtcDateTime),
+                Source = JournalSource.AR,
+                SourceType = "ChannelSettlement",
+                SourceId = settlement.Id,
+                CurrencyId = book.FunctionalCurrencyId,
+                Memo = $"Marketplace payout — {label}",
+                IdempotencyKey = key,
+                Lines = lines,
+            }, actingUserId, ct);
         }
 
-        if (lines.Count == 0)
-            return;
-
-        var entryDate = DateOnly.FromDateTime((settlement.DepositedAt ?? settlement.PeriodEnd).UtcDateTime);
-        await postingEngine.PostAsSystemAsync(new PostingRequest
-        {
-            BookId = book.Id,
-            EntryDate = entryDate,
-            Source = JournalSource.AR,
-            SourceType = "ChannelSettlement",
-            SourceId = settlement.Id,
-            CurrencyId = book.FunctionalCurrencyId,
-            Memo = $"Marketplace payout — {label}",
-            IdempotencyKey = key,
-            Lines = lines,
-        }, actingUserId, ct);
+        if (tx is not null)
+            await tx.CommitAsync(ct);
     }
 
-    private async Task<Dictionary<int, decimal>> RelieveOpenItemsAsync(
-        int bookId, Dictionary<int, decimal> proceedsByOrder, CancellationToken ct)
+    private async Task<decimal> PayInvoicesAsync(
+        Book book,
+        ChannelSettlement settlement,
+        string payoutNotes,
+        DateTimeOffset paymentDate,
+        Dictionary<int, decimal> proceedsByOrder,
+        int actingUserId,
+        CancellationToken ct)
     {
-        var credits = new Dictionary<int, decimal>();
         if (proceedsByOrder.Count == 0)
-            return credits;
+            return 0m;
 
         var orderIds = proceedsByOrder.Keys.ToList();
-        var invoices = await db.Invoices.AsNoTracking()
+        var invoices = await db.Invoices
+            .Include(i => i.Lines)
+            .Include(i => i.PaymentApplications)
             .Where(i => i.SalesOrderId != null && orderIds.Contains(i.SalesOrderId.Value)
-                && i.Status != InvoiceStatus.Draft && i.Status != InvoiceStatus.Voided)
-            .Select(i => new { i.Id, SalesOrderId = i.SalesOrderId!.Value, i.InvoiceDate })
-            .ToListAsync(ct);
-        var invoiceIds = invoices.Select(i => i.Id).ToList();
-        var openItems = await db.ArOpenItems.IgnoreQueryFilters()
-            .Where(o => o.BookId == bookId && o.SourceType == "Invoice" && invoiceIds.Contains(o.SourceId)
-                && o.Status != OpenItemStatus.Voided)
+                && (i.Status == InvoiceStatus.Sent || i.Status == InvoiceStatus.PartiallyPaid || i.Status == InvoiceStatus.Overdue)
+                && i.CurrencyId == book.FunctionalCurrencyId && i.FxRate == 1m)
+            .OrderBy(i => i.InvoiceDate).ThenBy(i => i.Id)
             .ToListAsync(ct);
 
+        var payments = new Dictionary<int, Payment>();
+        var completionCandidates = new HashSet<int>();
         foreach (var (orderId, proceeds) in proceedsByOrder)
         {
             var remaining = proceeds;
-            var items = invoices
-                .Where(i => i.SalesOrderId == orderId)
-                .OrderBy(i => i.InvoiceDate).ThenBy(i => i.Id)
-                .Select(i => openItems.FirstOrDefault(o => o.SourceId == i.Id))
-                .Where(o => o is not null && o.FxRate == 1m)
-                .Select(o => o!);
-            foreach (var item in items)
+            foreach (var invoice in invoices.Where(i => i.SalesOrderId == orderId))
             {
                 if (remaining <= 0m)
                     break;
-                var apply = Math.Min(remaining, item.OpenTxnAmount);
+                var apply = Math.Min(remaining, invoice.BalanceDue);
                 if (apply <= 0m)
                     continue;
-                item.AppliedTxnAmount += apply;
-                item.AppliedFunctionalAmount += apply;
-                item.RecomputeStatus();
-                credits[item.CustomerId] = credits.GetValueOrDefault(item.CustomerId) + apply;
+
+                if (!payments.TryGetValue(invoice.CustomerId, out var payment))
+                {
+                    payment = new Payment
+                    {
+                        CustomerId = invoice.CustomerId,
+                        Method = PaymentMethod.BankTransfer,
+                        PaymentDate = paymentDate,
+                        ReferenceNumber = settlement.ExternalSettlementId.Length > 50
+                            ? settlement.ExternalSettlementId[..50]
+                            : settlement.ExternalSettlementId,
+                        Notes = payoutNotes,
+                    };
+                    payments[invoice.CustomerId] = payment;
+                }
+
+                await PaymentApplicationRules.ApplyToInvoiceAsync(
+                    db, payment, invoice,
+                    new CreatePaymentApplicationModel(invoice.Id, apply),
+                    completionCandidates, ct);
+                payment.Amount += apply;
                 remaining -= apply;
             }
         }
 
-        return credits;
+        foreach (var payment in payments.Values)
+        {
+            payment.PaymentNumber = await paymentNumbers.GenerateNextPaymentNumberAsync(ct);
+            db.Payments.Add(payment);
+            await db.SaveChangesAsync(ct);
+            if (identifiers is not null)
+                await identifiers.IssueAsync(BusinessEntityType.Payment, payment.Id, payment.PaymentNumber, ct);
+            db.LogActivityAt("created",
+                $"Payment {payment.PaymentNumber} recorded from marketplace settlement {settlement.ExternalSettlementId}",
+                ("Payment", payment.Id), ("Customer", payment.CustomerId));
+            await db.SaveChangesAsync(ct);
+            await cashPosting.PostPaymentCreatedAsync(payment.Id, actingUserId, ct);
+        }
+
+        await PaymentApplicationRules.CompletePaidSalesOrdersAsync(db, completionCandidates, ct);
+
+        return payments.Values.Sum(p => p.Amount);
     }
 
     private static string Describe(string accountKey) => accountKey switch

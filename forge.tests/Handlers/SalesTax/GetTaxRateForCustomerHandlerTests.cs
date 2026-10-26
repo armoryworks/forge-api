@@ -180,6 +180,18 @@ public class GetTaxRateForCustomerHandlerTests
     }
 
     [Fact]
+    public async Task Foreign_customer_whose_region_code_matches_a_rated_state_gets_no_sales_tax()
+    {
+        using var db = TestDbContextFactory.Create();
+        await SeedUtahAsync(db);
+        var customer = await AddCustomerAtAsync(db, "Mexicali", "UT", "MX");
+
+        var result = await Handler(db).Handle(new GetTaxRateForCustomerQuery(customer.Id), CancellationToken.None);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Domestic_customer_in_a_state_with_no_rate_gets_the_default_rate()
     {
         using var db = TestDbContextFactory.Create();

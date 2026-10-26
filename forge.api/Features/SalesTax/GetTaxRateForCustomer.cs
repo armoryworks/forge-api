@@ -44,6 +44,9 @@ public class GetTaxRateForCustomerHandler(AppDbContext db, IClock clock)
             .Select(a => new { a.State, a.Country })
             .FirstOrDefaultAsync(cancellationToken);
 
+        if (!await IsDomesticAsync(address?.Country, cancellationToken))
+            return null;
+
         if (!string.IsNullOrWhiteSpace(address?.State))
         {
             var stateCode = address.State.Trim().ToUpper();
@@ -53,9 +56,6 @@ public class GetTaxRateForCustomerHandler(AppDbContext db, IClock clock)
             if (stateRate is not null)
                 return stateRate;
         }
-
-        if (!await IsDomesticAsync(address?.Country, cancellationToken))
-            return null;
 
         return await Project(Prefer(effective.Where(r => r.IsDefault), exempt))
             .FirstOrDefaultAsync(cancellationToken);

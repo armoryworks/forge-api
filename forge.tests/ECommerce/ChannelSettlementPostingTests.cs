@@ -5,13 +5,16 @@ using Moq;
 
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.ECommerce;
+using Forge.Api.Features.Payments;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
+using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Repositories;
 using Forge.Integrations;
 using Forge.Tests.Helpers;
 
@@ -47,8 +50,14 @@ public class ChannelSettlementPostingTests : IDisposable
     private ForgeGlPostingEngine Engine() =>
         new(_db, new AccountDeterminationResolver(_db), new Allocator(_db), new SystemClock());
 
-    private ChannelSettlementPostingService Posting(bool fullGlOn = true) => new(
-        _db, Engine(), fullGlOn ? new StubCapabilitySnapshotProvider(FullGl) : StubCapabilitySnapshotProvider.Off);
+    private ChannelSettlementPostingService Posting(bool fullGlOn = true)
+    {
+        var capabilities = fullGlOn ? new StubCapabilitySnapshotProvider(FullGl) : StubCapabilitySnapshotProvider.Off;
+        return new(
+            _db, Engine(), capabilities,
+            new PaymentCashPostingService(_db, Engine(), capabilities),
+            new PaymentRepository(_db));
+    }
 
     private async Task SeedAsync()
     {
@@ -175,6 +184,15 @@ public class ChannelSettlementPostingTests : IDisposable
     private static decimal Net(JournalEntry entry, int accountId) =>
         entry.Lines.Where(l => l.GlAccountId == accountId).Sum(l => l.Debit - l.Credit);
 
+    private async Task<decimal> LedgerNetAsync(int accountId) =>
+        await _db.JournalLines
+            .Where(l => l.GlAccountId == accountId)
+            .SumAsync(l => l.Debit - l.Credit);
+
+    private async Task<JournalEntry> PayoutPaymentEntryAsync(int paymentId) =>
+        await _db.JournalEntries.Include(e => e.Lines)
+            .SingleAsync(e => e.SourceType == "Payment" && e.SourceId == paymentId);
+
     [Fact]
     public async Task Reconciled_payout_posts_cash_fees_withheld_tax_and_relieves_the_house_account()
     {
@@ -189,17 +207,29 @@ public class ChannelSettlementPostingTests : IDisposable
         await Posting().PostSettlementAsync(settlement.Id, 1);
 
         var entry = await SettlementEntryAsync(settlement.Id);
-        Net(entry, CashId).Should().Be(88m);
+        Net(entry, CashId).Should().Be(-22m);
         Net(entry, FeesId).Should().Be(12m);
         Net(entry, TaxId).Should().Be(10m);
-        Net(entry, ArId).Should().Be(-110m);
-        entry.Lines.Single(l => l.GlAccountId == ArId).SubledgerPartyId.Should().Be(_houseCustomerId);
-        entry.Lines.Should().NotContain(l => l.GlAccountId == DepositsId);
+        entry.Lines.Should().NotContain(l => l.GlAccountId == ArId || l.GlAccountId == DepositsId);
 
+        var payment = await _db.Payments.Include(p => p.Applications).SingleAsync();
+        payment.CustomerId.Should().Be(_houseCustomerId);
+        payment.Method.Should().Be(PaymentMethod.BankTransfer);
+        payment.Amount.Should().Be(110m);
+        payment.PaymentDate.Should().Be(settlement.DepositedAt!.Value);
+        payment.Applications.Should().ContainSingle().Which.Amount.Should().Be(110m);
+        var paymentEntry = await PayoutPaymentEntryAsync(payment.Id);
+        Net(paymentEntry, CashId).Should().Be(110m);
+        Net(paymentEntry, ArId).Should().Be(-110m);
+        paymentEntry.Lines.Single(l => l.GlAccountId == ArId).SubledgerPartyId.Should().Be(_houseCustomerId);
+        (await LedgerNetAsync(CashId)).Should().Be(88m);
+
+        (await _db.Invoices.SingleAsync()).Status.Should().Be(InvoiceStatus.Paid);
         var openItem = await _db.ArOpenItems.SingleAsync();
         openItem.OpenTxnAmount.Should().Be(0m);
         openItem.Status.Should().Be(OpenItemStatus.Closed);
         (await _db.JournalEntries.CountAsync(e => e.SourceType == "ChannelSettlement")).Should().Be(1);
+        (await _db.Payments.CountAsync()).Should().Be(1);
     }
 
     [Fact]
@@ -234,12 +264,13 @@ public class ChannelSettlementPostingTests : IDisposable
         await Posting().PostSettlementAsync(settlement.Id, 1);
 
         var entry = await SettlementEntryAsync(settlement.Id);
-        Net(entry, CashId).Should().Be(60m);
+        Net(entry, CashId).Should().Be(-50m);
         Net(entry, ReturnsId).Should().Be(20m);
         Net(entry, ReserveId).Should().Be(15m);
         Net(entry, FeesId).Should().Be(5m);
-        Net(entry, ArId).Should().Be(-110m);
         entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+        (await LedgerNetAsync(CashId)).Should().Be(60m);
+        (await LedgerNetAsync(ArId)).Should().Be(0m);
     }
 
     [Fact]
@@ -253,6 +284,7 @@ public class ChannelSettlementPostingTests : IDisposable
         await Posting(fullGlOn: false).PostSettlementAsync(settlement.Id, 1);
 
         (await _db.JournalEntries.AnyAsync(e => e.SourceType == "ChannelSettlement")).Should().BeFalse();
+        (await _db.Payments.AnyAsync()).Should().BeFalse();
     }
 
     [Fact]
@@ -270,8 +302,10 @@ public class ChannelSettlementPostingTests : IDisposable
         await handler.Handle(new AcceptChannelSettlementCommand(settlement.Id, "Reserve released"), default);
 
         var entry = await SettlementEntryAsync(settlement.Id);
-        Net(entry, CashId).Should().Be(90m);
+        Net(entry, CashId).Should().Be(-20m);
         Net(entry, FeesId).Should().Be(10m);
+        (await LedgerNetAsync(CashId)).Should().Be(90m);
+        (await _db.Payments.CountAsync()).Should().Be(1);
         (await _db.ChannelSettlements.SingleAsync()).Status.Should().Be(ChannelSettlementStatus.Accepted);
     }
 
@@ -308,6 +342,49 @@ public class ChannelSettlementPostingTests : IDisposable
         Net(entry, FeesId).Should().Be(12.35m);
         Net(entry, TaxId).Should().Be(8.25m);
         Net(entry, DepositsId).Should().Be(-114.73m);
+    }
+
+    [Fact]
+    public async Task A_payout_that_only_settles_invoices_is_not_paid_twice()
+    {
+        await SeedAsync();
+        var order = await AddInvoicedOrderAsync("F1");
+        var settlement = await AddSettlementAsync(order.Id, 110m, ChannelSettlementStatus.Reconciled,
+            (ChannelSettlementLineType.OrderProceeds, 110m));
+
+        await Posting().PostSettlementAsync(settlement.Id, 1);
+        await Posting().PostSettlementAsync(settlement.Id, 1);
+
+        (await _db.JournalEntries.AnyAsync(e => e.SourceType == "ChannelSettlement")).Should().BeFalse();
+        (await _db.Payments.CountAsync()).Should().Be(1);
+        (await Posting().PostedSettlementIdsAsync([settlement.Id])).Should().Contain(settlement.Id);
+        (await LedgerNetAsync(CashId)).Should().Be(110m);
+        (await LedgerNetAsync(ArId)).Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task Voiding_the_payout_payment_reopens_the_invoice_and_restores_AR()
+    {
+        await SeedAsync();
+        var order = await AddInvoicedOrderAsync("G1");
+        var settlement = await AddSettlementAsync(order.Id, 98m, ChannelSettlementStatus.Reconciled,
+            (ChannelSettlementLineType.OrderProceeds, 110m),
+            (ChannelSettlementLineType.ReferralFee, -12m));
+        await Posting().PostSettlementAsync(settlement.Id, 1);
+        var payment = await _db.Payments.SingleAsync();
+
+        var settings = new Mock<Forge.Core.Settings.ISettingsService>();
+        settings.Setup(s => s.GetStringAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+        var capabilities = new StubCapabilitySnapshotProvider(FullGl);
+        await new VoidPaymentHandler(
+                new PaymentRepository(_db), _db, settings.Object,
+                new PaymentCashPostingService(_db, Engine(), capabilities))
+            .Handle(new VoidPaymentCommand(payment.Id, new VoidPaymentRequestModel("Posted to the wrong batch")), default);
+
+        (await _db.Invoices.SingleAsync()).Status.Should().NotBe(InvoiceStatus.Paid);
+        (await _db.ArOpenItems.SingleAsync()).OpenTxnAmount.Should().Be(110m);
+        (await LedgerNetAsync(ArId)).Should().Be(110m);
     }
 
     public void Dispose() => _db.Dispose();
