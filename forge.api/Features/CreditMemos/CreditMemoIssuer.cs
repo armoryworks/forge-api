@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Invoices;
+using Forge.Api.Features.Payments;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -62,6 +63,8 @@ public class CreditMemoIssuer(
                     ("CreditMemo", memo.Id), ("Invoice", invoice.Id));
                 await db.SaveChangesAsync(ct);
                 await posting.PostApplicationAsync(application.Id, userId, ct);
+                if (invoice.Status == InvoiceStatus.Paid && invoice.SalesOrderId is int soId)
+                    await PaymentApplicationRules.CompletePaidSalesOrdersAsync(db, [soId], ct);
             }
         }
 

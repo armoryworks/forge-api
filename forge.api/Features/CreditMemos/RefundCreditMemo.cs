@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using FluentValidation;
 using MediatR;
 
@@ -41,7 +43,7 @@ public class RefundCreditMemoHandler(AppDbContext db, ICreditMemoPostingService 
     public async Task<CreditMemoDetailResponseModel> Handle(RefundCreditMemoCommand request, CancellationToken ct)
     {
         await using var tx = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
-        await db.AcquireAdvisoryLockAsync("credit-memos.apply", request.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), ct);
+        await db.AcquireAdvisoryLockAsync("credit-memos.apply", request.Id.ToString(CultureInfo.InvariantCulture), ct);
 
         var memo = await CreditMemoRules.LoadMemoAsync(db, request.Id, ct)
             ?? throw new KeyNotFoundException($"Credit memo {request.Id} not found");

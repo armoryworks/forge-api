@@ -1,9 +1,13 @@
+using System.Globalization;
+
 using FluentValidation;
 using MediatR;
 
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.Payments;
 using Forge.Api.Services;
 using Forge.Api.Validation;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -32,7 +36,7 @@ public class ApplyCreditMemoHandler(AppDbContext db, ICreditMemoPostingService p
     public async Task<CreditMemoDetailResponseModel> Handle(ApplyCreditMemoCommand request, CancellationToken ct)
     {
         await using var tx = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
-        await db.AcquireAdvisoryLockAsync("credit-memos.apply", request.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), ct);
+        await db.AcquireAdvisoryLockAsync("credit-memos.apply", request.Id.ToString(CultureInfo.InvariantCulture), ct);
 
         var memo = await CreditMemoRules.LoadMemoAsync(db, request.Id, ct)
             ?? throw new KeyNotFoundException($"Credit memo {request.Id} not found");
@@ -47,6 +51,8 @@ public class ApplyCreditMemoHandler(AppDbContext db, ICreditMemoPostingService p
         await db.SaveChangesAsync(ct);
 
         await posting.PostApplicationAsync(application.Id, CreditMemoRules.UserId(db), ct);
+        if (invoice.Status == InvoiceStatus.Paid && invoice.SalesOrderId is int soId)
+            await PaymentApplicationRules.CompletePaidSalesOrdersAsync(db, [soId], ct);
 
         if (tx is not null)
             await tx.CommitAsync(ct);

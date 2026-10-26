@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using FluentValidation;
 using MediatR;
 
@@ -34,7 +36,7 @@ public class WriteOffInvoiceHandler(AppDbContext db, CreditMemoIssuer issuer, IC
     {
         await using var tx = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
         if (db.Database.CurrentTransaction is not null)
-            await db.AcquireAdvisoryLockAsync("invoices.write-off", request.InvoiceId.ToString(System.Globalization.CultureInfo.InvariantCulture), ct);
+            await db.AcquireAdvisoryLockAsync("invoices.write-off", request.InvoiceId.ToString(CultureInfo.InvariantCulture), ct);
 
         var invoice = await CreditMemoRules.LoadInvoiceAsync(db, request.InvoiceId, ct)
             ?? throw new KeyNotFoundException($"Invoice {request.InvoiceId} not found");

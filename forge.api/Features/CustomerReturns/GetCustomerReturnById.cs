@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -18,8 +19,18 @@ public class GetCustomerReturnByIdHandler(AppDbContext db)
             .Include(r => r.OriginalJob)
             .Include(r => r.Channel)
             .Include(r => r.ReworkJob)
+            .Include(r => r.SalesOrderLine)
+            .Include(r => r.Invoice)
+            .Include(r => r.InvoiceLine)
+            .Include(r => r.RestockLocation)
+            .Include(r => r.CreditMemo)
             .FirstOrDefaultAsync(r => r.Id == request.Id, ct)
             ?? throw new KeyNotFoundException($"Customer return {request.Id} not found");
+
+        var partId = ReturnDispositionService.PartIdFor(r);
+        var part = partId is int id
+            ? await db.Parts.AsNoTracking().Where(p => p.Id == id).Select(p => new { p.PartNumber, p.TraceabilityType }).FirstOrDefaultAsync(ct)
+            : null;
 
         string? inspectedByName = null;
         if (r.InspectedById.HasValue)
@@ -36,6 +47,10 @@ public class GetCustomerReturnByIdHandler(AppDbContext db)
             r.InspectedById, inspectedByName, r.InspectedAt, r.InspectionNotes,
             r.CreatedAt, r.UpdatedAt,
             r.ChannelId, r.Channel?.Name, r.ExternalRmaId,
-            r.RefundAmount, r.Quantity, r.SalesOrderLineId);
+            r.RefundAmount, r.Quantity, r.SalesOrderLineId,
+            r.InvoiceId, r.Invoice?.InvoiceNumber, r.Disposition?.ToString(),
+            r.QuantityRestocked, r.QuantityScrapped, r.RestockLocationId, r.RestockLocation?.Name, r.RestockLotNumber,
+            r.RestockBinMovementId, r.CreditMemoId, r.CreditMemo?.CreditMemoNumber,
+            partId, part?.PartNumber, part?.TraceabilityType == TraceabilityType.Lot);
     }
 }

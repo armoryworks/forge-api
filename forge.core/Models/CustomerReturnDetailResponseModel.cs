@@ -40,4 +40,5 @@ public record CustomerReturnDetailResponseModel(
     int? CreditMemoId = null,
     string? CreditMemoNumber = null,
     int? PartId = null,
-    string? PartNumber = null);
+    string? PartNumber = null,
+    bool PartLotTracked = false);
