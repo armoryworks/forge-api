@@ -4,6 +4,7 @@ using FluentValidation;
 using FluentValidation.Results;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Services.Fx;
 using Forge.Api.Validation;
@@ -37,7 +38,8 @@ public record CreatePurchaseOrderCommand(
     bool IsBlanket = false,
     DateTimeOffset? BlanketExpirationDate = null,
     int? CurrencyId = null,
-    decimal? FxRate = null) : IRequest<PurchaseOrderListItemModel>;
+    decimal? FxRate = null,
+    int? PaymentTermsId = null) : IRequest<PurchaseOrderListItemModel>;
 
 public class CreatePurchaseOrderValidator : AbstractValidator<CreatePurchaseOrderCommand>
 {
@@ -176,6 +178,9 @@ public class CreatePurchaseOrderHandler(
             ?? await currencies.GetFunctionalCurrencyIdAsync(cancellationToken);
         await PurchaseOrderCurrency.ApplyAsync(
             currencies, po, currencyId, request.FxRate, clock.UtcNow, rateRequired: false, cancellationToken);
+        po.PaymentTermsId = request.PaymentTermsId is int termsId
+            ? (await new PaymentTermsResolver(db).RequireAsync(termsId, nameof(request.PaymentTermsId), cancellationToken)).Id
+            : vendor!.PaymentTermsId;
 
         for (var i = 0; i < request.Lines.Count; i++)
         {

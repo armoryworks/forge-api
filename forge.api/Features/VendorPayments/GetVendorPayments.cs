@@ -40,7 +40,8 @@ public class GetVendorPaymentByIdHandler(IVendorPaymentRepository repo, IVendorR
                     a.VendorBillId,
                     a.VendorBill?.BillNumber ?? $"Bill {a.VendorBillId}",
                     a.Amount,
-                    a.SettlementFxRate))
+                    a.SettlementFxRate,
+                    a.DiscountAmount))
                 .ToList(),
             transmission?.Id, transmission?.Status.ToString(), transmission?.AttemptCount ?? 0,
             transmission?.LastError, transmission?.SubmissionRef, transmission?.NextAttemptAt);

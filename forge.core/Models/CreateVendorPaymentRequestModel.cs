@@ -19,5 +19,13 @@ public record CreateVendorPaymentRequestModel(
 /// <remarks>
 /// <c>SettlementFxRate</c> (txn→functional) is the rate in effect when this payment settled the bill; null
 /// takes the payment's rate. The cash-disbursement posting realizes FX vs the bill's booking rate.
+/// <c>DiscountAmount</c> is the early-payment discount taken: null takes the automatic discount when the payment
+/// date is in the bill's discount window, 0 takes none, and an explicit amount outside the window or above the
+/// terms' maximum needs <c>AllowDiscountOverride</c> from an Admin or Manager.
 /// </remarks>
-public record CreateVendorPaymentApplicationModel(int VendorBillId, decimal Amount, decimal? SettlementFxRate = null);
+public record CreateVendorPaymentApplicationModel(
+    int VendorBillId,
+    decimal Amount,
+    decimal? SettlementFxRate = null,
+    decimal? DiscountAmount = null,
+    bool AllowDiscountOverride = false);

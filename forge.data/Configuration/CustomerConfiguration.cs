@@ -61,5 +61,11 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
             .HasForeignKey(e => e.CurrencyId)
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(e => e.CurrencyId);
+
+        builder.HasIndex(e => e.PaymentTermsId);
+        builder.HasOne<PaymentTerm>()
+            .WithMany()
+            .HasForeignKey(e => e.PaymentTermsId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

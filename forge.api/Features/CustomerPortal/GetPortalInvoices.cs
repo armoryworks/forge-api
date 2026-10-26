@@ -1,10 +1,13 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.PaymentTerms;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
+using Forge.Data.Services;
 
 namespace Forge.Api.Features.CustomerPortal;
 
@@ -17,7 +20,7 @@ namespace Forge.Api.Features.CustomerPortal;
 /// </summary>
 public record GetPortalInvoicesQuery(int CustomerId) : IRequest<PortalList<PortalInvoiceListItem>>;
 
-public class GetPortalInvoicesHandler(AppDbContext db, IAccountingService accounting)
+public class GetPortalInvoicesHandler(AppDbContext db, IAccountingService accounting, IClock? clock = null)
     : IRequestHandler<GetPortalInvoicesQuery, PortalList<PortalInvoiceListItem>>
 {
     public async Task<PortalList<PortalInvoiceListItem>> Handle(GetPortalInvoicesQuery request, CancellationToken ct)
@@ -35,6 +38,8 @@ public class GetPortalInvoicesHandler(AppDbContext db, IAccountingService accoun
             .Take(PortalReadRules.ListCap)
             .ToListAsync(ct);
         var totalCount = await PortalReadRules.TotalCountAsync(scope, invoices.Count, ct);
+        var discounts = await DiscountSettings.ReadAsync(db, ct);
+        var terms = await new PaymentTermsResolver(db).ModelsAsync(invoices.Select(i => i.PaymentTermsId), ct);
 
         return new(invoices.Select(i => new PortalInvoiceListItem(
             Id: i.Id,
@@ -46,6 +51,9 @@ public class GetPortalInvoicesHandler(AppDbContext db, IAccountingService accoun
             AmountPaid: i.AmountPaid,
             Balance: i.Status == InvoiceStatus.Voided ? 0m : i.BalanceDue,
             CurrencyCode: i.Currency?.Code,
-            Freight: i.FreightSubtotal)).ToList(), totalCount);
+            Freight: i.FreightSubtotal,
+            TermsName: terms.GetValueOrDefault(i.PaymentTermsId ?? 0)?.Name,
+            DiscountAvailable: i.Status == InvoiceStatus.Voided ? 0m : EarlyPaymentDiscountRules.AvailableOn(i, clock?.UtcNow ?? i.InvoiceDate, discounts),
+            DiscountDeadline: EarlyPaymentDiscount.Deadline(i.DiscountDueDate, discounts.GraceDays))).ToList(), totalCount);
     }
 }

@@ -4,6 +4,7 @@ using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.PaymentTerms;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -80,7 +81,6 @@ public class VendorWorkflowAdapter(
             State = ReadStringOrDefault(initialData, "state")?.Trim().NullIfEmpty(),
             ZipCode = ReadStringOrDefault(initialData, "zipCode")?.Trim().NullIfEmpty(),
             Country = ReadStringOrDefault(initialData, "country")?.Trim().NullIfEmpty(),
-            PaymentTerms = ReadStringOrDefault(initialData, "paymentTerms")?.Trim().NullIfEmpty(),
             Notes = ReadStringOrDefault(initialData, "notes")?.Trim().NullIfEmpty(),
             Is1099 = ReadBoolOrDefault(initialData, "is1099") ?? false,
             TaxId = ReadStringOrDefault(initialData, "taxId")?.Trim().NullIfEmpty(),
@@ -103,6 +103,10 @@ public class VendorWorkflowAdapter(
                 throw new InvalidOperationException($"Vendor number '{suppliedNumber}' is already in use.");
             vendor.VendorNumber = suppliedNumber;
         }
+
+        await VendorTerms.ApplyAsync(
+            db, vendor, (int?)ReadDecimalOrDefault(initialData, "paymentTermsId"),
+            ReadStringOrDefault(initialData, "paymentTerms")?.Trim().NullIfEmpty(), ct);
 
         db.Vendors.Add(vendor);
         await db.SaveChangesAsync(ct);
@@ -166,8 +170,10 @@ public class VendorWorkflowAdapter(
             vendor.Country = country?.Trim().NullIfEmpty();
 
         // Terms step
-        if (TryReadString(fields, "paymentTerms", out var paymentTerms))
-            vendor.PaymentTerms = paymentTerms?.Trim().NullIfEmpty();
+        if (TryReadDecimal(fields, "paymentTermsId", out var paymentTermsId) && paymentTermsId is decimal termsId)
+            await VendorTerms.ApplyAsync(db, vendor, (int)termsId, null, ct);
+        else if (TryReadString(fields, "paymentTerms", out var paymentTerms))
+            await VendorTerms.ApplyAsync(db, vendor, null, paymentTerms?.Trim().NullIfEmpty() ?? string.Empty, ct);
         if (TryReadString(fields, "notes", out var notes))
             vendor.Notes = notes?.Trim().NullIfEmpty();
         if (TryReadString(fields, "taxId", out var taxId))

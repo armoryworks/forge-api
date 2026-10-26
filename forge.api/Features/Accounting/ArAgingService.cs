@@ -92,6 +92,8 @@ public sealed class ArAgingService(AppDbContext db, IClock clock, Forge.Core.Set
             .ToDictionaryAsync(c => c.Id, c => c.Code, ct);
         var reported = currencyId is int onlyCurrency ? items.Where(i => i.CurrencyId == onlyCurrency).ToList() : items;
 
+        var openDiscounts = await OpenDiscountsAsync(reported, asOf, ct);
+
         foreach (var group in reported.GroupBy(i => i.CustomerId))
         {
             var bucketAmounts = new decimal[BucketDefs.Count];
@@ -123,6 +125,8 @@ public sealed class ArAgingService(AppDbContext db, IClock clock, Forge.Core.Set
                 OpenTxnBalance = group.Select(i => i.CurrencyId).Distinct().Count() == 1
                     ? group.Sum(i => i.OpenTxnAmount)
                     : null,
+                DiscountAvailable = openDiscounts.GetValueOrDefault(group.Key).Amount,
+                NextDiscountDeadline = openDiscounts.GetValueOrDefault(group.Key).Deadline,
                 Buckets = BuildBuckets(bucketAmounts),
             });
         }
@@ -152,6 +156,39 @@ public sealed class ArAgingService(AppDbContext db, IClock clock, Forge.Core.Set
 
         var asOf = asOfDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
         return await ReconcileCoreAsync(bookId, asOf, await LoadOpenItemsAsync(bookId, asOf, ct), ct);
+    }
+
+    /// <summary>
+    /// Per customer, the early-payment discount still open on <paramref name="asOf"/> across the invoices behind
+    /// the open items (functional at each invoice's booking rate) and the soonest discount deadline.
+    /// </summary>
+    private async Task<Dictionary<int, (decimal Amount, DateTimeOffset? Deadline)>> OpenDiscountsAsync(
+        List<ArOpenItem> items, DateOnly asOf, CancellationToken ct)
+    {
+        var invoiceIds = items.Where(i => i.SourceType == "Invoice").Select(i => i.SourceId).Distinct().ToList();
+        var result = new Dictionary<int, (decimal Amount, DateTimeOffset? Deadline)>();
+        if (invoiceIds.Count == 0)
+            return result;
+
+        var discounts = await Forge.Data.Services.DiscountSettings.ReadAsync(db, ct);
+        var invoices = await db.Invoices.AsNoTracking()
+            .Include(i => i.Lines)
+            .Include(i => i.PaymentApplications)
+            .Where(i => invoiceIds.Contains(i.Id) && i.DiscountPercent > 0m && i.DiscountDueDate != null)
+            .ToListAsync(ct);
+        var asOfDate = new DateTimeOffset(asOf.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        foreach (var invoice in invoices)
+        {
+            var available = Forge.Api.Features.PaymentTerms.EarlyPaymentDiscountRules.AvailableOn(invoice, asOfDate, discounts);
+            if (available <= 0m)
+                continue;
+            var deadline = EarlyPaymentDiscount.Deadline(invoice.DiscountDueDate, discounts.GraceDays);
+            var current = result.GetValueOrDefault(invoice.CustomerId);
+            result[invoice.CustomerId] = (
+                current.Amount + Money.Round(available * invoice.FxRate),
+                current.Deadline is null || deadline < current.Deadline ? deadline : current.Deadline);
+        }
+        return result;
     }
 
     /// <summary>

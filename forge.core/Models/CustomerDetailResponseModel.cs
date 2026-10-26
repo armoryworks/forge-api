@@ -41,7 +41,9 @@ public record CustomerDetailResponseModel(
     DateOnly? ExemptionExpiryDate = null,
     int? CurrencyId = null,
     bool CurrencyLocked = false,
-    FreightTerms? FreightTerms = null);
+    FreightTerms? FreightTerms = null,
+    int? PaymentTermsId = null,
+    PaymentTermsModel? PaymentTerms = null);
 
 /// <summary>
 /// Minimal nested address shape returned alongside a customer record. Phase 3 F3.

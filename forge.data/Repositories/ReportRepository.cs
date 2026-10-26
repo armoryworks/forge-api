@@ -328,11 +328,19 @@ public class ReportRepository(AppDbContext db) : IReportRepository
             .Where(i => i.Status != Forge.Core.Enums.InvoiceStatus.Voided
                 && i.Status != Forge.Core.Enums.InvoiceStatus.Draft)
             .ToListAsync(ct);
+        var discounts = await Forge.Data.Services.DiscountSettings.ReadAsync(db, ct);
+        var now = DateTimeOffset.UtcNow;
 
         return invoices
             .Where(i => i.BalanceDue > 0)
             .Select(i =>
             {
+                var deadline = Forge.Core.Models.Accounting.EarlyPaymentDiscount.Deadline(i.DiscountDueDate, discounts.GraceDays);
+                var discountAvailable = Forge.Core.Models.Accounting.EarlyPaymentDiscount.InWindow(i.DiscountDueDate, now, discounts.GraceDays)
+                    ? Math.Max(0m, Forge.Core.Models.Accounting.EarlyPaymentDiscount.Maximum(
+                        discounts.BaseIsSubtotal ? Forge.Core.Models.Accounting.Money.Round(i.Subtotal) : Forge.Core.Models.Accounting.Money.Round(i.Total),
+                        i.DiscountPercent) - i.DiscountsTaken)
+                    : 0m;
                 var daysOverdue = Math.Max(0, (int)(today - i.DueDate.Date).TotalDays);
                 var bucket = daysOverdue switch
                 {
@@ -347,7 +355,8 @@ public class ReportRepository(AppDbContext db) : IReportRepository
                     i.Id, i.InvoiceNumber, i.Customer.Name,
                     i.InvoiceDate, i.DueDate,
                     Math.Round(i.Total, 2, MidpointRounding.AwayFromZero), i.AmountPaid, i.BalanceDue,
-                    daysOverdue, bucket);
+                    daysOverdue, bucket,
+                    discountAvailable > 0m ? deadline : null, discountAvailable);
             })
             .OrderByDescending(r => r.DaysOverdue)
             .ToList();

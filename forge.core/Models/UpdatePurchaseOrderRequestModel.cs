@@ -16,4 +16,6 @@ public record UpdatePurchaseOrderRequestModel(
     string? QuoteCurrency = null,
     decimal? FxRate = null,
     string? FxRateSource = null,
-    int? CurrencyId = null);
+    int? CurrencyId = null,
+    int? PaymentTermsId = null,
+    bool? ClearPaymentTerms = null);

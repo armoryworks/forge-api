@@ -29,4 +29,6 @@ public record SalesOrderDetailResponseModel(
     string? CurrencyCode = null,
     decimal FxRate = 1m,
     string? FreightTerms = null,
-    decimal FreightSubtotal = 0m);
+    decimal FreightSubtotal = 0m,
+    int? PaymentTermsId = null,
+    PaymentTermsModel? PaymentTerms = null);

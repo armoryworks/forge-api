@@ -3,7 +3,9 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
+using Forge.Data.Services;
 
 namespace Forge.Data.Repositories;
 
@@ -46,7 +48,7 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
             q = q.Where(i =>
                 i.Status != InvoiceStatus.Draft &&
                 i.Status != InvoiceStatus.Voided &&
-                i.Lines.Sum(l => l.Quantity * l.UnitPrice) + i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice) * i.TaxRate - i.PaymentApplications.Sum(pa => pa.Amount) > 0);
+                i.Lines.Sum(l => l.Quantity * l.UnitPrice) + i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => l.Quantity * l.UnitPrice) * i.TaxRate - i.PaymentApplications.Sum(pa => pa.Amount) - i.PaymentApplications.Sum(pa => pa.DiscountAmount) > 0);
 
         if (!string.IsNullOrWhiteSpace(query.Q))
         {
@@ -86,10 +88,10 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
         ordered = ordered.ThenBy(i => i.Id);
 
         // — Page slice + projection —
-        var items = await ordered
+        var rows = await ordered
             .Skip(query.Skip)
             .Take(query.EffectivePageSize)
-            .Select(i => new InvoiceListItemModel(
+            .Select(i => new { Subtotal = i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)), Item = new InvoiceListItemModel(
                 i.Id,
                 i.InvoiceNumber,
                 i.CustomerId,
@@ -99,13 +101,27 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
                 i.DueDate,
                 i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) + Math.Round(i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) * i.TaxRate, 2),
                 i.PaymentApplications.Sum(pa => pa.Amount),
-                i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) + Math.Round(i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) * i.TaxRate, 2) - i.PaymentApplications.Sum(pa => pa.Amount),
+                i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) + Math.Round(i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) * i.TaxRate, 2) - i.PaymentApplications.Sum(pa => pa.Amount) - i.PaymentApplications.Sum(pa => pa.DiscountAmount),
                 i.CreatedAt,
                 db.Currencies.Where(c => c.Id == i.CurrencyId).Select(c => c.Code).FirstOrDefault(),
                 i.CurrencyId,
                 i.FxRate,
-                Math.Round((i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) + Math.Round(i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) * i.TaxRate, 2)) * i.FxRate, 2)))
+                Math.Round((i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) + Math.Round(i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) * i.TaxRate, 2)) * i.FxRate, 2),
+                i.PaymentTermsId,
+                i.DiscountPercent,
+                i.DiscountDueDate,
+                null,
+                i.PaymentApplications.Sum(pa => pa.DiscountAmount)) })
             .ToListAsync(ct);
+
+        var discounts = await DiscountSettings.ReadAsync(db, ct);
+        var items = rows.Select(r => r.Item with
+        {
+            DiscountDeadline = EarlyPaymentDiscount.Deadline(r.Item.DiscountDueDate, discounts.GraceDays),
+            DiscountAvailable = r.Item.DiscountPercent > 0m && r.Item.BalanceDue > 0m
+                ? Math.Max(0m, EarlyPaymentDiscount.Maximum(discounts.BaseIsSubtotal ? r.Subtotal : r.Item.Total, r.Item.DiscountPercent) - r.Item.DiscountsTaken)
+                : 0m,
+        }).ToList();
 
         return new PagedResponse<InvoiceListItemModel>(
             items,

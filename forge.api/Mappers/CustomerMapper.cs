@@ -44,6 +44,7 @@ public static partial class CustomerMapper
     [MapperIgnoreSource(nameof(Customer.CurrencyId))]
     [MapperIgnoreSource(nameof(Customer.Currency))]
     [MapperIgnoreSource(nameof(Customer.DefaultCreditTerms))]
+    [MapperIgnoreSource(nameof(Customer.PaymentTermsId))]
     [MapperIgnoreSource(nameof(Customer.FreightTerms))]
     [MapperIgnoreSource(nameof(Customer.SourceLead))]
     [MapperIgnoreSource(nameof(Customer.IsFdaRegulated))]

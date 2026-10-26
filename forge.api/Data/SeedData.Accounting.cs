@@ -161,10 +161,12 @@ public static partial class SeedData
             ("40000", "Sales Revenue",               AccountType.Income,    NormalBalance.Credit, false, null,                         "SALES_REVENUE"),
             ("40500", "Freight Income",              AccountType.Income,    NormalBalance.Credit, false, null,                         "FREIGHT_INCOME"),
             ("41000", "Sales Returns & Allowances",  AccountType.Income,    NormalBalance.Debit,  false, null,                         "SALES_RETURNS"),
+            ("41500", "Sales Discounts",             AccountType.Income,    NormalBalance.Debit,  false, null,                         "SALES_DISCOUNTS"),
 
             // ── COGS (5xxxx) ────────────────────────────────────────────────
             ("50000", "Cost of Goods Sold",          AccountType.Expense,   NormalBalance.Debit,  false, null,                         "COGS"),
             ("50100", "Freight-In",                  AccountType.Expense,   NormalBalance.Debit,  false, null,                         "FREIGHT_IN"),
+            ("50500", "Purchase Discounts",          AccountType.Expense,   NormalBalance.Credit, false, null,                         "PURCHASE_DISCOUNTS"),
             ("51000", "Purchase Price Variance",     AccountType.Expense,   NormalBalance.Debit,  false, null,                         "PURCHASE_PRICE_VARIANCE"),
             ("51100", "Material Usage Variance",     AccountType.Expense,   NormalBalance.Debit,  false, null,                         "MATERIAL_USAGE_VARIANCE"),
             ("51200", "Production Variance",         AccountType.Expense,   NormalBalance.Debit,  false, null,                         "PRODUCTION_VARIANCE"),
@@ -612,6 +614,8 @@ public static partial class SeedData
         ("FREIGHT_INCOME", "40500", "Freight Income", AccountType.Income, NormalBalance.Credit),
         ("FREIGHT_IN", "50100", "Freight-In", AccountType.Expense, NormalBalance.Debit),
         ("FREIGHT_OUT", "61200", "Freight-Out (Delivery Expense)", AccountType.Expense, NormalBalance.Debit),
+        ("SALES_DISCOUNTS", "41500", "Sales Discounts", AccountType.Income, NormalBalance.Debit),
+        ("PURCHASE_DISCOUNTS", "50500", "Purchase Discounts", AccountType.Expense, NormalBalance.Credit),
     ];
 
     internal static async Task EnsureDeterminationAccountsAsync(AppDbContext db)

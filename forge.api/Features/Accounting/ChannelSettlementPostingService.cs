@@ -240,8 +240,9 @@ public sealed class ChannelSettlementPostingService(
 
                 await PaymentApplicationRules.ApplyToInvoiceAsync(
                     db, payment, invoice,
-                    new CreatePaymentApplicationModel(invoice.Id, apply),
-                    completionCandidates, ct);
+                    new CreatePaymentApplicationModel(invoice.Id, apply, DiscountAmount: 0m),
+                    completionCandidates, Forge.Data.Services.DiscountSettings.Default, null,
+                    "DiscountAmount", ct);
                 payment.Amount += apply;
                 remaining -= apply;
             }

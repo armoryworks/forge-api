@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Lots;
 using Forge.Core.Enums;
@@ -155,7 +156,9 @@ public class GetPurchaseOrderByIdHandler(
             CurrencyId: po.CurrencyId,
             CurrencyCode: po.CurrencyId is int currencyId
                 ? await db.Currencies.AsNoTracking().Where(c => c.Id == currencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken) ?? po.QuoteCurrency
-                : po.QuoteCurrency);
+                : po.QuoteCurrency,
+            PaymentTermsId: po.PaymentTermsId,
+            PaymentTerms: await new PaymentTermsResolver(db).ModelAsync(po.PaymentTermsId ?? po.Vendor?.PaymentTermsId, null, cancellationToken));
     }
 
     private async Task<Dictionary<int, string>> ResolveReceivableBinPathsAsync(

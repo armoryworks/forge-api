@@ -30,6 +30,15 @@ public class Invoice : BaseAuditableEntity, IConcurrencyVersioned
     public DateTimeOffset InvoiceDate { get; set; }
     public DateTimeOffset DueDate { get; set; }
     public CreditTerms? CreditTerms { get; set; }
+
+    /// <summary>The payment terms the due date and discount came from. Null on invoices from before payment terms.</summary>
+    public int? PaymentTermsId { get; set; }
+
+    /// <summary>Early-payment discount in percent, copied from the terms when the invoice was created. 0 = none.</summary>
+    public decimal DiscountPercent { get; set; }
+
+    /// <summary>The last day the early-payment discount may be taken, copied from the terms. Null = no discount.</summary>
+    public DateTimeOffset? DiscountDueDate { get; set; }
     public decimal TaxRate { get; set; }
 
     /// <summary>The sales-tax jurisdiction <see cref="TaxRate"/> came from, when known. Decides whether freight starts taxable.</summary>
@@ -54,9 +63,12 @@ public class Invoice : BaseAuditableEntity, IConcurrencyVersioned
     public decimal Total => Subtotal + TaxAmount;
     public decimal AmountPaid => PaymentApplications.Sum(pa => pa.Amount);
 
+    /// <summary>Early-payment discounts taken by the payments applied to this invoice.</summary>
+    public decimal DiscountsTaken => PaymentApplications.Sum(pa => pa.DiscountAmount);
+
     // F-027 — the single canonical invoice balance every consumer reads
     // (payment apply, status promotion, QBO payload). Per the domain DoD:
-    //   balance = quantize(Total) − Σpayments − Σcredits
+    //   balance = quantize(Total) − Σpayments − Σdiscounts − Σcredits
     //   • quantize = round half AWAY FROM ZERO at 2 dp (commercial/QBO rounding),
     //     NOT .NET's default ToEven/banker's — that diverges on half-cents and
     //     breaks INV-QBO3 cent-parity. The quantized Total makes the `== 0`
@@ -76,7 +88,7 @@ public class Invoice : BaseAuditableEntity, IConcurrencyVersioned
         get
         {
             const decimal credits = 0m;
-            return QuantizeMoney(Total) - AmountPaid - credits;
+            return QuantizeMoney(Total) - AmountPaid - DiscountsTaken - credits;
         }
     }
 

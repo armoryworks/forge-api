@@ -16,4 +16,5 @@ public record UpdateSalesOrderRequestModel(
     int? CurrencyId = null,
     decimal? FxRate = null,
     FreightTerms? FreightTerms = null,
-    bool? ClearFreightTerms = null);
+    bool? ClearFreightTerms = null,
+    int? PaymentTermsId = null);

@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Features.Freight;
 using Forge.Api.Services.Fx;
 using Forge.Api.Validation;
@@ -27,7 +28,8 @@ public record CreateSalesOrderCommand(
     string? OrderNumber = null,
     int? CurrencyId = null,
     decimal? FxRate = null,
-    FreightTerms? FreightTerms = null) : IRequest<SalesOrderListItemModel>;
+    FreightTerms? FreightTerms = null,
+    int? PaymentTermsId = null) : IRequest<SalesOrderListItemModel>;
 
 public class CreateSalesOrderValidator : AbstractValidator<CreateSalesOrderCommand>
 {
@@ -99,11 +101,25 @@ public class CreateSalesOrderHandler(
             request.CustomerId, request.BillingAddressId, AddressType.Billing, "billingAddressId", cancellationToken);
 
         CreditTerms? creditTerms = customer.DefaultCreditTerms;
+        var paymentTermsId = customer.PaymentTermsId;
         if (!string.IsNullOrWhiteSpace(request.CreditTerms))
         {
             if (!CreditTermsExtensions.TryParseLenient(request.CreditTerms, out var requestedTerms))
                 throw new ValidationException(CreditTermsExtensions.AllowedValuesMessage);
             creditTerms = requestedTerms;
+            paymentTermsId = null;
+        }
+        if (db is not null)
+        {
+            var (termsAsked, paymentTerms, legacyTerms) = await new TermsChoice(request.PaymentTermsId, request.CreditTerms, false)
+                .ResolveAsync(new PaymentTermsResolver(db), null, nameof(request.PaymentTermsId), cancellationToken);
+            if (termsAsked)
+            {
+                paymentTermsId = paymentTerms?.Id;
+                creditTerms = legacyTerms;
+            }
+            else if (paymentTermsId is null && creditTerms is not null)
+                paymentTermsId = (await new PaymentTermsResolver(db).ForLegacyAsync(creditTerms, cancellationToken))?.Id;
         }
 
         var order = new SalesOrder
@@ -114,6 +130,7 @@ public class CreateSalesOrderHandler(
             ShippingAddressId = shippingAddressId,
             BillingAddressId = billingAddressId,
             CreditTerms = creditTerms,
+            PaymentTermsId = paymentTermsId,
             RequestedDeliveryDate = request.RequestedDeliveryDate,
             CustomerPO = request.CustomerPO,
             Notes = request.Notes,

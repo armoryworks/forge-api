@@ -32,6 +32,15 @@ public class VendorPaymentsController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
+    /// Pays the bills picked from the payment run: one vendor payment per vendor and currency, each through the
+    /// normal vendor-payment create (segregation of duties, posting and ACH batching unchanged).
+    /// </summary>
+    [HttpPost("from-suggestions")]
+    public async Task<ActionResult<List<VendorPaymentListItemModel>>> CreateFromSuggestions(
+        CreateVendorPaymentsFromSuggestionsRequestModel request)
+        => Ok(await mediator.Send(new CreateVendorPaymentsFromSuggestionsCommand(request)));
+
+    /// <summary>
     /// Voids a vendor payment: drops its bill applications (bills reopen), reverses the cash-disbursement
     /// journal (FULLGL-respecting), cancels any pending bank transmission, and soft-deletes the payment.
     /// Rejected (409) once the latest transmission has Succeeded — money already moved.

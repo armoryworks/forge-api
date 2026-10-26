@@ -125,7 +125,7 @@ public class VoidVendorPaymentHandler(
             if (bill is null) continue;
 
             if (bill.Status is VendorBillStatus.Paid or VendorBillStatus.PartiallyPaid)
-                bill.Status = bill.AmountPaid > 0
+                bill.Status = bill.AmountPaid + bill.DiscountsTaken > 0
                     ? VendorBillStatus.PartiallyPaid
                     : VendorBillStatus.Approved;
 

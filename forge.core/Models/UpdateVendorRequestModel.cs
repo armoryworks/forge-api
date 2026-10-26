@@ -22,4 +22,5 @@ public record UpdateVendorRequestModel(
     string? VendorNumber = null,
     string? Fax = null,
     int? CurrencyId = null,
-    bool? ClearCurrency = null);
+    bool? ClearCurrency = null,
+    int? PaymentTermsId = null);

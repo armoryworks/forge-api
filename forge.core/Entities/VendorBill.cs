@@ -56,6 +56,15 @@ public class VendorBill : BaseAuditableEntity, IConcurrencyVersioned
     public DateTimeOffset DueDate { get; set; }
     public CreditTerms? CreditTerms { get; set; }
 
+    /// <summary>The payment terms the due date and discount came from. Null on bills from before payment terms.</summary>
+    public int? PaymentTermsId { get; set; }
+
+    /// <summary>Early-payment discount in percent, copied from the terms when the bill was created. 0 = none.</summary>
+    public decimal DiscountPercent { get; set; }
+
+    /// <summary>The last day the early-payment discount may be taken, copied from the terms. Null = no discount.</summary>
+    public DateTimeOffset? DiscountDueDate { get; set; }
+
     /// <summary>
     /// Tax charged by the vendor on this bill, as a stored amount (unlike sales-side tax, AP tax is a
     /// given figure on the vendor's document, not derived from our rate). Booked with the expense debit.
@@ -80,11 +89,14 @@ public class VendorBill : BaseAuditableEntity, IConcurrencyVersioned
 
     public decimal AmountPaid => PaymentApplications.Sum(pa => pa.Amount);
 
+    /// <summary>Early-payment discounts taken by the payments applied to this bill.</summary>
+    public decimal DiscountsTaken => PaymentApplications.Sum(pa => pa.DiscountAmount);
+
     /// <summary>
     /// What is still owed, quantized to the cent (the AP mirror of <see cref="Invoice.BalanceDue"/>). The raw
     /// difference is rounded, not the total alone, so a legacy bill paid at its raw sub-cent total reads 0.
     /// </summary>
-    public decimal BalanceDue => Money.Round(Total - AmountPaid);
+    public decimal BalanceDue => Money.Round(Total - AmountPaid - DiscountsTaken);
 
     public Vendor Vendor { get; set; } = null!;
     public Currency Currency { get; set; } = null!;

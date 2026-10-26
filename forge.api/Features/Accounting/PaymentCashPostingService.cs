@@ -95,6 +95,7 @@ public sealed class PaymentCashPostingService(
     private const string KeyCash = "CASH";
     private const string KeyArControl = "AR_CONTROL";
     private const string KeyCustomerDeposits = "CUSTOMER_DEPOSITS";
+    private const string KeySalesDiscounts = "SALES_DISCOUNTS";
     // Realized FX (Phase-4): the difference between the AR carrying value (booking rate) and the cash
     // received (settlement rate). FX_REVALUATION is for period-end UNrealized revaluation only — never here.
     private const string KeyFxGain = "FX_GAIN";
@@ -211,8 +212,9 @@ public sealed class PaymentCashPostingService(
                 .FirstOrDefaultAsync(ct);
             var bookingRate = invoice?.FxRate ?? 1m;
 
-            var arRelief = Math.Round(app.Amount * bookingRate, 2, MidpointRounding.AwayFromZero);
+            var arRelief = Math.Round((app.Amount + app.DiscountAmount) * bookingRate, 2, MidpointRounding.AwayFromZero);
             var depositRelief = FxMath.ToFunctional(app.Amount, payment.FxRate);
+            var discountFunctional = Math.Round(app.DiscountAmount * app.SettlementFxRate, 2, MidpointRounding.AwayFromZero);
 
             var openItem = await db.ArOpenItems.IgnoreQueryFilters()
                 .FirstOrDefaultAsync(i => i.SourceType == "Invoice" && i.SourceId == app.InvoiceId, ct);
@@ -225,7 +227,7 @@ public sealed class PaymentCashPostingService(
             }
             else
             {
-                openItem.AppliedTxnAmount += app.Amount;
+                openItem.AppliedTxnAmount += app.Amount + app.DiscountAmount;
                 openItem.AppliedFunctionalAmount += arRelief;
                 openItem.RecomputeStatus();
             }
@@ -248,8 +250,15 @@ public sealed class PaymentCashPostingService(
                     Description = $"AR settlement — payment {payment.PaymentNumber} to {invoiceLabel}",
                 },
             };
+            if (discountFunctional > 0m)
+                lines.Add(new PostingLine
+                {
+                    AccountKey = KeySalesDiscounts,
+                    Debit = discountFunctional,
+                    Description = $"Early-payment discount — payment {payment.PaymentNumber} to {invoiceLabel}",
+                });
 
-            var fxPlug = arRelief - depositRelief;
+            var fxPlug = arRelief - depositRelief - discountFunctional;
             if (fxPlug > 0m)
                 lines.Add(new PostingLine
                 {
@@ -297,11 +306,11 @@ public sealed class PaymentCashPostingService(
             .Select(i => (decimal?)i.FxRate)
             .FirstOrDefaultAsync(ct) ?? 1m;
 
-        openItem.AppliedTxnAmount = Math.Max(0m, openItem.AppliedTxnAmount - app.Amount);
+        openItem.AppliedTxnAmount = Math.Max(0m, openItem.AppliedTxnAmount - app.Amount - app.DiscountAmount);
         openItem.AppliedFunctionalAmount = Math.Max(
             0m,
             openItem.AppliedFunctionalAmount
-                - Math.Round(app.Amount * bookingRate, 2, MidpointRounding.AwayFromZero));
+                - Math.Round((app.Amount + app.DiscountAmount) * bookingRate, 2, MidpointRounding.AwayFromZero));
         openItem.RecomputeStatus();
     }
 
@@ -370,6 +379,7 @@ public sealed class PaymentCashPostingService(
         // and the FX plug is 0 → byte-identical to the prior single-currency entry (no FX line).
         decimal cashFromApplications = 0m; // Σ cash_func (foreign × settlement rate)
         decimal arRelief = 0m;             // Σ arRelief_func (foreign × invoice booking rate)
+        decimal discountTotal = 0m;
 
         foreach (var app in payment.Applications)
         {
@@ -382,9 +392,10 @@ public sealed class PaymentCashPostingService(
                 .Select(i => (decimal?)i.FxRate)
                 .FirstOrDefaultAsync(ct) ?? 1m;
 
-            var arReliefFunc = Math.Round(foreign * bookingRate, 2, MidpointRounding.AwayFromZero);
+            var arReliefFunc = Math.Round((foreign + app.DiscountAmount) * bookingRate, 2, MidpointRounding.AwayFromZero);
             arRelief += arReliefFunc;
             cashFromApplications += Math.Round(foreign * app.SettlementFxRate, 2, MidpointRounding.AwayFromZero);
+            discountTotal += Math.Round(app.DiscountAmount * app.SettlementFxRate, 2, MidpointRounding.AwayFromZero);
 
             // ── AR open item (AR-002 open-item sub-ledger): increment the invoice's item by EXACTLY
             // the relief this entry posts — foreign on the txn side, arReliefFunc (BOOKING rate, the
@@ -406,7 +417,7 @@ public sealed class PaymentCashPostingService(
                 }
                 else
                 {
-                    openItem.AppliedTxnAmount += foreign;
+                    openItem.AppliedTxnAmount += foreign + app.DiscountAmount;
                     openItem.AppliedFunctionalAmount += arReliefFunc;
                     openItem.RecomputeStatus();
                 }
@@ -431,6 +442,16 @@ public sealed class PaymentCashPostingService(
                 AccountKey = KeyCash,
                 Debit = cashDebit,
                 Description = $"Cash receipt — payment {payment.PaymentNumber}",
+            });
+        }
+
+        if (discountTotal > 0m)
+        {
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeySalesDiscounts,
+                Debit = discountTotal,
+                Description = $"Early-payment discount — payment {payment.PaymentNumber}",
             });
         }
 
@@ -465,7 +486,7 @@ public sealed class PaymentCashPostingService(
         //   < 0  → received more cash than AR relieved (the currency strengthened) → Cr FX_GAIN.
         // Worked example: EUR invoice foreign 100, booking 1.10 → AR 110; settle 1.05 → cash 105 →
         //   plug +5 → Dr Cash 105 / Dr FX_LOSS 5 / Cr AR 110 (balances; that invoice's AR nets to 0).
-        var fxPlug = arRelief - cashFromApplications;
+        var fxPlug = arRelief - cashFromApplications - discountTotal;
         if (fxPlug > 0m)
         {
             lines.Add(new PostingLine

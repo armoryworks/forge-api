@@ -31,4 +31,11 @@ public record VendorBillDetailModel(
     // "from expense" chip and links back; such bills are voided via the expense, not directly.
     int? SourceExpenseId = null,
     string? PurchaseOrderNumber = null,
-    string? CurrencyCode = null);
+    string? CurrencyCode = null,
+    int? PaymentTermsId = null,
+    decimal DiscountPercent = 0m,
+    DateTimeOffset? DiscountDueDate = null,
+    DateTimeOffset? DiscountDeadline = null,
+    decimal DiscountsTaken = 0m,
+    decimal DiscountAvailable = 0m,
+    PaymentTermsModel? PaymentTerms = null);

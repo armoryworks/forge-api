@@ -1,4 +1,5 @@
 using MediatR;
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -65,7 +66,9 @@ public class GetCustomerByIdHandler(ICustomerRepository repo, AppDbContext? db =
             ExemptionExpiryDate: customer.ExemptionExpiryDate,
             CurrencyId: customer.CurrencyId,
             CurrencyLocked: db is not null && await PartyCurrency.CustomerHasPostedDocumentsAsync(db, customer.Id, cancellationToken),
-            FreightTerms: customer.FreightTerms);
+            FreightTerms: customer.FreightTerms,
+            PaymentTermsId: customer.PaymentTermsId,
+            PaymentTerms: db is null ? null : await new PaymentTermsResolver(db).ModelAsync(customer.PaymentTermsId, customer.DefaultCreditTerms, cancellationToken));
     }
 
     private static AddressOutput? PickAddress(Customer customer, AddressType type)

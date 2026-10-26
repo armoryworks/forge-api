@@ -19,7 +19,8 @@ public record CreatePurchaseOrderRequestModel(
     bool IsBlanket = false,
     DateTimeOffset? BlanketExpirationDate = null,
     int? CurrencyId = null,
-    decimal? FxRate = null);
+    decimal? FxRate = null,
+    int? PaymentTermsId = null);
 
 // Phase 3 / WU-10 / F8-partial — Quantity is decimal (was int). UoM-aware shops
 // need fractional quantities — material-by-weight, by-time, by-volume.

@@ -121,7 +121,7 @@ public static class InvoiceDunning
                 new EmailAttachment(
                     $"Invoice-{invoice.InvoiceNumber}.pdf",
                     "application/pdf",
-                    new InvoicePdfDocument(invoice, companyName, money).GeneratePdf()),
+                    new InvoicePdfDocument(invoice, companyName, money, await InvoiceDiscountOffer.ForAsync(db, invoice, now, ct)).GeneratePdf()),
             ]);
 
         await outbox.EnqueueEmailAsync(operationKey, message, entityType: "Invoice", entityId: invoice.Id, ct: ct);

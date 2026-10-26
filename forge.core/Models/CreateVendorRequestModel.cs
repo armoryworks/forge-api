@@ -19,4 +19,5 @@ public record CreateVendorRequestModel(
     // vendors.allow_manual_numbers is on; otherwise auto-generated (VEND-#####).
     string? VendorNumber = null,
     string? Fax = null,
-    int? CurrencyId = null);
+    int? CurrencyId = null,
+    int? PaymentTermsId = null);

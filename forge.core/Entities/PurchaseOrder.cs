@@ -82,6 +82,9 @@ public class PurchaseOrder : BaseAuditableEntity, IConcurrencyVersioned
     /// </summary>
     public int? CurrencyId { get; set; }
 
+    /// <summary>Payment terms the PO's bills start from. Null = the vendor's terms.</summary>
+    public int? PaymentTermsId { get; set; }
+
     /// <summary>
     /// Locked FX rate (quote currency → tenant functional currency)
     /// captured at PO confirmation (Draft → Confirmed transition). Used

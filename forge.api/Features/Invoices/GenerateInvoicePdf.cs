@@ -14,7 +14,8 @@ public record GenerateInvoicePdfQuery(int Id) : IRequest<byte[]>;
 
 public class GenerateInvoicePdfHandler(
     AppDbContext db,
-    ISystemSettingRepository settings) : IRequestHandler<GenerateInvoicePdfQuery, byte[]>
+    ISystemSettingRepository settings,
+    IClock? clock = null) : IRequestHandler<GenerateInvoicePdfQuery, byte[]>
 {
     public async Task<byte[]> Handle(GenerateInvoicePdfQuery request, CancellationToken ct)
     {
@@ -31,7 +32,8 @@ public class GenerateInvoicePdfHandler(
 
         var money = await MoneyFormat.ForCurrencyIdAsync(
             db, invoice.CurrencyId, await MoneyFormat.BaseCodeAsync(settings, ct), ct);
-        var document = new InvoicePdfDocument(invoice, companyName, money);
+        var offer = await InvoiceDiscountOffer.ForAsync(db, invoice, clock?.UtcNow, ct);
+        var document = new InvoicePdfDocument(invoice, companyName, money, offer);
         return document.GeneratePdf();
     }
 }

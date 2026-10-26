@@ -71,6 +71,9 @@ public class Customer : BaseAuditableEntity, IActiveAware, IConcurrencyVersioned
     /// </summary>
     public CreditTerms? DefaultCreditTerms { get; set; }
 
+    /// <summary>Payment terms a new sales order or invoice for this customer starts from. Kept in step with <see cref="DefaultCreditTerms"/>.</summary>
+    public int? PaymentTermsId { get; set; }
+
     /// <summary>Freight terms a new sales order for this customer starts from. Null = the install default.</summary>
     public FreightTerms? FreightTerms { get; set; }
 

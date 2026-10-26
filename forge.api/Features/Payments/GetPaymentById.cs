@@ -36,7 +36,7 @@ public class GetPaymentByIdHandler(IPaymentRepository repo, ISettingsService? se
             payment.Notes,
             payment.Applications.Select(a => new PaymentApplicationResponseModel(
                 a.Id, a.PaymentId, payment.PaymentNumber,
-                a.InvoiceId, a.Invoice.InvoiceNumber, a.Amount)).ToList(),
+                a.InvoiceId, a.Invoice.InvoiceNumber, a.Amount, a.DiscountAmount)).ToList(),
             payment.CreatedAt,
             payment.UpdatedAt,
             payment.Version,

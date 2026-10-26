@@ -68,7 +68,7 @@ public class SendInvoiceEmailHandler(
 
         var money = await MoneyFormat.ForCurrencyIdAsync(
             db, invoice.CurrencyId, await MoneyFormat.BaseCodeAsync(settings, ct), ct);
-        var pdfDoc = new InvoicePdfDocument(invoice, companyName, money);
+        var pdfDoc = new InvoicePdfDocument(invoice, companyName, money, await InvoiceDiscountOffer.ForAsync(db, invoice, clock.UtcNow, ct));
         var pdfBytes = pdfDoc.GeneratePdf();
 
         var customerName = invoice.Customer.CompanyName ?? invoice.Customer.Name;

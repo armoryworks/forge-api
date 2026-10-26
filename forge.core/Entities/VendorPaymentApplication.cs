@@ -17,6 +17,12 @@ public class VendorPaymentApplication : BaseEntity
     /// </summary>
     public decimal SettlementFxRate { get; set; } = 1m;
 
+    /// <summary>
+    /// Early-payment discount taken with this application, in the bill's currency. It settles the bill together
+    /// with <see cref="Amount"/> (the cash) and posts to the discounts account at the settlement rate.
+    /// </summary>
+    public decimal DiscountAmount { get; set; }
+
     public VendorPayment VendorPayment { get; set; } = null!;
     public VendorBill VendorBill { get; set; } = null!;
 }

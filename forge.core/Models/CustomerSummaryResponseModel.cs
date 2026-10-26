@@ -39,4 +39,6 @@ public record CustomerSummaryResponseModel(
     bool IsOnCreditHold = false,
     int? CurrencyId = null,
     bool CurrencyLocked = false,
-    FreightTerms? FreightTerms = null);
+    FreightTerms? FreightTerms = null,
+    int? PaymentTermsId = null,
+    PaymentTermsModel? PaymentTerms = null);

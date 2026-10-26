@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Services.Fx;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -60,6 +61,8 @@ public class GetVendorByIdHandler(IVendorRepository repo, AppDbContext? db = nul
             db is not null && vendor.CurrencyId is int currencyId
                 ? await db.Currencies.AsNoTracking().Where(c => c.Id == currencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken)
                 : null,
-            db is not null && await PartyCurrency.VendorHasPostedDocumentsAsync(db, vendor.Id, cancellationToken));
+            db is not null && await PartyCurrency.VendorHasPostedDocumentsAsync(db, vendor.Id, cancellationToken),
+            vendor.PaymentTermsId,
+            db is null ? null : await new PaymentTermsResolver(db).ModelAsync(vendor.PaymentTermsId, null, cancellationToken));
     }
 }

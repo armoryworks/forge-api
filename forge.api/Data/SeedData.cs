@@ -87,6 +87,8 @@ public static partial class SeedData
         // back to the default rate for every customer nexus lookup.
         await SeedSalesTaxRatesAsync(db);
 
+        await EnsurePaymentTermsAsync(db);
+
         // ── 2h. The shipped costing quick-start template — reference data
         // (run-once on no system template existing).
         await SeedCostingTemplatesAsync(db);

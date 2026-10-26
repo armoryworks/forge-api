@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Validation;
 using Forge.Api.Workflows;
 using Forge.Api.Services.Fx;
@@ -39,7 +40,8 @@ public record UpdateCustomerCommand(
     int? CurrencyId = null,
     bool? ClearCurrency = null,
     FreightTerms? FreightTerms = null,
-    bool? ClearFreightTerms = null) : IRequest;
+    bool? ClearFreightTerms = null,
+    int? PaymentTermsId = null) : IRequest;
 
 public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
 {
@@ -200,15 +202,13 @@ public class UpdateCustomerHandler(
             changedFields.Add("creditLimit");
         }
 
-        if (request.ClearDefaultCreditTerms == true && customer.DefaultCreditTerms is not null)
+        var (termsAsked, paymentTerms, legacyTerms) = await new TermsChoice(
+                request.PaymentTermsId, request.DefaultCreditTerms, request.ClearDefaultCreditTerms == true)
+            .ResolveAsync(new PaymentTermsResolver(db), customer.PaymentTermsId, nameof(request.PaymentTermsId), cancellationToken);
+        if (termsAsked && (paymentTerms?.Id != customer.PaymentTermsId || legacyTerms != customer.DefaultCreditTerms))
         {
-            customer.DefaultCreditTerms = null;
-            changedFields.Add("defaultCreditTerms");
-        }
-        else if (CreditTermsExtensions.TryParseLenient(request.DefaultCreditTerms, out var terms)
-            && terms != customer.DefaultCreditTerms)
-        {
-            customer.DefaultCreditTerms = terms;
+            customer.PaymentTermsId = paymentTerms?.Id;
+            customer.DefaultCreditTerms = legacyTerms;
             changedFields.Add("defaultCreditTerms");
         }
 

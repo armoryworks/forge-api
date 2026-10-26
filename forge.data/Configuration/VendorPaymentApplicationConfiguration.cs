@@ -19,6 +19,7 @@ public class VendorPaymentApplicationConfiguration : IEntityTypeConfiguration<Ve
         // Settlement FX rate (Phase-4 FULLGL, additive) — mirrors PaymentApplication. Default 1 so existing
         // rows backfill to unity (single-currency settlement path unchanged). Precision matches JournalLine.FxRate.
         builder.Property(e => e.SettlementFxRate).HasPrecision(18, 8).HasDefaultValue(1m);
+        builder.Property(e => e.DiscountAmount).HasPrecision(18, 2);
 
         builder.HasIndex(e => e.VendorPaymentId).HasDatabaseName("ix_vpa_payment");
         builder.HasIndex(e => e.VendorBillId).HasDatabaseName("ix_vpa_bill");

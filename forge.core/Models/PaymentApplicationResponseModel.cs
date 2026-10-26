@@ -6,4 +6,5 @@ public record PaymentApplicationResponseModel(
     string? PaymentNumber,
     int InvoiceId,
     string? InvoiceNumber,
-    decimal Amount);
+    decimal Amount,
+    decimal DiscountAmount = 0m);

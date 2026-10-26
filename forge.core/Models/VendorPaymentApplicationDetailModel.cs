@@ -8,4 +8,5 @@ public record VendorPaymentApplicationDetailModel(
     int VendorBillId,
     string BillNumber,
     decimal Amount,
-    decimal SettlementFxRate);
+    decimal SettlementFxRate,
+    decimal DiscountAmount = 0m);

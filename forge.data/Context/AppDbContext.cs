@@ -450,6 +450,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     // Multi-Currency
     public DbSet<Currency> Currencies => Set<Currency>();
     public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
+    public DbSet<PaymentTerm> PaymentTerms => Set<PaymentTerm>();
 
     // Multi-Language
     public DbSet<TranslatedLabel> TranslatedLabels => Set<TranslatedLabel>();

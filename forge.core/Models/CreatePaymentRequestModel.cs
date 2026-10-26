@@ -19,4 +19,6 @@ public record CreatePaymentApplicationModel(
     decimal Amount,
     // Settlement FX rate (txn→functional) for this application (Phase-4 FULLGL). Null takes the payment's rate;
     // a foreign-currency settlement realizes FX vs the invoice's booking rate.
-    decimal? SettlementFxRate = null);
+    decimal? SettlementFxRate = null,
+    decimal? DiscountAmount = null,
+    bool AllowDiscountOverride = false);

@@ -20,7 +20,8 @@ public record CreateInvoiceRequestModel(
     // Optional caller-supplied invoice number. Honored only when the
     // invoices.allow_manual_numbers setting is on; otherwise auto-generated.
     string? InvoiceNumber = null,
-    int? SalesTaxRateId = null);
+    int? SalesTaxRateId = null,
+    int? PaymentTermsId = null);
 
 public record CreateInvoiceLineModel(
     int? PartId,

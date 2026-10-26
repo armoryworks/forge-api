@@ -3,6 +3,7 @@ using System.Globalization;
 using FluentValidation;
 using FluentValidation.Results;
 using MediatR;
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Services.Fx;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -30,7 +31,9 @@ public record UpdatePurchaseOrderCommand(
     int? VendorContactId = null,
     int? VendorAddressId = null,
     int? ShipToLocationId = null,
-    int? CurrencyId = null) : IRequest;
+    int? CurrencyId = null,
+    int? PaymentTermsId = null,
+    bool? ClearPaymentTerms = null) : IRequest;
 
 public class UpdatePurchaseOrderValidator : AbstractValidator<UpdatePurchaseOrderCommand>
 {
@@ -96,7 +99,9 @@ public class UpdatePurchaseOrderHandler(
             var poNumberChanged = !string.IsNullOrWhiteSpace(request.PONumber)
                 && !string.Equals(request.PONumber.Trim(), po.PONumber, StringComparison.Ordinal);
             var notesChanged = request.Notes is not null && request.Notes != po.Notes;
-            if (poNumberChanged || notesChanged || landedCostFieldsTouched || partiesChanged)
+            var termsChanged = (request.PaymentTermsId is int pickedTerms && pickedTerms != po.PaymentTermsId)
+                || (request.ClearPaymentTerms == true && po.PaymentTermsId is not null);
+            if (poNumberChanged || notesChanged || landedCostFieldsTouched || partiesChanged || termsChanged)
                 throw new InvalidOperationException(
                     "Once a purchase order is acknowledged, only its expected delivery date can be changed.");
         }
@@ -133,6 +138,17 @@ public class UpdatePurchaseOrderHandler(
         {
             po.Notes = request.Notes;
             changedFields.Add("notes");
+        }
+
+        if (request.ClearPaymentTerms == true && po.PaymentTermsId is not null)
+        {
+            po.PaymentTermsId = null;
+            changedFields.Add("paymentTerms");
+        }
+        else if (request.PaymentTermsId is int termsId && termsId != po.PaymentTermsId)
+        {
+            po.PaymentTermsId = (await new PaymentTermsResolver(db).RequireAsync(termsId, nameof(request.PaymentTermsId), cancellationToken)).Id;
+            changedFields.Add("paymentTerms");
         }
 
         if (request.ExpectedDeliveryDate.HasValue && request.ExpectedDeliveryDate != po.ExpectedDeliveryDate)

@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Features.Freight;
 using Forge.Api.Features.PurchaseOrders;
 using Forge.Api.Services;
@@ -33,7 +34,8 @@ public record CreateVendorBillCommand(
     // Multi-currency (Phase-4 FULLGL, additive) — mirrors CreateInvoiceCommand. Null CurrencyId → the active
     // book's functional currency; FxRate is the booking rate. Defaults keep single-currency callers unchanged.
     int? CurrencyId = null,
-    decimal? FxRate = null) : IRequest<VendorBillListItemModel>;
+    decimal? FxRate = null,
+    int? PaymentTermsId = null) : IRequest<VendorBillListItemModel>;
 
 public class CreateVendorBillValidator : AbstractValidator<CreateVendorBillCommand>
 {
@@ -140,10 +142,12 @@ public class CreateVendorBillHandler(
 
         var currencies = new DocumentCurrencyResolver(db);
         int? inheritedCurrencyId = vendor.CurrencyId;
+        var inheritedTermsId = vendor.PaymentTermsId;
         if (request.PurchaseOrderId is int linkedPoId)
         {
             var po = await db.PurchaseOrders.AsNoTracking().FirstOrDefaultAsync(p => p.Id == linkedPoId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Purchase order {linkedPoId} not found");
+            inheritedTermsId = po.PaymentTermsId ?? inheritedTermsId;
             var poCurrencyId = await PurchaseOrderCurrency.EffectiveCurrencyIdAsync(currencies, po, cancellationToken);
             if (request.CurrencyId is int requestedId && requestedId != poCurrencyId)
                 throw DocumentCurrencyResolver.Failure("CurrencyId", DocumentCurrencyResolver.BillPoCurrencyMismatchCode,
@@ -168,6 +172,11 @@ public class CreateVendorBillHandler(
             Notes = request.Notes,
             CreatedByUserId = db.CurrentUserId,
         };
+        var termsResolver = new PaymentTermsResolver(db);
+        var paymentTerms = request.PaymentTermsId is int pickedTermsId
+            ? await termsResolver.RequireAsync(pickedTermsId, nameof(request.PaymentTermsId), cancellationToken)
+            : await termsResolver.FindAsync(inheritedTermsId, cancellationToken);
+        PaymentTermsResolver.Stamp(bill, paymentTerms);
 
         var lineNumber = 1;
         foreach (var line in request.Lines)
@@ -227,6 +236,9 @@ public class CreateVendorBillHandler(
             CurrencyId: bill.CurrencyId,
             CurrencyCode: currency.Code,
             FxRate: bill.FxRate,
-            TotalFunctional: FxMath.ToFunctional(bill.Total, bill.FxRate));
+            TotalFunctional: FxMath.ToFunctional(bill.Total, bill.FxRate),
+            PaymentTermsId: bill.PaymentTermsId,
+            DiscountPercent: bill.DiscountPercent,
+            DiscountDueDate: bill.DiscountDueDate);
     }
 }

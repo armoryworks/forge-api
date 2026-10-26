@@ -30,4 +30,11 @@ public record InvoiceDetailResponseModel(
     int? CurrencyId = null,
     decimal FxRate = 1m,
     decimal FreightSubtotal = 0m,
-    int? SalesTaxRateId = null);
+    int? SalesTaxRateId = null,
+    int? PaymentTermsId = null,
+    decimal DiscountPercent = 0m,
+    DateTimeOffset? DiscountDueDate = null,
+    DateTimeOffset? DiscountDeadline = null,
+    decimal DiscountsTaken = 0m,
+    decimal DiscountAvailable = 0m,
+    PaymentTermsModel? PaymentTerms = null);

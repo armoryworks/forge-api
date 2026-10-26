@@ -9,4 +9,5 @@ public record InvoiceSourceSalesOrderResponseModel(
     decimal TaxRate = 0m,
     CreditTerms? CreditTerms = null,
     int? CurrencyId = null,
-    List<InvoiceSourceShipmentLineResponseModel>? FreightLines = null);
+    List<InvoiceSourceShipmentLineResponseModel>? FreightLines = null,
+    int? PaymentTermsId = null);

@@ -57,4 +57,6 @@ public record PurchaseOrderDetailResponseModel(
     int? ReceivingFallbackBinId = null,
     string? ReceivingFallbackBinPath = null,
     int? CurrencyId = null,
-    string? CurrencyCode = null);
+    string? CurrencyCode = null,
+    int? PaymentTermsId = null,
+    PaymentTermsModel? PaymentTerms = null);

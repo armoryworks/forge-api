@@ -27,6 +27,9 @@ public class Vendor : BaseAuditableEntity, IActiveAware, IConcurrencyVersioned
     public string? Country { get; set; }
     public string? PaymentTerms { get; set; }
 
+    /// <summary>Payment terms a new purchase order or bill for this vendor starts from. <see cref="PaymentTerms"/> keeps the text.</summary>
+    public int? PaymentTermsId { get; set; }
+
     /// <summary>
     /// Currency this vendor trades in; new purchase orders, bills and vendor payments start from it. Null = the functional currency.
     /// Locked once the vendor has a non-draft document.

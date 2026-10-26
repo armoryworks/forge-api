@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Workflows;
 using Forge.Api.Services.Fx;
 using Forge.Core.Enums;
@@ -30,7 +31,8 @@ public record UpdateVendorCommand(
     string? VendorNumber = null,
     string? Fax = null,
     int? CurrencyId = null,
-    bool? ClearCurrency = null) : IRequest;
+    bool? ClearCurrency = null,
+    int? PaymentTermsId = null) : IRequest;
 
 public class UpdateVendorValidator : AbstractValidator<UpdateVendorCommand>
 {
@@ -144,11 +146,8 @@ public class UpdateVendorHandler(
         if ((request.CurrencyId is not null || request.ClearCurrency == true)
             && await PartyCurrency.ApplyToVendorAsync(db, vendor, request.CurrencyId, request.ClearCurrency == true, cancellationToken))
             changedFields.Add("currency");
-        if (request.PaymentTerms != null && request.PaymentTerms != vendor.PaymentTerms)
-        {
-            vendor.PaymentTerms = request.PaymentTerms;
+        if (await VendorTerms.ApplyAsync(db, vendor, request.PaymentTermsId, request.PaymentTerms, cancellationToken))
             changedFields.Add("paymentTerms");
-        }
         if (request.Notes != null && request.Notes != vendor.Notes)
         {
             vendor.Notes = request.Notes;

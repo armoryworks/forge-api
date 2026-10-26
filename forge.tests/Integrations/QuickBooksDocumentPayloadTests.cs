@@ -180,4 +180,18 @@ public class QuickBooksDocumentPayloadTests
         doc.RootElement.GetProperty("Line")[0].GetProperty("ItemBasedExpenseLineDetail")
             .TryGetProperty("TaxCodeRef", out _).Should().BeFalse();
     }
+
+    [Fact]
+    public void Term_payload_carries_due_days_and_the_early_payment_discount()
+    {
+        var discount = QuickBooksAccountingService.BuildTermPayload(new AccountingTerms("2/10 Net 30", 30, 2m, 10));
+        discount["Type"].Should().Be("STANDARD");
+        discount["DueDays"].Should().Be(30);
+        discount["DiscountPercent"].Should().Be(2m);
+        discount["DiscountDays"].Should().Be(10);
+
+        var net = QuickBooksAccountingService.BuildTermPayload(new AccountingTerms("Net 45", 45, 0m, 0));
+        net.Should().NotContainKey("DiscountPercent");
+        net["DueDays"].Should().Be(45);
+    }
 }

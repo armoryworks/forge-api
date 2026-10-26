@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -26,7 +27,8 @@ public record CreateVendorCommand(
     // Optional caller-supplied vendor number — see CreateVendorRequestModel.VendorNumber.
     string? VendorNumber = null,
     string? Fax = null,
-    int? CurrencyId = null) : IRequest<VendorListItemModel>;
+    int? CurrencyId = null,
+    int? PaymentTermsId = null) : IRequest<VendorListItemModel>;
 
 public class CreateVendorValidator : AbstractValidator<CreateVendorCommand>
 {
@@ -73,13 +75,17 @@ public class CreateVendorHandler(
             State = request.State,
             ZipCode = request.ZipCode,
             Country = request.Country,
-            PaymentTerms = request.PaymentTerms,
             Notes = request.Notes,
             Is1099 = request.Is1099,
             TaxId = string.IsNullOrWhiteSpace(request.TaxId) ? null : request.TaxId.Trim(),
         };
         if (db is not null)
+        {
             await PartyCurrency.ApplyToVendorAsync(db, vendor, request.CurrencyId, clear: false, cancellationToken);
+            await VendorTerms.ApplyAsync(db, vendor, request.PaymentTermsId, request.PaymentTerms, cancellationToken);
+        }
+        else
+            vendor.PaymentTerms = request.PaymentTerms;
 
         await repo.AddAsync(vendor, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);

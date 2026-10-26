@@ -6,6 +6,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Services.Fx;
 using Forge.Core.Enums;
@@ -29,7 +30,8 @@ public record UpdateSalesOrderCommand(
     int? CurrencyId = null,
     decimal? FxRate = null,
     FreightTerms? FreightTerms = null,
-    bool? ClearFreightTerms = null) : IRequest;
+    bool? ClearFreightTerms = null,
+    int? PaymentTermsId = null) : IRequest;
 
 public class UpdateSalesOrderValidator : AbstractValidator<UpdateSalesOrderCommand>
 {
@@ -123,11 +125,14 @@ public class UpdateSalesOrderHandler(
             await EnsureAddressUsableAsync(order.CustomerId, billingId, AddressType.Billing, "billingAddressId", cancellationToken);
             order.BillingAddressId = billingId;
         }
-        if (!string.IsNullOrWhiteSpace(request.CreditTerms))
+        if (!string.IsNullOrWhiteSpace(request.CreditTerms) && !CreditTermsExtensions.TryParseLenient(request.CreditTerms, out _))
+            throw new ValidationException(CreditTermsExtensions.AllowedValuesMessage);
+        var (termsAsked, paymentTerms, legacyTerms) = await new TermsChoice(request.PaymentTermsId, request.CreditTerms, false)
+            .ResolveAsync(new PaymentTermsResolver(db), order.PaymentTermsId, nameof(request.PaymentTermsId), cancellationToken);
+        if (termsAsked)
         {
-            if (!CreditTermsExtensions.TryParseLenient(request.CreditTerms, out var terms))
-                throw new ValidationException(CreditTermsExtensions.AllowedValuesMessage);
-            order.CreditTerms = terms;
+            order.PaymentTermsId = paymentTerms?.Id;
+            order.CreditTerms = legacyTerms;
         }
         if (request.ClearFreightTerms == true) order.FreightTerms = null;
         else if (request.FreightTerms is { } freightTerms)

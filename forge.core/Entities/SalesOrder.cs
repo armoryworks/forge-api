@@ -76,6 +76,9 @@ public class SalesOrder : BaseAuditableEntity, IConcurrencyVersioned
     public SalesOrderStatus Status { get; set; } = SalesOrderStatus.Draft;
     public CreditTerms? CreditTerms { get; set; }
 
+    /// <summary>Payment terms the order's invoices start from. Kept in step with <see cref="CreditTerms"/>.</summary>
+    public int? PaymentTermsId { get; set; }
+
     /// <summary>Who pays the carrier and whether freight is billed on. Null = the customer's terms, else the install default.</summary>
     public FreightTerms? FreightTerms { get; set; }
     public DateTimeOffset? ConfirmedDate { get; set; }

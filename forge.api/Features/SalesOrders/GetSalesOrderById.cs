@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 using MediatR;
 
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Features.Shipments;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
@@ -156,6 +157,8 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
                 : null,
             so.FxRate,
             so.FreightTerms?.ToString(),
-            so.FreightSubtotal);
+            so.FreightSubtotal,
+            so.PaymentTermsId,
+            await new PaymentTermsResolver(db).ModelAsync(so.PaymentTermsId, so.CreditTerms, cancellationToken));
     }
 }

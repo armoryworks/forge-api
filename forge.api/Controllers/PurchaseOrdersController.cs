@@ -97,7 +97,8 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
             IsBlanket: request.IsBlanket,
             BlanketExpirationDate: request.BlanketExpirationDate,
             CurrencyId: request.CurrencyId,
-            FxRate: request.FxRate));
+            FxRate: request.FxRate,
+            PaymentTermsId: request.PaymentTermsId));
         return CreatedAtAction(nameof(GetPurchaseOrder), new { id = result.Id }, result);
     }
 
@@ -116,7 +117,9 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
             VendorContactId: request.VendorContactId,
             VendorAddressId: request.VendorAddressId,
             ShipToLocationId: request.ShipToLocationId,
-            CurrencyId: request.CurrencyId));
+            CurrencyId: request.CurrencyId,
+            PaymentTermsId: request.PaymentTermsId,
+            ClearPaymentTerms: request.ClearPaymentTerms));
         return NoContent();
     }
 

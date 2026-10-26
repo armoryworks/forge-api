@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Jobs;
 using Forge.Api.Services;
 using Forge.Api.Services.Fx;
@@ -16,6 +17,7 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Services;
 using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.VendorPayments;
@@ -65,6 +67,7 @@ public class CreateVendorPaymentValidator : AbstractValidator<CreateVendorPaymen
                 // Settlement FX rate must be positive (a 0 or negative rate would zero/invert the functional
                 // cash amount, breaking the realized-FX plug). Default 1 satisfies this for single-currency.
                 app.RuleFor(a => a.SettlementFxRate).GreaterThan(0m).When(a => a.SettlementFxRate.HasValue);
+                app.RuleFor(a => a.DiscountAmount).GreaterThanOrEqualTo(0m).MoneyScale().When(a => a.DiscountAmount.HasValue);
             });
         });
     }
@@ -129,8 +132,11 @@ public class CreateVendorPaymentHandler(
 
         if (request.Applications != null)
         {
-            foreach (var app in request.Applications)
+            var discounts = await DiscountSettings.ReadAsync(db, cancellationToken);
+            var user = httpContextAccessor?.HttpContext?.User;
+            for (var index = 0; index < request.Applications.Count; index++)
             {
+                var app = request.Applications[index];
                 var bill = await billRepo.FindWithDetailsAsync(app.VendorBillId, cancellationToken)
                     ?? throw new KeyNotFoundException($"Vendor bill {app.VendorBillId} not found");
 
@@ -156,11 +162,16 @@ public class CreateVendorPaymentHandler(
                 // Consume the canonical VendorBill.BalanceDue (single source of truth), mirroring F-027.
                 var balanceDue = bill.BalanceDue;
 
-                if (app.Amount > balanceDue)
+                var discount = EarlyPaymentDiscountRules.ForBill(
+                    db, bill, app.Amount, payment.PaymentDate, app.DiscountAmount, app.AllowDiscountOverride,
+                    user, discounts, $"Applications[{index}].DiscountAmount");
+
+                if (app.Amount + discount > balanceDue)
                 {
                     var billMoney = await MoneyFormat.ForCurrencyIdAsync(db, bill.CurrencyId, cancellationToken);
-                    throw new InvalidOperationException(
-                        $"Application amount {billMoney.Format(app.Amount)} exceeds bill {bill.BillNumber} balance of {billMoney.Format(balanceDue)}");
+                    throw new InvalidOperationException(discount > 0m
+                        ? $"Application amount {billMoney.Format(app.Amount)} plus discount {billMoney.Format(discount)} exceeds bill {bill.BillNumber} balance of {billMoney.Format(balanceDue)}"
+                        : $"Application amount {billMoney.Format(app.Amount)} exceeds bill {bill.BillNumber} balance of {billMoney.Format(balanceDue)}");
                 }
 
                 billCurrencyIds.Add(bill.CurrencyId);
@@ -170,10 +181,11 @@ public class CreateVendorPaymentHandler(
                     VendorBillId = app.VendorBillId,
                     Amount = app.Amount,
                     SettlementFxRate = app.SettlementFxRate ?? payment.FxRate,
+                    DiscountAmount = discount,
                 });
                 appliedTotal += app.Amount;
 
-                var newBalance = balanceDue - app.Amount;
+                var newBalance = balanceDue - app.Amount - discount;
                 if (newBalance <= 0)
                     bill.Status = VendorBillStatus.Paid;
                 else if (bill.Status is VendorBillStatus.Approved or VendorBillStatus.PartiallyPaid)
@@ -204,8 +216,8 @@ public class CreateVendorPaymentHandler(
 
                 var freshBalance = b.BalanceDue;
 
-                var matchingApp = request.Applications!.First(a => a.VendorBillId == b.Id);
-                if (matchingApp.Amount > freshBalance)
+                var matchingApp = payment.Applications.First(a => a.VendorBillId == b.Id);
+                if (matchingApp.Amount + matchingApp.DiscountAmount > freshBalance)
                 {
                     var billMoney = await MoneyFormat.ForCurrencyIdAsync(db, b.CurrencyId, cancellationToken);
                     throw new InvalidOperationException(
@@ -236,10 +248,12 @@ public class CreateVendorPaymentHandler(
         // non-electronic payments (Check/Cash) left no trail at all — only electronic ones got the
         // transmission-queued row below.
         var money = await MoneyFormat.ForCurrencyIdsAsync(db, billCurrencyIds, cancellationToken);
+        var discountTotal = payment.Applications.Sum(a => a.DiscountAmount);
         db.LogActivityAt(
             "created",
             $"Payment {payment.PaymentNumber} recorded — {money.Format(payment.Amount)} via {method}"
-            + (appliedTotal > 0 ? $", {money.Format(appliedTotal)} applied" : string.Empty),
+            + (appliedTotal > 0 ? $", {money.Format(appliedTotal)} applied" : string.Empty)
+            + (discountTotal > 0 ? $", {money.Format(discountTotal)} early-payment discount taken" : string.Empty),
             ("VendorPayment", payment.Id));
         await db.SaveChangesAsync(cancellationToken);
 

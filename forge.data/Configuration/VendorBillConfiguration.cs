@@ -21,6 +21,7 @@ public class VendorBillConfiguration : IEntityTypeConfiguration<VendorBill>
         builder.Ignore(e => e.Total);
         builder.Ignore(e => e.AmountPaid);
         builder.Ignore(e => e.BalanceDue);
+        builder.Ignore(e => e.DiscountsTaken);
 
         // Optimistic locking — WHERE version=@orig on UPDATE (mirrors Invoice — WU-11 / F-026).
         builder.Property(e => e.Version).HasDefaultValue(1u).IsConcurrencyToken();
@@ -28,6 +29,12 @@ public class VendorBillConfiguration : IEntityTypeConfiguration<VendorBill>
         builder.Property(e => e.BillNumber).HasMaxLength(30).IsRequired();
         builder.Property(e => e.VendorInvoiceNumber).HasMaxLength(60);
         builder.Property(e => e.TaxAmount).HasPrecision(18, 4);
+        builder.Property(e => e.DiscountPercent).HasPrecision(7, 4);
+        builder.HasIndex(e => e.PaymentTermsId);
+        builder.HasOne<PaymentTerm>()
+            .WithMany()
+            .HasForeignKey(e => e.PaymentTermsId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // Multi-currency (Phase-4 FULLGL, additive) — mirrors InvoiceConfiguration. Column default 1 so
         // existing rows backfill to the functional currency / unity rate (single-currency path unchanged).

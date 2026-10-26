@@ -243,7 +243,8 @@ public class MultiCurrencyUnitTests
         var payment = new Payment { CustomerId = 5, CurrencyId = CadId, FxRate = 0.75m, Amount = 100m };
 
         var act = () => PaymentApplicationRules.ApplyToInvoiceAsync(
-            db, payment, invoice, new CreatePaymentApplicationModel(1, 50m), new HashSet<int>(), CancellationToken.None);
+            db, payment, invoice, new CreatePaymentApplicationModel(1, 50m), new HashSet<int>(),
+            Forge.Data.Services.DiscountSettings.Default, null, "DiscountAmount", CancellationToken.None);
 
         var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
         ex.Errors.Should().ContainSingle(e => e.ErrorCode == DocumentCurrencyResolver.PaymentCurrencyMismatchCode);
@@ -263,7 +264,8 @@ public class MultiCurrencyUnitTests
         var payment = new Payment { CustomerId = 5, CurrencyId = CadId, FxRate = 0.75m, Amount = 1000m };
 
         await PaymentApplicationRules.ApplyToInvoiceAsync(
-            db, payment, invoice, new CreatePaymentApplicationModel(1, 1000m), new HashSet<int>(), CancellationToken.None);
+            db, payment, invoice, new CreatePaymentApplicationModel(1, 1000m), new HashSet<int>(),
+            Forge.Data.Services.DiscountSettings.Default, null, "DiscountAmount", CancellationToken.None);
 
         payment.Applications.Single().SettlementFxRate.Should().Be(0.75m);
         invoice.Status.Should().Be(InvoiceStatus.Paid);

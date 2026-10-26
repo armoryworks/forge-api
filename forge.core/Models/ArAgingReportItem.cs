@@ -10,4 +10,6 @@ public record ArAgingReportItem(
     decimal AmountPaid,
     decimal BalanceDue,
     int DaysOverdue,
-    string AgingBucket);
+    string AgingBucket,
+    DateTimeOffset? DiscountDeadline = null,
+    decimal DiscountAvailable = 0m);

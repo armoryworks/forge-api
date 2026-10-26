@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Services.Fx;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -85,6 +86,8 @@ public class GetCustomerSummaryHandler(AppDbContext db, IClock clock)
             customer.IsOnCreditHold,
             customer.CurrencyId,
             await PartyCurrency.CustomerHasPostedDocumentsAsync(db, customer.Id, ct),
-            customer.FreightTerms);
+            customer.FreightTerms,
+            customer.PaymentTermsId,
+            await new PaymentTermsResolver(db).ModelAsync(customer.PaymentTermsId, customer.DefaultCreditTerms, ct));
     }
 }

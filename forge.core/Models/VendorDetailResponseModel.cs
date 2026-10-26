@@ -26,4 +26,6 @@ public record VendorDetailResponseModel(
     uint RowVersion = 0,
     int? CurrencyId = null,
     string? CurrencyCode = null,
-    bool CurrencyLocked = false);
+    bool CurrencyLocked = false,
+    int? PaymentTermsId = null,
+    PaymentTermsModel? PaymentTermsDetail = null);

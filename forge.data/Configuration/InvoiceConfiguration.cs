@@ -18,6 +18,7 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Ignore(e => e.Total);
         builder.Ignore(e => e.AmountPaid);
         builder.Ignore(e => e.BalanceDue);
+        builder.Ignore(e => e.DiscountsTaken);
 
         // WU-11 / F-026 — optimistic locking; token causes WHERE version=@orig on UPDATE
         // so concurrent SaveChanges on the same invoice throws DbUpdateConcurrencyException.
@@ -26,6 +27,7 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(e => e.InvoiceNumber).HasMaxLength(20);
         builder.Property(e => e.Notes).HasMaxLength(2000);
         builder.Property(e => e.TaxRate).HasPrecision(8, 6);
+        builder.Property(e => e.DiscountPercent).HasPrecision(7, 4);
 
         // Multi-currency (Phase-4 FULLGL, additive). Column default 1 so existing rows backfill to the
         // functional currency / unity rate — the single-currency path stays byte-for-byte unchanged.
@@ -67,6 +69,12 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
             .WithOne(s => s.Invoice)
             .HasForeignKey<Invoice>(e => e.ShipmentId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(e => e.PaymentTermsId);
+        builder.HasOne<PaymentTerm>()
+            .WithMany()
+            .HasForeignKey(e => e.PaymentTermsId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(e => e.SalesTaxRateId);
         builder.HasOne(e => e.SalesTaxRate)

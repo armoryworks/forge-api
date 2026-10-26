@@ -29,4 +29,5 @@ public record CreateCustomerRequestModel(
     string? Fax = null,
     string? DefaultCreditTerms = null,
     int? CurrencyId = null,
-    FreightTerms? FreightTerms = null);
+    FreightTerms? FreightTerms = null,
+    int? PaymentTermsId = null);

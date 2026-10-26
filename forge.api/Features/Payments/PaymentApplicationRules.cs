@@ -1,11 +1,15 @@
+using System.Security.Claims;
+
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Services;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Services;
 
 namespace Forge.Api.Features.Payments;
 
@@ -17,6 +21,9 @@ internal static class PaymentApplicationRules
         Invoice invoice,
         CreatePaymentApplicationModel app,
         ISet<int> completionCandidateSoIds,
+        DiscountSettings discounts,
+        ClaimsPrincipal? user,
+        string discountField,
         CancellationToken ct)
     {
         if (invoice.CustomerId != payment.CustomerId)
@@ -42,11 +49,16 @@ internal static class PaymentApplicationRules
 
         var balanceDue = invoice.BalanceDue;
 
-        if (app.Amount > balanceDue)
+        var discount = EarlyPaymentDiscountRules.ForInvoice(
+            db, invoice, app.Amount, payment.PaymentDate, app.DiscountAmount, app.AllowDiscountOverride,
+            user, discounts, discountField);
+
+        if (app.Amount + discount > balanceDue)
         {
             var money = await MoneyFormat.ForCurrencyIdAsync(db, invoice.CurrencyId, ct);
-            throw new InvalidOperationException(
-                $"Application amount {money.Format(app.Amount)} exceeds invoice {invoice.InvoiceNumber} balance of {money.Format(balanceDue)}");
+            throw new InvalidOperationException(discount > 0m
+                ? $"Application amount {money.Format(app.Amount)} plus discount {money.Format(discount)} exceeds invoice {invoice.InvoiceNumber} balance of {money.Format(balanceDue)}"
+                : $"Application amount {money.Format(app.Amount)} exceeds invoice {invoice.InvoiceNumber} balance of {money.Format(balanceDue)}");
         }
 
         payment.Applications.Add(new PaymentApplication
@@ -54,9 +66,10 @@ internal static class PaymentApplicationRules
             InvoiceId = app.InvoiceId,
             Amount = app.Amount,
             SettlementFxRate = app.SettlementFxRate ?? payment.FxRate,
+            DiscountAmount = discount,
         });
 
-        var newBalance = balanceDue - app.Amount;
+        var newBalance = balanceDue - app.Amount - discount;
         if (newBalance <= 0)
         {
             invoice.Status = InvoiceStatus.Paid;

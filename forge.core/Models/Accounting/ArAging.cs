@@ -58,6 +58,12 @@ public sealed class ArAgingCustomerRow
     /// <summary>Open balance in <see cref="CurrencyCode"/> (transaction amount); null when the items are in mixed currencies.</summary>
     public decimal? OpenTxnBalance { get; init; }
 
+    /// <summary>Early-payment discounts still open on the as-of date across the customer's documents (functional).</summary>
+    public decimal DiscountAvailable { get; init; }
+
+    /// <summary>The soonest discount deadline among those documents; null when none has a discount open.</summary>
+    public DateTimeOffset? NextDiscountDeadline { get; init; }
+
     public IReadOnlyList<ArAgingBucket> Buckets { get; init; } = [];
 }
 

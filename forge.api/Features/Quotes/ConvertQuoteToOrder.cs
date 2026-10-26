@@ -64,6 +64,7 @@ public class ConvertQuoteToOrderHandler(
             // F7: the customer's PO reference captured at quote time follows the order.
             CustomerPO = quote.CustomerPO,
             CreditTerms = quote.Customer.DefaultCreditTerms,
+            PaymentTermsId = quote.Customer.PaymentTermsId,
             FreightTerms = quote.Customer.FreightTerms,
             CurrencyId = quote.CurrencyId,
             FxRate = quote.FxRate,

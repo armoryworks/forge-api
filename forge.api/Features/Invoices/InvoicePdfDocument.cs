@@ -12,12 +12,14 @@ public class InvoicePdfDocument : IDocument
     private readonly Invoice _invoice;
     private readonly string? _companyName;
     private readonly MoneyFormatter _money;
+    private readonly InvoiceDiscountOffer _offer;
 
-    public InvoicePdfDocument(Invoice invoice, string? companyName, MoneyFormatter? money = null)
+    public InvoicePdfDocument(Invoice invoice, string? companyName, MoneyFormatter? money = null, InvoiceDiscountOffer? offer = null)
     {
         _invoice = invoice;
         _companyName = companyName;
         _money = money ?? MoneyFormat.For(null, "USD");
+        _offer = offer ?? InvoiceDiscountOffer.None;
     }
 
     public void Compose(IDocumentContainer container)
@@ -72,8 +74,12 @@ public class InvoicePdfDocument : IDocument
                 {
                     right.Item().Text($"Invoice Date: {_invoice.InvoiceDate:MMM dd, yyyy}");
                     right.Item().Text($"Due Date: {_invoice.DueDate:MMM dd, yyyy}");
-                    if (_invoice.CreditTerms.HasValue)
+                    if (_offer.TermsName is { Length: > 0 } termsName)
+                        right.Item().Text($"Terms: {termsName}");
+                    else if (_invoice.CreditTerms.HasValue)
                         right.Item().Text($"Terms: {FormatCreditTerms(_invoice.CreditTerms.Value)}");
+                    if (_offer.HasDiscount)
+                        right.Item().Text($"Pay {_money.Format(_offer.PayAmount)} by {_offer.Deadline:MM/dd/yyyy} to take the discount.").SemiBold();
                     if (!string.IsNullOrEmpty(_invoice.SalesOrder?.OrderNumber))
                         right.Item().Text($"SO #: {_invoice.SalesOrder.OrderNumber}");
                 });
@@ -167,6 +173,15 @@ public class InvoicePdfDocument : IDocument
                         row.RelativeItem().Text("Paid:").FontColor(Colors.Green.Darken2);
                         row.ConstantItem(100).AlignRight().Text($"({_money.Format(_invoice.AmountPaid)})").FontColor(Colors.Green.Darken2);
                     });
+
+                    if (_invoice.DiscountsTaken > 0)
+                    {
+                        totals.Item().Row(row =>
+                        {
+                            row.RelativeItem().Text("Early-payment discount:").FontColor(Colors.Green.Darken2);
+                            row.ConstantItem(100).AlignRight().Text($"({_money.Format(_invoice.DiscountsTaken)})").FontColor(Colors.Green.Darken2);
+                        });
+                    }
 
                     totals.Item().PaddingTop(4).Row(row =>
                     {

@@ -18,7 +18,8 @@ public record CreateVendorBillRequestModel(
     // Multi-currency (Phase-4 FULLGL, additive) — mirrors CreateInvoiceRequestModel. Null CurrencyId resolves
     // to the active book's functional currency; FxRate is the booking rate. Defaults keep callers unchanged.
     int? CurrencyId = null,
-    decimal? FxRate = null);
+    decimal? FxRate = null,
+    int? PaymentTermsId = null);
 
 /// <summary>
 /// A line on a new vendor bill. <c>AccountDeterminationKey</c> is the GL key the line debits when

@@ -1,10 +1,13 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.PaymentTerms;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
+using Forge.Data.Services;
 
 namespace Forge.Api.Features.VendorBills;
 
@@ -42,6 +45,7 @@ public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorReposit
             .Distinct()
             .ToList();
         var poRefs = await repo.GetPurchaseOrderRefsAsync(poIds, cancellationToken);
+        var discounts = db is null ? DiscountSettings.Default : await DiscountSettings.ReadAsync(db, cancellationToken);
 
         return new VendorBillDetailModel(
             bill.Id, bill.BillNumber, bill.VendorId, vendor?.CompanyName ?? $"Vendor {bill.VendorId}",
@@ -73,6 +77,13 @@ public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorReposit
             db is null
                 ? bill.Currency?.Code
                 : await db.Currencies.AsNoTracking()
-                    .Where(c => c.Id == bill.CurrencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken));
+                    .Where(c => c.Id == bill.CurrencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken),
+            bill.PaymentTermsId,
+            bill.DiscountPercent,
+            bill.DiscountDueDate,
+            EarlyPaymentDiscount.Deadline(bill.DiscountDueDate, discounts.GraceDays),
+            bill.DiscountsTaken,
+            bill.BalanceDue > 0m ? EarlyPaymentDiscountRules.RemainingMaximum(bill, discounts) : 0m,
+            db is null ? null : await new PaymentTermsResolver(db).ModelAsync(bill.PaymentTermsId, bill.CreditTerms, cancellationToken));
     }
 }

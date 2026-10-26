@@ -12,6 +12,7 @@ public class PaymentApplicationConfiguration : IEntityTypeConfiguration<PaymentA
         // Settlement FX rate (Phase-4 FULLGL, additive). Default 1 so existing rows backfill to unity —
         // the single-currency settlement path is byte-for-byte unchanged. Precision matches JournalLine.FxRate.
         builder.Property(e => e.SettlementFxRate).HasPrecision(18, 8).HasDefaultValue(1m);
+        builder.Property(e => e.DiscountAmount).HasPrecision(18, 2);
 
         builder.HasIndex(e => e.PaymentId);
         builder.HasIndex(e => e.InvoiceId);

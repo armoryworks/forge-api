@@ -7,13 +7,16 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.PaymentSchedules;
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Services;
 using Forge.Api.Services.Fx;
+using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Services;
 
 namespace Forge.Api.Features.Payments;
 
@@ -59,6 +62,7 @@ public class CreatePaymentValidator : AbstractValidator<CreatePaymentCommand>
                 // Settlement FX rate must be positive (a 0 or negative rate would zero/invert the functional
                 // cash amount, breaking the realized-FX plug). Default 1 satisfies this for single-currency.
                 app.RuleFor(a => a.SettlementFxRate).GreaterThan(0m).When(a => a.SettlementFxRate.HasValue);
+                app.RuleFor(a => a.DiscountAmount).GreaterThanOrEqualTo(0m).MoneyScale().When(a => a.DiscountAmount.HasValue);
             });
         });
     }
@@ -131,12 +135,17 @@ public class CreatePaymentHandler(
 
         if (request.Applications != null)
         {
-            foreach (var app in request.Applications)
+            var discounts = await DiscountSettings.ReadAsync(db, cancellationToken);
+            var user = httpContextAccessor?.HttpContext?.User;
+            for (var index = 0; index < request.Applications.Count; index++)
             {
+                var app = request.Applications[index];
                 var invoice = await invoiceRepo.FindWithDetailsAsync(app.InvoiceId, cancellationToken)
                     ?? throw new KeyNotFoundException($"Invoice {app.InvoiceId} not found");
 
-                await PaymentApplicationRules.ApplyToInvoiceAsync(db, payment, invoice, app, completionCandidateSoIds, cancellationToken);
+                await PaymentApplicationRules.ApplyToInvoiceAsync(
+                    db, payment, invoice, app, completionCandidateSoIds, discounts, user,
+                    $"Applications[{index}].DiscountAmount", cancellationToken);
                 appliedTotal += app.Amount;
             }
         }
@@ -161,8 +170,8 @@ public class CreatePaymentHandler(
 
                 var freshBalance = inv.BalanceDue;
 
-                var matchingApp = request.Applications!.First(a => a.InvoiceId == inv.Id);
-                if (matchingApp.Amount > freshBalance)
+                var matchingApp = payment.Applications.First(a => a.InvoiceId == inv.Id);
+                if (matchingApp.Amount + matchingApp.DiscountAmount > freshBalance)
                 {
                     var money = await MoneyFormat.ForCurrencyIdAsync(db, inv.CurrencyId, cancellationToken);
                     throw new InvalidOperationException(

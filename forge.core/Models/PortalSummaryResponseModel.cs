@@ -43,7 +43,10 @@ public record PortalInvoiceListItem(
     decimal AmountPaid,
     decimal Balance,
     string? CurrencyCode,
-    decimal Freight = 0m);
+    decimal Freight = 0m,
+    string? TermsName = null,
+    decimal DiscountAvailable = 0m,
+    DateTimeOffset? DiscountDeadline = null);
 
 public record PortalShipmentListItem(
     int Id,

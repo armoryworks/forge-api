@@ -7,11 +7,14 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.PaymentSchedules;
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Services;
+using Forge.Api.Validation;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Core.Settings;
 using Forge.Data.Context;
+using Forge.Data.Services;
 using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Payments;
@@ -36,6 +39,7 @@ public class ApplyPaymentValidator : AbstractValidator<ApplyPaymentCommand>
                 app.RuleFor(a => a.InvoiceId).GreaterThan(0);
                 app.RuleFor(a => a.Amount).GreaterThan(0);
                 app.RuleFor(a => a.SettlementFxRate).GreaterThan(0m).When(a => a.SettlementFxRate.HasValue);
+                app.RuleFor(a => a.DiscountAmount).GreaterThanOrEqualTo(0m).MoneyScale().When(a => a.DiscountAmount.HasValue);
             });
         });
     }
@@ -86,16 +90,23 @@ public class ApplyPaymentHandler(
 
         var existingApplications = payment.Applications.ToHashSet();
         var completionCandidateSoIds = new HashSet<int>();
-        foreach (var app in request.Applications)
+        var discounts = await DiscountSettings.ReadAsync(db, cancellationToken);
+        var user = httpContextAccessor?.HttpContext?.User;
+        for (var index = 0; index < request.Applications.Count; index++)
         {
+            var app = request.Applications[index];
             var invoice = await invoiceRepo.FindWithDetailsAsync(app.InvoiceId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Invoice {app.InvoiceId} not found");
 
-            await PaymentApplicationRules.ApplyToInvoiceAsync(db, payment, invoice, app, completionCandidateSoIds, cancellationToken);
+            await PaymentApplicationRules.ApplyToInvoiceAsync(
+                db, payment, invoice, app, completionCandidateSoIds, discounts, user,
+                $"Applications[{index}].DiscountAmount", cancellationToken);
 
             var invoiceMoney = await MoneyFormat.ForCurrencyIdAsync(db, invoice.CurrencyId, cancellationToken);
+            var discountTaken = payment.Applications.Last(a => a.InvoiceId == invoice.Id).DiscountAmount;
             db.LogActivityAt("applied",
-                $"Applied {invoiceMoney.Format(app.Amount)} of payment {payment.PaymentNumber} to invoice {invoice.InvoiceNumber}",
+                $"Applied {invoiceMoney.Format(app.Amount)} of payment {payment.PaymentNumber} to invoice {invoice.InvoiceNumber}"
+                + (discountTaken > 0m ? $" with a {invoiceMoney.Format(discountTaken)} early-payment discount" : string.Empty),
                 ("Payment", payment.Id), ("Invoice", invoice.Id), ("Customer", payment.CustomerId));
         }
 

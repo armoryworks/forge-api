@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Capabilities;
 using Forge.Api.Services;
 using Forge.Core.Entities;
@@ -114,7 +115,10 @@ public sealed class ExpenseBillPromotionService(
             return existing;
         }
 
+        var vendorTerms = await new PaymentTermsResolver(db).FindAsync(expense.Vendor?.PaymentTermsId, ct);
         var (terms, termsDays) = MapVendorTerms(expense.Vendor?.PaymentTerms);
+        if (vendorTerms is not null)
+            termsDays = vendorTerms.NetDays;
 
         var bill = new VendorBill
         {
@@ -144,6 +148,8 @@ public sealed class ExpenseBillPromotionService(
                 },
             },
         };
+        if (vendorTerms is not null)
+            PaymentTermsResolver.Stamp(bill, vendorTerms);
 
         db.VendorBills.Add(bill);
         await db.SaveChangesAsync(ct); // assign the id so the posting + activity can reference it

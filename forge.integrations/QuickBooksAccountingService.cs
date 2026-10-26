@@ -108,6 +108,8 @@ public class QuickBooksAccountingService(
             throw new InvalidOperationException(FreightItemMissingMessage);
 
         var payload = BuildDocumentPayload(document);
+        if (document.Terms is { } terms && await FindOrCreateTermAsync(terms, ct) is { } termId)
+            payload["SalesTermRef"] = new { value = termId };
         var result = await PostEntityAsync("invoice", payload, ct, document.CurrencyCode);
         var id = result?.RootElement.GetProperty("Invoice").GetProperty("Id").GetString()
             ?? throw new InvalidOperationException("Failed to create QuickBooks invoice");
@@ -570,6 +572,57 @@ public class QuickBooksAccountingService(
 
     /// <summary>The QuickBooks item reference for the built-in shipping line when the company's shipping preference is on.</summary>
     internal const string ShippingItemId = "SHIPPING_ITEM_ID";
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> TermIds = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The QuickBooks <c>Term</c> id for these terms, found by name or created (standard terms: due days plus the
+    /// early-payment discount). Ids are cached per realm. Null when QuickBooks is not connected.
+    /// </summary>
+    internal async Task<string?> FindOrCreateTermAsync(AccountingTerms terms, CancellationToken ct)
+    {
+        var (_, realmId) = await GetAuthenticatedClientAsync(ct);
+        if (string.IsNullOrEmpty(realmId))
+            return null;
+
+        var cacheKey = $"{realmId}|{terms.Name}";
+        if (TermIds.TryGetValue(cacheKey, out var cached))
+            return cached;
+
+        using var found = await QueryAsync($"select * from Term where Name = '{terms.Name.Replace("'", "\\'")}'", ct);
+        string? id = null;
+        if (found is not null
+            && found.RootElement.TryGetProperty("QueryResponse", out var response)
+            && response.TryGetProperty("Term", out var rows)
+            && rows.GetArrayLength() > 0)
+            id = rows[0].GetProperty("Id").GetString();
+
+        if (id is null)
+        {
+            using var created = await PostEntityAsync("term", BuildTermPayload(terms), ct);
+            id = created?.RootElement.GetProperty("Term").GetProperty("Id").GetString();
+        }
+
+        if (id is not null)
+            TermIds[cacheKey] = id;
+        return id;
+    }
+
+    internal static Dictionary<string, object?> BuildTermPayload(AccountingTerms terms)
+    {
+        var payload = new Dictionary<string, object?>
+        {
+            ["Name"] = terms.Name.Length > 31 ? terms.Name[..31] : terms.Name,
+            ["Type"] = "STANDARD",
+            ["DueDays"] = terms.DueDays,
+        };
+        if (terms.DiscountPercent > 0m && terms.DiscountDays > 0)
+        {
+            payload["DiscountPercent"] = terms.DiscountPercent;
+            payload["DiscountDays"] = terms.DiscountDays;
+        }
+        return payload;
+    }
 
     private async Task<bool> ShippingPreferenceOnAsync(CancellationToken ct)
     {

@@ -76,6 +76,7 @@ public sealed class VendorPaymentCashPostingService(
     private const string KeyVendorAdvance = "PREPAID_EXPENSE";
     // Realized FX (Phase-4): the difference between the AP carrying value (booking rate) and the cash paid
     // (settlement rate). FX_REVALUATION is for period-end UNrealized revaluation only — never here.
+    private const string KeyPurchaseDiscounts = "PURCHASE_DISCOUNTS";
     private const string KeyFxGain = "FX_GAIN";
     private const string KeyFxLoss = "FX_LOSS";
 
@@ -135,11 +136,11 @@ public sealed class VendorPaymentCashPostingService(
                     .Select(b => (decimal?)b.FxRate)
                     .FirstOrDefaultAsync(ct) ?? 1m;
 
-                openItem.AppliedTxnAmount = Math.Max(0m, openItem.AppliedTxnAmount - app.Amount);
+                openItem.AppliedTxnAmount = Math.Max(0m, openItem.AppliedTxnAmount - app.Amount - app.DiscountAmount);
                 openItem.AppliedFunctionalAmount = Math.Max(
                     0m,
                     openItem.AppliedFunctionalAmount
-                        - Math.Round(app.Amount * bookingRate, 2, MidpointRounding.AwayFromZero));
+                        - Math.Round((app.Amount + app.DiscountAmount) * bookingRate, 2, MidpointRounding.AwayFromZero));
                 openItem.RecomputeStatus();
             }
         }
@@ -202,6 +203,7 @@ public sealed class VendorPaymentCashPostingService(
         // the FX plug is 0 → byte-identical to the prior single-currency entry (no FX line).
         decimal cashFromApplications = 0m; // Σ cash_func (foreign × settlement rate)
         decimal apRelief = 0m;             // Σ apRelief_func (foreign × bill booking rate)
+        decimal discountTotal = 0m;
 
         foreach (var app in payment.Applications)
         {
@@ -214,9 +216,10 @@ public sealed class VendorPaymentCashPostingService(
                 .Select(b => (decimal?)b.FxRate)
                 .FirstOrDefaultAsync(ct) ?? 1m;
 
-            var apReliefFunc = Math.Round(foreign * bookingRate, 2, MidpointRounding.AwayFromZero);
+            var apReliefFunc = Math.Round((foreign + app.DiscountAmount) * bookingRate, 2, MidpointRounding.AwayFromZero);
             apRelief += apReliefFunc;
             cashFromApplications += Math.Round(foreign * app.SettlementFxRate, 2, MidpointRounding.AwayFromZero);
+            discountTotal += Math.Round(app.DiscountAmount * app.SettlementFxRate, 2, MidpointRounding.AwayFromZero);
 
             // ── AP open item (AP-001 open-item sub-ledger): increment the bill's item by EXACTLY the
             // relief this entry posts — foreign on the txn side, apReliefFunc (BOOKING rate, the same
@@ -238,7 +241,7 @@ public sealed class VendorPaymentCashPostingService(
                 }
                 else
                 {
-                    openItem.AppliedTxnAmount += foreign;
+                    openItem.AppliedTxnAmount += foreign + app.DiscountAmount;
                     openItem.AppliedFunctionalAmount += apReliefFunc;
                     openItem.RecomputeStatus();
                 }
@@ -292,12 +295,22 @@ public sealed class VendorPaymentCashPostingService(
             });
         }
 
+        if (discountTotal > 0m)
+        {
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyPurchaseDiscounts,
+                Credit = discountTotal,
+                Description = $"Early-payment discount — vendor payment {payment.PaymentNumber}",
+            });
+        }
+
         // FX plug = Σ (apRelief − cash). We relieved AP at the booking rate but cash went out at settlement;
         //   > 0  → settled a BIGGER payable for LESS cash (the currency weakened) → Cr FX_GAIN;
         //   < 0  → paid MORE cash than the payable relieved (the currency strengthened) → Dr FX_LOSS.
         // Worked example: EUR bill foreign 100, booking 1.10 → AP 110; settle 1.05 → cash 105 →
         //   plug +5 → Dr AP 110 / Cr Cash 105 / Cr FX_GAIN 5 (balances; that bill's AP nets to 0).
-        var fxPlug = apRelief - cashFromApplications;
+        var fxPlug = apRelief - cashFromApplications - discountTotal;
         if (fxPlug > 0m)
         {
             lines.Add(new PostingLine

@@ -6,12 +6,14 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.Freight;
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Features.SalesTax;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
 
@@ -34,7 +36,8 @@ public record CreateInvoiceCommand(
     decimal? FxRate = null,
     // Optional caller-supplied invoice number — see CreateInvoiceRequestModel.InvoiceNumber.
     string? InvoiceNumber = null,
-    int? SalesTaxRateId = null) : IRequest<InvoiceListItemModel>;
+    int? SalesTaxRateId = null,
+    int? PaymentTermsId = null) : IRequest<InvoiceListItemModel>;
 
 public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
 {
@@ -106,13 +109,14 @@ public class CreateInvoiceHandler(
 
         string? salesOrderCustomerPo = null;
         CreditTerms? salesOrderTerms = null;
+        int? salesOrderTermsId = null;
         int? salesOrderCurrencyId = null;
         var currencies = new DocumentCurrencyResolver(db);
         if (request.SalesOrderId is int linkedSoId)
         {
             var salesOrder = await db.SalesOrders.AsNoTracking()
                 .Where(so => so.Id == linkedSoId)
-                .Select(so => new { so.OrderNumber, so.CustomerId, so.CustomerPO, so.CreditTerms, so.CurrencyId })
+                .Select(so => new { so.OrderNumber, so.CustomerId, so.CustomerPO, so.CreditTerms, so.PaymentTermsId, so.CurrencyId })
                 .FirstOrDefaultAsync(cancellationToken)
                 ?? throw new KeyNotFoundException($"Sales order {linkedSoId} not found");
 
@@ -122,6 +126,7 @@ public class CreateInvoiceHandler(
 
             salesOrderCustomerPo = salesOrder.CustomerPO;
             salesOrderTerms = salesOrder.CreditTerms;
+            salesOrderTermsId = salesOrder.PaymentTermsId;
             salesOrderCurrencyId = await currencies.EffectiveCurrencyIdAsync(salesOrder.CurrencyId, cancellationToken);
             if (request.CurrencyId is int requestedCurrencyId && requestedCurrencyId != salesOrderCurrencyId)
                 throw DocumentCurrencyResolver.Failure("CurrencyId", DocumentCurrencyResolver.InvoiceSoCurrencyMismatchCode,
@@ -236,19 +241,39 @@ public class CreateInvoiceHandler(
 
         var invoiceNumber = await ResolveInvoiceNumberAsync(request, cancellationToken);
 
+        var termsResolver = new PaymentTermsResolver(db);
+        PaymentTerm? paymentTerms;
         CreditTerms? creditTerms;
-        if (!string.IsNullOrWhiteSpace(request.CreditTerms))
+        if (request.PaymentTermsId is int pickedTermsId)
+        {
+            paymentTerms = await termsResolver.RequireAsync(pickedTermsId, nameof(request.PaymentTermsId), cancellationToken);
+            if (!EarlyPaymentDiscount.MatchesDueDate(request.InvoiceDate, request.DueDate, paymentTerms.NetDays))
+                throw PaymentTermsResolver.Failure(nameof(request.DueDate), PaymentTermsResolver.DueDateCode,
+                    $"Due date must be {paymentTerms.NetDays} days after the invoice date for {paymentTerms.Name} terms.");
+            creditTerms = paymentTerms.LegacyCreditTerms;
+        }
+        else if (!string.IsNullOrWhiteSpace(request.CreditTerms))
         {
             if (!CreditTermsExtensions.TryParseLenient(request.CreditTerms, out var requestedTerms))
                 throw new ValidationException(CreditTermsExtensions.AllowedValuesMessage);
             creditTerms = requestedTerms;
+            paymentTerms = await termsResolver.ForLegacyAsync(requestedTerms, cancellationToken);
         }
         else
         {
+            var inheritedTerms = request.SalesOrderId is not null && (salesOrderTermsId is not null || salesOrderTerms is not null)
+                ? await termsResolver.EffectiveAsync(salesOrderTermsId, salesOrderTerms, cancellationToken)
+                : await termsResolver.EffectiveAsync(customer.PaymentTermsId, customer.DefaultCreditTerms, cancellationToken);
+            paymentTerms = inheritedTerms is not null
+                && EarlyPaymentDiscount.MatchesDueDate(request.InvoiceDate, request.DueDate, inheritedTerms.NetDays)
+                    ? inheritedTerms
+                    : null;
             var inherited = salesOrderTerms ?? customer.DefaultCreditTerms;
-            creditTerms = inherited is { } terms && terms.MatchesDueDate(request.InvoiceDate, request.DueDate)
-                ? terms
-                : null;
+            creditTerms = paymentTerms is not null
+                ? paymentTerms.LegacyCreditTerms
+                : inherited is { } terms && terms.MatchesDueDate(request.InvoiceDate, request.DueDate)
+                    ? terms
+                    : null;
         }
 
         // Propagate CustomerPO from the sourcing SO when the caller didn't
@@ -278,6 +303,8 @@ public class CreateInvoiceHandler(
             Notes = request.Notes,
             CustomerPO = customerPo,
         };
+        if (paymentTerms is not null)
+            PaymentTermsResolver.Stamp(invoice, paymentTerms);
 
         var lineNumber = 1;
         foreach (var line in request.Lines)
@@ -338,7 +365,10 @@ public class CreateInvoiceHandler(
                 Amount: total,
                 Date: invoice.InvoiceDate,
                 CurrencyCode: currency.IsFunctional ? null : currency.Code,
-                ExchangeRate: currency.IsFunctional ? null : currency.FxRate);
+                ExchangeRate: currency.IsFunctional ? null : currency.FxRate,
+                Terms: paymentTerms is null
+                    ? null
+                    : new AccountingTerms(paymentTerms.Name, paymentTerms.NetDays, paymentTerms.HasDiscount ? paymentTerms.DiscountPercent : 0m, paymentTerms.HasDiscount ? paymentTerms.DiscountDays : 0));
             await syncQueue.EnqueueAsync("Invoice", invoice.Id, "CreateInvoice",
                 JsonSerializer.Serialize(document), cancellationToken);
         }
@@ -354,7 +384,8 @@ public class CreateInvoiceHandler(
             invoice.Id, invoice.InvoiceNumber, invoice.CustomerId, customer.Name,
             invoice.Status.ToString(), invoice.InvoiceDate, invoice.DueDate,
             total, 0, total, invoice.CreatedAt, currencyCode,
-            invoice.CurrencyId, invoice.FxRate, FxMath.ToFunctional(total, invoice.FxRate));
+            invoice.CurrencyId, invoice.FxRate, FxMath.ToFunctional(total, invoice.FxRate),
+            invoice.PaymentTermsId, invoice.DiscountPercent, invoice.DiscountDueDate);
     }
 
     private async Task<SalesTaxRateResponseModel?> ResolveJurisdictionAsync(CreateInvoiceCommand request, CancellationToken ct)

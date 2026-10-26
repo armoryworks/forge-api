@@ -28,7 +28,7 @@ public class VendorBillsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new CreateVendorBillCommand(
             request.VendorId, request.VendorInvoiceNumber, request.PurchaseOrderId,
             request.BillDate, request.DueDate, request.TaxAmount, request.Notes, request.Lines,
-            CurrencyId: request.CurrencyId, FxRate: request.FxRate));
+            CurrencyId: request.CurrencyId, FxRate: request.FxRate, PaymentTermsId: request.PaymentTermsId));
         return CreatedAtAction(nameof(VendorBillReadsController.GetVendorBill), "VendorBillReads", new { id = result.Id }, result);
     }
 
@@ -39,6 +39,17 @@ public class VendorBillsController(IMediator mediator) : ControllerBase
     [HttpGet("billable-accounts")]
     public async Task<ActionResult<List<BillableGlAccountModel>>> GetBillableAccounts(CancellationToken ct)
         => Ok(await mediator.Send(new GetBillableGlAccountsQuery(), ct));
+
+    /// <summary>
+    /// The payment run: approved bills due by <paramref name="dueThrough"/> (default the pay date) or with an
+    /// early-payment discount still open on <paramref name="payDate"/>, each with the suggested cash and discount.
+    /// </summary>
+    [HttpGet("payment-suggestions")]
+    [RequiresCapability("CAP-P2P-PAY")]
+    public async Task<ActionResult<List<VendorPaymentSuggestionModel>>> GetPaymentSuggestions(
+        [FromQuery] DateTimeOffset payDate, [FromQuery] DateTimeOffset? dueThrough, [FromQuery] int? vendorId,
+        [FromQuery] int? currencyId, CancellationToken ct)
+        => Ok(await mediator.Send(new Features.VendorPayments.GetVendorPaymentSuggestionsQuery(payDate, dueThrough, vendorId, currencyId), ct));
 
     [HttpPost("{id:int}/approve")]
     public async Task<IActionResult> ApproveVendorBill(int id)

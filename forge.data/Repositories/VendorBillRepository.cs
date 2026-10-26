@@ -4,7 +4,9 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
+using Forge.Data.Services;
 
 namespace Forge.Data.Repositories;
 
@@ -38,6 +40,8 @@ public class VendorBillRepository(AppDbContext db) : IVendorBillRepository
             .ToList();
         var failedPaymentIds = await GetFailedLatestTransmissionPaymentIdsAsync(paymentIds, ct);
 
+        var discounts = await DiscountSettings.ReadAsync(db, ct);
+
         var currencyIds = bills.Select(b => b.CurrencyId).Distinct().ToList();
         var currencyCodes = await db.Currencies.AsNoTracking()
             .Where(c => currencyIds.Contains(c.Id))
@@ -53,7 +57,15 @@ public class VendorBillRepository(AppDbContext db) : IVendorBillRepository
             b.CurrencyId,
             currencyCodes.GetValueOrDefault(b.CurrencyId),
             b.FxRate,
-            b.FxRate == 1m ? b.Total : Math.Round(b.Total * b.FxRate, 2, MidpointRounding.AwayFromZero))).ToList();
+            b.FxRate == 1m ? b.Total : Math.Round(b.Total * b.FxRate, 2, MidpointRounding.AwayFromZero),
+            b.PaymentTermsId,
+            b.DiscountPercent,
+            b.DiscountDueDate,
+            EarlyPaymentDiscount.Deadline(b.DiscountDueDate, discounts.GraceDays),
+            b.DiscountsTaken,
+            b.BalanceDue > 0m
+                ? Math.Max(0m, EarlyPaymentDiscount.Maximum(discounts.BaseIsSubtotal ? Money.Round(b.Subtotal) : b.Total, b.DiscountPercent) - b.DiscountsTaken)
+                : 0m)).ToList();
     }
 
     public async Task<bool> HasFailedTransmissionAsync(IReadOnlyCollection<int> vendorPaymentIds, CancellationToken ct)

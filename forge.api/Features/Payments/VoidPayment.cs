@@ -76,9 +76,9 @@ public class VoidPaymentHandler(
                 .FirstOrDefaultAsync(i => i.Id == invoiceId, cancellationToken);
             if (invoice is null) continue;
 
-            invoice.Status = invoice.AmountPaid <= 0
+            invoice.Status = invoice.AmountPaid + invoice.DiscountsTaken <= 0
                 ? invoice.DueDate < now ? InvoiceStatus.Overdue : InvoiceStatus.Sent
-                : invoice.AmountPaid >= invoice.Total ? InvoiceStatus.Paid : InvoiceStatus.PartiallyPaid;
+                : invoice.BalanceDue <= 0 ? InvoiceStatus.Paid : InvoiceStatus.PartiallyPaid;
         }
 
         if (affectedInvoiceIds.Count > 0)

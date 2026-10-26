@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Validation;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
@@ -35,7 +36,8 @@ public record CreateCustomerCommand(
     string? Fax = null,
     string? DefaultCreditTerms = null,
     int? CurrencyId = null,
-    FreightTerms? FreightTerms = null) : IRequest<CustomerListItemModel>;
+    FreightTerms? FreightTerms = null,
+    int? PaymentTermsId = null) : IRequest<CustomerListItemModel>;
 
 public class CreateCustomerValidator : AbstractValidator<CreateCustomerCommand>
 {
@@ -142,6 +144,13 @@ public class CreateCustomerHandler(
             FreightTerms = request.FreightTerms,
         };
         await PartyCurrency.ApplyToCustomerAsync(db, customer, request.CurrencyId, request.DefaultCurrency, clear: false, cancellationToken);
+        var (termsAsked, paymentTerms, legacyTerms) = await new TermsChoice(request.PaymentTermsId, request.DefaultCreditTerms, false)
+            .ResolveAsync(new PaymentTermsResolver(db), null, nameof(request.PaymentTermsId), cancellationToken);
+        if (termsAsked)
+        {
+            customer.PaymentTermsId = paymentTerms?.Id;
+            customer.DefaultCreditTerms = legacyTerms;
+        }
 
         if (request.BillingAddress is not null)
             customer.Addresses.Add(MapAddress(request.BillingAddress, AddressType.Billing, label: "Billing"));
