@@ -444,6 +444,7 @@ try
     builder.Services.AddScoped<IDepreciationService, Forge.Api.Features.Accounting.DepreciationService>();
     // §7A conversion — opening-balance journal at go-live (Source=Conversion).
     builder.Services.AddScoped<IConversionService, Forge.Api.Features.Accounting.ConversionService>();
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.StockLoads.IStockLoadService, Forge.Api.Features.Accounting.StockLoads.StockLoadService>();
     // Phase-5 — payroll GL foundation (pay-run + payroll journal; tax-calc is a separate spike).
     builder.Services.AddScoped<IPayrollService, Forge.Api.Features.Accounting.PayrollService>();
     // Phase-4b — period-end unrealized FX revaluation of the net foreign monetary position.

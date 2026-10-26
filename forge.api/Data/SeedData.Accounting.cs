@@ -153,6 +153,7 @@ public static partial class SeedData
 
             // ── Equity (3xxxx) ──────────────────────────────────────────────
             ("30000", "Retained Earnings",           AccountType.Equity,    NormalBalance.Credit, false, null,                         "RETAINED_EARNINGS"),
+            ("39000", "Opening Balance Equity",      AccountType.Equity,    NormalBalance.Credit, false, null,                         "OPENING_BALANCE_EQUITY"),
             ("39990", "Cumulative Translation Adj.", AccountType.Equity,    NormalBalance.Credit, false, null,                         "CTA"),
             ("39999", "Rounding",                    AccountType.Equity,    NormalBalance.Credit, false, null,                         "ROUNDING"),
 
@@ -604,6 +605,7 @@ public static partial class SeedData
         ("NET_PAY_PAYABLE", "26400", "Net Pay Payable", AccountType.Liability, NormalBalance.Credit),
         ("WAGE_EXPENSE", "66000", "Wages", AccountType.Expense, NormalBalance.Debit),
         ("EMPLOYER_PAYROLL_TAX_EXPENSE", "66100", "Employer Payroll Tax", AccountType.Expense, NormalBalance.Debit),
+        ("OPENING_BALANCE_EQUITY", "39000", "Opening Balance Equity", AccountType.Equity, NormalBalance.Credit),
     ];
 
     internal static async Task EnsureDeterminationAccountsAsync(AppDbContext db)

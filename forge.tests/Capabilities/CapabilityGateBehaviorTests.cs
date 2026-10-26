@@ -20,6 +20,9 @@ public class CapabilityGateBehaviorTests
 
     private sealed record UngatedRequest : IRequest<int>;
 
+    [RequiresAnyCapability("CAP-ACCT-MIGRATION", "CAP-ACCT-FULLGL")]
+    private sealed record AnyGatedRequest : IRequest<int>;
+
     private sealed class StubSnapshotProvider(IReadOnlyDictionary<string, bool> state)
         : ICapabilitySnapshotProvider
     {
@@ -98,5 +101,23 @@ public class CapabilityGateBehaviorTests
         Assert.Contains("\"code\":\"capability-disabled\"", json);
         Assert.Contains("\"capability\":\"CAP-EXT-AI-ASSISTANT\"", json);
         Assert.Contains("\"errors\":", json);
+    }
+
+    [Fact]
+    public async Task Any_Gated_Request_Passes_When_One_Capability_Is_Enabled_And_Throws_When_None_Is()
+    {
+        var oneOn = new CapabilityGateBehavior<AnyGatedRequest, int>(new StubSnapshotProvider(
+            new Dictionary<string, bool>(StringComparer.Ordinal)
+            {
+                ["CAP-ACCT-MIGRATION"] = false,
+                ["CAP-ACCT-FULLGL"] = true,
+            }));
+        Assert.Equal(7, await oneOn.Handle(new AnyGatedRequest(), _ => Task.FromResult(7), CancellationToken.None));
+
+        var noneOn = new CapabilityGateBehavior<AnyGatedRequest, int>(new StubSnapshotProvider(
+            new Dictionary<string, bool>(StringComparer.Ordinal)));
+        var ex = await Assert.ThrowsAsync<CapabilityDisabledException>(() =>
+            noneOn.Handle(new AnyGatedRequest(), _ => Task.FromResult(7), CancellationToken.None));
+        Assert.Equal("CAP-ACCT-MIGRATION", ex.Capability);
     }
 }

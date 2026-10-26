@@ -58,6 +58,26 @@ public sealed class InventoryValuationService(AppDbContext db) : IInventoryValua
         return relievedValue;
     }
 
+    public async Task ReverseReceiptAsync(
+        int bookId, int partId, decimal quantity, decimal totalCost, CancellationToken ct = default)
+    {
+        if (quantity <= 0m)
+            return;
+
+        var row = await db.InventoryValuations
+            .FirstOrDefaultAsync(v => v.BookId == bookId && v.PartId == partId, ct)
+            ?? throw new InvalidOperationException(
+                $"No inventory valuation row for part {partId} in book {bookId} to take the receipt back out of.");
+
+        row.OnHandQuantity -= quantity;
+        row.TotalValue -= totalCost;
+        if (row.OnHandQuantity == 0m)
+            row.TotalValue = 0m;
+        row.AverageUnitCost = row.OnHandQuantity != 0m ? Math.Round(row.TotalValue / row.OnHandQuantity, 6) : 0m;
+
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task<IReadOnlyList<InventoryValuationModel>> GetAsync(int bookId, CancellationToken ct = default)
     {
         return await db.InventoryValuations
@@ -120,6 +140,16 @@ public sealed class InventoryValuationService(AppDbContext db) : IInventoryValua
             .GroupBy(r => AccountFor(StoreKeyFor(r.InventoryClass)))
             .ToDictionary(g => g.Key ?? 0, g => g.Sum(r => r.TotalValue));
 
+        var valuationOnlyRows = await db.InventoryStockLoadLines.AsNoTracking()
+            .Where(l => l.StockLoad.BookId == bookId
+                && l.StockLoad.Status == StockLoadStatus.Posted
+                && l.StockLoad.GlMode == StockLoadGlMode.ValuationOnly)
+            .Select(l => new { l.Part.InventoryClass, l.ExtendedValue })
+            .ToListAsync(ct);
+        var valuationOnlyByAccount = valuationOnlyRows
+            .GroupBy(r => AccountFor(StoreKeyFor(r.InventoryClass)) ?? 0)
+            .ToDictionary(g => g.Key, g => g.Sum(r => r.ExtendedValue));
+
         var storeValue = storeRows.Sum(r => r.TotalValue);
         var glInventory = glLines.Sum(l => l.Amount);
         var glWip = glLines.Where(l => l.GlAccountId == wipAccountId).Sum(l => l.Amount);
@@ -134,12 +164,19 @@ public sealed class InventoryValuationService(AppDbContext db) : IInventoryValua
             accountLines.Add(new InventoryReconciliationAccountLine(account.AccountNumber, account.Name, accountStore, accountGl));
 
             var explained = 0m;
+            var openingCover = valuationOnlyByAccount.GetValueOrDefault(account.Id);
             foreach (var source in lines
                 .Where(l => !FeedsStore(l.SourceType))
                 .GroupBy(l => l.SourceType ?? l.Source.ToString())
                 .OrderBy(g => g.Key))
             {
                 var amount = source.Sum(l => l.Amount);
+                if (openingCover > 0m && amount > 0m && OpeningSourceTypes.Contains(source.Key))
+                {
+                    var covered = Math.Min(openingCover, amount);
+                    openingCover -= covered;
+                    amount -= covered;
+                }
                 if (amount == 0m)
                     continue;
                 explained -= amount;
@@ -188,7 +225,18 @@ public sealed class InventoryValuationService(AppDbContext db) : IInventoryValua
     private static readonly HashSet<string> StoreFedSourceTypes = new(StringComparer.Ordinal)
     {
         "Receipt", "ProductionRun", "MaterialIssue", "Invoice", "CycleCountLine", "ScanCount", "ScanCountReversal", "InterPlantTransferLine",
-        "NonConformance",
+        "NonConformance", StockLoadSourceType, StockLoadVoidSourceType,
+    };
+
+    /// <summary>Journal source type of a posted opening stock load (store-fed).</summary>
+    internal const string StockLoadSourceType = "StockLoad";
+
+    /// <summary>Journal source type of a voided opening stock load's counter-entry (store-fed).</summary>
+    internal const string StockLoadVoidSourceType = "StockLoadVoid";
+
+    private static readonly HashSet<string> OpeningSourceTypes = new(StringComparer.Ordinal)
+    {
+        "OpeningJournal", "OpeningBalance",
     };
 
     private static bool FeedsStore(string? sourceType) => sourceType is not null && StoreFedSourceTypes.Contains(sourceType);

@@ -25,7 +25,15 @@ public sealed class ConversionService(
         var alreadyPosted = await db.JournalEntries.IgnoreQueryFilters().AsNoTracking()
             .AnyAsync(e => e.BookId == model.BookId && e.IdempotencyKey == idempotencyKey, ct);
         if (!alreadyPosted)
+        {
+            await OpeningInventoryGuard.EnsureNoInventoryLinesAsync(
+                db,
+                model.BookId,
+                model.Lines.Where(l => l.GlAccountId is not null).Select(l => l.GlAccountId!.Value),
+                model.Lines.Where(l => l.GlAccountId is null && l.AccountDeterminationKey is not null).Select(l => l.AccountDeterminationKey!),
+                ct);
             await ConversionOpenItems.ValidateDocumentNumbersAsync(db, model.Lines, ct);
+        }
 
         var request = new PostingRequest
         {

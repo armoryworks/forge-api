@@ -87,6 +87,13 @@ public class ImportOpeningJournalHandler(
                 "Create them in the chart of accounts (or fix the CSV) before importing.");
         }
 
+        var idempotencyKey = $"Conversion:Book:{request.BookId}:OPENING";
+        var alreadyPosted = await db.JournalEntries.IgnoreQueryFilters().AsNoTracking()
+            .AnyAsync(e => e.BookId == request.BookId && e.IdempotencyKey == idempotencyKey, cancellationToken);
+        if (!alreadyPosted)
+            await OpeningInventoryGuard.EnsureNoInventoryLinesAsync(
+                db, request.BookId, accountIdByNumber.Values, [], cancellationToken);
+
         var entry = await postingEngine.PostAsync(
             new PostingRequest
             {
@@ -97,7 +104,7 @@ public class ImportOpeningJournalHandler(
                 CurrencyId = request.CurrencyId,
                 Memo = $"Opening balances as of {request.AsOfDate:yyyy-MM-dd} (§7A conversion)",
                 // Non-Manual sources REQUIRE a key (§5.1); one key per book makes the import idempotent.
-                IdempotencyKey = $"Conversion:Book:{request.BookId}:OPENING",
+                IdempotencyKey = idempotencyKey,
                 Lines = request.Lines.Select(l => new PostingLine
                 {
                     GlAccountId = accountIdByNumber[l.AccountNumber.Trim()],

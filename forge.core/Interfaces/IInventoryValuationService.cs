@@ -14,6 +14,12 @@ public interface IInventoryValuationService
     /// <summary>Relieves quantity at the running average; returns the relieved value (the COGS basis).</summary>
     Task<decimal> ApplyIssueAsync(int bookId, int partId, decimal quantity, CancellationToken ct = default);
 
+    /// <summary>
+    /// Takes a receipt back out at the value it came in at (a voided opening stock load), so the store and the
+    /// reversing journal move by the same amount; recomputes the running average.
+    /// </summary>
+    Task ReverseReceiptAsync(int bookId, int partId, decimal quantity, decimal totalCost, CancellationToken ct = default);
+
     Task<IReadOnlyList<InventoryValuationModel>> GetAsync(int bookId, CancellationToken ct = default);
 
     /// <summary>Ties the store total to the GL inventory-control balance (§9).</summary>

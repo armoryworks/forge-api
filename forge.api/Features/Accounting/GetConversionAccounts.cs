@@ -9,9 +9,10 @@ namespace Forge.Api.Features.Accounting;
 
 /// <summary>
 /// §7A conversion read: the book's active postable accounts that the opening journal can post without a
-/// sub-ledger party — inventory control accounts included, AR/AP-style control accounts left out (their
-/// opening open items carry a customer or vendor and load through the opening-balances import) — for the
-/// opening-journal line picker. Reachable under
+/// sub-ledger party — AR/AP-style control accounts left out (their opening open items carry a customer or
+/// vendor and load through the opening-balances import) — for the opening-journal line picker. Inventory control
+/// accounts are listed with <c>IsInventoryControl</c> set so the screen can flag them: the journal refuses them
+/// and their opening value loads as a costed stock load. Reachable under
 /// <c>CAP-ACCT-MIGRATION</c> because the regular chart-of-accounts read needs the GL view, which is
 /// normally still off at cutover.
 /// </summary>
@@ -37,6 +38,7 @@ public class GetConversionAccountsHandler(AppDbContext db)
                 a.NormalBalance,
                 a.IsPostable,
                 a.IsControlAccount,
+                a.ControlType,
                 a.RequiresJob,
                 a.RequiresCostCenter,
             })
@@ -45,7 +47,8 @@ public class GetConversionAccountsHandler(AppDbContext db)
         return rows
             .Select(a => new GlAccountModel(
                 a.Id, a.AccountNumber, a.Name, a.AccountType.ToString(), a.NormalBalance.ToString(),
-                a.IsPostable, a.IsControlAccount, a.RequiresJob, a.RequiresCostCenter))
+                a.IsPostable, a.IsControlAccount, a.RequiresJob, a.RequiresCostCenter,
+                a.IsControlAccount && a.ControlType == ControlAccountType.Inventory))
             .ToList();
     }
 }
