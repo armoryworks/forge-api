@@ -23,7 +23,7 @@ public class UpdateCreditMemoValidator : AbstractValidator<UpdateCreditMemoComma
     }
 }
 
-/// <summary>Edits a draft credit memo's reason, date, tax rate, notes and lines.</summary>
+/// <summary>Edits a draft credit memo's reason, date, tax rate, notes and lines; any other status is a conflict (409).</summary>
 public class UpdateCreditMemoHandler(AppDbContext db, IMediator mediator)
     : IRequestHandler<UpdateCreditMemoCommand, CreditMemoDetailResponseModel>
 {
@@ -32,7 +32,7 @@ public class UpdateCreditMemoHandler(AppDbContext db, IMediator mediator)
         var memo = await CreditMemoRules.LoadMemoAsync(db, request.Id, ct)
             ?? throw new KeyNotFoundException($"Credit memo {request.Id} not found");
         if (memo.Status != CreditMemoStatus.Draft)
-            throw CreditMemoRules.Failure("Id", CreditMemoRules.CreditMemoNotDraftCode,
+            throw new InvalidOperationException(
                 $"Credit memo {memo.CreditMemoNumber} is {memo.Status}; only a draft can be edited.");
 
         var data = request.Data;

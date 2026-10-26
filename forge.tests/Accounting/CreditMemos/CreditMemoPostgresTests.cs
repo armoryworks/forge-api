@@ -26,7 +26,16 @@ public sealed class CreditMemoPostgresTests(PostgresFixture fixture)
         int customerId, invoiceId, paymentId;
         await using (var db = fixture.CreateContext())
         {
-            var currencyId = await db.Currencies.Select(c => c.Id).FirstAsync();
+            var currency = await db.Currencies.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Code == "XTS");
+            if (currency is null)
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    "SELECT setval(pg_get_serial_sequence('currencies', 'id'), COALESCE(MAX(id), 0) + 1, false) FROM currencies");
+                currency = new Currency { Code = "XTS", Name = "Testing currency", Symbol = "¤", DecimalPlaces = 2, IsActive = true };
+                db.Currencies.Add(currency);
+                await db.SaveChangesAsync();
+            }
+            var currencyId = currency.Id;
             var customer = new Customer { Name = $"Credit {suffix}" };
             db.Customers.Add(customer);
             await db.SaveChangesAsync();

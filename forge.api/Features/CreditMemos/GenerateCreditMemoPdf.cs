@@ -8,7 +8,7 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.CreditMemos;
 
-public record GenerateCreditMemoPdfQuery(int Id) : IRequest<byte[]>;
+public record GenerateCreditMemoPdfQuery(int Id, string? Language = null) : IRequest<byte[]>;
 
 public class GenerateCreditMemoPdfHandler(AppDbContext db, ISystemSettingRepository settings)
     : IRequestHandler<GenerateCreditMemoPdfQuery, byte[]>
@@ -27,6 +27,7 @@ public class GenerateCreditMemoPdfHandler(AppDbContext db, ISystemSettingReposit
 
         var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct);
         var money = await MoneyFormat.ForCurrencyIdAsync(db, memo.CurrencyId, await MoneyFormat.BaseCodeAsync(settings, ct), ct);
-        return new CreditMemoPdfDocument(memo, companyName, money).GeneratePdf();
+        var language = await DocumentLanguage.ResolveAsync(db, request.Language, ct);
+        return new CreditMemoPdfDocument(memo, companyName, money, CreditMemoPdfLabels.For(language)).GeneratePdf();
     }
 }

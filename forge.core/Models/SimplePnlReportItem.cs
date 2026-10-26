@@ -8,4 +8,5 @@ public record SimplePnlReportItem(
 {
     public const string InvoiceBasis = "Invoice";
     public const string LedgerBasis = "Ledger";
+    public const string OtherIncomeType = "OtherIncome";
 }

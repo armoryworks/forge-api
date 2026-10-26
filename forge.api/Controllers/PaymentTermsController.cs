@@ -9,8 +9,9 @@ using Forge.Core.Models;
 namespace Forge.Api.Controllers;
 
 /// <summary>
-/// The payment terms master (Net 30, 2/10 Net 30, ...). Any signed-in user can read the list for the terms
-/// pickers on customers, vendors, orders, invoices and bills; the finance roles maintain it.
+/// The payment terms master (Net 30, 2/10 Net 30, ...). The finance, purchasing and accounting roles read the list
+/// for the terms pickers on customers, vendors, orders, invoices and bills (a PM never sees payment terms; the
+/// server applies the customer's terms to the PM's quotes and orders); the finance roles maintain it.
 /// </summary>
 [ApiController]
 [Route("api/v1/payment-terms")]
@@ -19,6 +20,7 @@ namespace Forge.Api.Controllers;
 public class PaymentTermsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
+    [Authorize(Roles = "Admin,Manager,OfficeManager,Procurement,Controller")]
     public async Task<ActionResult<List<PaymentTermResponseModel>>> GetPaymentTerms([FromQuery] bool includeInactive = false)
         => Ok(await mediator.Send(new GetPaymentTermsQuery(includeInactive)));
 

@@ -81,19 +81,16 @@ public class CustomerStatementPdfDocument(
                     // WU-15 / RPT-CUSTSTMT-001: column widths previously summed
                     // to 520pt fixed plus a relative column on a Letter page
                     // with 50pt horizontal margins (~512pt content area).
-                    // QuestPDF threw DocumentLayoutException ("conflicting size
-                    // constraints") for every customer with invoices. Tighten
-                    // the fixed columns so the table fits with the relative
-                    // Status column intact.
                     table.ColumnsDefinition(cols =>
                     {
-                        cols.ConstantColumn(70);   // Invoice #
-                        cols.ConstantColumn(60);   // Date
-                        cols.ConstantColumn(60);   // Due Date
-                        cols.RelativeColumn();      // Status
-                        cols.ConstantColumn(72);   // Total
-                        cols.ConstantColumn(72);   // Paid
-                        cols.ConstantColumn(72);   // Balance
+                        cols.ConstantColumn(60);
+                        cols.ConstantColumn(60);
+                        cols.ConstantColumn(60);
+                        cols.RelativeColumn();
+                        cols.ConstantColumn(62);
+                        cols.ConstantColumn(62);
+                        cols.ConstantColumn(62);
+                        cols.ConstantColumn(62);
                     });
 
                     table.Header(header =>
@@ -104,6 +101,7 @@ public class CustomerStatementPdfDocument(
                         header.Cell().Background("#f0f0f0").Padding(4).Text("Status").Bold().FontSize(9);
                         header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Total").Bold().FontSize(9);
                         header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Paid").Bold().FontSize(9);
+                        header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Discounts / credits").Bold().FontSize(9);
                         header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Balance").Bold().FontSize(9);
                     });
 
@@ -116,6 +114,7 @@ public class CustomerStatementPdfDocument(
                         var money = InvoiceMoney(inv);
                         table.Cell().Padding(4).AlignRight().Text(money.Format(inv.Total)).FontSize(9);
                         table.Cell().Padding(4).AlignRight().Text(money.Format(inv.AmountPaid)).FontSize(9);
+                        table.Cell().Padding(4).AlignRight().Text(money.Format(inv.DiscountsTaken + inv.CreditsApplied)).FontSize(9);
                         table.Cell().Padding(4).AlignRight().Text(money.Format(inv.BalanceDue)).FontSize(9);
                     }
                 });

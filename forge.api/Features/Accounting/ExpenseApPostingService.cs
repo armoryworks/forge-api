@@ -74,6 +74,16 @@ public interface IExpenseApPostingService
     /// <param name="reimbursedByUserId">Server-trusted actor (recorded as PostedBy).</param>
     /// <param name="reimbursedOn">The payout date, used as the entry date.</param>
     Task PostExpenseReimbursedAsync(int expenseId, int reimbursedByUserId, DateOnly reimbursedOn, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reverses the approval journal of an expense leaving approved status (rejected, sent back for revision or
+    /// re-opened), when CAP-ACCT-FULLGL is enabled, in the entry's own period. A no-op while the capability is off
+    /// and when no live approval entry exists (never posted, already reversed, or posted as a promoted bill). A
+    /// later re-approval posts a fresh approval entry.
+    /// </summary>
+    /// <param name="expenseId">The expense leaving approved status.</param>
+    /// <param name="reversedByUserId">Server-trusted actor (recorded as PostedBy).</param>
+    Task ReverseExpenseApprovedAsync(int expenseId, int reversedByUserId, CancellationToken ct = default);
 }
 
 /// <inheritdoc />
@@ -234,7 +244,7 @@ public sealed class ExpenseApPostingService(
 
         // ── Idempotency key (§5.2): source:type:id:purpose. AP/EXPENSE for an
         // expense; a re-approve returns the existing entry (no throw, no dup).
-        var idempotencyKey = $"{JournalSource.AP}:Expense:{expense.Id}:EXPENSE";
+        var idempotencyKey = await ApprovalKeyAsync(book.Id, expense.Id, ct);
 
         var request = new PostingRequest
         {
@@ -260,6 +270,46 @@ public sealed class ExpenseApPostingService(
             CreditLegLabel(settlesToAp, owedToEmployee), approvedByUserId, ct);
     }
 
+    public async Task ReverseExpenseApprovedAsync(int expenseId, int reversedByUserId, CancellationToken ct = default)
+    {
+        if (!capabilities.IsEnabled(FullGlCapability))
+            return;
+
+        var entries = await LiveApprovalEntries(expenseId)
+            .Where(e => e.ReversedByEntryId == null)
+            .Select(e => new { e.Id, e.EntryDate })
+            .ToListAsync(ct);
+        foreach (var entry in entries)
+            await postingEngine.ReverseAsSystemAsync(
+                entry.Id, entry.EntryDate, $"Expense EXP-{expenseId} left approved status", reversedByUserId, ct);
+    }
+
+    private IQueryable<JournalEntry> LiveApprovalEntries(int expenseId)
+        => db.JournalEntries.IgnoreQueryFilters()
+            .Where(e => e.Source == JournalSource.AP
+                && e.SourceType == "Expense"
+                && e.SourceId == expenseId
+                && e.IdempotencyKey != null && e.IdempotencyKey.EndsWith(":EXPENSE")
+                && e.Status == JournalEntryStatus.Posted);
+
+    /// <summary>
+    /// The approval entry's idempotency key: <c>AP:Expense:{id}:EXPENSE</c> the first time, and
+    /// <c>AP:Expense:{id}:R{n}:EXPENSE</c> after <c>n</c> earlier approvals were reversed, so a re-approval posts.
+    /// </summary>
+    private async Task<string> ApprovalKeyAsync(int bookId, int expenseId, CancellationToken ct)
+    {
+        var reversed = await db.JournalEntries.IgnoreQueryFilters()
+            .CountAsync(e => e.BookId == bookId
+                && e.Source == JournalSource.AP
+                && e.SourceType == "Expense"
+                && e.SourceId == expenseId
+                && e.IdempotencyKey != null && e.IdempotencyKey.EndsWith(":EXPENSE")
+                && e.Status == JournalEntryStatus.Reversed, ct);
+        return reversed == 0
+            ? $"{JournalSource.AP}:Expense:{expenseId}:EXPENSE"
+            : $"{JournalSource.AP}:Expense:{expenseId}:R{reversed}:EXPENSE";
+    }
+
     private static string CreditLegKey(bool settlesToAp, bool owedToEmployee)
         => settlesToAp ? KeyApControl : owedToEmployee ? KeyEmployeeReimbursement : KeyCash;
 
@@ -272,10 +322,11 @@ public sealed class ExpenseApPostingService(
         if (!capabilities.IsEnabled(FullGlCapability))
             return;
 
-        var approvalKey = $"{JournalSource.AP}:Expense:{expenseId}:EXPENSE";
-        var approval = await db.JournalEntries.AsNoTracking()
+        var approval = await LiveApprovalEntries(expenseId)
+            .AsNoTracking()
             .Include(e => e.Lines)
-            .FirstOrDefaultAsync(e => e.IdempotencyKey == approvalKey && e.Status == JournalEntryStatus.Posted, ct);
+            .OrderByDescending(e => e.Id)
+            .FirstOrDefaultAsync(ct);
         if (approval is null)
             return;
 

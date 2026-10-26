@@ -31,7 +31,9 @@ namespace Forge.Api.Features.Accounting;
 /// invoice for a marketplace-facilitator order
 /// (<see cref="SalesOrder.TaxCollectedBy"/> = Marketplace) is counted but
 /// contributes zero: the platform collects and remits that tax, so it is never
-/// the seller's payable.</para>
+/// the seller's payable. Its tax is reported apart as
+/// <see cref="SalesTaxLiabilityReport.MarketplaceCollectedTax"/> so the report still
+/// ties to what was posted.</para>
 ///
 /// <para>Jurisdiction = the order's ship-to state (customer shipping address,
 /// else the frozen retail ship-to), else the customer's default shipping
@@ -74,6 +76,7 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db, ICapabilitySnapshotPro
             .ToDictionary(g => g.Key ?? string.Empty, g => (Base: g.Sum(c => c.Base), Tax: g.Sum(c => c.Tax)));
 
         var rows = new List<SalesTaxLiabilityJurisdictionRow>();
+        var marketplaceTax = 0m;
 
         foreach (var group in contributions.GroupBy(c => NormalizeJurisdiction(c.Invoice.State)))
         {
@@ -92,7 +95,10 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db, ICapabilitySnapshotPro
                 invoiceCount++;
 
                 if (invoice.MarketplaceCollected)
+                {
+                    marketplaceTax += tax;
                     continue;
+                }
 
                 taxableBase += direction * ToFunctional(TaxableSubtotal(invoice), invoice.FxRate);
                 liability += tax;
@@ -140,6 +146,7 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db, ICapabilitySnapshotPro
             TotalTaxableBase = rows.Sum(r => r.TaxableBase),
             TotalLiability = rows.Sum(r => r.Liability),
             TotalInvoiceCount = rows.Sum(r => r.InvoiceCount),
+            MarketplaceCollectedTax = marketplaceTax,
         };
     }
 
