@@ -31,6 +31,12 @@ public class GetNcrByIdHandler(AppDbContext db)
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => $"{u.LastName}, {u.FirstName}", cancellationToken);
 
+        var vendorReturn = await db.VendorReturns.AsNoTracking()
+            .Where(r => r.NonConformanceId == n.Id)
+            .OrderByDescending(r => r.Id)
+            .Select(r => new { r.Id, r.ReturnNumber, r.Status })
+            .FirstOrDefaultAsync(cancellationToken);
+
         return new NcrResponseModel
         {
             Id = n.Id,
@@ -75,6 +81,9 @@ public class GetNcrByIdHandler(AppDbContext db)
             VendorName = n.Vendor?.CompanyName,
             CreatedAt = n.CreatedAt,
             RowVersion = n.Version,
+            VendorReturnId = vendorReturn?.Id,
+            VendorReturnNumber = vendorReturn?.ReturnNumber,
+            VendorReturnStatus = vendorReturn?.Status,
         };
     }
 }

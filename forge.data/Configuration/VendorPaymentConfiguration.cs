@@ -50,5 +50,11 @@ public class VendorPaymentConfiguration : IEntityTypeConfiguration<VendorPayment
             .HasForeignKey(e => e.CurrencyId)
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(e => e.CurrencyId);
+
+        builder.HasOne<PaymentRun>()
+            .WithMany()
+            .HasForeignKey(e => e.PaymentRunId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasIndex(e => e.PaymentRunId);
     }
 }

@@ -194,6 +194,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<CreditMemo> CreditMemos => Set<CreditMemo>();
     public DbSet<CreditMemoLine> CreditMemoLines => Set<CreditMemoLine>();
     public DbSet<CreditMemoApplication> CreditMemoApplications => Set<CreditMemoApplication>();
+    public DbSet<VendorCreditMemo> VendorCreditMemos => Set<VendorCreditMemo>();
+    public DbSet<VendorCreditMemoLine> VendorCreditMemoLines => Set<VendorCreditMemoLine>();
+    public DbSet<VendorCreditMemoApplication> VendorCreditMemoApplications => Set<VendorCreditMemoApplication>();
+    public DbSet<VendorReturn> VendorReturns => Set<VendorReturn>();
+    public DbSet<VendorReturnLine> VendorReturnLines => Set<VendorReturnLine>();
+    public DbSet<PaymentRun> PaymentRuns => Set<PaymentRun>();
+    public DbSet<PaymentRunItem> PaymentRunItems => Set<PaymentRunItem>();
+    public DbSet<PaymentRunCredit> PaymentRunCredits => Set<PaymentRunCredit>();
     public DbSet<CustomerRefund> CustomerRefunds => Set<CustomerRefund>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChatRoom> ChatRooms => Set<ChatRoom>();

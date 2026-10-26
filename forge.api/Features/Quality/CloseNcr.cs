@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.VendorCredits;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -21,6 +22,8 @@ public class CloseNcrValidator : AbstractValidator<CloseNcrCommand>
 
 public class CloseNcrHandler(AppDbContext db) : IRequestHandler<CloseNcrCommand>
 {
+    public const string VendorReturnOpenCode = "vendor-return-open";
+
     public async Task Handle(CloseNcrCommand command, CancellationToken cancellationToken)
     {
         var ncr = await db.NonConformances
@@ -31,7 +34,16 @@ public class CloseNcrHandler(AppDbContext db) : IRequestHandler<CloseNcrCommand>
             throw new InvalidOperationException(
                 $"NCR {ncr.NcrNumber} is {ncr.Status}; only a Dispositioned NCR can be closed.");
 
+        if (await db.VendorReturns.AnyAsync(r => r.NonConformanceId == ncr.Id && r.Status == VendorReturnStatus.Open, cancellationToken))
+            throw VendorCreditMemoRules.Failure("Id", VendorReturnOpenCode,
+                $"NCR {ncr.NcrNumber} has a return to vendor that has not shipped. Ship the return before closing the NCR.");
+
         ncr.Status = NcrStatus.Closed;
+
+        foreach (var credited in await db.VendorReturns
+                     .Where(r => r.NonConformanceId == ncr.Id && r.Status == VendorReturnStatus.Credited)
+                     .ToListAsync(cancellationToken))
+            credited.Status = VendorReturnStatus.Closed;
 
         var notes = command.Request.Notes?.Trim();
         db.LogActivityAt(

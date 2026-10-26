@@ -92,11 +92,14 @@ public class VendorBill : BaseAuditableEntity, IConcurrencyVersioned
     /// <summary>Early-payment discounts taken by the payments applied to this bill.</summary>
     public decimal DiscountsTaken => PaymentApplications.Sum(pa => pa.DiscountAmount);
 
+    /// <summary>Vendor credit memo amounts applied to this bill and not unapplied.</summary>
+    public decimal CreditsApplied => CreditApplications.Where(a => a.ReversedAt == null).Sum(a => a.Amount);
+
     /// <summary>
     /// What is still owed, quantized to the cent (the AP mirror of <see cref="Invoice.BalanceDue"/>). The raw
     /// difference is rounded, not the total alone, so a legacy bill paid at its raw sub-cent total reads 0.
     /// </summary>
-    public decimal BalanceDue => Money.Round(Total - AmountPaid - DiscountsTaken);
+    public decimal BalanceDue => Money.Round(Total - AmountPaid - DiscountsTaken - CreditsApplied);
 
     public Vendor Vendor { get; set; } = null!;
     public Currency Currency { get; set; } = null!;
@@ -104,4 +107,5 @@ public class VendorBill : BaseAuditableEntity, IConcurrencyVersioned
     public Expense? Expense { get; set; }
     public ICollection<VendorBillLine> Lines { get; set; } = [];
     public ICollection<VendorPaymentApplication> PaymentApplications { get; set; } = [];
+    public ICollection<VendorCreditMemoApplication> CreditApplications { get; set; } = [];
 }

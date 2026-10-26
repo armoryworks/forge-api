@@ -84,6 +84,7 @@ public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorReposit
             EarlyPaymentDiscount.Deadline(bill.DiscountDueDate, discounts.GraceDays),
             bill.DiscountsTaken,
             bill.BalanceDue > 0m ? EarlyPaymentDiscountRules.RemainingMaximum(bill, discounts) : 0m,
-            db is null ? null : await new PaymentTermsResolver(db).ModelAsync(bill.PaymentTermsId, bill.CreditTerms, cancellationToken));
+            db is null ? null : await new PaymentTermsResolver(db).ModelAsync(bill.PaymentTermsId, bill.CreditTerms, cancellationToken),
+            bill.CreditsApplied);
     }
 }

@@ -18,6 +18,7 @@ public class VendorBillRepository(AppDbContext db) : IVendorBillRepository
         var query = db.VendorBills
             .Include(b => b.Lines)
             .Include(b => b.PaymentApplications)
+            .Include(b => b.CreditApplications)
             .AsQueryable();
 
         if (vendorId is int vid)
@@ -65,7 +66,8 @@ public class VendorBillRepository(AppDbContext db) : IVendorBillRepository
             b.DiscountsTaken,
             b.BalanceDue > 0m
                 ? Math.Max(0m, EarlyPaymentDiscount.Maximum(discounts.BaseIsSubtotal ? Money.Round(b.Subtotal) : b.Total, b.DiscountPercent) - b.DiscountsTaken)
-                : 0m)).ToList();
+                : 0m,
+            b.CreditsApplied)).ToList();
     }
 
     public async Task<bool> HasFailedTransmissionAsync(IReadOnlyCollection<int> vendorPaymentIds, CancellationToken ct)
@@ -102,6 +104,7 @@ public class VendorBillRepository(AppDbContext db) : IVendorBillRepository
             .Include(b => b.Lines).ThenInclude(l => l.PurchaseOrderLine)
             .Include(b => b.Lines).ThenInclude(l => l.GlAccount)
             .Include(b => b.PaymentApplications)
+            .Include(b => b.CreditApplications)
             .FirstOrDefaultAsync(b => b.Id == id, ct);
 
     public async Task<VendorBillPurchaseOrderRefs> GetPurchaseOrderRefsAsync(

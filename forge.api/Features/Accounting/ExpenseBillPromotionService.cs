@@ -181,6 +181,7 @@ public sealed class ExpenseBillPromotionService(
     {
         var bill = await db.VendorBills
             .Include(b => b.PaymentApplications)
+            .Include(b => b.CreditApplications)
             .FirstOrDefaultAsync(b => b.ExpenseId == expenseId && b.Status != VendorBillStatus.Void, ct);
         if (bill is null)
             return;
@@ -191,6 +192,10 @@ public sealed class ExpenseBillPromotionService(
             throw new InvalidOperationException(
                 $"Expense EXP-{expenseId} cannot leave approved status: its promoted bill {bill.BillNumber} "
                 + "has vendor payment(s) applied. Void the payment(s) first.");
+        if (bill.CreditApplications.Any(a => a.ReversedAt == null))
+            throw new InvalidOperationException(
+                $"Expense EXP-{expenseId} cannot leave approved status: its promoted bill {bill.BillNumber} "
+                + "has vendor credits applied. Unapply them first.");
 
         bill.Status = VendorBillStatus.Void;
 

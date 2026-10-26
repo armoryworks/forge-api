@@ -125,6 +125,7 @@ public static partial class SeedData
             ("11000", "Accounts Receivable",         AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.AR,        "AR_CONTROL"),
             ("12000", "Prepaid Expenses",            AccountType.Asset,     NormalBalance.Debit,  false, null,                         "PREPAID_EXPENSE"),
             ("12500", "Marketplace Reserves Held",   AccountType.Asset,     NormalBalance.Debit,  false, null,                         "MARKETPLACE_RESERVE"),
+            ("12600", "Vendor Returns Clearing",     AccountType.Asset,     NormalBalance.Debit,  false, null,                         "VENDOR_RETURN_CLEARING"),
             ("13100", "Inventory — Raw Materials",   AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.Inventory, "INVENTORY_RAW"),
             ("13200", "Inventory — Work in Process", AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.Inventory, "INVENTORY_WIP"),
             ("13250", "Inventory — Subassemblies",   AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.Inventory, "INVENTORY_SUBASSEMBLY"),
@@ -618,6 +619,7 @@ public static partial class SeedData
         ("SALES_DISCOUNTS", "41500", "Sales Discounts", AccountType.Income, NormalBalance.Debit),
         ("PURCHASE_DISCOUNTS", "50500", "Purchase Discounts", AccountType.Expense, NormalBalance.Credit),
         ("BAD_DEBT_EXPENSE", "69500", "Bad Debt Expense", AccountType.Expense, NormalBalance.Debit),
+        ("VENDOR_RETURN_CLEARING", "12600", "Vendor Returns Clearing", AccountType.Asset, NormalBalance.Debit),
     ];
 
     internal static async Task EnsureDeterminationAccountsAsync(AppDbContext db)

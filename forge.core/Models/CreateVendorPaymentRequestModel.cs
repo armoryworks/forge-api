@@ -29,3 +29,9 @@ public record CreateVendorPaymentApplicationModel(
     decimal? SettlementFxRate = null,
     decimal? DiscountAmount = null,
     bool AllowDiscountOverride = false);
+
+/// <summary>
+/// An open vendor credit memo to deduct with a payment: <c>Amount</c> of the memo is applied to the bill in the same
+/// transaction, before the cash.
+/// </summary>
+public record CreateVendorPaymentCreditModel(int VendorCreditMemoId, int VendorBillId, decimal Amount);

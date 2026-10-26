@@ -504,6 +504,10 @@ try
     builder.Services.AddScoped<Forge.Api.Features.Accounting.ICreditMemoPostingService,
                                Forge.Api.Features.Accounting.CreditMemoPostingService>();
     builder.Services.AddScoped<Forge.Api.Features.CreditMemos.CreditMemoIssuer>();
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IVendorCreditMemoPostingService,
+                               Forge.Api.Features.Accounting.VendorCreditMemoPostingService>();
+    builder.Services.AddScoped<Forge.Api.Features.VendorCredits.VendorCreditMemoIssuer>();
+    builder.Services.AddScoped<Forge.Api.Features.PaymentRuns.PaymentRunExecutor>();
     builder.Services.AddScoped<Forge.Api.Features.CreditMemos.CreditMemoRefundSync>();
     builder.Services.AddScoped<Forge.Api.Features.CustomerReturns.ReturnDispositionService>();
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IChannelSettlementPostingService,

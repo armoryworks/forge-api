@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.VendorCredits;
 using Forge.Api.Services;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -43,7 +44,8 @@ public class VoidVendorPaymentHandler(
     // Optional / null-default (mirrors CreateVendorPayment): production DI supplies both; with
     // CAP-ACCT-FULLGL off the posting service no-ops anyway.
     IVendorPaymentCashPostingService? cashPosting = null,
-    IHttpContextAccessor? httpContextAccessor = null)
+    IHttpContextAccessor? httpContextAccessor = null,
+    IVendorCreditMemoPostingService? creditPosting = null)
     : IRequestHandler<VoidVendorPaymentCommand>
 {
     public async Task Handle(VoidVendorPaymentCommand request, CancellationToken cancellationToken)
@@ -92,6 +94,18 @@ public class VoidVendorPaymentHandler(
             await cashPosting.ReverseVendorPaymentCreatedAsync(payment.Id, reason, userId, cancellationToken);
         }
 
+        var deductedCredits = await db.VendorCreditMemoApplications
+            .Where(a => a.VendorPaymentId == payment.Id && a.ReversedAt == null)
+            .Select(a => new { a.Id, a.VendorCreditMemoId })
+            .ToListAsync(cancellationToken);
+        foreach (var credit in deductedCredits)
+        {
+            var memo = await VendorCreditMemoRules.LoadMemoAsync(db, credit.VendorCreditMemoId, cancellationToken);
+            var application = memo?.Applications.FirstOrDefault(a => a.Id == credit.Id);
+            if (memo is not null && application is not null && creditPosting is not null)
+                await VendorCreditMemoApplicationReversal.ReverseAsync(db, creditPosting, memo, application, clock.UtcNow, cancellationToken);
+        }
+
         // Drop the applications so each bill's computed balance reopens.
         var affectedBillIds = payment.Applications.Select(a => a.VendorBillId).Distinct().ToList();
         var paymentMoney = await MoneyFormat.ForVendorPaymentAsync(db, payment.Id, cancellationToken);
@@ -121,13 +135,12 @@ public class VoidVendorPaymentHandler(
             var bill = await db.VendorBills
                 .Include(b => b.Lines)
                 .Include(b => b.PaymentApplications)
+                .Include(b => b.CreditApplications)
                 .FirstOrDefaultAsync(b => b.Id == billId, cancellationToken);
             if (bill is null) continue;
 
             if (bill.Status is VendorBillStatus.Paid or VendorBillStatus.PartiallyPaid)
-                bill.Status = bill.AmountPaid + bill.DiscountsTaken > 0
-                    ? VendorBillStatus.PartiallyPaid
-                    : VendorBillStatus.Approved;
+                VendorCreditMemoRules.PromoteBill(bill);
 
             var money = await MoneyFormat.ForCurrencyIdAsync(db, bill.CurrencyId, cancellationToken);
             db.LogActivityAt(

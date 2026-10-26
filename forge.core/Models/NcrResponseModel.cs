@@ -46,4 +46,11 @@ public record NcrResponseModel
     public string? VendorName { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
     public uint RowVersion { get; init; }
+
+    /// <summary>The return to vendor a Return To Vendor disposition opened, when there is one.</summary>
+    public int? VendorReturnId { get; init; }
+
+    public string? VendorReturnNumber { get; init; }
+
+    public VendorReturnStatus? VendorReturnStatus { get; init; }
 }
