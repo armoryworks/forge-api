@@ -78,9 +78,6 @@ public class CustomerStatementPdfDocument(
                 content.Item().Text("Invoices").FontSize(12).Bold();
                 content.Item().PaddingTop(5).Table(table =>
                 {
-                    // WU-15 / RPT-CUSTSTMT-001: column widths previously summed
-                    // to 520pt fixed plus a relative column on a Letter page
-                    // with 50pt horizontal margins (~512pt content area).
                     table.ColumnsDefinition(cols =>
                     {
                         cols.ConstantColumn(60);
