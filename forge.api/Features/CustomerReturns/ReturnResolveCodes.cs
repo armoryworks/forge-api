@@ -10,4 +10,5 @@ public static class ReturnResolveCodes
     public const string AlreadyDisposed = "return-already-disposed";
     public const string NoPart = "return-no-part";
     public const string CreditAmountRequired = "return-credit-amount-required";
+    public const string InvoiceHasDisposedReturn = "invoice-has-returns";
 }

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
@@ -15,7 +16,8 @@ namespace Forge.Api.Features.Accounting;
 /// and AP open items, which carry both the transaction and the booked functional amount). Settlement entries
 /// post in the functional currency, so the open items, not the control-account lines, are what still stands
 /// open in the foreign currency. An invoice or bill counts as open at the as-of date less only the payments
-/// applied on or before it, so a close run after a payment that came in the next period still revalues it.
+/// applied on or before it, so a close run after a payment that came in the next period still revalues it; a credit
+/// memo likewise counts as owed to the customer less only the applications and refunds made on or before it.
 /// A payment voided since has had its applications removed and no longer counts against the document.
 /// </summary>
 public sealed class FxRevaluationService(AppDbContext db, IPostingEngine postingEngine) : IFxRevaluationService
@@ -141,7 +143,11 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
                 i.OriginalTxnAmount, i.OriginalFunctionalAmount, i.AppliedTxnAmount, i.AppliedFunctionalAmount))
             .ToListAsync(ct);
 
-        var receivables = OpenAsOf(receivableItems, "Invoice", await InvoiceApplicationsAsync(bookId, receivableItems, ct), asOf);
+        var memoItems = receivableItems.Where(i => i.SourceType == CreditMemoPostingService.OpenItemSourceType).ToList();
+        var otherReceivables = receivableItems.Where(i => i.SourceType != CreditMemoPostingService.OpenItemSourceType).ToList();
+        var invoices = OpenAsOf(otherReceivables, "Invoice", await InvoiceApplicationsAsync(bookId, otherReceivables, asOfEnd, ct), asOf);
+        var credits = OpenAsOf(memoItems, CreditMemoPostingService.OpenItemSourceType, await CreditMemoSettlementsAsync(memoItems, asOfEnd, ct), asOf);
+        var receivables = (Foreign: invoices.Foreign + credits.Foreign, Functional: invoices.Functional + credits.Functional);
         var payables = OpenAsOf(payableItems, "VendorBill", await BillApplicationsAsync(payableItems, ct), asOf);
 
         return (
@@ -170,9 +176,9 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
             if (item.SourceType == documentSourceType)
             {
                 var amounts = applied.GetValueOrDefault(item.SourceId) ?? [];
-                foreign += item.OriginalTxn - amounts.Sum();
-                functional += item.OriginalFunctional
-                    - amounts.Sum(a => Math.Round(a * item.FxRate, 2, MidpointRounding.AwayFromZero));
+                foreign += item.Sign * (item.OriginalTxn - amounts.Sum());
+                functional += item.Sign * (item.OriginalFunctional
+                    - amounts.Sum(a => Math.Round(a * item.FxRate, 2, MidpointRounding.AwayFromZero)));
             }
             else if (item.Status is OpenItemStatus.Open or OpenItemStatus.PartiallyApplied)
             {
@@ -184,7 +190,7 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
     }
 
     private async Task<List<(int DocumentId, decimal Amount, DateOnly EffectiveDate)>> InvoiceApplicationsAsync(
-        int bookId, List<OpenItemRow> items, CancellationToken ct)
+        int bookId, List<OpenItemRow> items, DateTimeOffset asOfEnd, CancellationToken ct)
     {
         var invoiceIds = items.Where(i => i.SourceType == "Invoice").Select(i => i.SourceId).ToList();
         if (invoiceIds.Count == 0)
@@ -195,7 +201,7 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
             .Select(a => new { a.Id, a.InvoiceId, Amount = a.Amount + a.DiscountAmount, a.Payment.PaymentDate })
             .ToListAsync(ct);
         var credits = await db.CreditMemoApplications.AsNoTracking()
-            .Where(a => invoiceIds.Contains(a.InvoiceId) && a.ReversedAt == null)
+            .Where(a => invoiceIds.Contains(a.InvoiceId) && (a.ReversedAt == null || a.ReversedAt > asOfEnd))
             .Select(a => new { a.InvoiceId, a.Amount, a.AppliedAt })
             .ToListAsync(ct);
 
@@ -215,6 +221,32 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
                     ? applied
                     : DateOnly.FromDateTime(a.PaymentDate.UtcDateTime)))
             .Concat(credits.Select(c => (c.InvoiceId, c.Amount, DateOnly.FromDateTime(c.AppliedAt.UtcDateTime))))
+            .ToList();
+    }
+
+    /// <summary>
+    /// What used up each credit memo: its applications and refunds, each counted from its own date until it was
+    /// unapplied or voided, so a memo is open at the as-of date by exactly what was still unused that day.
+    /// </summary>
+    private async Task<List<(int DocumentId, decimal Amount, DateOnly EffectiveDate)>> CreditMemoSettlementsAsync(
+        List<OpenItemRow> items, DateTimeOffset asOfEnd, CancellationToken ct)
+    {
+        var memoIds = items.Select(i => i.SourceId).ToList();
+        if (memoIds.Count == 0)
+            return [];
+
+        var applications = await db.CreditMemoApplications.AsNoTracking()
+            .Where(a => memoIds.Contains(a.CreditMemoId) && (a.ReversedAt == null || a.ReversedAt > asOfEnd))
+            .Select(a => new { a.CreditMemoId, a.Amount, Date = a.AppliedAt })
+            .ToListAsync(ct);
+        var refunds = await db.CustomerRefunds.AsNoTracking()
+            .Where(r => r.CreditMemoId != null && memoIds.Contains(r.CreditMemoId.Value)
+                && (r.Status == CustomerRefundStatus.Recorded || r.VoidedAt > asOfEnd))
+            .Select(r => new { CreditMemoId = r.CreditMemoId!.Value, r.Amount, Date = r.RefundDate })
+            .ToListAsync(ct);
+
+        return applications.Concat(refunds)
+            .Select(x => (x.CreditMemoId, x.Amount, DateOnly.FromDateTime(x.Date.UtcDateTime)))
             .ToList();
     }
 
