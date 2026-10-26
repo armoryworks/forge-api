@@ -9,7 +9,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/cpq")]
-[Authorize]
+[Authorize(Roles = "Admin,Manager,OfficeManager")]
 [RequiresCapability("CAP-O2C-CPQ")]
 public class CpqController(IMediator mediator) : ControllerBase
 {
@@ -46,7 +46,6 @@ public class CpqController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("configure")]
-    [Authorize(Roles = "Admin,Manager,OfficeManager")]
     public async Task<ActionResult<CpqResult>> ConfigureProduct([FromBody] ConfigureProductRequestModel request)
     {
         var result = await mediator.Send(new ConfigureProductCommand(request));
@@ -54,7 +53,6 @@ public class CpqController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("validate")]
-    [Authorize(Roles = "Admin,Manager,OfficeManager")]
     public async Task<ActionResult<CpqValidationResponseModel>> ValidateSelections([FromBody] ConfigureProductRequestModel request)
     {
         var result = await mediator.Send(new ValidateSelectionsQuery(request));

@@ -9,6 +9,7 @@ using Forge.Api.Features.Replenishment;
 using Forge.Api.Features.SalesOrders.Acceptance;
 using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
+using Forge.Api.Middleware;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -245,6 +246,41 @@ public class ApproveMakeSuggestionTests
         (await TaskFor(makeA.Id)).Status.Should().Be(FollowUpStatus.Completed);
         (await TaskFor(buyB.Id)).Status.Should().Be(FollowUpStatus.Completed);
         (await TaskFor(noVendor.Id)).Status.Should().Be(FollowUpStatus.Open);
+    }
+
+    [Fact]
+    public async Task A_buyer_who_cannot_create_jobs_cannot_approve_a_make_suggestion()
+    {
+        await SeedTrackAsync();
+        var suggestion = await SeedSuggestionAsync("MAKE-BUYER", ProcurementSource.Make, 10m);
+
+        var act = () => ApproveHandler().Handle(new ApproveSuggestionCommand(suggestion.Id, 7, MayReleaseJobs: false), default);
+
+        await act.Should().ThrowAsync<ForbiddenException>();
+        suggestion.Status.Should().Be(ReorderSuggestionStatus.Pending);
+        (await _db.Jobs.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task A_buyer_who_cannot_create_jobs_bulk_approves_only_the_buys()
+    {
+        await SeedTrackAsync();
+        var vendor = new Vendor { CompanyName = "Steel Supply" };
+        _db.Vendors.Add(vendor);
+        await _db.SaveChangesAsync();
+        var make = await SeedSuggestionAsync("MAKE-C", ProcurementSource.Make, 10m);
+        var buy = await SeedSuggestionAsync("BUY-C", ProcurementSource.Buy, 5m, vendor.Id);
+
+        var result = await BulkHandler().Handle(
+            new ApproveBulkSuggestionsCommand([make.Id, buy.Id], 7, MayReleaseJobs: false), default);
+
+        result.ApprovedCount.Should().Be(1);
+        result.SkippedCount.Should().Be(1);
+        result.CreatedJobIds.Should().BeEmpty();
+        result.CreatedPoIds.Should().ContainSingle();
+        make.Status.Should().Be(ReorderSuggestionStatus.Pending);
+        (await _db.Jobs.AnyAsync()).Should().BeFalse();
+        (await TaskFor(make.Id)).Status.Should().Be(FollowUpStatus.Open);
     }
 
     [Fact]

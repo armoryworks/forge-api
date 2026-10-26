@@ -162,9 +162,16 @@ public sealed class ControllerRoleGateTests
     [InlineData("GET", "api/v1/pricing/resolve")]
     [InlineData("POST", "api/v1/cpq/configure")]
     [InlineData("POST", "api/v1/cpq/validate")]
+    [InlineData("GET", "api/v1/cpq/configurators")]
+    [InlineData("GET", "api/v1/cpq/configurators/{id:int}")]
+    [InlineData("POST", "api/v1/cpq/configurations")]
+    [InlineData("GET", "api/v1/cpq/configurations/{id:int}")]
+    [InlineData("POST", "api/v1/cpq/configurations/{id:int}/generate-quote")]
+    [InlineData("POST", "api/v1/cpq/configurations/{id:int}/generate-part")]
     public void Customer_prices_resolve_for_the_price_list_roles_only(string verb, string template)
     {
         EffectiveRoles(verb, template).Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager"], $"{verb} {template}");
+        EffectiveRoles(verb, template).Should().BeEquivalentTo(EffectiveRoles("GET", "api/v1/price-lists"));
     }
 
     [Theory]
