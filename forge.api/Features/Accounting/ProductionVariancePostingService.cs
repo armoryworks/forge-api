@@ -444,21 +444,8 @@ public sealed class ProductionVariancePostingService(
         return (laborStd, laborRateVar, laborActual, burden, subcontract);
     }
 
-    private async Task<decimal> GetJobWipBalanceAsync(int bookId, int wipAccountId, int jobId, CancellationToken ct)
-    {
-        // GL WIP balance for this job (debit-positive): material in + labor/OH absorbed − standard FG relieved.
-        var wipBalance = await
-            (from line in db.JournalLines.IgnoreQueryFilters()
-             join je in db.JournalEntries.IgnoreQueryFilters() on line.JournalEntryId equals je.Id
-             where je.BookId == bookId
-                 && line.GlAccountId == wipAccountId
-                 && line.JobId == jobId
-                 && (je.Status == JournalEntryStatus.Posted || je.Status == JournalEntryStatus.Reversed)
-             select line.Debit - line.Credit)
-            .SumAsync(ct);
-
-        return Math.Round(wipBalance, 2);
-    }
+    private Task<decimal> GetJobWipBalanceAsync(int bookId, int wipAccountId, int jobId, CancellationToken ct) =>
+        JobWipLedger.BalanceAsync(db, bookId, wipAccountId, jobId, ct);
 
     /// <summary>Adds a variance line for a signed amount: positive = unfavorable (debit), negative = favorable
     /// (credit), zero = nothing. (Job dimension is carried only on the WIP offset, not the P&amp;L variance.)</summary>

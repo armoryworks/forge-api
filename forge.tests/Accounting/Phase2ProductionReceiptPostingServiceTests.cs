@@ -8,6 +8,7 @@ using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
+using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
 using Forge.Integrations;
 using Forge.Tests.Helpers;
@@ -30,6 +31,7 @@ public class Phase2ProductionReceiptPostingServiceTests
     private const int InvWipId = 131;
     private const int InvFgId = 132;
     private const int InvSubId = 133;
+    private const int ProdVarianceId = 512;
 
     private static readonly DateOnly EntryDate = new(2026, 1, 15);
 
@@ -203,5 +205,80 @@ public class Phase2ProductionReceiptPostingServiceTests
         await Service(db, fullGlOn: true).PostProductionReceiptAsync(runId, EntryDate, receivedByUserId: 7);
 
         (await db.JournalEntries.IgnoreQueryFilters().AnyAsync()).Should().BeFalse();
+    }
+
+    private static async Task MapProductionVarianceAsync(AppDbContext db)
+    {
+        db.Set<GlAccount>().Add(new GlAccount { Id = ProdVarianceId, BookId = BookId, AccountNumber = "51200", Name = "Production Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true });
+        db.Set<AccountDeterminationRule>().Add(new AccountDeterminationRule { BookId = BookId, Key = "PRODUCTION_VARIANCE", GlAccountId = ProdVarianceId });
+        await db.SaveChangesAsync();
+    }
+
+    private static Task IssueMaterialToJobAsync(AppDbContext db, decimal amount) =>
+        Engine(db).PostAsSystemAsync(new PostingRequest
+        {
+            BookId = BookId,
+            EntryDate = EntryDate,
+            Source = JournalSource.Inventory,
+            SourceType = "MaterialIssue",
+            SourceId = 1,
+            CurrencyId = UsdId,
+            IdempotencyKey = $"test-issue-{Guid.NewGuid():N}",
+            Lines =
+            [
+                new PostingLine { AccountKey = "INVENTORY_WIP", Debit = amount, JobId = 555 },
+                new PostingLine { AccountKey = "INVENTORY_RAW", Credit = amount },
+            ],
+        }, 7);
+
+    private static Task<decimal> JobWipAsync(AppDbContext db) => JobWipLedger.BalanceAsync(db, BookId, InvWipId, 555, CancellationToken.None);
+
+    [Fact]
+    public async Task Receipt_StandardAboveJobCostToDate_RelievesOnlyTheJobsWip_AndCreditsTheRestToVariance()
+    {
+        using var db = await SeedAsync();
+        await MapProductionVarianceAsync(db);
+        await IssueMaterialToJobAsync(db, 864m);
+        var runId = await AddReceivedRunAsync(db, InventoryClass.FinishedGood, standardCost: 2.9m, receivedQty: 1940);
+
+        await Service(db, fullGlOn: true).PostProductionReceiptAsync(runId, EntryDate, receivedByUserId: 7);
+
+        var entry = await db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines).SingleAsync(e => e.SourceType == "ProductionRun");
+        entry.Lines.Single(l => l.GlAccountId == InvFgId).Debit.Should().Be(5626m);
+        entry.Lines.Single(l => l.GlAccountId == InvWipId).Credit.Should().Be(864m);
+        entry.Lines.Single(l => l.GlAccountId == ProdVarianceId).Credit.Should().Be(4762m);
+        (await JobWipAsync(db)).Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task Receipt_JobWipCoversTheStandard_RelievesTheFullStandard_WithNoVariance()
+    {
+        using var db = await SeedAsync();
+        await MapProductionVarianceAsync(db);
+        await IssueMaterialToJobAsync(db, 100m);
+        var runId = await AddReceivedRunAsync(db, InventoryClass.FinishedGood, standardCost: 12m, receivedQty: 5);
+
+        await Service(db, fullGlOn: true).PostProductionReceiptAsync(runId, EntryDate, receivedByUserId: 7);
+
+        var entry = await db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines).SingleAsync(e => e.SourceType == "ProductionRun");
+        entry.Lines.Single(l => l.GlAccountId == InvWipId).Credit.Should().Be(60m);
+        entry.Lines.Should().NotContain(l => l.GlAccountId == ProdVarianceId);
+        (await JobWipAsync(db)).Should().Be(40m);
+    }
+
+    [Fact]
+    public async Task Receipt_JobWithNoCostYet_CreditsTheWholeStandardToVariance_AndLeavesWipAtZero()
+    {
+        using var db = await SeedAsync();
+        await MapProductionVarianceAsync(db);
+        var runId = await AddReceivedRunAsync(db, InventoryClass.FinishedGood, standardCost: 12m, receivedQty: 5);
+
+        await Service(db, fullGlOn: true).PostProductionReceiptAsync(runId, EntryDate, receivedByUserId: 7);
+
+        var entry = await db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines).SingleAsync();
+        entry.Lines.Should().NotContain(l => l.GlAccountId == InvWipId);
+        entry.Lines.Single(l => l.GlAccountId == ProdVarianceId).Credit.Should().Be(60m);
+        entry.Lines.Single(l => l.GlAccountId == InvFgId).Debit.Should().Be(60m);
+        (await JobWipAsync(db)).Should().Be(0m);
     }
 }
