@@ -32,7 +32,9 @@ public class GeneratePackingSlipPdfHandler(
 
         var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct);
 
-        var document = new PackingSlipPdfDocument(shipment, companyName);
+        var customs = await ShipmentCustoms.LoadAsync(db, shipment, ct);
+
+        var document = new PackingSlipPdfDocument(shipment, companyName, customs);
         return document.GeneratePdf();
     }
 }

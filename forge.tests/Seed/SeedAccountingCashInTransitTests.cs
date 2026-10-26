@@ -94,8 +94,8 @@ public class SeedAccountingCashInTransitTests
         // The pre-existing rows were not touched; no extra chart rows appeared.
         var otherPatches = SeedData.PatchedDeterminationAccounts.Select(d => d.Number).ToArray();
         var otherKeys = SeedData.PatchedDeterminationAccounts.Select(d => d.Key).ToArray();
-        (await db.GlAccounts.CountAsync(a => !otherPatches.Contains(a.AccountNumber))).Should().Be(4, "the fixed-asset and disposal patches add 15000 and 91000");
-        (await db.AccountDeterminationRules.CountAsync(r => !otherKeys.Contains(r.Key))).Should().Be(4, "the fixed-asset and disposal patches add their keys");
+        (await db.GlAccounts.CountAsync(a => !otherPatches.Contains(a.AccountNumber))).Should().Be(6, "the fixed-asset, disposal and marketplace patches add 15000, 91000, 12500 and 61500");
+        (await db.AccountDeterminationRules.CountAsync(r => !otherKeys.Contains(r.Key))).Should().Be(6, "the fixed-asset, disposal and marketplace patches add their keys");
     }
 
     [Fact]

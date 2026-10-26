@@ -25,6 +25,8 @@ public class ShipDocumentComposer(AppDbContext db, IStorageService storage, ISys
             .Include(s => s.ShippingAddress)
             .Include(s => s.Invoice)
             .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine!).ThenInclude(sol => sol.Jobs)
+            .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine!).ThenInclude(sol => sol.Part)
+            .Include(s => s.Lines).ThenInclude(l => l.Part)
             .FirstOrDefaultAsync(s => s.Id == shipmentId, ct)
             ?? throw new KeyNotFoundException($"Shipment {shipmentId} not found");
 
@@ -60,8 +62,9 @@ public class ShipDocumentComposer(AppDbContext db, IStorageService storage, ISys
         var companyAddress = (await settings.FindByKeyAsync("company_address", ct))?.Value;
         var companyPhone = (await settings.FindByKeyAsync("company_phone", ct))?.Value;
 
+        var customs = await ShipmentCustoms.LoadAsync(db, shipment, ct);
         var pdf = new ShipDocumentPdfDocument(
-            shipment, labelPng, companyName, companyAddress, companyPhone, CarrierBadge.For(carrierKey)).GeneratePdf();
+            shipment, labelPng, companyName, companyAddress, companyPhone, CarrierBadge.For(carrierKey), customs).GeneratePdf();
 
         // Link the document to the shipment + its sales order + any jobs + the invoice (when present).
         var links = new List<DocumentLinkTarget> { new("SalesOrder", shipment.SalesOrderId) };

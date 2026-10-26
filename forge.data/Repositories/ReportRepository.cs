@@ -407,8 +407,10 @@ public class ReportRepository(AppDbContext db) : IReportRepository
                 && i.Status != Forge.Core.Enums.InvoiceStatus.Draft)
             .ToListAsync(ct);
 
-        var totalRevenue = invoices.Sum(i => i.Subtotal);
-        result.Add(new SimplePnlReportItem("Sales Revenue", "Revenue", totalRevenue));
+        var totalRevenue = invoices.Sum(i => i.FxRate == 1m
+            ? i.Subtotal
+            : Math.Round(i.Subtotal * i.FxRate, 2, MidpointRounding.AwayFromZero));
+        result.Add(new SimplePnlReportItem("Sales Revenue (invoice basis)", "Revenue", totalRevenue));
 
         // Expenses by category
         var rawExpenses = await db.Expenses

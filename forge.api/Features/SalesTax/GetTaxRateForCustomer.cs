@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Core.Constants;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -36,16 +37,19 @@ public class GetTaxRateForCustomerHandler(AppDbContext db, IClock clock)
                 return customerRate;
         }
 
-        var state = await db.CustomerAddresses
+        var address = await db.CustomerAddresses
             .Where(a => a.CustomerId == request.CustomerId)
             .OrderByDescending(a => a.IsDefault)
             .ThenByDescending(a => a.AddressType == AddressType.Billing || a.AddressType == AddressType.Both)
-            .Select(a => a.State)
+            .Select(a => new { a.State, a.Country })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(state))
+        if (!await IsDomesticAsync(address?.Country, cancellationToken))
+            return null;
+
+        if (!string.IsNullOrWhiteSpace(address?.State))
         {
-            var stateCode = state.Trim().ToUpper();
+            var stateCode = address.State.Trim().ToUpper();
             var stateRate = await Project(Prefer(effective.Where(r => r.StateCode == stateCode), exempt))
                 .FirstOrDefaultAsync(cancellationToken);
 
@@ -55,6 +59,22 @@ public class GetTaxRateForCustomerHandler(AppDbContext db, IClock clock)
 
         return await Project(Prefer(effective.Where(r => r.IsDefault), exempt))
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private async Task<bool> IsDomesticAsync(string? customerCountry, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(customerCountry))
+            return true;
+
+        var companyCountry = await db.CompanyLocations.AsNoTracking()
+            .Where(l => l.IsActive)
+            .OrderByDescending(l => l.IsDefault)
+            .ThenBy(l => l.Id)
+            .Select(l => l.Country)
+            .FirstOrDefaultAsync(ct);
+
+        return string.IsNullOrWhiteSpace(companyCountry)
+            || CountryCodes.Normalize(customerCountry) == CountryCodes.Normalize(companyCountry);
     }
 
     private static IQueryable<SalesTaxRate> Prefer(IQueryable<SalesTaxRate> rates, bool exempt)

@@ -243,10 +243,10 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     /// <summary>
     /// Sales-tax liability report — the seller sales-tax the business owes,
     /// aggregated by jurisdiction (ship-to US state) over an optional date range.
-    /// Read-only aggregate over sales orders; sums
-    /// <see cref="Forge.Core.Entities.SalesOrder.SellerTaxLiability"/> (never
-    /// <c>TaxAmount</c>), so marketplace-facilitator tax the platform remits is
-    /// excluded. Gated on <c>CAP-ACCT-GL-VIEW</c> like the aging reports.
+    /// Reads the tax each invoice posted to Sales Tax Payable when the built-in GL
+    /// is on (invoice basis otherwise), in functional currency; marketplace-facilitator
+    /// tax the platform remits is excluded. Gated on <c>CAP-ACCT-GL-VIEW</c> like the
+    /// aging reports.
     /// </summary>
     [HttpGet("sales-tax-liability")]
     public async Task<ActionResult<SalesTaxLiabilityReport>> GetSalesTaxLiability(

@@ -13,17 +13,20 @@ public class BillOfLadingPdfDocument : IDocument
     private readonly string? _companyName;
     private readonly string? _companyAddress;
     private readonly string? _companyPhone;
+    private readonly ShipmentCustoms? _customs;
 
     public BillOfLadingPdfDocument(
         Shipment shipment,
         string? companyName,
         string? companyAddress = null,
-        string? companyPhone = null)
+        string? companyPhone = null,
+        ShipmentCustoms? customs = null)
     {
         _shipment = shipment;
         _companyName = companyName;
         _companyAddress = companyAddress;
         _companyPhone = companyPhone;
+        _customs = customs;
     }
 
     public void Compose(IDocumentContainer container)
@@ -147,6 +150,14 @@ public class BillOfLadingPdfDocument : IDocument
                 col.Item().PaddingTop(6);
             }
 
+            if (_customs is not null)
+            {
+                col.Item()
+                    .Text($"INTERNATIONAL SHIPMENT {_customs.ShipFromCountry} TO {_customs.ShipToCountry} — HTS code and country of origin shown under each article.")
+                    .SemiBold().FontSize(8);
+                col.Item().PaddingTop(4);
+            }
+
             // Items table
             col.Item().Table(table =>
             {
@@ -193,6 +204,13 @@ public class BillOfLadingPdfDocument : IDocument
                         desc.Item().Text(description);
                         if (hazmatClass is not null)
                             desc.Item().Text($"HAZMAT class {hazmatClass}").Bold().FontColor(Colors.Red.Darken2);
+                        if (_customs is not null)
+                        {
+                            var customs = _customs.For(line);
+                            desc.Item().Text(
+                                    $"HTS {ShipmentCustoms.Display(customs.HtsCode)} · Origin {ShipmentCustoms.Display(customs.CountryOfOrigin)}")
+                                .FontSize(8).FontColor(Colors.Grey.Darken2);
+                        }
                     });
                     table.Cell().Background(bg).Padding(5).Text(partNumber);
                     table.Cell().Background(bg).Padding(5).AlignRight().Text(line.Quantity.ToString());

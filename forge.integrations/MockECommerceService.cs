@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 using Microsoft.Extensions.Logging;
 
 using Forge.Core.Enums;
@@ -20,10 +22,16 @@ namespace Forge.Integrations;
 /// randomised, so a repeated poll returns the same external ids and the
 /// idempotent-replay path is actually exercised instead of minting new orders
 /// forever.</para>
+///
+/// <para>Settlements pay out the orders this connector has handed out, keyed by
+/// the same slug, so a settlement always references order ids an order import
+/// actually produced — whatever look-back each import uses.</para>
 /// </summary>
 public class MockECommerceService(ECommercePlatform platform, ILogger<MockECommerceService> logger)
     : IECommerceService
 {
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _issuedOrders = new(StringComparer.Ordinal);
+
     public ECommercePlatform Platform => platform;
 
     /// <summary>Marketplaces collect and remit tax; storefronts leave it with the seller.</summary>
@@ -39,6 +47,7 @@ public class MockECommerceService(ECommercePlatform platform, ILogger<MockEComme
         // Stable per (platform, UTC day) so repeated polls in a day replay the
         // same orders and exercise idempotency.
         var slug = $"{platform}-{since:yyyyMMdd}".ToUpperInvariant();
+        _issuedOrders.TryAdd(slug, since);
 
         var orders = new List<ECommerceOrder>
         {
@@ -137,48 +146,50 @@ public class MockECommerceService(ECommercePlatform platform, ILogger<MockEComme
             return Task.FromResult<IReadOnlyList<ECommerceSettlement>>([]);
         }
 
-        var slug = $"{platform}-{since:yyyyMMdd}".ToUpperInvariant();
-
-        IReadOnlyList<ECommerceSettlement> settlements =
-        [
-            new()
-            {
-                ExternalSettlementId = $"STL-{slug}",
-                PeriodStart = since,
-                PeriodEnd = since.AddDays(14),
-                DepositedAt = since.AddDays(16),
-                // 114.73 gross - 12.35 referral - 8.25 pass-through tax = 94.13
-                NetAmount = 94.13m,
-                CurrencyCode = "USD",
-                Lines =
-                [
-                    new ECommerceSettlementLine
-                    {
-                        LineType = ChannelSettlementLineType.OrderProceeds,
-                        ExternalOrderId = $"MOCK-{slug}-1",
-                        Amount = 114.73m,
-                        Description = "Order proceeds",
-                    },
-                    new ECommerceSettlementLine
-                    {
-                        LineType = ChannelSettlementLineType.ReferralFee,
-                        ExternalOrderId = $"MOCK-{slug}-1",
-                        Amount = -12.35m,
-                        Description = "Referral fee",
-                    },
-                    new ECommerceSettlementLine
-                    {
-                        LineType = ChannelSettlementLineType.TaxCollected,
-                        ExternalOrderId = $"MOCK-{slug}-1",
-                        Amount = -8.25m,
-                        Description = "Sales tax withheld and remitted by marketplace",
-                    },
-                ],
-            },
-        ];
+        IReadOnlyList<ECommerceSettlement> settlements = _issuedOrders
+            .Where(o => o.Value >= since)
+            .OrderBy(o => o.Value)
+            .Select(o => Settlement(o.Key, o.Value))
+            .ToList();
 
         return Task.FromResult(settlements);
     }
+
+    private static ECommerceSettlement Settlement(string slug, DateTimeOffset orderDate) =>
+        new()
+        {
+            ExternalSettlementId = $"STL-{slug}",
+            PeriodStart = orderDate,
+            PeriodEnd = orderDate.AddDays(14),
+            DepositedAt = orderDate.AddDays(16),
+            // 114.73 gross - 12.35 referral - 8.25 pass-through tax = 94.13
+            NetAmount = 94.13m,
+            CurrencyCode = "USD",
+            Lines =
+            [
+                new ECommerceSettlementLine
+                {
+                    LineType = ChannelSettlementLineType.OrderProceeds,
+                    ExternalOrderId = $"MOCK-{slug}-1",
+                    Amount = 114.73m,
+                    Description = "Order proceeds",
+                },
+                new ECommerceSettlementLine
+                {
+                    LineType = ChannelSettlementLineType.ReferralFee,
+                    ExternalOrderId = $"MOCK-{slug}-1",
+                    Amount = -12.35m,
+                    Description = "Referral fee",
+                },
+                new ECommerceSettlementLine
+                {
+                    LineType = ChannelSettlementLineType.TaxCollected,
+                    ExternalOrderId = $"MOCK-{slug}-1",
+                    Amount = -8.25m,
+                    Description = "Sales tax withheld and remitted by marketplace",
+                },
+            ],
+        };
 
     public Task SyncInventoryAsync(
         string credentials, string storeUrl, string externalListingId, decimal quantity, CancellationToken ct)

@@ -78,9 +78,7 @@ public class CreateSalesChannelHandler(AppDbContext db)
                 ?? (model.ChannelType == SalesChannelType.Marketplace
                     ? TaxCollectedBy.Marketplace
                     : TaxCollectedBy.Seller),
-            OrderNumberPrefix = string.IsNullOrWhiteSpace(model.OrderNumberPrefix)
-                ? null
-                : model.OrderNumberPrefix.Trim().ToUpperInvariant(),
+            OrderNumberPrefix = SalesChannel.NormalizeOrderNumberPrefix(model.OrderNumberPrefix),
             ECommerceIntegrationId = model.ECommerceIntegrationId,
             // Never auto-default. The default channel is established by seeding
             // and changed through an explicit set-default action, so creating a
