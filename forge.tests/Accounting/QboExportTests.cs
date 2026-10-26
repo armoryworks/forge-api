@@ -143,6 +143,8 @@ public class QboExportTests
 
         var ex = await act.Should().ThrowAsync<InvalidOperationException>();
         ex.Which.Message.Should().Contain("force=true").And.Contain("QBO-1");
+        ex.Which.Should().BeOfType<Forge.Api.Middleware.CodedConflictException>()
+            .Which.Code.Should().Be(PushQboJournalSummaryHandler.OverlapCode, "the client keys its force-confirm on this code");
         push.Pushes.Should().HaveCount(1, "the overlapping push must be blocked before reaching QuickBooks");
     }
 

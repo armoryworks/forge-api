@@ -48,7 +48,16 @@ public sealed class PayrollService(AppDbContext db, IPostingEngine postingEngine
             .Where(r => r.BookId == bookId)
             .OrderByDescending(r => r.PayDate).ThenByDescending(r => r.Id)
             .ToListAsync(ct);
-        return runs.Select(Map).ToList();
+        var entryIds = runs.Where(r => r.JournalEntryId is not null).Select(r => r.JournalEntryId!.Value).ToList();
+        var numbers = entryIds.Count == 0
+            ? new Dictionary<long, long>()
+            : await db.JournalEntries.IgnoreQueryFilters().AsNoTracking()
+                .Where(e => entryIds.Contains(e.Id))
+                .ToDictionaryAsync(e => e.Id, e => e.EntryNumber, ct);
+        return runs.Select(r => Map(r) with
+        {
+            JournalEntryNumber = r.JournalEntryId is long id && numbers.TryGetValue(id, out var number) ? number : null,
+        }).ToList();
     }
 
     public async Task<PayRunModel> PostPayRunAsync(int payRunId, int postedByUserId, CancellationToken ct = default)
@@ -63,18 +72,7 @@ public sealed class PayrollService(AppDbContext db, IPostingEngine postingEngine
             .Where(b => b.Id == run.BookId).Select(b => (int?)b.FunctionalCurrencyId).FirstOrDefaultAsync(ct)
             ?? throw new PostingException("NO_POSTING_BOOK", $"Book {run.BookId} not found for payroll.");
 
-        var lines = new List<PostingLine>
-        {
-            new() { AccountKey = KeyWageExpense, Debit = run.GrossWages, Description = "Gross wages" },
-            new() { AccountKey = KeyNetPayPayable, Credit = run.NetPay, Description = "Net pay payable" },
-        };
-        if (run.EmployeeTaxWithheld > 0m)
-            lines.Add(new PostingLine { AccountKey = KeyEmployeeTaxPayable, Credit = run.EmployeeTaxWithheld, Description = "Employee tax withheld" });
-        if (run.EmployerTax > 0m)
-        {
-            lines.Add(new PostingLine { AccountKey = KeyEmployerTaxExpense, Debit = run.EmployerTax, Description = "Employer payroll tax expense" });
-            lines.Add(new PostingLine { AccountKey = KeyEmployerTaxPayable, Credit = run.EmployerTax, Description = "Employer payroll tax payable" });
-        }
+        var lines = BuildJournalLines(run);
 
         var entry = await postingEngine.PostAsync(new PostingRequest
         {
@@ -93,6 +91,23 @@ public sealed class PayrollService(AppDbContext db, IPostingEngine postingEngine
         run.JournalEntryId = entry.Id;
         await db.SaveChangesAsync(ct);
         return Map(run);
+    }
+
+    internal static List<PostingLine> BuildJournalLines(PayRun run)
+    {
+        var lines = new List<PostingLine>
+        {
+            new() { AccountKey = KeyWageExpense, Debit = run.GrossWages, Description = "Gross wages" },
+            new() { AccountKey = KeyNetPayPayable, Credit = run.NetPay, Description = "Net pay payable" },
+        };
+        if (run.EmployeeTaxWithheld > 0m)
+            lines.Add(new PostingLine { AccountKey = KeyEmployeeTaxPayable, Credit = run.EmployeeTaxWithheld, Description = "Employee tax withheld" });
+        if (run.EmployerTax > 0m)
+        {
+            lines.Add(new PostingLine { AccountKey = KeyEmployerTaxExpense, Debit = run.EmployerTax, Description = "Employer payroll tax expense" });
+            lines.Add(new PostingLine { AccountKey = KeyEmployerTaxPayable, Credit = run.EmployerTax, Description = "Employer payroll tax payable" });
+        }
+        return lines;
     }
 
     private static PayRunModel Map(PayRun r) => new(

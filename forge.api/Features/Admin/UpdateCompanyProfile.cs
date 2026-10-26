@@ -1,5 +1,7 @@
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -11,7 +13,20 @@ public record UpdateCompanyProfileCommand(
     string? Phone,
     string? Email,
     string? Ein,
-    string? Website) : IRequest<CompanyProfileResponseModel>;
+    string? Website,
+    string? TimeZone = null) : IRequest<CompanyProfileResponseModel>;
+
+public class UpdateCompanyProfileValidator : AbstractValidator<UpdateCompanyProfileCommand>
+{
+    public UpdateCompanyProfileValidator()
+    {
+        RuleFor(x => x.TimeZone)
+            .Must(BookTimeZoneRules.IsKnownTimeZone)
+            .When(x => !string.IsNullOrWhiteSpace(x.TimeZone))
+            .WithMessage("The time zone is not a known IANA time zone.")
+            .WithErrorCode("time-zone-unknown");
+    }
+}
 
 public class UpdateCompanyProfileHandler(AppDbContext db)
     : IRequestHandler<UpdateCompanyProfileCommand, CompanyProfileResponseModel>
@@ -26,6 +41,7 @@ public class UpdateCompanyProfileHandler(AppDbContext db)
             ["company.email"] = request.Email,
             ["company.ein"] = request.Ein,
             ["company.website"] = request.Website,
+            [BookTimeZoneRules.CompanyTimeZoneKey] = request.TimeZone,
         };
 
         foreach (var (key, value) in settingMap)
@@ -50,6 +66,7 @@ public class UpdateCompanyProfileHandler(AppDbContext db)
                         "company.email" => "Main company email",
                         "company.ein" => "Federal tax identification number (EIN)",
                         "company.website" => "Company website URL",
+                        BookTimeZoneRules.CompanyTimeZoneKey => "Company time zone (IANA id); new books and the shop clock use it",
                         _ => null,
                     },
                 });
@@ -58,16 +75,6 @@ public class UpdateCompanyProfileHandler(AppDbContext db)
 
         await db.SaveChangesAsync(ct);
 
-        var all = await db.SystemSettings
-            .AsNoTracking()
-            .Where(s => s.Key.StartsWith("company."))
-            .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
-
-        return new CompanyProfileResponseModel(
-            Name: all.GetValueOrDefault("company.name", ""),
-            Phone: all.GetValueOrDefault("company.phone", ""),
-            Email: all.GetValueOrDefault("company.email", ""),
-            Ein: all.GetValueOrDefault("company.ein", ""),
-            Website: all.GetValueOrDefault("company.website", ""));
+        return await GetCompanyProfileHandler.ReadAsync(db, ct);
     }
 }

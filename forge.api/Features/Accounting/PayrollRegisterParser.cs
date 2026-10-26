@@ -59,24 +59,11 @@ public static class PayrollRegisterParser
         if (rows.Count < 2)
             return [];
 
-        var header = rows[0].Select(h => h.Trim()).ToList();
-        var headerLower = header.Select(h => h.ToLowerInvariant()).ToList();
-
-        // Per-category column index sets (a category may sum several columns).
-        var columns = new Dictionary<string, List<int>>();
-        foreach (var (category, synonyms) in AmountCategories)
-            columns[category] = ResolveColumns(header, headerLower, OverrideFor(overrides, category), synonyms);
-
-        var employeeColumns = ResolveColumns(header, headerLower, overrides?.Employee, EmployeeSynonyms);
+        var (columns, employeeColumns) = ResolveLayout(rows[0], overrides);
         if (employeeColumns.Count == 0 || columns["gross"].Count == 0)
             throw new InvalidOperationException(
                 "Register needs recognizable Employee and Gross columns (configure payroll.register.column.* "
                 + "overrides in Admin → Settings → Payroll if the provider uses unusual headers).");
-
-        // Employer-tax synonyms can collide with employee-side categories ("employer fica" contains
-        // "fica") — employer wins; remove its columns from the employee-side sets.
-        foreach (var (category, _) in AmountCategories.Where(c => c.Category != "employerTax"))
-            columns[category] = columns[category].Except(columns["employerTax"]).ToList();
 
         var parsed = new List<PayrollRegisterRow>();
         foreach (var row in rows.Skip(1))
@@ -101,6 +88,45 @@ public static class PayrollRegisterParser
         }
 
         return parsed;
+    }
+
+    public static IReadOnlyDictionary<string, IReadOnlyList<string>> DescribeColumns(
+        string contents, ColumnOverrides? overrides = null)
+    {
+        var rows = ReadCsv(contents);
+        if (rows.Count == 0)
+            return new Dictionary<string, IReadOnlyList<string>>();
+
+        var header = rows[0].Select(h => h.Trim()).ToList();
+        var (columns, employeeColumns) = ResolveLayout(rows[0], overrides);
+        var described = new Dictionary<string, IReadOnlyList<string>>
+        {
+            ["employee"] = employeeColumns.Select(i => header[i]).ToList(),
+        };
+        foreach (var (category, _) in AmountCategories)
+            described[category] = columns[category].Select(i => header[i]).ToList();
+        return described;
+    }
+
+    private static (Dictionary<string, List<int>> Columns, List<int> EmployeeColumns) ResolveLayout(
+        List<string> headerRow, ColumnOverrides? overrides)
+    {
+        var header = headerRow.Select(h => h.Trim()).ToList();
+        var headerLower = header.Select(h => h.ToLowerInvariant()).ToList();
+
+        // Per-category column index sets (a category may sum several columns).
+        var columns = new Dictionary<string, List<int>>();
+        foreach (var (category, synonyms) in AmountCategories)
+            columns[category] = ResolveColumns(header, headerLower, OverrideFor(overrides, category), synonyms);
+
+        var employeeColumns = ResolveColumns(header, headerLower, overrides?.Employee, EmployeeSynonyms);
+
+        // Employer-tax synonyms can collide with employee-side categories ("employer fica" contains
+        // "fica") — employer wins; remove its columns from the employee-side sets.
+        foreach (var (category, _) in AmountCategories.Where(c => c.Category != "employerTax"))
+            columns[category] = columns[category].Except(columns["employerTax"]).ToList();
+
+        return (columns, employeeColumns);
     }
 
     private static string? OverrideFor(ColumnOverrides? o, string category) => category switch

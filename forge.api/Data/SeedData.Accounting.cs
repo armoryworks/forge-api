@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums.Accounting;
@@ -97,7 +98,7 @@ public static partial class SeedData
             Code = "MAIN",
             Name = "Default Book",
             FunctionalCurrencyId = baseCurrency.Id,
-            ReportingTimeZone = "America/New_York",
+            ReportingTimeZone = await BookTimeZoneRules.CompanyTimeZoneAsync(db) ?? BookTimeZoneRules.FallbackTimeZone,
             // Smallest unit of the functional currency (e.g. 0.01 for USD).
             RoundingTolerance = baseCurrency.DecimalPlaces > 0
                 ? 1m / (decimal)Math.Pow(10, baseCurrency.DecimalPlaces)

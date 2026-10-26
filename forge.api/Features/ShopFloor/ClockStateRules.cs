@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -32,6 +33,14 @@ public static class ClockStateRules
             .FirstOrDefaultAsync(ct);
         if (TryFindTimeZone(plantZone) is { } plantTimeZone)
             return plantTimeZone;
+
+        var companyZone = await db.SystemSettings
+            .AsNoTracking()
+            .Where(s => s.Key == BookTimeZoneRules.CompanyTimeZoneKey)
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+        if (TryFindTimeZone(companyZone) is { } companyTimeZone)
+            return companyTimeZone;
 
         var bookZone = await db.Books
             .AsNoTracking()

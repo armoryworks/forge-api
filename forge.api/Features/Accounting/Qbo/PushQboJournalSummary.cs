@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Middleware;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
@@ -18,8 +19,8 @@ namespace Forge.Api.Features.Accounting.Qbo;
 /// with a nonzero net, build ONE balanced QuickBooks JournalEntry and deliver
 /// it through <see cref="IQboJournalPushService"/>. Each push is recorded in
 /// <see cref="QboExportLog"/>; re-pushing a range that overlaps an existing log
-/// row is idempotent-by-warning — it requires <c>Force</c> (else 409 via
-/// <see cref="InvalidOperationException"/>). QuickBooks is never the system of
+/// row is idempotent-by-warning — it requires <c>Force</c> (else 409 with code
+/// <see cref="PushQboJournalSummaryHandler.OverlapCode"/>). QuickBooks is never the system of
 /// record: nothing is read back. No per-entity activity log per GL-subsystem
 /// precedent (system-level operation; the QboExportLog row IS the audit trail).
 /// </summary>
@@ -36,6 +37,8 @@ public class PushQboJournalSummaryHandler(
     IQboJournalPushService pushService,
     IClock clock) : IRequestHandler<PushQboJournalSummaryCommand, QboPushResultModel>
 {
+    public const string OverlapCode = "qbo-push-overlap";
+
     public async Task<QboPushResultModel> Handle(
         PushQboJournalSummaryCommand request, CancellationToken cancellationToken)
     {
@@ -55,7 +58,8 @@ public class PushQboJournalSummaryHandler(
 
             if (overlap is not null)
             {
-                throw new InvalidOperationException(
+                throw new CodedConflictException(
+                    OverlapCode,
                     $"A QuickBooks push already covers {overlap.FromDate:yyyy-MM-dd}..{overlap.ToDate:yyyy-MM-dd} " +
                     $"(QBO doc {overlap.QboDocId}, pushed {overlap.PushedAt:yyyy-MM-dd}). " +
                     "Re-pushing an overlapping range would double-book in QuickBooks — retry with force=true " +

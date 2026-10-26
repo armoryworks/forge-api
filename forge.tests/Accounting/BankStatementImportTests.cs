@@ -275,4 +275,70 @@ public class BankStatementImportTests
         var act = () => service.ManualMatchAsync(line.Id, wrongLine.Id, userId: 1);
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*not on this statement's cash account*");
     }
+    [Fact]
+    public async Task Candidates_RankExactAmountFirst_SameDirectionOnly_WithinTheWindow()
+    {
+        var (db, service) = CreateHarness();
+        var near = await AddCashLineAsync(db, +745m, new DateOnly(2026, 6, 10), "short by fee");
+        var exact = await AddCashLineAsync(db, +750m, new DateOnly(2026, 6, 14), "exact");
+        await AddCashLineAsync(db, -750m, new DateOnly(2026, 6, 10), "wrong direction");
+        await AddCashLineAsync(db, +750m, new DateOnly(2026, 3, 1), "too old");
+        await service.ImportAsync(BookId, CashAccountId, "one.csv",
+            "Date,Description,Amount\n06/10/2026,DEPOSIT,750.00\n", userId: 1);
+        var line = await db.BankStatementLines.SingleAsync();
+
+        var candidates = await service.GetCandidatesAsync(line.Id, days: null, amountTolerance: null);
+
+        candidates.Select(c => c.JournalLineId).Should().Equal(exact.Id, near.Id);
+        candidates[0].AmountDifference.Should().Be(0m);
+        candidates[0].DaysApart.Should().Be(4);
+        candidates[0].Memo.Should().Be("exact");
+        candidates[1].AmountDifference.Should().Be(5m);
+        candidates[1].Amount.Should().Be(745m);
+    }
+
+    [Fact]
+    public async Task Candidates_HonourAmountToleranceAndDayWindow()
+    {
+        var (db, service) = CreateHarness();
+        await AddCashLineAsync(db, -118m, new DateOnly(2026, 6, 11));
+        var exact = await AddCashLineAsync(db, -120m, new DateOnly(2026, 6, 13));
+        await AddCashLineAsync(db, -120m, new DateOnly(2026, 6, 30));
+        await service.ImportAsync(BookId, CashAccountId, "one.csv",
+            "Date,Description,Amount\n06/11/2026,ACH,(120.00)\n", userId: 1);
+        var line = await db.BankStatementLines.SingleAsync();
+
+        var candidates = await service.GetCandidatesAsync(line.Id, days: 5, amountTolerance: 0m);
+
+        candidates.Should().ContainSingle().Which.JournalLineId.Should().Be(exact.Id);
+        candidates[0].Amount.Should().Be(-120m);
+    }
+
+    [Fact]
+    public async Task Candidates_SkipLinesClaimedElsewhereOrClearedInAFinalizedReconciliation()
+    {
+        var (db, service) = CreateHarness();
+        var claimed = await AddCashLineAsync(db, +500m, new DateOnly(2026, 6, 9));
+        var reconciled = await AddCashLineAsync(db, +500m, new DateOnly(2026, 6, 9));
+        var open = await AddCashLineAsync(db, +500m, new DateOnly(2026, 6, 10));
+        var rec = new BankReconciliation
+        {
+            BookId = BookId, CashGlAccountId = CashAccountId,
+            StatementDate = new DateOnly(2026, 5, 31), StatementEndingBalance = 500m,
+            Status = BankReconciliationStatus.Finalized,
+        };
+        rec.Items.Add(new BankReconciliationItem { JournalLineId = reconciled.Id, IsCleared = true });
+        db.Set<BankReconciliation>().Add(rec);
+        await db.SaveChangesAsync();
+        await service.ImportAsync(BookId, CashAccountId, "two.csv",
+            "Date,Description,Amount\n06/09/2026,FIRST,500.00\n06/10/2026,SECOND,500.00\n", userId: 1);
+        var lines = await db.BankStatementLines.OrderBy(l => l.PostedDate).ToListAsync();
+        await service.ManualMatchAsync(lines[0].Id, claimed.Id, userId: 1);
+
+        var candidates = await service.GetCandidatesAsync(lines[1].Id, days: null, amountTolerance: null);
+
+        candidates.Select(c => c.JournalLineId).Should().Equal(open.Id);
+        var act = () => service.GetCandidatesAsync(999_999, null, null);
+        await act.Should().ThrowAsync<KeyNotFoundException>();
+    }
 }

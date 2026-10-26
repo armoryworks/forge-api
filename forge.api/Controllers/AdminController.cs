@@ -460,9 +460,14 @@ public class AdminController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<CompanyProfileResponseModel>> UpdateCompanyProfile(CompanyProfileRequestModel request)
     {
         var result = await mediator.Send(new UpdateCompanyProfileCommand(
-            request.Name, request.Phone, request.Email, request.Ein, request.Website));
+            request.Name, request.Phone, request.Email, request.Ein, request.Website, request.TimeZone));
         return Ok(result);
     }
+
+    [HttpPost("company-profile/apply-time-zone-to-books")]
+    [CapabilityBootstrap]
+    public async Task<ActionResult<ApplyCompanyTimeZoneResultModel>> ApplyCompanyTimeZoneToBooks(CancellationToken ct)
+        => Ok(await mediator.Send(new ApplyCompanyTimeZoneToBooksCommand(), ct));
 
     // ── Labor Rates ──
 

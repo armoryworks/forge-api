@@ -10,6 +10,7 @@ using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Accounting;
 
@@ -37,7 +38,8 @@ public record CreateManualJournalEntryCommand(
     int CurrencyId,
     string? Memo,
     bool AllowSoftClosedOverride,
-    IReadOnlyList<CreateManualJournalLineModel> Lines)
+    IReadOnlyList<CreateManualJournalLineModel> Lines,
+    string? OverrideReason = null)
     : IRequest<ManualJournalEntryResult>;
 
 /// <summary>
@@ -89,6 +91,7 @@ public class CreateManualJournalEntryValidator : AbstractValidator<CreateManualJ
     {
         RuleFor(x => x.BookId).GreaterThan(0);
         RuleFor(x => x.CurrencyId).GreaterThan(0);
+        RuleFor(x => x.OverrideReason).MaximumLength(500);
         RuleFor(x => x.Lines)
             .NotEmpty().WithMessage("At least one line is required")
             .Must(lines => lines == null || lines.Count >= 2)
@@ -146,6 +149,20 @@ public class CreateManualJournalEntryHandler(
         var entry = requiresApproval
             ? await postingEngine.PostPendingAsync(postingRequest, postedByUserId, cancellationToken)
             : await postingEngine.PostAsync(postingRequest, postedByUserId, cancellationToken);
+
+        if (db is not null && request.AllowSoftClosedOverride && !string.IsNullOrWhiteSpace(request.OverrideReason))
+        {
+            var period = await db.FiscalPeriods.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == entry.FiscalPeriodId, cancellationToken);
+            if (period?.Status == FiscalPeriodStatus.SoftClosed)
+            {
+                db.LogActivityAt(
+                    "soft-close-override",
+                    $"Journal entry {entry.EntryNumber} posted into soft-closed period {period.Name}: {request.OverrideReason.Trim()}",
+                    ("Book", request.BookId));
+                await db.SaveChangesAsync(cancellationToken);
+            }
+        }
 
         return entry.ToManualResult();
     }

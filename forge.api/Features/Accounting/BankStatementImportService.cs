@@ -19,6 +19,10 @@ namespace Forge.Api.Features.Accounting;
 ///         (same signed amount, entry date within the configured window, not already claimed by
 ///         another statement line). Ambiguity stays Unmatched — a human resolves it; the matcher
 ///         never guesses.</item>
+///   <item><b>Candidates</b> list the Posted cash lines a human can match an unmatched line to: same
+///         direction, within ±<c>days</c> (default <see cref="DefaultCandidateWindowDays"/>) and, when given,
+///         ±<c>amountTolerance</c>; journal lines claimed by another statement line or cleared in a finalized
+///         reconciliation are left out. Ranked by amount difference, then days apart. One-to-one only.</item>
 ///   <item><b>Confirm</b> is the settlement attestation: it also flips the line's
 ///         <c>BankReconciliationItem.IsCleared</c> in any open Draft reconciliation of the same
 ///         cash account — this is how "Succeeded = submission accepted" payments get their actual
@@ -32,6 +36,7 @@ public interface IBankStatementImportService
     Task<IReadOnlyList<BankStatementLineModel>> GetLinesAsync(int importId, string? status, CancellationToken ct = default);
     Task<int> AutoMatchAsync(int importId, CancellationToken ct = default);
     Task<BankStatementLineModel> ConfirmAsync(long lineId, int userId, CancellationToken ct = default);
+    Task<IReadOnlyList<BankStatementMatchCandidateModel>> GetCandidatesAsync(long lineId, int? days, decimal? amountTolerance, CancellationToken ct = default);
     Task<BankStatementLineModel> ManualMatchAsync(long lineId, long journalLineId, int userId, CancellationToken ct = default);
     Task<BankStatementLineModel> IgnoreAsync(long lineId, CancellationToken ct = default);
     Task<BankStatementLineModel> UnmatchAsync(long lineId, CancellationToken ct = default);
@@ -43,6 +48,10 @@ public sealed class BankStatementImportService(
     ISettingsService settings,
     IClock clock) : IBankStatementImportService
 {
+    public const int DefaultCandidateWindowDays = 30;
+    public const int MaxCandidateWindowDays = 366;
+    public const int MaxCandidates = 50;
+
     public async Task<ImportBankStatementResultModel> ImportAsync(
         int bookId, int cashGlAccountId, string fileName, string contents, int userId, CancellationToken ct = default)
     {
@@ -213,6 +222,82 @@ public sealed class BankStatementImportService(
 
         await db.SaveChangesAsync(ct);
         return ToModel(line);
+    }
+
+    public async Task<IReadOnlyList<BankStatementMatchCandidateModel>> GetCandidatesAsync(
+        long lineId, int? days, decimal? amountTolerance, CancellationToken ct = default)
+    {
+        var line = await db.BankStatementLines.AsNoTracking()
+            .FirstOrDefaultAsync(l => l.Id == lineId, ct)
+            ?? throw new KeyNotFoundException($"Statement line {lineId} not found");
+
+        var window = Math.Clamp(days ?? DefaultCandidateWindowDays, 0, MaxCandidateWindowDays);
+        var minDate = line.PostedDate.AddDays(-window);
+        var maxDate = line.PostedDate.AddDays(window);
+        var moneyIn = line.Amount > 0m;
+
+        var rows = await db.JournalLines.AsNoTracking()
+            .Where(jl => jl.GlAccountId == line.CashGlAccountId
+                && jl.JournalEntry.Status == JournalEntryStatus.Posted
+                && jl.JournalEntry.EntryDate >= minDate
+                && jl.JournalEntry.EntryDate <= maxDate
+                && (moneyIn ? jl.Debit > 0m : jl.Credit > 0m))
+            .Select(jl => new
+            {
+                jl.Id,
+                jl.JournalEntryId,
+                jl.JournalEntry.EntryNumber,
+                jl.JournalEntry.EntryDate,
+                jl.JournalEntry.Memo,
+                jl.Description,
+                jl.JournalEntry.Source,
+                jl.JournalEntry.SourceType,
+                jl.FunctionalAmount,
+            })
+            .ToListAsync(ct);
+        if (rows.Count == 0)
+            return [];
+
+        var ids = rows.Select(r => r.Id).ToList();
+        var claimed = (await db.BankStatementLines.AsNoTracking()
+            .Where(l => l.Id != line.Id
+                && l.MatchedJournalLineId != null
+                && ids.Contains(l.MatchedJournalLineId.Value)
+                && (l.MatchStatus == BankStatementMatchStatus.Suggested
+                    || l.MatchStatus == BankStatementMatchStatus.Confirmed))
+            .Select(l => l.MatchedJournalLineId!.Value)
+            .ToListAsync(ct)).ToHashSet();
+        var reconciled = (await db.Set<BankReconciliationItem>().AsNoTracking()
+            .Where(i => ids.Contains(i.JournalLineId)
+                && i.IsCleared
+                && i.BankReconciliation.Status == BankReconciliationStatus.Finalized)
+            .Select(i => i.JournalLineId)
+            .ToListAsync(ct)).ToHashSet();
+
+        return rows
+            .Where(r => !claimed.Contains(r.Id) && !reconciled.Contains(r.Id))
+            .Select(r =>
+            {
+                var signed = moneyIn ? r.FunctionalAmount : -r.FunctionalAmount;
+                return new BankStatementMatchCandidateModel(
+                    r.Id,
+                    r.JournalEntryId,
+                    r.EntryNumber,
+                    r.EntryDate.ToString("yyyy-MM-dd"),
+                    signed,
+                    r.Memo,
+                    r.Description,
+                    r.Source.ToString(),
+                    r.SourceType,
+                    Math.Abs(r.EntryDate.DayNumber - line.PostedDate.DayNumber),
+                    Math.Abs(signed - line.Amount));
+            })
+            .Where(c => amountTolerance is not decimal tolerance || c.AmountDifference <= tolerance)
+            .OrderBy(c => c.AmountDifference)
+            .ThenBy(c => c.DaysApart)
+            .ThenBy(c => c.EntryNumber)
+            .Take(MaxCandidates)
+            .ToList();
     }
 
     public async Task<BankStatementLineModel> ManualMatchAsync(

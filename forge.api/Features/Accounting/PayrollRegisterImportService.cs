@@ -21,6 +21,8 @@ public interface IPayrollRegisterImportService
     Task<PayrollRegisterImportResultModel> ImportAsync(
         int bookId, DateOnly payDate, DateOnly periodStart, DateOnly periodEnd,
         string fileContents, int userId, CancellationToken ct = default);
+
+    Task<PayrollRegisterPreviewModel> PreviewAsync(string fileContents, CancellationToken ct = default);
 }
 
 /// <inheritdoc />
@@ -28,19 +30,16 @@ public sealed class PayrollRegisterImportService(
     AppDbContext db,
     ISettingsService settings) : IPayrollRegisterImportService
 {
+    public const string MissingRequiredColumns = "missing-required-columns";
+    public const string NoEmployeeRows = "no-employee-rows";
+
+    private const decimal NetTolerance = 0.05m;
+
     public async Task<PayrollRegisterImportResultModel> ImportAsync(
         int bookId, DateOnly payDate, DateOnly periodStart, DateOnly periodEnd,
         string fileContents, int userId, CancellationToken ct = default)
     {
-        var overrides = new PayrollRegisterParser.ColumnOverrides(
-            Employee: await settings.GetStringAsync(PayrollSettings.EmployeeColumnKey, ct),
-            Gross: await settings.GetStringAsync(PayrollSettings.GrossColumnKey, ct),
-            Federal: await settings.GetStringAsync(PayrollSettings.FederalColumnKey, ct),
-            State: await settings.GetStringAsync(PayrollSettings.StateColumnKey, ct),
-            FicaEmployee: await settings.GetStringAsync(PayrollSettings.FicaEmployeeColumnKey, ct),
-            OtherDeductions: await settings.GetStringAsync(PayrollSettings.OtherDeductionsColumnKey, ct),
-            EmployerTax: await settings.GetStringAsync(PayrollSettings.EmployerTaxColumnKey, ct),
-            Net: await settings.GetStringAsync(PayrollSettings.NetColumnKey, ct));
+        var overrides = await OverridesAsync(ct);
 
         var rows = PayrollRegisterParser.Parse(fileContents, overrides);
         if (rows.Count == 0)
@@ -74,7 +73,7 @@ public sealed class PayrollRegisterImportService(
 
             // Net identity check (rounding-tolerant): gross − withholdings should equal reported net.
             var computedNet = row.Gross - line.TotalWithholdings;
-            if (row.Net != 0m && Math.Abs(computedNet - row.Net) > 0.05m)
+            if (IsNetMismatch(row.Net, computedNet))
             {
                 warnings.Add(
                     $"{row.EmployeeName}: gross {money.Format(row.Gross)} − withholdings {money.Format(line.TotalWithholdings)} "
@@ -104,4 +103,49 @@ public sealed class PayrollRegisterImportService(
             payRun.Id, payRun.Lines.Count, payRun.GrossWages, payRun.EmployeeTaxWithheld,
             payRun.EmployerTax, payRun.NetPay, warnings);
     }
+
+    public async Task<PayrollRegisterPreviewModel> PreviewAsync(string fileContents, CancellationToken ct = default)
+    {
+        var overrides = await OverridesAsync(ct);
+        var columns = PayrollRegisterParser.DescribeColumns(fileContents, overrides);
+        var hasRequired = columns.TryGetValue("employee", out var employee) && employee.Count > 0
+            && columns.TryGetValue("gross", out var gross) && gross.Count > 0;
+        if (!hasRequired)
+            return new PayrollRegisterPreviewModel(columns, [], 0m, 0m, 0m, 0m, [MissingRequiredColumns]);
+
+        var rows = PayrollRegisterParser.Parse(fileContents, overrides)
+            .Select(r =>
+            {
+                var withholdings = r.Federal + r.State + r.FicaEmployee + r.OtherDeductions;
+                var computedNet = r.Gross - withholdings;
+                return new PayrollRegisterPreviewRowModel(
+                    r.EmployeeName, r.Gross, withholdings, r.EmployerTax, r.Net, computedNet, IsNetMismatch(r.Net, computedNet));
+            })
+            .ToList();
+
+        var grossWages = rows.Sum(r => r.Gross);
+        var withheld = rows.Sum(r => r.Withholdings);
+        return new PayrollRegisterPreviewModel(
+            columns,
+            rows,
+            grossWages,
+            withheld,
+            rows.Sum(r => r.EmployerTax),
+            grossWages - withheld,
+            rows.Count == 0 ? [NoEmployeeRows] : []);
+    }
+
+    private static bool IsNetMismatch(decimal reportedNet, decimal computedNet)
+        => reportedNet != 0m && Math.Abs(computedNet - reportedNet) > NetTolerance;
+
+    private async Task<PayrollRegisterParser.ColumnOverrides> OverridesAsync(CancellationToken ct)
+        => new(
+            Employee: await settings.GetStringAsync(PayrollSettings.EmployeeColumnKey, ct),
+            Gross: await settings.GetStringAsync(PayrollSettings.GrossColumnKey, ct),
+            Federal: await settings.GetStringAsync(PayrollSettings.FederalColumnKey, ct),
+            State: await settings.GetStringAsync(PayrollSettings.StateColumnKey, ct),
+            FicaEmployee: await settings.GetStringAsync(PayrollSettings.FicaEmployeeColumnKey, ct),
+            OtherDeductions: await settings.GetStringAsync(PayrollSettings.OtherDeductionsColumnKey, ct),
+            EmployerTax: await settings.GetStringAsync(PayrollSettings.EmployerTaxColumnKey, ct),
+            Net: await settings.GetStringAsync(PayrollSettings.NetColumnKey, ct));
 }

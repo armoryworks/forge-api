@@ -50,6 +50,15 @@ public class BankStatementsController(IBankStatementImportService service) : Con
     public async Task<ActionResult<BankStatementLineModel>> Confirm(long lineId, CancellationToken ct)
         => Ok(await service.ConfirmAsync(lineId, UserId, ct));
 
+    /// <summary>
+    /// Posted cash journal lines this statement line can be matched to by hand, best fit first: same direction,
+    /// within ±<paramref name="days"/> and, when given, ±<paramref name="amountTolerance"/>.
+    /// </summary>
+    [HttpGet("lines/{lineId:long}/candidates")]
+    public async Task<ActionResult<IReadOnlyList<BankStatementMatchCandidateModel>>> GetCandidates(
+        long lineId, [FromQuery] int? days, [FromQuery] decimal? amountTolerance, CancellationToken ct)
+        => Ok(await service.GetCandidatesAsync(lineId, days, amountTolerance, ct));
+
     [HttpPost("lines/{lineId:long}/match/{journalLineId:long}")]
     public async Task<ActionResult<BankStatementLineModel>> ManualMatch(
         long lineId, long journalLineId, CancellationToken ct)

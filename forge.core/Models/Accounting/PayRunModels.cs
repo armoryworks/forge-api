@@ -12,7 +12,7 @@ public sealed record CreatePayRunModel(
     decimal EmployeeTaxWithheld,
     decimal EmployerTax);
 
-/// <summary>A pay run + derived net pay + the posted journal link.</summary>
+/// <summary>A pay run + derived net pay + the posted journal link (id and entry number).</summary>
 public sealed record PayRunModel(
     int Id,
     int BookId,
@@ -24,4 +24,5 @@ public sealed record PayRunModel(
     decimal EmployerTax,
     decimal NetPay,
     PayRunStatus Status,
-    long? JournalEntryId);
+    long? JournalEntryId,
+    long? JournalEntryNumber = null);

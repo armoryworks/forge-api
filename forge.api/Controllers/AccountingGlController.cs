@@ -59,7 +59,8 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
                 request.CurrencyId,
                 request.Memo,
                 request.AllowSoftClosedOverride,
-                request.Lines),
+                request.Lines,
+                request.OverrideReason),
             ct);
 
         return CreatedAtAction(
@@ -491,6 +492,21 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken ct)
         => Ok(await mediator.Send(new GetVarianceReportQuery(from, to), ct));
 
+    /// <summary>A book's maker-checker threshold and reporting time zone, with whether the zone is locked.</summary>
+    [HttpGet("books/{id:int}/settings")]
+    public async Task<ActionResult<BookSettingsModel>> GetBookSettings(int id, CancellationToken ct)
+        => Ok(await mediator.Send(new GetBookSettingsQuery(id), ct));
+
+    /// <summary>
+    /// Set a book's maker-checker threshold (null = off) and reporting time zone. Changing the zone of a book
+    /// that has posted entries is refused with 409 <c>book-timezone-locked</c>.
+    /// </summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    [HttpPut("books/{id:int}/settings")]
+    public async Task<ActionResult<BookSettingsModel>> UpdateBookSettings(
+        int id, [FromBody] UpdateBookSettingsRequestModel body, CancellationToken ct)
+        => Ok(await mediator.Send(new UpdateBookSettingsCommand(id, body.MakerCheckerThreshold, body.ReportingTimeZone), ct));
+
     // ─────────────────────────── Phase-5 payroll ───────────────────────────
 
     /// <summary>Phase-5 — create a pay run (amounts provided; tax calc is the §8.3 spike, out of scope here).</summary>
@@ -520,11 +536,34 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         return Ok(await importService.ImportAsync(bookId, payDate, periodStart, periodEnd, contents, userId, ct));
     }
 
+    /// <summary>
+    /// PAY-001 — dry run of a register import: the headers mapped to each category, the parsed rows with any
+    /// net mismatch, the totals and the problems that would stop the import. Saves nothing.
+    /// </summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    [HttpPost("payroll/runs/import/preview")]
+    public async Task<ActionResult<PayrollRegisterPreviewModel>> PreviewPayrollRegister(
+        IFormFile file,
+        [FromServices] Forge.Api.Features.Accounting.IPayrollRegisterImportService importService,
+        CancellationToken ct)
+    {
+        using var reader = new StreamReader(file.OpenReadStream());
+        var contents = await reader.ReadToEndAsync(ct);
+        return Ok(await importService.PreviewAsync(contents, ct));
+    }
+
     /// <summary>Phase-5 — list a book's pay runs.</summary>
     [HttpGet("pay-runs")]
     [RequiresCapability("CAP-PAYROLL-RUN")]
     public async Task<ActionResult<IReadOnlyList<PayRunModel>>> ListPayRuns([FromQuery] int bookId, CancellationToken ct)
         => Ok(await mediator.Send(new ListPayRunsQuery(bookId), ct));
+
+    /// <summary>Phase-5 — the journal lines posting this pay run will write, with their resolved accounts.</summary>
+    [HttpGet("pay-runs/{id:int}/journal-preview")]
+    [RequiresCapability("CAP-PAYROLL-RUN")]
+    public async Task<ActionResult<IReadOnlyList<PayRunJournalPreviewLineModel>>> GetPayRunJournalPreview(
+        int id, CancellationToken ct)
+        => Ok(await mediator.Send(new GetPayRunJournalPreviewQuery(id), ct));
 
     /// <summary>Phase-5 — post the payroll journal for a pay run.</summary>
     [HttpPost("pay-runs/{id:int}/post")]
@@ -539,6 +578,14 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<OpeningBalanceResult>> PostOpeningBalances(
         [FromBody] PostOpeningBalancesModel model, CancellationToken ct)
         => Ok(await mediator.Send(new PostOpeningBalancesCommand(model), ct));
+
+    /// <summary>§7A conversion — dry run of the opening AR/AP open items: resolves each row's party, checks
+    /// amounts, dates and document numbers, and totals receivables and payables for the tie-out.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    [HttpPost("opening-balances/validate")]
+    public async Task<ActionResult<OpeningOpenItemsValidationModel>> ValidateOpeningOpenItems(
+        [FromBody] ValidateOpeningOpenItemsRequestModel model, CancellationToken ct)
+        => Ok(await mediator.Send(new ValidateOpeningOpenItemsQuery(model), ct));
 
     // ─────────────────────────── Phase-4 fixed-asset depreciation ───────────────────────────
 
@@ -748,7 +795,8 @@ public record RevalueAllFxRequest(int BookId, DateOnly AsOf, bool Preview = fals
 /// <summary>
 /// Request body for <c>POST /api/v1/accounting/journal-entries</c>. The
 /// server-trusted posting principal (PostedBy) is taken from the auth context
-/// in the handler — never from the body.
+/// in the handler — never from the body. <c>OverrideReason</c> is recorded in the
+/// book's activity log when the entry posts into a soft-closed period.
 /// </summary>
 public record CreateManualJournalEntryRequest(
     int BookId,
@@ -756,4 +804,5 @@ public record CreateManualJournalEntryRequest(
     int CurrencyId,
     string? Memo,
     bool AllowSoftClosedOverride,
-    IReadOnlyList<CreateManualJournalLineModel> Lines);
+    IReadOnlyList<CreateManualJournalLineModel> Lines,
+    string? OverrideReason = null);
