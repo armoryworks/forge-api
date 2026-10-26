@@ -9,7 +9,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/pricing")]
-[Authorize]
+[Authorize(Roles = "Admin,Manager,OfficeManager")]
 [RequiresCapability("CAP-MD-PRICELIST")]
 public class PricingController(IMediator mediator) : ControllerBase
 {

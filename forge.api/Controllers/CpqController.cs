@@ -9,7 +9,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/cpq")]
-[Authorize]
+[Authorize(Roles = "Admin,Manager,OfficeManager")]
 [RequiresCapability("CAP-O2C-CPQ")]
 public class CpqController(IMediator mediator) : ControllerBase
 {

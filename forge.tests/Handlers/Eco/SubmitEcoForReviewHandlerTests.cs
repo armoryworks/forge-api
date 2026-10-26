@@ -37,6 +37,21 @@ public class SubmitEcoForReviewHandlerTests
         eco.ApprovedById.Should().Be(5);
     }
 
+    [Fact]
+    public async Task The_requester_cannot_approve_their_own_eco()
+    {
+        using var db = TestDbContextFactory.Create();
+        var eco = new EngineeringChangeOrder { EcoNumber = "ECO-3", Title = "T", Description = "D", RequestedById = 7, Status = EcoStatus.Review };
+        db.EngineeringChangeOrders.Add(eco);
+        await db.SaveChangesAsync();
+
+        var act = () => new ApproveEcoHandler(db, Http(7), new SystemClock()).Handle(new ApproveEcoCommand(eco.Id), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<InvalidOperationException>()).WithMessage("Segregation of duties*");
+        eco.Status.Should().Be(EcoStatus.Review);
+        eco.ApprovedById.Should().BeNull();
+    }
+
     [Theory]
     [InlineData(EcoStatus.Review)]
     [InlineData(EcoStatus.Approved)]

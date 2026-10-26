@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Jobs;
 using Forge.Api.Features.SalesOrders;
+using Forge.Api.Middleware;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -15,7 +16,7 @@ using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Replenishment;
 
-public record ApproveSuggestionCommand(int SuggestionId, int UserId) : IRequest<ReorderSuggestionResponseModel>;
+public record ApproveSuggestionCommand(int SuggestionId, int UserId, bool MayReleaseJobs = true) : IRequest<ReorderSuggestionResponseModel>;
 
 public class ApproveSuggestionHandler(
     AppDbContext db,
@@ -37,6 +38,9 @@ public class ApproveSuggestionHandler(
 
         if (suggestion.Status != ReorderSuggestionStatus.Pending)
             throw new InvalidOperationException($"Suggestion is already {suggestion.Status}");
+
+        if (suggestion.Part.ProcurementSource == ProcurementSource.Make && !request.MayReleaseJobs)
+            throw new ForbiddenException("A make suggestion releases a job. Someone who can create jobs must approve it.");
 
         var now = clock.UtcNow;
 

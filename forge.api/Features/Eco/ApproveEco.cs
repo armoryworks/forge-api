@@ -26,6 +26,10 @@ public class ApproveEcoHandler(AppDbContext db, IHttpContextAccessor httpContext
 
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+        if (eco.RequestedById == userId)
+            throw new InvalidOperationException(
+                "Segregation of duties: an ECO must be approved by a different user than the one who raised it.");
+
         eco.Status = EcoStatus.Approved;
         eco.ApprovedById = userId;
         eco.ApprovedAt = clock.UtcNow;

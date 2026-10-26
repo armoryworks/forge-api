@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Replenishment;
 using Forge.Core.Enums;
@@ -14,11 +15,13 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/replenishment")]
-[Authorize(Roles = "Admin,Manager")]
+[Authorize(Roles = "Admin,Manager,Procurement")]
 [RequiresCapability("CAP-PLAN-SAFETYSTOCK")]
 public class ReplenishmentController(IMediator mediator) : ControllerBase
 {
     private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    private bool MayReleaseJobs() => JobRoles.Read.Split(',').Any(User.IsInRole);
 
     // ── Burn Rates ──
 
@@ -47,7 +50,7 @@ public class ReplenishmentController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<ReorderSuggestionResponseModel>> Approve(
         int id, CancellationToken ct)
     {
-        var result = await mediator.Send(new ApproveSuggestionCommand(id, GetUserId()), ct);
+        var result = await mediator.Send(new ApproveSuggestionCommand(id, GetUserId(), MayReleaseJobs()), ct);
         return Ok(result);
     }
 
@@ -56,7 +59,7 @@ public class ReplenishmentController(IMediator mediator) : ControllerBase
         [FromBody] ApproveBulkRequest request, CancellationToken ct)
     {
         var result = await mediator.Send(
-            new ApproveBulkSuggestionsCommand(request.SuggestionIds, GetUserId()), ct);
+            new ApproveBulkSuggestionsCommand(request.SuggestionIds, GetUserId(), MayReleaseJobs()), ct);
         return Ok(result);
     }
 
@@ -76,6 +79,7 @@ public class ReplenishmentController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("settings")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<ReplenishmentSettingsResponseModel>> UpdateSettings(
         [FromBody] UpdateReplenishmentSettingsRequestModel request, CancellationToken ct)
     {

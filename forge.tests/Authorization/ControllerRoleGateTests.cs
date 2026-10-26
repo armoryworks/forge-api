@@ -137,4 +137,95 @@ public sealed class ControllerRoleGateTests
     {
         EffectiveRoles(verb, template).Should().BeEquivalentTo(["Admin", "Manager"], $"{verb} {template}");
     }
+
+    [Theory]
+    [InlineData("POST", "api/v1/parts/{id:int}/operations")]
+    [InlineData("PATCH", "api/v1/parts/{id:int}/operations/{operationId:int}")]
+    [InlineData("PUT", "api/v1/parts/{id:int}/operations/order")]
+    [InlineData("DELETE", "api/v1/parts/{id:int}/operations/{operationId:int}")]
+    [InlineData("POST", "api/v1/parts/{id:int}/operations/{operationId:int}/materials")]
+    [InlineData("DELETE", "api/v1/parts/{id:int}/operations/{operationId:int}/materials/{materialId:int}")]
+    public void Routing_operations_are_edited_by_engineering_roles_only(string verb, string template)
+    {
+        EffectiveRoles(verb, template).Should().BeEquivalentTo(["Admin", "Manager", "Engineer"], $"{verb} {template}");
+        EffectiveRoles("GET", "api/v1/parts/{id:int}/operations").Should().Contain(["PM", "ProductionWorker"]);
+    }
+
+    [Fact]
+    public void Only_the_commercial_roles_delete_a_customer()
+    {
+        EffectiveRoles("DELETE", "api/v1/customers/{id:int}").Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager"]);
+        EffectiveRoles("GET", "api/v1/customers/{id:int}").Should().Contain(["PM", "Engineer"]);
+    }
+
+    [Theory]
+    [InlineData("GET", "api/v1/pricing/resolve")]
+    [InlineData("POST", "api/v1/cpq/configure")]
+    [InlineData("POST", "api/v1/cpq/validate")]
+    [InlineData("GET", "api/v1/cpq/configurators")]
+    [InlineData("GET", "api/v1/cpq/configurators/{id:int}")]
+    [InlineData("POST", "api/v1/cpq/configurations")]
+    [InlineData("GET", "api/v1/cpq/configurations/{id:int}")]
+    [InlineData("POST", "api/v1/cpq/configurations/{id:int}/generate-quote")]
+    [InlineData("POST", "api/v1/cpq/configurations/{id:int}/generate-part")]
+    public void Customer_prices_resolve_for_the_price_list_roles_only(string verb, string template)
+    {
+        EffectiveRoles(verb, template).Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager"], $"{verb} {template}");
+        EffectiveRoles(verb, template).Should().BeEquivalentTo(EffectiveRoles("GET", "api/v1/price-lists"));
+    }
+
+    [Theory]
+    [InlineData("POST", "api/v1/cpq/configurators")]
+    [InlineData("PUT", "api/v1/cpq/configurators/{id:int}")]
+    public void Configurator_design_stays_with_admin_and_manager(string verb, string template)
+    {
+        EffectiveRoles(verb, template).Should().BeEquivalentTo(["Admin", "Manager"], $"{verb} {template}");
+    }
+
+    [Theory]
+    [InlineData("GET", "api/v1/replenishment/burn-rates")]
+    [InlineData("GET", "api/v1/replenishment/suggestions")]
+    [InlineData("POST", "api/v1/replenishment/suggestions/{id:int}/approve")]
+    [InlineData("POST", "api/v1/replenishment/suggestions/approve-bulk")]
+    [InlineData("POST", "api/v1/replenishment/suggestions/{id:int}/dismiss")]
+    [InlineData("GET", "api/v1/replenishment/settings")]
+    public void Procurement_works_reorder_suggestions(string verb, string template)
+    {
+        EffectiveRoles(verb, template).Should().BeEquivalentTo(["Admin", "Manager", "Procurement"], $"{verb} {template}");
+    }
+
+    [Fact]
+    public void Replenishment_settings_are_changed_by_admin_and_manager()
+    {
+        EffectiveRoles("PUT", "api/v1/replenishment/settings").Should().BeEquivalentTo(["Admin", "Manager"]);
+    }
+
+    [Theory]
+    [InlineData("POST", "api/v1/jobs/{jobId:int}/operations/{opId:int}/send-out")]
+    [InlineData("GET", "api/v1/jobs/{jobId:int}/subcontract-orders")]
+    [InlineData("GET", "api/v1/jobs/{jobId:int}/subcontract-operations")]
+    [InlineData("GET", "api/v1/shop-floor/pending-subcontracts")]
+    [InlineData("GET", "api/v1/reports/subcontract-spending")]
+    public void Procurement_reads_subcontract_orders_and_raises_their_purchase_orders(string verb, string template)
+    {
+        EffectiveRoles(verb, template).Should().BeEquivalentTo(
+            ["Admin", "Manager", "Engineer", "PM", "Procurement"], $"{verb} {template}");
+    }
+
+    [Fact]
+    public void Receiving_a_subcontract_back_stays_with_the_production_roles()
+    {
+        EffectiveRoles("POST", "api/v1/subcontract-orders/{id:int}/receive")
+            .Should().BeEquivalentTo(["Admin", "Manager", "Engineer", "PM"]);
+    }
+
+    [Fact]
+    public void Engineers_look_up_vendors_without_reading_the_vendor_master()
+    {
+        EffectiveRoles("GET", "api/v1/vendors/lookup").Should().BeEquivalentTo(
+            ["Admin", "Manager", "OfficeManager", "Procurement", "Engineer"]);
+        EffectiveRoles("GET", "api/v1/vendors").Should().NotContain("Engineer");
+        EffectiveRoles("POST", "api/v1/vendors").Should().NotContain("Engineer");
+        EffectiveRoles("POST", "api/v1/vendor-parts").Should().Contain("Engineer");
+    }
 }

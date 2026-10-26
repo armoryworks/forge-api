@@ -15,7 +15,7 @@ using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Replenishment;
 
-public record ApproveBulkSuggestionsCommand(List<int> SuggestionIds, int UserId) : IRequest<BulkApproveResult>;
+public record ApproveBulkSuggestionsCommand(List<int> SuggestionIds, int UserId, bool MayReleaseJobs = true) : IRequest<BulkApproveResult>;
 
 public record BulkApproveResult(
     int ApprovedCount,
@@ -60,7 +60,11 @@ public class ApproveBulkSuggestionsHandler(
             .ToList();
         var buySuggestions = suggestions.Except(makeSuggestions).ToList();
 
-        if (makeSuggestions.Count > 0)
+        if (makeSuggestions.Count > 0 && !request.MayReleaseJobs)
+        {
+            skippedCount += makeSuggestions.Count;
+        }
+        else if (makeSuggestions.Count > 0)
         {
             var resolvedTrack = await ProductionTrackResolver.ResolveAsync(db, cancellationToken);
             if (resolvedTrack is null)
