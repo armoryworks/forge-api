@@ -155,4 +155,46 @@ public class Phase4FxRevaluationServiceTests
         result.Adjustment.Should().Be(0m);
         result.JournalEntryId.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Revalue_InvoicePaidAfterTheAsOfDate_StillCountsAsOpenOnTheAsOfDate()
+    {
+        using var db = await SeedAsync();
+        var customer = new Customer { Name = "Acme" };
+        db.Set<Customer>().Add(customer);
+        var invoice = new Invoice
+        {
+            InvoiceNumber = "INV-1", Customer = customer, CurrencyId = EurId, FxRate = 1.10m,
+            InvoiceDate = new DateTimeOffset(2026, 3, 10, 0, 0, 0, TimeSpan.Zero),
+            DueDate = new DateTimeOffset(2026, 4, 9, 0, 0, 0, TimeSpan.Zero),
+        };
+        db.Invoices.Add(invoice);
+        await db.SaveChangesAsync();
+        db.ArOpenItems.Add(new ArOpenItem
+        {
+            BookId = BookId, CustomerId = customer.Id, SourceType = "Invoice", SourceId = invoice.Id,
+            DocumentNumber = "INV-1", DocumentDate = invoice.InvoiceDate, DueDate = invoice.DueDate,
+            CurrencyId = EurId, FxRate = 1.10m, OriginalTxnAmount = 100m, OriginalFunctionalAmount = 110m,
+            AppliedTxnAmount = 100m, AppliedFunctionalAmount = 110m, Status = OpenItemStatus.Closed,
+        });
+        db.Set<Payment>().AddRange(
+            new Payment
+            {
+                PaymentNumber = "PMT-1", CustomerId = customer.Id, CurrencyId = EurId, FxRate = 1.12m, Amount = 40m,
+                PaymentDate = new DateTimeOffset(2026, 3, 20, 0, 0, 0, TimeSpan.Zero),
+                Applications = [new PaymentApplication { InvoiceId = invoice.Id, Amount = 40m, SettlementFxRate = 1.12m }],
+            },
+            new Payment
+            {
+                PaymentNumber = "PMT-2", CustomerId = customer.Id, CurrencyId = EurId, FxRate = 1.16m, Amount = 60m,
+                PaymentDate = new DateTimeOffset(2026, 4, 5, 0, 0, 0, TimeSpan.Zero),
+                Applications = [new PaymentApplication { InvoiceId = invoice.Id, Amount = 60m, SettlementFxRate = 1.16m }],
+            });
+        await db.SaveChangesAsync();
+
+        var result = await Service(db).RevalueAsync(BookId, EurId, newRate: 1.15m, AsOf, 7, preview: true);
+
+        result.NetForeignPosition.Should().Be(60m);
+        result.Adjustment.Should().Be(3m);
+    }
 }

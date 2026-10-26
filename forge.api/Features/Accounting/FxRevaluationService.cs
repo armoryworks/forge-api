@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Services.Fx;
+using Forge.Core.Entities;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
@@ -13,7 +14,9 @@ namespace Forge.Api.Features.Accounting;
 /// lines on CASH accounts posted in that currency) plus its open receivables less its open payables (the AR
 /// and AP open items, which carry both the transaction and the booked functional amount). Settlement entries
 /// post in the functional currency, so the open items, not the control-account lines, are what still stands
-/// open in the foreign currency.
+/// open in the foreign currency. An invoice or bill counts as open at the as-of date less only the payments
+/// applied on or before it, so a close run after a payment that came in the next period still revalues it.
+/// A payment voided since has had its applications removed and no longer counts against the document.
 /// </summary>
 public sealed class FxRevaluationService(AppDbContext db, IPostingEngine postingEngine) : IFxRevaluationService
 {
@@ -123,27 +126,111 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
             .ToListAsync(ct);
 
         var asOfEnd = new DateTimeOffset(asOf.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero);
-        var receivables = await db.ArOpenItems.AsNoTracking()
+        var receivableItems = await db.ArOpenItems.AsNoTracking()
             .Where(i => i.BookId == bookId && i.CurrencyId == currencyId && i.DocumentDate <= asOfEnd
-                && (i.Status == OpenItemStatus.Open || i.Status == OpenItemStatus.PartiallyApplied))
-            .Select(i => new
-            {
-                Foreign = i.OriginalTxnAmount - i.AppliedTxnAmount,
-                Functional = i.OriginalFunctionalAmount - i.AppliedFunctionalAmount,
-            })
+                && i.Status != OpenItemStatus.Voided)
+            .Select(i => new OpenItemRow(
+                i.SourceType, i.SourceId, i.Status, i.FxRate,
+                i.OriginalTxnAmount, i.OriginalFunctionalAmount, i.AppliedTxnAmount, i.AppliedFunctionalAmount))
             .ToListAsync(ct);
-        var payables = await db.ApOpenItems.AsNoTracking()
+        var payableItems = await db.ApOpenItems.AsNoTracking()
             .Where(i => i.BookId == bookId && i.CurrencyId == currencyId && i.DocumentDate <= asOfEnd
-                && (i.Status == OpenItemStatus.Open || i.Status == OpenItemStatus.PartiallyApplied))
-            .Select(i => new
-            {
-                Foreign = i.OriginalTxnAmount - i.AppliedTxnAmount,
-                Functional = i.OriginalFunctionalAmount - i.AppliedFunctionalAmount,
-            })
+                && i.Status != OpenItemStatus.Voided)
+            .Select(i => new OpenItemRow(
+                i.SourceType, i.SourceId, i.Status, i.FxRate,
+                i.OriginalTxnAmount, i.OriginalFunctionalAmount, i.AppliedTxnAmount, i.AppliedFunctionalAmount))
             .ToListAsync(ct);
 
+        var receivables = OpenAsOf(receivableItems, "Invoice", await InvoiceApplicationsAsync(bookId, receivableItems, ct), asOf);
+        var payables = OpenAsOf(payableItems, "VendorBill", await BillApplicationsAsync(payableItems, ct), asOf);
+
         return (
-            cash.Sum(r => r.Foreign) + receivables.Sum(r => r.Foreign) - payables.Sum(r => r.Foreign),
-            cash.Sum(r => r.Functional) + receivables.Sum(r => r.Functional) - payables.Sum(r => r.Functional));
+            cash.Sum(r => r.Foreign) + receivables.Foreign - payables.Foreign,
+            cash.Sum(r => r.Functional) + receivables.Functional - payables.Functional);
     }
+
+    /// <summary>
+    /// What an item still had open at the end of <paramref name="asOf"/>: its original amount less the
+    /// applications that took effect on or before that day, relieved at the item's booking rate exactly as the
+    /// settlement entries relieve the control account. An item of another source type keeps its current
+    /// applied amount and counts only while it is still open.
+    /// </summary>
+    private static (decimal Foreign, decimal Functional) OpenAsOf(
+        List<OpenItemRow> items, string documentSourceType,
+        List<(int DocumentId, decimal Amount, DateOnly EffectiveDate)> applications, DateOnly asOf)
+    {
+        var applied = applications
+            .Where(a => a.EffectiveDate <= asOf)
+            .GroupBy(a => a.DocumentId)
+            .ToDictionary(g => g.Key, g => g.Select(a => a.Amount).ToList());
+
+        decimal foreign = 0m, functional = 0m;
+        foreach (var item in items)
+        {
+            if (item.SourceType == documentSourceType)
+            {
+                var amounts = applied.GetValueOrDefault(item.SourceId) ?? [];
+                foreign += item.OriginalTxn - amounts.Sum();
+                functional += item.OriginalFunctional
+                    - amounts.Sum(a => Math.Round(a * item.FxRate, 2, MidpointRounding.AwayFromZero));
+            }
+            else if (item.Status is OpenItemStatus.Open or OpenItemStatus.PartiallyApplied)
+            {
+                foreign += item.OriginalTxn - item.AppliedTxn;
+                functional += item.OriginalFunctional - item.AppliedFunctional;
+            }
+        }
+        return (foreign, functional);
+    }
+
+    private async Task<List<(int DocumentId, decimal Amount, DateOnly EffectiveDate)>> InvoiceApplicationsAsync(
+        int bookId, List<OpenItemRow> items, CancellationToken ct)
+    {
+        var invoiceIds = items.Where(i => i.SourceType == "Invoice").Select(i => i.SourceId).ToList();
+        if (invoiceIds.Count == 0)
+            return [];
+
+        var applications = await db.Set<PaymentApplication>().AsNoTracking()
+            .Where(a => invoiceIds.Contains(a.InvoiceId))
+            .Select(a => new { a.Id, a.InvoiceId, a.Amount, a.Payment.PaymentDate })
+            .ToListAsync(ct);
+
+        var applyKeys = applications
+            .Select(a => $"{JournalSource.AR}:PaymentApplication:{a.Id}:APPLY")
+            .ToList();
+        var applyDates = await db.JournalEntries.IgnoreQueryFilters().AsNoTracking()
+            .Where(e => e.BookId == bookId && e.IdempotencyKey != null && applyKeys.Contains(e.IdempotencyKey))
+            .Select(e => new { e.IdempotencyKey, e.EntryDate })
+            .ToDictionaryAsync(e => e.IdempotencyKey!, e => e.EntryDate, ct);
+
+        return applications
+            .Select(a => (
+                a.InvoiceId,
+                a.Amount,
+                applyDates.TryGetValue($"{JournalSource.AR}:PaymentApplication:{a.Id}:APPLY", out var applied)
+                    ? applied
+                    : DateOnly.FromDateTime(a.PaymentDate.UtcDateTime)))
+            .ToList();
+    }
+
+    private async Task<List<(int DocumentId, decimal Amount, DateOnly EffectiveDate)>> BillApplicationsAsync(
+        List<OpenItemRow> items, CancellationToken ct)
+    {
+        var billIds = items.Where(i => i.SourceType == "VendorBill").Select(i => i.SourceId).ToList();
+        if (billIds.Count == 0)
+            return [];
+
+        var applications = await db.Set<VendorPaymentApplication>().AsNoTracking()
+            .Where(a => billIds.Contains(a.VendorBillId))
+            .Select(a => new { a.VendorBillId, a.Amount, a.VendorPayment.PaymentDate })
+            .ToListAsync(ct);
+
+        return applications
+            .Select(a => (a.VendorBillId, a.Amount, DateOnly.FromDateTime(a.PaymentDate.UtcDateTime)))
+            .ToList();
+    }
+
+    private sealed record OpenItemRow(
+        string SourceType, int SourceId, OpenItemStatus Status, decimal FxRate,
+        decimal OriginalTxn, decimal OriginalFunctional, decimal AppliedTxn, decimal AppliedFunctional);
 }
