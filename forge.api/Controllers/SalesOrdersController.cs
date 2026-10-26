@@ -177,7 +177,7 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
         int id, [FromBody] RequestPortalRequest request)
     {
         var result = await mediator.Send(new Forge.Api.Features.SalesOrders.Acceptance.RequestPublicAcceptanceCommand(
-            id, request.RecipientEmail, request.VerificationKey, request.ValidDays ?? 14));
+            id, request.RecipientEmail, request.VerificationKey, request.ValidDays ?? 14, request.Language));
         return Ok(result);
     }
 
@@ -258,7 +258,7 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
 public record SendForSignatureRequest(string SignerEmail, string SignerName);
 
 /// <summary>Body for minting a public accept-portal link.</summary>
-public record RequestPortalRequest(string RecipientEmail, string VerificationKey, int? ValidDays);
+public record RequestPortalRequest(string RecipientEmail, string VerificationKey, int? ValidDays, string? Language = null);
 
 /// <summary>Body for registering an inbound acceptance email.</summary>
 public record EmailIngestRequest(string FromEmail, string? Note);

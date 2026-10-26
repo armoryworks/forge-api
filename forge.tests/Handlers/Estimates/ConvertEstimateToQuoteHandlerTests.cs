@@ -281,4 +281,21 @@ public class ConvertEstimateToQuoteHandlerTests
 
         _db.Quotes.First(q => q.Id == result.Id).Notes.Should().Be("Customer wants anodize quoted separately");
     }
+
+    [Fact]
+    public async Task The_quote_is_owned_by_the_estimate_owner_or_else_the_converting_user()
+    {
+        var (_, owned) = await SeedEstimateAsync();
+        owned.AssignedToId = 31;
+        var (_, unowned) = await SeedEstimateAsync();
+        await _db.SaveChangesAsync();
+        _db.CurrentUserId = 9;
+
+        var fromOwned = await _handler.Handle(new ConvertEstimateToQuoteCommand(owned.Id), CancellationToken.None);
+        _quoteRepo.Setup(r => r.GenerateNextQuoteNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("QUO-0002");
+        var fromUnowned = await _handler.Handle(new ConvertEstimateToQuoteCommand(unowned.Id), CancellationToken.None);
+
+        _db.Quotes.First(q => q.Id == fromOwned.Id).AssignedToId.Should().Be(31);
+        _db.Quotes.First(q => q.Id == fromUnowned.Id).AssignedToId.Should().Be(9);
+    }
 }

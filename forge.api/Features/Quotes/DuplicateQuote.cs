@@ -18,7 +18,8 @@ namespace Forge.Api.Features.Quotes;
 /// a Sent, Declined or Expired quote: it is numbered after the source (<c>Q-1001-R1</c>, then
 /// <c>-R2</c>; the next sequence number when that does not fit or is taken), keeps the customer PO,
 /// and the source becomes <see cref="QuoteStatus.Superseded"/> so only the latest revision can be
-/// accepted. Both quotes record the link in their activity history.
+/// accepted. The link to the estimate the quote came from moves to the revision, so the estimate
+/// keeps pointing at its current quote. Both quotes record the link in their activity history.
 /// </summary>
 public record DuplicateQuoteCommand(int Id, bool AsRevision = false) : IRequest<QuoteDetailResponseModel>;
 
@@ -77,7 +78,7 @@ public class DuplicateQuoteHandler(
             TaxRate = source.TaxRate,
             TaxDocumentId = taxDocumentId,
             CustomerPO = request.AsRevision ? source.CustomerPO : null,
-            SourceEstimateId = request.AsRevision ? source.SourceEstimateId : null,
+            AssignedToId = request.AsRevision ? source.AssignedToId ?? db.CurrentUserId : db.CurrentUserId,
         };
 
         var lineNumber = 1;
@@ -94,15 +95,18 @@ public class DuplicateQuoteHandler(
             });
         }
 
-        db.Quotes.Add(copy);
-        await CopyPaymentScheduleAsync(source.Id, copy, cancellationToken);
-
+        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
         if (request.AsRevision)
         {
             var superseded = await db.Quotes.FirstAsync(q => q.Id == source.Id, cancellationToken);
             superseded.Status = QuoteStatus.Superseded;
+            superseded.SourceEstimateId = null;
+            await db.SaveChangesAsync(cancellationToken);
+            copy.SourceEstimateId = source.SourceEstimateId;
         }
 
+        db.Quotes.Add(copy);
+        await CopyPaymentScheduleAsync(source.Id, copy, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
         if (request.AsRevision)
@@ -116,6 +120,7 @@ public class DuplicateQuoteHandler(
         }
         await identifiers.IssueAsync(BusinessEntityType.Quote, copy.Id, copy.QuoteNumber!, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+        await tx.CommitAsync(cancellationToken);
 
         return await mediator.Send(new GetQuoteByIdQuery(copy.Id), cancellationToken);
     }

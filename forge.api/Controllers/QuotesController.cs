@@ -49,7 +49,7 @@ public class QuotesController(IMediator mediator, IConfiguration config) : Contr
     {
         var result = await mediator.Send(new CreateQuoteCommand(
             request.CustomerId, request.ShippingAddressId, request.ExpirationDate,
-            request.Notes, request.TaxRate, request.Lines, request.CustomerPO, request.QuoteNumber));
+            request.Notes, request.TaxRate, request.Lines, request.CustomerPO, request.QuoteNumber, request.AssignedToId));
         return CreatedAtAction(nameof(GetQuote), new { id = result.Id }, result);
     }
 

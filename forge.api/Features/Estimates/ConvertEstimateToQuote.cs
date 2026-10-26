@@ -85,6 +85,7 @@ public class ConvertEstimateToQuoteHandler(
             ExpirationDate = estimate.ExpirationDate,
             TaxRate = taxRate,
             SourceEstimateId = estimate.Id,
+            AssignedToId = estimate.AssignedToId ?? db.CurrentUserId,
         };
 
         // #24 / BE-3: carry the estimate's line items into the new quote, applying the caller's

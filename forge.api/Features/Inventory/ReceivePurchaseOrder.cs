@@ -8,6 +8,7 @@ using Forge.Api.Capabilities;
 using Forge.Api.Extensions;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Lots;
+using Forge.Api.Features.PurchaseOrders;
 using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -58,6 +59,8 @@ public class ReceivePurchaseOrderHandler(
 
         var line = await poRepo.FindLineAsync(data.PurchaseOrderLineId, cancellationToken)
             ?? throw new KeyNotFoundException($"Purchase order line {data.PurchaseOrderLineId} not found");
+
+        PurchaseOrderSubmission.EnsureReceivable(line.PurchaseOrder);
 
         if (data.QuantityReceived > line.RemainingQuantity)
             throw new InvalidOperationException(

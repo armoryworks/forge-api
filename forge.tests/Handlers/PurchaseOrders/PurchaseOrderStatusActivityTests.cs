@@ -85,7 +85,7 @@ public class PurchaseOrderStatusActivityTests
     {
         GivenPo(PurchaseOrderStatus.Acknowledged, (10m, 0m));
 
-        await new CancelPurchaseOrderHandler(_repo.Object, _db)
+        await new CancelPurchaseOrderHandler(_repo.Object, _db, Mock.Of<IClock>())
             .Handle(new CancelPurchaseOrderCommand(9), CancellationToken.None);
 
         var row = SingleRow();

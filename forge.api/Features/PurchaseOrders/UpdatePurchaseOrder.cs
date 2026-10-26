@@ -85,7 +85,7 @@ public class UpdatePurchaseOrderHandler(
         var shipToChanged = request.ShipToLocationId.HasValue && request.ShipToLocationId != po.ShipToLocationId;
         var partiesChanged = contactChanged || addressChanged || shipToChanged;
 
-        if (po.Status != PurchaseOrderStatus.Draft && po.Status != PurchaseOrderStatus.Submitted)
+        if (po.Status is not (PurchaseOrderStatus.Draft or PurchaseOrderStatus.PendingApproval or PurchaseOrderStatus.Submitted))
         {
             if (!ExpectedDateEditableStatuses.Contains(po.Status))
                 throw new InvalidOperationException("Can only update Draft or Submitted purchase orders");

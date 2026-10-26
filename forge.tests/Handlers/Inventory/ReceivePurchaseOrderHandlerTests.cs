@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Moq;
 using Forge.Api.Features.Inventory;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
@@ -48,7 +49,7 @@ public class ReceivePurchaseOrderHandlerTests
             OrderedQuantity = 100,
             ReceivedQuantity = 20,
             UnitPrice = 10m,
-            PurchaseOrder = new PurchaseOrder { PONumber = "PO-001" },
+            PurchaseOrder = new PurchaseOrder { PONumber = "PO-001", Status = PurchaseOrderStatus.Submitted },
         };
 
         _poRepo.Setup(r => r.FindLineAsync(lineId, It.IsAny<CancellationToken>()))
@@ -78,7 +79,7 @@ public class ReceivePurchaseOrderHandlerTests
             OrderedQuantity = 100,
             ReceivedQuantity = 95,
             UnitPrice = 10m,
-            PurchaseOrder = new PurchaseOrder { PONumber = "PO-002" },
+            PurchaseOrder = new PurchaseOrder { PONumber = "PO-002", Status = PurchaseOrderStatus.Submitted },
         };
 
         _poRepo.Setup(r => r.FindLineAsync(lineId, It.IsAny<CancellationToken>()))
@@ -107,7 +108,7 @@ public class ReceivePurchaseOrderHandlerTests
             OrderedQuantity = 100,
             ReceivedQuantity = 0,
             UnitPrice = 10m,
-            PurchaseOrder = new PurchaseOrder { PONumber = "PO-003" },
+            PurchaseOrder = new PurchaseOrder { PONumber = "PO-003", Status = PurchaseOrderStatus.Submitted },
         };
         _poRepo.Setup(r => r.FindLineAsync(lineId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(line);
@@ -153,7 +154,7 @@ public class ReceivePurchaseOrderHandlerTests
             PartId = 5,
             OrderedQuantity = 10,
             UnitPrice = 10m,
-            PurchaseOrder = new PurchaseOrder { PONumber = "PO-004" },
+            PurchaseOrder = new PurchaseOrder { PONumber = "PO-004", Status = PurchaseOrderStatus.Submitted },
         };
         _poRepo.Setup(r => r.FindLineAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(line);
         ReceivingRecord? saved = null;
@@ -190,7 +191,7 @@ public class ReceivePurchaseOrderHandlerTests
             PartId = 5,
             OrderedQuantity = 10,
             UnitPrice = 10m,
-            PurchaseOrder = new PurchaseOrder { PONumber = "PO-005" },
+            PurchaseOrder = new PurchaseOrder { PONumber = "PO-005", Status = PurchaseOrderStatus.Submitted },
         };
         _poRepo.Setup(r => r.FindLineAsync(8, It.IsAny<CancellationToken>())).ReturnsAsync(line);
         ReceivingRecord? saved = null;

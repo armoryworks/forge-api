@@ -281,4 +281,14 @@ public sealed class ExceptionHandlingMiddlewareTests
         doc.RootElement.GetProperty("status").GetInt32().Should().Be(503);
         doc.RootElement.GetProperty("detail").GetString().Should().Be("The AI service is currently unavailable.");
     }
+
+    [Fact]
+    public async Task An_upstream_timeout_is_a_504_problem()
+    {
+        var (status, body) = await Run(new TimeoutException("The AI model sent nothing for 30 seconds."));
+
+        status.Should().Be(StatusCodes.Status504GatewayTimeout);
+        body.GetProperty("status").GetInt32().Should().Be(504);
+        body.GetProperty("detail").GetString().Should().Be("The AI model sent nothing for 30 seconds.");
+    }
 }

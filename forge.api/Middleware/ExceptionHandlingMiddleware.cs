@@ -178,6 +178,38 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 Type = "about:blank",
             }, options: null, contentType: "application/problem+json");
         }
+        catch (Exception ex) when (ex is FeatureNotAvailableException or NotImplementedException)
+        {
+            logger.LogWarning(ex, "Feature not available — returning 501");
+            context.Response.StatusCode = StatusCodes.Status501NotImplemented;
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status501NotImplemented,
+                Title = "Not available",
+                Detail = ex is FeatureNotAvailableException ? ex.Message : "This feature is not available in this version of Forge.",
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = "not-available";
+            await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
+        }
+        catch (TimeoutException ex)
+        {
+            logger.LogWarning(ex, "Upstream service timed out — returning 504");
+            if (context.Response.HasStarted)
+            {
+                context.Abort();
+                return;
+            }
+
+            context.Response.StatusCode = StatusCodes.Status504GatewayTimeout;
+            await context.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Status = StatusCodes.Status504GatewayTimeout,
+                Title = "Timed out",
+                Detail = ex.Message,
+                Type = "about:blank",
+            }, options: null, contentType: "application/problem+json");
+        }
         catch (Features.Devices.DeviceRevokedException ex)
         {
             // Mobile device revoked by an admin. 401 with code

@@ -59,6 +59,9 @@ public class SendPurchaseOrderEmailHandler(
         if (po.Status == PurchaseOrderStatus.Draft)
             throw new InvalidOperationException("Submit the purchase order before emailing it to the vendor.");
 
+        if (po.Status == PurchaseOrderStatus.PendingApproval)
+            throw new InvalidOperationException("This purchase order is waiting for approval and cannot be sent to the vendor yet.");
+
         var to = string.IsNullOrWhiteSpace(request.To) ? po.Vendor.Email?.Trim() : request.To.Trim();
         if (string.IsNullOrWhiteSpace(to))
             throw new ValidationException(new[]

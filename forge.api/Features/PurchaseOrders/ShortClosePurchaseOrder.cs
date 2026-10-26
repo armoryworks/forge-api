@@ -37,7 +37,7 @@ public class ShortClosePurchaseOrderHandler(
         // Gate: PO must not already be Draft (not yet issued), Closed, or
         // Cancelled. There must be at least one line where received < ordered
         // (i.e. something to short-close).
-        if (po.Status == PurchaseOrderStatus.Draft)
+        if (po.Status is PurchaseOrderStatus.Draft or PurchaseOrderStatus.PendingApproval)
             throw new InvalidOperationException("Cannot short-close a Draft PO. Submit it first or cancel.");
         if (po.Status == PurchaseOrderStatus.Closed)
             throw new InvalidOperationException("PO is already closed.");
