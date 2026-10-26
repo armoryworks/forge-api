@@ -168,6 +168,14 @@ public sealed class ExpenseApPostingService(
             _ => expense.VendorId is not null, // null target → infer from vendor
         };
         var owedToEmployee = !settlesToAp && expense.SettlementTarget is null;
+        if (owedToEmployee && !await db.AccountDeterminationRules.AsNoTracking()
+                .AnyAsync(r => r.BookId == book.Id && r.Key == KeyEmployeeReimbursement, ct))
+        {
+            Log.Warning(
+                "Expense {ExpenseId} credited Cash: Book {BookId} has no {Key} determination rule.",
+                expenseId, book.Id, KeyEmployeeReimbursement);
+            owedToEmployee = false;
+        }
 
         var lines = new List<PostingLine>(2)
         {

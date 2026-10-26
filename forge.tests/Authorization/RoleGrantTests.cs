@@ -96,6 +96,9 @@ public sealed class RoleGrantTests
         EffectiveRoles(Single("POST", "api/v1/expenses")).Should().BeEquivalentTo(filers);
         EffectiveRoles(Single("PUT", "api/v1/expenses/{id:int}")).Should().BeEquivalentTo(filers);
         EffectiveRoles(Single("POST", "api/v1/expenses/receipts")).Should().BeEquivalentTo(filers);
+        EffectiveRoles(Single("POST", "api/v1/expenses/recurring")).Should().BeEquivalentTo(filers);
+        EffectiveRoles(Single("PATCH", "api/v1/expenses/recurring/{id:int}")).Should().BeEquivalentTo(filers);
+        EffectiveRoles(Single("DELETE", "api/v1/expenses/recurring/{id:int}")).Should().BeEquivalentTo(filers);
     }
 
     [Fact]

@@ -620,9 +620,27 @@ public static partial class SeedData
                 if (mapped.Any(m => m.BookId == book.Id && m.Key == d.Key))
                     continue;
 
-                var taken = await db.GlAccounts.IgnoreQueryFilters()
-                    .AnyAsync(a => a.BookId == book.Id && a.AccountNumber == d.Number);
-                if (taken)
+                var existing = await db.GlAccounts.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(a => a.BookId == book.Id && a.AccountNumber == d.Number);
+                if (existing is not null && existing.IsActive && existing.IsPostable
+                    && !existing.IsControlAccount && existing.AccountType == d.Type
+                    && string.Equals(existing.Name.Trim(), d.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    db.AccountDeterminationRules.Add(new AccountDeterminationRule
+                    {
+                        BookId = book.Id,
+                        Key = d.Key,
+                        GlAccountId = existing.Id,
+                    });
+                    await db.SaveChangesAsync();
+
+                    Log.Information(
+                        "Mapped {Key} to the existing GL account {Number} '{Name}' in Book '{Book}'.",
+                        d.Key, d.Number, existing.Name, book.Code);
+                    continue;
+                }
+
+                if (existing is not null)
                 {
                     Log.Warning(
                         "GL account {Number} already exists in Book '{Book}', so the {Key} determination rule was not created. Map {Key} to an account before using the features that post to it.",

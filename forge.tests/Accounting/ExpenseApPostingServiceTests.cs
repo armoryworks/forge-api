@@ -245,6 +245,24 @@ public class ExpenseApPostingServiceTests
         entry.Lines.Should().NotContain(l => l.GlAccountId == ApControlId);
     }
 
+    [Fact]
+    public async Task Out_of_pocket_expense_in_a_book_without_the_reimbursement_rule_credits_cash_and_reimburses_nothing()
+    {
+        using var db = await SeedAsync();
+        db.Set<AccountDeterminationRule>().Remove(
+            await db.Set<AccountDeterminationRule>().SingleAsync(r => r.Key == "EMPLOYEE_REIMBURSEMENT_PAYABLE"));
+        await db.SaveChangesAsync();
+        var expense = await AddExpenseAsync(db, amount: 45m);
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostExpenseApprovedAsync(expense.Id, approvedByUserId: 7);
+        await service.PostExpenseReimbursedAsync(expense.Id, 7, new DateOnly(2026, 1, 28));
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == CashId).Credit.Should().Be(45m);
+        entry.Lines.Should().NotContain(l => l.GlAccountId == EmployeeReimbursementId);
+    }
+
     private static ReimburseExpenseHandler ReimburseHandler(AppDbContext db, bool fullGlOn)
     {
         var clock = new Mock<IClock>();

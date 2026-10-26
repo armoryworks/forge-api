@@ -72,6 +72,12 @@ public class UpdateExpenseStatusHandler(
         var expense = await repo.FindAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException("Expense not found.");
 
+        if (expense.Status == ExpenseStatus.Reimbursed)
+            throw new InvalidOperationException("This expense has already been reimbursed, so its status can no longer change.");
+
+        if (request.Data.Status == ExpenseStatus.Reimbursed)
+            throw new InvalidOperationException("Use the reimburse action to mark an expense reimbursed.");
+
         // F-26B-05 — block a direct decision-PATCH that would bypass the configured
         // multi-step approval workflow. When the requested status is a decision outcome
         // (Approved / Rejected / NeedsRevision) AND a NON-TERMINAL governing ApprovalRequest

@@ -22,7 +22,7 @@ public class SeedAccountingDeterminationPatchTests
 {
     private static readonly string[] PatchedKeys =
     [
-        "FX_REVALUATION", "EMPLOYEE_TAX_PAYABLE", "EMPLOYER_TAX_PAYABLE", "NET_PAY_PAYABLE",
+        "FX_REVALUATION", "EMPLOYEE_REIMBURSEMENT_PAYABLE", "EMPLOYEE_TAX_PAYABLE", "EMPLOYER_TAX_PAYABLE", "NET_PAY_PAYABLE",
         "WAGE_EXPENSE", "EMPLOYER_PAYROLL_TAX_EXPENSE",
     ];
 
@@ -135,6 +135,43 @@ public class SeedAccountingDeterminationPatchTests
         (await db.GlAccounts.SingleAsync(a => a.Id == tenants.Id)).Name.Should().Be("Utilities");
         (await db.GlAccounts.CountAsync(a => a.AccountNumber == "66000")).Should().Be(1);
         (await db.AccountDeterminationRules.AnyAsync(r => r.Key == "EMPLOYER_PAYROLL_TAX_EXPENSE")).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task NumberTakenByTheSameAccount_MapsTheKeyToIt()
+    {
+        using var db = TestDbContextFactory.Create();
+        var book = await SeedPrePatchInstallAsync(db);
+        var tenants = new GlAccount
+        {
+            BookId = book.Id, AccountNumber = "21500", Name = "Employee reimbursements payable", AccountType = AccountType.Liability,
+            NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true,
+        };
+        db.GlAccounts.Add(tenants);
+        await db.SaveChangesAsync();
+
+        await SeedData.SeedAccountingAsync(db);
+
+        (await db.AccountDeterminationRules.SingleAsync(r => r.BookId == book.Id && r.Key == "EMPLOYEE_REIMBURSEMENT_PAYABLE"))
+            .GlAccountId.Should().Be(tenants.Id);
+        (await db.GlAccounts.CountAsync(a => a.AccountNumber == "21500")).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task NumberTakenByAnAccountOfTheSameTypeButAnotherName_SkipsTheKey()
+    {
+        using var db = TestDbContextFactory.Create();
+        var book = await SeedPrePatchInstallAsync(db);
+        db.GlAccounts.Add(new GlAccount
+        {
+            BookId = book.Id, AccountNumber = "21500", Name = "Accrued Wages", AccountType = AccountType.Liability,
+            NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true,
+        });
+        await db.SaveChangesAsync();
+
+        await SeedData.SeedAccountingAsync(db);
+
+        (await db.AccountDeterminationRules.AnyAsync(r => r.Key == "EMPLOYEE_REIMBURSEMENT_PAYABLE")).Should().BeFalse();
     }
 
     [Fact]
