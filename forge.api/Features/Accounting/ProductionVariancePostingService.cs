@@ -154,7 +154,7 @@ public sealed class ProductionVariancePostingService(
             return new JobProductionCostCloseResult(jobId, laborActual, burden, 0m, Posted: false) { SubcontractAbsorbed = subcontract };
 
         var residual = await GetJobWipBalanceAsync(book.Id, wipAccountId.Value, jobId, ct);
-        if (residual == 0m)
+        if (residual == 0m && (standardCost is null || await ReceiptVarianceAsync(book.Id, jobId, ct) == 0m))
             return new JobProductionCostCloseResult(jobId, laborActual, burden, 0m, Posted: laborActual + burden + subcontract > 0m) { SubcontractAbsorbed = subcontract };
 
         // Decompose the residual into named variances (material usage / labor rate + efficiency / overhead
@@ -202,7 +202,7 @@ public sealed class ProductionVariancePostingService(
         // WIP offset clears the residual to zero (the variances above net to `residual`).
         if (residual > 0m)
             lines.Add(new PostingLine { AccountKey = KeyInventoryWip, Credit = residual, JobId = jobId, Description = $"WIP clear — {jobLabel}" });
-        else
+        else if (residual < 0m)
             lines.Add(new PostingLine { AccountKey = KeyInventoryWip, Debit = -residual, JobId = jobId, Description = $"WIP clear — {jobLabel}" });
 
         var varianceRequest = new PostingRequest
@@ -444,21 +444,34 @@ public sealed class ProductionVariancePostingService(
         return (laborStd, laborRateVar, laborActual, burden, subcontract);
     }
 
-    private async Task<decimal> GetJobWipBalanceAsync(int bookId, int wipAccountId, int jobId, CancellationToken ct)
+    /// <summary>The favorable production variance the job's receipts credited when the standard FG value exceeded
+    /// the job's WIP (net credit on PRODUCTION_VARIANCE from its ProductionRun receipt entries).</summary>
+    private async Task<decimal> ReceiptVarianceAsync(int bookId, int jobId, CancellationToken ct)
     {
-        // GL WIP balance for this job (debit-positive): material in + labor/OH absorbed − standard FG relieved.
-        var wipBalance = await
+        var varianceAccountId = await db.Set<AccountDeterminationRule>()
+            .Where(r => r.BookId == bookId && r.Key == KeyProductionVariance)
+            .Select(r => (int?)r.GlAccountId)
+            .FirstOrDefaultAsync(ct);
+        if (varianceAccountId is null)
+            return 0m;
+
+        var runIds = db.ProductionRuns.IgnoreQueryFilters().Where(r => r.JobId == jobId).Select(r => (long?)r.Id);
+        var variance = await
             (from line in db.JournalLines.IgnoreQueryFilters()
              join je in db.JournalEntries.IgnoreQueryFilters() on line.JournalEntryId equals je.Id
              where je.BookId == bookId
-                 && line.GlAccountId == wipAccountId
-                 && line.JobId == jobId
+                 && je.SourceType == "ProductionRun"
+                 && runIds.Contains(je.SourceId)
+                 && line.GlAccountId == varianceAccountId.Value
                  && (je.Status == JournalEntryStatus.Posted || je.Status == JournalEntryStatus.Reversed)
-             select line.Debit - line.Credit)
+             select line.Credit - line.Debit)
             .SumAsync(ct);
 
-        return Math.Round(wipBalance, 2);
+        return Math.Round(variance, 2);
     }
+
+    private Task<decimal> GetJobWipBalanceAsync(int bookId, int wipAccountId, int jobId, CancellationToken ct) =>
+        JobWipLedger.BalanceAsync(db, bookId, wipAccountId, jobId, ct);
 
     /// <summary>Adds a variance line for a signed amount: positive = unfavorable (debit), negative = favorable
     /// (credit), zero = nothing. (Job dimension is carried only on the WIP offset, not the P&amp;L variance.)</summary>

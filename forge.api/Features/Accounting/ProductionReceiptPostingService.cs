@@ -29,10 +29,12 @@ namespace Forge.Api.Features.Accounting;
 ///
 /// <para><b>Costing — standard.</b> FG is valued at <c>standard cost × good qty</c> (the documented
 /// manufacturing default). Before the relief, the job's labor, overhead and subcontract cost incurred so far is
-/// absorbed into WIP (<see cref="IProductionVariancePostingService.AbsorbConversionToDateAsync"/>), so the
-/// relief does not drive the job's WIP negative. Any difference between the standard FG value credited out of
-/// WIP and the actual WIP accumulated <b>remains in INVENTORY_WIP as a production variance</b>, swept by the
-/// job-cost close — symmetric with the PO-receipt service deferring PPV to the 3-way match. A part with no
+/// absorbed into WIP (<see cref="IProductionVariancePostingService.AbsorbConversionToDateAsync"/>). The WIP
+/// credit is capped at the job's GL WIP balance, so an open job's WIP never goes negative: when the standard FG
+/// value exceeds what the job has accumulated, the excess is credited to PRODUCTION_VARIANCE (favorable) on the
+/// same entry. A shortfall (actual above standard) <b>remains in INVENTORY_WIP</b>, swept by the job-cost close,
+/// which also nets any receipt-time variance on the same account. With no PRODUCTION_VARIANCE mapping the
+/// whole standard value relieves WIP, as before. A part with no
 /// resolvable standard cost is stocked operationally but its GL/value
 /// is skipped (logged), so a missing cost never blocks the receipt.</para>
 ///
@@ -72,6 +74,7 @@ public sealed class ProductionReceiptPostingService(
     private const string KeyInventoryWip = "INVENTORY_WIP";
     private const string KeyInventorySubassembly = "INVENTORY_SUBASSEMBLY";
     private const string KeyInventoryFg = "INVENTORY_FG";
+    private const string KeyProductionVariance = "PRODUCTION_VARIANCE";
 
     public async Task PostProductionReceiptAsync(
         int productionRunId, DateOnly entryDate, int receivedByUserId, CancellationToken ct = default)
@@ -123,9 +126,27 @@ public sealed class ProductionReceiptPostingService(
         if (conversion is not null)
             await conversion.AbsorbConversionToDateAsync(run.JobId, run.Id, entryDate, receivedByUserId, ct);
 
+        var (wipRelief, receiptVariance) = await SplitReliefAsync(book.Id, run.JobId, fgValue, ct);
+
         var partLabel = run.Part?.PartNumber ?? $"part {run.PartId}";
         var jobLabel = await JobMemoLabel.ResolveAsync(db, terminology, run.JobId, ct);
         var desc = $"Production receipt — run {run.RunNumber} ({jobLabel}) {partLabel} x{run.ReceivedQuantity}";
+
+        var lines = new List<PostingLine>
+        {
+            // The FG/inventory debit is stock (not job-specific); tag the WIP credit with the Job dimension
+            // so the job-cost close can read & sweep WIP-by-job.
+            new() { AccountKey = debitKey, Debit = fgValue, Description = desc },
+        };
+        if (wipRelief > 0m)
+            lines.Add(new PostingLine { AccountKey = KeyInventoryWip, Credit = wipRelief, JobId = run.JobId, Description = desc });
+        if (receiptVariance > 0m)
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyProductionVariance,
+                Credit = receiptVariance,
+                Description = $"production variance (favorable) — standard above {jobLabel} cost to date",
+            });
 
         var request = new PostingRequest
         {
@@ -137,13 +158,7 @@ public sealed class ProductionReceiptPostingService(
             CurrencyId = book.FunctionalCurrencyId,
             Memo = $"Production receipt — run {run.RunNumber}, {partLabel}",
             IdempotencyKey = idempotencyKey,
-            Lines =
-            [
-                // The FG/inventory debit is stock (not job-specific); tag the WIP credit with the Job dimension
-                // so the job-cost close can read & sweep WIP-by-job.
-                new PostingLine { AccountKey = debitKey, Debit = fgValue, Description = desc },
-                new PostingLine { AccountKey = KeyInventoryWip, Credit = fgValue, JobId = run.JobId, Description = desc },
-            ],
+            Lines = lines,
         };
 
         var entry = await postingEngine.PostAsSystemAsync(request, receivedByUserId, ct);
@@ -153,6 +168,25 @@ public sealed class ProductionReceiptPostingService(
             await valuation.ApplyReceiptAsync(book.Id, run.PartId, run.ReceivedQuantity, fgValue, ct);
 
         await TryAuditAsync(run, jobLabel, entry, fgValue, receivedByUserId, ct);
+    }
+
+    /// <summary>Splits the standard FG value into the WIP relief (at most the job's GL WIP balance, never below zero)
+    /// and the favorable production variance for the rest. The whole value relieves WIP when the book maps no
+    /// INVENTORY_WIP or PRODUCTION_VARIANCE account.</summary>
+    private async Task<(decimal WipRelief, decimal Variance)> SplitReliefAsync(
+        int bookId, int jobId, decimal fgValue, CancellationToken ct)
+    {
+        var rules = await db.Set<AccountDeterminationRule>().AsNoTracking()
+            .Where(r => r.BookId == bookId && (r.Key == KeyInventoryWip || r.Key == KeyProductionVariance))
+            .Select(r => new { r.Key, r.GlAccountId })
+            .ToListAsync(ct);
+        var wipAccountId = rules.FirstOrDefault(r => r.Key == KeyInventoryWip)?.GlAccountId;
+        if (wipAccountId is null || rules.All(r => r.Key != KeyProductionVariance))
+            return (fgValue, 0m);
+
+        var balance = await JobWipLedger.BalanceAsync(db, bookId, wipAccountId.Value, jobId, ct);
+        var relief = Math.Clamp(balance, 0m, fgValue);
+        return (relief, fgValue - relief);
     }
 
     /// <summary>True for perpetual-stocked inventory classes (the ones backed by an INVENTORY_* account).</summary>
