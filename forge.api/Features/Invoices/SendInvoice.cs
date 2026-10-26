@@ -42,6 +42,12 @@ public class SendInvoiceHandler(
         if (invoice.Status != InvoiceStatus.Draft)
             throw new InvalidOperationException("Only Draft invoices can be sent");
 
+        if (db is not null)
+        {
+            await db.Entry(invoice).Collection(i => i.Lines).LoadAsync(cancellationToken);
+            await CustomerDeposits.ApplyAsync(db, invoice, cancellationToken);
+        }
+
         invoice.Status = InvoiceStatus.Sent;
 
         // ── Inline AR posting (Phase-1 STAGE A), wrapped with the Draft→Sent flip in

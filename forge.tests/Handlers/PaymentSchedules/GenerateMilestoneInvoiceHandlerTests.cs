@@ -106,6 +106,7 @@ public class GenerateMilestoneInvoiceHandlerTests
         sent.Lines[0].Quantity.Should().Be(1m);
         sent.Lines[0].UnitPrice.Should().Be(300.00m); // 30% of the SO total (1000)
         sent.Lines[0].Description.Should().Be("Payment milestone 1: Deposit (30%)");
+        sent.ApplyCustomerDeposits.Should().BeFalse();
 
         milestone.InvoiceId.Should().Be(77);
         milestone.AmountLocked.Should().Be(300.00m);

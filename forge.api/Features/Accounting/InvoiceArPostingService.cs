@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Invoices;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
@@ -113,6 +114,7 @@ public sealed class InvoiceArPostingService(
     private const string KeyFreightIncome = "FREIGHT_INCOME";
     private const string KeyDeferredRevenue = "DEFERRED_REVENUE";
     private const string KeySalesTaxPayable = "SALES_TAX_PAYABLE";
+    private const string KeyCustomerDeposits = "CUSTOMER_DEPOSITS";
 
     // Phase-2 STAGE B — COGS / finished-goods relief at the sale.
     private const string KeyCogs = "COGS";
@@ -260,6 +262,7 @@ public sealed class InvoiceArPostingService(
             $"{JournalSource.AR}:Invoice:{invoice.Id}:REVENUE",
             $"{JournalSource.AR}:Invoice:{invoice.Id}:REVENUE_RECLASS",
             $"{JournalSource.Inventory}:Invoice:{invoice.Id}:COGS",
+            DepositRateKey(invoice.Id),
         };
         var posted = await db.JournalEntries
             .Include(e => e.Lines)
@@ -382,17 +385,21 @@ public sealed class InvoiceArPostingService(
         // (PercentOfCompletion / Milestone) are not built yet — they fall back
         // to the same point-in-time behavior here and are a later-phase strategy
         // layer (§8.4).
+        var isDepositInvoice = await CustomerDeposits.IsDepositInvoiceAsync(db, invoice.Id, ct);
         var controlTransferred = HasControlTransferred(invoice);
-        var revenueKey = book.RevenueRecognitionMethod == RevenueRecognitionMethod.PointInTime && !controlTransferred
-            ? KeyDeferredRevenue
-            : KeySalesRevenue;
+        var revenueKey = isDepositInvoice
+            ? KeyCustomerDeposits
+            : book.RevenueRecognitionMethod == RevenueRecognitionMethod.PointInTime && !controlTransferred
+                ? KeyDeferredRevenue
+                : KeySalesRevenue;
 
         var lines = new List<PostingLine>(invoice.Lines.Count + 2);
 
         // Dr AR for the full invoice total (subtotal + tax). AR is a control
         // account → the engine requires the customer party on this line (§5.2).
         var arTotal = posted.ArTotal;
-        if (arTotal <= 0m)
+        var depositUsed = -posted.Lines.Where(p => p.Line.LineType == DocumentLineType.Deposit).Sum(p => p.Amount);
+        if (arTotal < 0m || (arTotal == 0m && depositUsed <= 0m))
         {
             // A zero/negative-total invoice (e.g. a fully-discounted or empty
             // finalize) has nothing to post; skip rather than emit a degenerate
@@ -406,14 +413,23 @@ public sealed class InvoiceArPostingService(
             return;
         }
 
-        lines.Add(new PostingLine
-        {
-            AccountKey = KeyArControl,
-            PartyType = SubledgerPartyType.Customer,
-            PartyId = invoice.CustomerId,
-            Debit = arTotal,
-            Description = $"AR — invoice {invoice.InvoiceNumber}",
-        });
+        if (arTotal > 0m)
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyArControl,
+                PartyType = SubledgerPartyType.Customer,
+                PartyId = invoice.CustomerId,
+                Debit = arTotal,
+                Description = $"AR — invoice {invoice.InvoiceNumber}",
+            });
+
+        if (depositUsed > 0m)
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyCustomerDeposits,
+                Debit = depositUsed,
+                Description = $"Customer deposit applied — invoice {invoice.InvoiceNumber}",
+            });
 
         // Cr Revenue (or Deferred Revenue) per line, so the sub-ledger carries
         // line-level detail (and a later reclass can target individual lines).
@@ -421,13 +437,15 @@ public sealed class InvoiceArPostingService(
         {
             if (amount == 0m)
                 continue; // a 0-value line contributes nothing to the credit side
+            if (line.LineType == DocumentLineType.Deposit)
+                continue;
 
-            var lineKey = revenueKey == KeyDeferredRevenue ? KeyDeferredRevenue : RecognizedKeyFor(line);
+            var lineKey = revenueKey is KeyDeferredRevenue or KeyCustomerDeposits ? revenueKey : RecognizedKeyFor(line);
             lines.Add(new PostingLine
             {
                 AccountKey = lineKey,
                 Credit = amount,
-                Description = $"{(lineKey == KeyDeferredRevenue ? "Deferred revenue" : line.IsFreight ? "Freight income" : "Revenue")} — "
+                Description = $"{(lineKey == KeyCustomerDeposits ? "Customer deposit" : lineKey == KeyDeferredRevenue ? "Deferred revenue" : line.IsFreight ? "Freight income" : "Revenue")} — "
                             + $"invoice {invoice.InvoiceNumber} line {line.LineNumber}: {line.Description}",
             });
         }
@@ -458,7 +476,7 @@ public sealed class InvoiceArPostingService(
         // guards independently on (SourceType, SourceId) (unique-indexed as the DB backstop).
         var hasOpenItem = await db.ArOpenItems.IgnoreQueryFilters()
             .AnyAsync(i => i.SourceType == "Invoice" && i.SourceId == invoice.Id, ct);
-        if (!hasOpenItem)
+        if (!hasOpenItem && arTotal > 0m)
         {
             db.ArOpenItems.Add(new ArOpenItem
             {
@@ -493,8 +511,10 @@ public sealed class InvoiceArPostingService(
             // see PostCogsAsync below.
             CurrencyId = invoice.CurrencyId,
             FxRate = invoice.FxRate,
-            Memo = $"AR revenue recognition — invoice {invoice.InvoiceNumber}"
-                 + (revenueKey == KeyDeferredRevenue ? " (deferred — invoice precedes delivery)" : string.Empty),
+            Memo = isDepositInvoice
+                ? $"Customer deposit billed — invoice {invoice.InvoiceNumber}"
+                : $"AR revenue recognition — invoice {invoice.InvoiceNumber}"
+                  + (revenueKey == KeyDeferredRevenue ? " (deferred — invoice precedes delivery)" : string.Empty),
             IdempotencyKey = idempotencyKey,
             Lines = lines,
         };
@@ -514,12 +534,64 @@ public sealed class InvoiceArPostingService(
         // independently. When the invoice precedes delivery (!controlTransferred → deferred revenue),
         // inventory is NOT relieved yet — COGS waits for the same delivery trigger as the revenue
         // reclass (TODO below).
-        if (controlTransferred)
+        if (depositUsed > 0m)
+            await PostDepositRateAdjustmentAsync(invoice, book, entryDate, depositUsed, finalizedByUserId, ct);
+
+        if (controlTransferred && !isDepositInvoice)
             await PostCogsAsync(invoice, book, entryDate, finalizedByUserId, ct);
 
         // ── Deferred-revenue reclass on delivery (§8.4 / matrix row 2): handled by
         // PostDeliveryReclassAsync above, triggered by ShipmentDeliveredEvent via
         // OnShipmentDelivered_ReclassDeferredRevenue (idempotency purpose = REVENUE_RECLASS).
+    }
+
+    private static string DepositRateKey(int invoiceId) => $"{JournalSource.AR}:Invoice:{invoiceId}:DEPOSIT_RATE";
+
+    /// <summary>
+    /// A deposit is a non-monetary advance: the revenue it pays for is recognized at the rate the deposit was booked
+    /// at, not revalued (the IFRIC 22 / ASC 830 treatment). The invoice entry relieved Customer Deposits at the
+    /// invoice's own rate, so when the sales order's deposit invoices were booked at a different rate, this posts the
+    /// difference in the functional currency between Customer Deposits and Sales Revenue, leaving Customer Deposits
+    /// at zero once the deposit is used up. It goes straight to revenue even when the invoice precedes delivery, so
+    /// the delivery reclass still clears deferred revenue exactly. Nothing is posted for a single-currency install or when the rates agree.
+    /// </summary>
+    private async Task PostDepositRateAdjustmentAsync(
+        Invoice invoice, Book book, DateOnly entryDate, decimal depositUsed, int userId, CancellationToken ct)
+    {
+        if (invoice.SalesOrderId is not int salesOrderId)
+            return;
+
+        var pool = await CustomerDeposits.PoolAsync(db, salesOrderId, invoice.CurrencyId, invoice.Id, ct);
+        var atBooking = Math.Round(depositUsed * pool.BookedRate, 2, MidpointRounding.AwayFromZero);
+        var atInvoice = Math.Round(depositUsed * invoice.FxRate, 2, MidpointRounding.AwayFromZero);
+        var difference = atBooking - atInvoice;
+        if (difference == 0m)
+            return;
+
+        var description = $"Customer deposit at its booked rate — invoice {invoice.InvoiceNumber}";
+        var amount = Math.Abs(difference);
+        await postingEngine.PostAsSystemAsync(new PostingRequest
+        {
+            BookId = book.Id,
+            EntryDate = entryDate,
+            Source = JournalSource.AR,
+            SourceType = "Invoice",
+            SourceId = invoice.Id,
+            CurrencyId = book.FunctionalCurrencyId,
+            Memo = description,
+            IdempotencyKey = DepositRateKey(invoice.Id),
+            Lines = difference > 0m
+                ?
+                [
+                    new PostingLine { AccountKey = KeyCustomerDeposits, Debit = amount, Description = description },
+                    new PostingLine { AccountKey = KeySalesRevenue, Credit = amount, Description = description },
+                ]
+                :
+                [
+                    new PostingLine { AccountKey = KeySalesRevenue, Debit = amount, Description = description },
+                    new PostingLine { AccountKey = KeyCustomerDeposits, Credit = amount, Description = description },
+                ],
+        }, userId, ct);
     }
 
     /// <summary>
@@ -661,7 +733,7 @@ public sealed class InvoiceArPostingService(
     internal static List<PostingLine> BuildReclassLines(Invoice invoice, decimal deferredCredit)
     {
         var posted = ComputePostedAmounts(invoice).Lines
-            .Where(p => p.Amount != 0m)
+            .Where(p => p.Amount != 0m && p.Line.LineType != DocumentLineType.Deposit)
             .Select(p => (p.Line, p.Amount))
             .ToList();
         if (posted.Count == 0)
@@ -709,11 +781,12 @@ public sealed class InvoiceArPostingService(
         var residual = roundedSubtotal - amounts.Sum();
         if (residual != 0m && amounts.Length > 0)
         {
-            var largest = 0;
-            for (var i = 1; i < amounts.Length; i++)
-                if (Math.Abs(amounts[i]) > Math.Abs(amounts[largest]))
+            var largest = -1;
+            for (var i = 0; i < amounts.Length; i++)
+                if (ordered[i].LineType != DocumentLineType.Deposit
+                    && (largest < 0 || Math.Abs(amounts[i]) > Math.Abs(amounts[largest])))
                     largest = i;
-            amounts[largest] += residual;
+            amounts[largest < 0 ? 0 : largest] += residual;
         }
 
         var arTotal = Money.Round(invoice.Total);

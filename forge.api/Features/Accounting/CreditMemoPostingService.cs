@@ -3,6 +3,7 @@ using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Invoices;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
@@ -105,9 +106,13 @@ public sealed class CreditMemoPostingService(
         if (total <= 0m)
             return;
 
-        var lines = memo.IsWriteOff
-            ? await BuildWriteOffLinesAsync(memo, total, ct)
-            : BuildIssueLines(memo, total);
+        var againstDeposit = memo.InvoiceId is int creditedInvoiceId
+            && await CustomerDeposits.IsDepositInvoiceAsync(db, creditedInvoiceId, ct);
+        var lines = againstDeposit
+            ? BuildDepositCreditLines(memo, total)
+            : memo.IsWriteOff
+                ? await BuildWriteOffLinesAsync(memo, total, ct)
+                : BuildIssueLines(memo, total);
 
         if (!await db.ArOpenItems.IgnoreQueryFilters()
                 .AnyAsync(i => i.SourceType == OpenItemSourceType && i.SourceId == memo.Id, ct))
@@ -176,6 +181,27 @@ public sealed class CreditMemoPostingService(
             Description = $"AR credit — credit memo {number}",
         });
         return lines;
+    }
+
+    /// <summary>
+    /// The issue lines of a memo (a write-off included) against a payment-milestone invoice: the invoice billed a
+    /// deposit, not a sale, so crediting it reduces Customer Deposits rather than booking a return or a bad debt.
+    /// </summary>
+    internal static List<PostingLine> BuildDepositCreditLines(CreditMemo memo, decimal total)
+    {
+        var number = memo.CreditMemoNumber;
+        return
+        [
+            new PostingLine { AccountKey = KeyCustomerDeposits, Debit = total, Description = $"Customer deposit credited — credit memo {number}" },
+            new PostingLine
+            {
+                AccountKey = KeyArControl,
+                PartyType = SubledgerPartyType.Customer,
+                PartyId = memo.CustomerId,
+                Credit = total,
+                Description = $"AR credit — credit memo {number}",
+            },
+        ];
     }
 
     private async Task<List<PostingLine>> BuildWriteOffLinesAsync(CreditMemo memo, decimal total, CancellationToken ct)
