@@ -43,6 +43,7 @@ public class CreatePartHandler(
     IBarcodeService barcodeService,
     IBusinessIdentifierService identifiers,
     AppDbContext db,
+    IClock clock,
     ILogger<CreatePartHandler> logger) : IRequestHandler<CreatePartCommand, PartDetailResponseModel>
 {
     public async Task<PartDetailResponseModel> Handle(CreatePartCommand request, CancellationToken cancellationToken)
@@ -63,6 +64,7 @@ public class CreatePartHandler(
 
         await repo.AddAsync(part, cancellationToken);
 
+        PartRevisionBaseline.Add(db, part, clock.UtcNow, "Initial release");
         db.LogActivityAt(
             "created",
             $"Created part: {part.PartNumber} — {part.Name} ({part.ProcurementSource} / {part.InventoryClass})",

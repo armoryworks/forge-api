@@ -18,9 +18,9 @@ namespace Forge.Api.Features.Parts;
 /// <summary>
 /// Duplicates a part as a new Draft part, carrying its descriptive and engineering fields and,
 /// on request, its BOM, routing (operations plus their material links) and vendor sources.
-/// Inventory, revisions, prices, accounting links, attachments, alternates, piece rates and SPC
-/// characteristics are never copied. On a connected accounting install the new part is queued
-/// for item creation, as a newly created part is.
+/// Inventory, revision history, prices, accounting links, attachments, alternates, piece rates and
+/// SPC characteristics are never copied; the new part starts its own history at revision A. On a
+/// connected accounting install the new part is queued for item creation, as a newly created part is.
 /// </summary>
 public record ClonePartCommand(int SourcePartId, ClonePartRequestModel Data) : IRequest<PartDetailResponseModel>;
 
@@ -45,6 +45,7 @@ public class ClonePartHandler(
     ISyncQueueRepository syncQueue,
     IAccountingProviderFactory providerFactory,
     ISender sender,
+    IClock clock,
     ILogger<ClonePartHandler> logger) : IRequestHandler<ClonePartCommand, PartDetailResponseModel>
 {
     public async Task<PartDetailResponseModel> Handle(ClonePartCommand request, CancellationToken cancellationToken)
@@ -60,6 +61,7 @@ public class ClonePartHandler(
 
         var part = CopyPart(source, partNumber, data);
         db.Parts.Add(part);
+        PartRevisionBaseline.Add(db, part, clock.UtcNow, $"Duplicated from {source.PartNumber}");
 
         var bomMap = data.CopyBom
             ? await CopyBomAsync(source.Id, part, cancellationToken)

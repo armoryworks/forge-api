@@ -27,7 +27,8 @@ public record BulkPartIntakeCommand(BulkPartIntakeRequest Request, bool Commit)
     : IRequest<BulkPartIntakeResponseModel>;
 
 public class BulkPartIntakeHandler(
-    AppDbContext db, IPartRepository repo, IBarcodeService barcodeService, IBusinessIdentifierService identifiers)
+    AppDbContext db, IPartRepository repo, IBarcodeService barcodeService, IBusinessIdentifierService identifiers,
+    IClock clock)
     : IRequestHandler<BulkPartIntakeCommand, BulkPartIntakeResponseModel>
 {
     public async Task<BulkPartIntakeResponseModel> Handle(BulkPartIntakeCommand request, CancellationToken ct)
@@ -124,8 +125,12 @@ public class BulkPartIntakeHandler(
             db.Parts.AddRange(toCreate);
             await db.SaveChangesAsync(ct);
 
+            var effectiveDate = clock.UtcNow;
             foreach (var part in toCreate)
+            {
+                PartRevisionBaseline.Add(db, part, effectiveDate, "Initial release");
                 db.LogActivityAt("bulk-intake-created", $"Created part via bulk import: {part.PartNumber} — {part.Name}", ("Part", part.Id));
+            }
             await db.SaveChangesAsync(ct);
 
             // Barcodes: CreateBarcodeAsync owns the uniqueness + GTIN-vs-internal decision and

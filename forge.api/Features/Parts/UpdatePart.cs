@@ -86,7 +86,12 @@ public class UpdatePartHandler(
             var trimmed = data.Description.Trim();
             part.Description = trimmed.Length == 0 ? null : trimmed;
         }
-        if (data.Revision is not null) part.Revision = data.Revision.Trim();
+        if (data.Revision is not null)
+        {
+            var previousRevision = part.Revision;
+            part.Revision = data.Revision.Trim();
+            await PartRevisionBaseline.RenameCurrentAsync(db, part.Id, previousRevision, part.Revision, cancellationToken);
+        }
         if (data.Status.HasValue) part.Status = data.Status.Value;
         if (data.ProcurementSource.HasValue) part.ProcurementSource = data.ProcurementSource.Value;
         if (data.InventoryClass.HasValue) part.InventoryClass = data.InventoryClass.Value;

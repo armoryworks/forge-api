@@ -237,6 +237,15 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
         if (part is null)
             return null;
 
+        var childIds = part.BOMLines.Select(b => b.ChildPartId).Distinct().ToList();
+        var childrenWithBom = childIds.Count == 0
+            ? []
+            : (await db.BOMLines.AsNoTracking()
+                .Where(b => childIds.Contains(b.ParentPartId))
+                .Select(b => b.ParentPartId)
+                .Distinct()
+                .ToListAsync(ct)).ToHashSet();
+
         var bomLines = part.BOMLines
             .OrderBy(b => b.SortOrder)
             .Select(b => new BOMLineResponseModel(
@@ -252,7 +261,8 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
                 b.Notes,
                 b.UomId,
                 b.Uom != null ? b.Uom.Code : null,
-                b.Uom != null ? b.Uom.Name : null))
+                b.Uom != null ? b.Uom.Name : null,
+                childrenWithBom.Contains(b.ChildPartId)))
             .ToList();
 
         var usedIn = part.UsedInBOM

@@ -147,7 +147,8 @@ public class PreferredVendorSyncTests
     {
         var seeded = await SeedPartPreferringAAsync();
         var adapter = new PartWorkflowAdapter(
-            _db, Mock.Of<IPartRepository>(), Mock.Of<ISystemSettingRepository>(), Mock.Of<IBusinessIdentifierService>());
+            _db, Mock.Of<IPartRepository>(), Mock.Of<ISystemSettingRepository>(), Mock.Of<IBusinessIdentifierService>(),
+            TestCaller.ClockAt(new DateTimeOffset(2026, 3, 2, 9, 0, 0, TimeSpan.Zero)));
         using var patch = JsonDocument.Parse($$"""{"preferredVendorId": {{seeded.VendorB.Id}}}""");
 
         await adapter.ApplyAsync(seeded.Part.Id, patch.RootElement, CancellationToken.None);
