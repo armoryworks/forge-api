@@ -83,4 +83,41 @@ public class ShipmentsRemediationTests
         db2.BinContents.First(b => b.Id == binId).Quantity.Should().BeLessThan(10m,
             "shipping 3 units must relieve on-hand from 10 (today the bin is untouched)");
     }
+
+    [Fact]
+    public async Task Shipping_a_stocked_line_with_no_free_stock_is_refused_with_409()
+    {
+        int shipmentId;
+        string partNumber;
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var part = new Part { PartNumber = $"P-NOSTOCK-{Guid.NewGuid().ToString("N")[..8]}", Name = "Never stocked" };
+            db.Parts.Add(part);
+            var customer = new Customer { Name = "No-stock Ship Customer" };
+            db.Customers.Add(customer);
+            await db.SaveChangesAsync();
+            var so = new SalesOrder { CustomerId = customer.Id, Status = SalesOrderStatus.Confirmed };
+            db.SalesOrders.Add(so);
+            await db.SaveChangesAsync();
+            var shipment = new Shipment
+            {
+                SalesOrderId = so.Id,
+                Status = ShipmentStatus.Packed,
+                Lines = { new ShipmentLine { PartId = part.Id, Quantity = 12m } },
+            };
+            db.Shipments.Add(shipment);
+            await db.SaveChangesAsync();
+            shipmentId = shipment.Id;
+            partNumber = part.PartNumber;
+        }
+
+        var shipResp = await AuthClient().PostAsync($"/api/v1/shipments/{shipmentId}/ship", null);
+
+        shipResp.StatusCode.Should().Be(System.Net.HttpStatusCode.Conflict);
+        (await shipResp.Content.ReadAsStringAsync()).Should().Contain($"{partNumber} needs 12, 0 free");
+        using var verify = NewScope();
+        var db2 = verify.ServiceProvider.GetRequiredService<AppDbContext>();
+        db2.Shipments.First(s => s.Id == shipmentId).Status.Should().Be(ShipmentStatus.Packed);
+    }
 }

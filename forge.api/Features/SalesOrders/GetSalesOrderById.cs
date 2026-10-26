@@ -145,6 +145,7 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
                 cr.ReworkJob?.JobNumber,
                 cr.InspectionNotes)).ToList(),
             so.CreatedAt,
-            so.UpdatedAt);
+            so.UpdatedAt,
+            so.Version);
     }
 }

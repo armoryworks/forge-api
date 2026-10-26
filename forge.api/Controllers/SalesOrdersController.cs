@@ -44,6 +44,7 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<SalesOrderDetailResponseModel>> GetSalesOrder(int id)
     {
         var result = await mediator.Send(new GetSalesOrderByIdQuery(id));
+        Response.Headers.ETag = $"\"{result.RowVersion}\"";
         return Ok(result);
     }
 

@@ -21,7 +21,6 @@ public class ShipShipmentHandler(
     // mock-based handler tests that don't register it → ship flips status only, as before.
     InventoryReliefService? relief = null,
     IHttpContextAccessor? httpContext = null,
-    ILogger<ShipShipmentHandler>? logger = null,
     // Optional / null-default so the mock-based handler tests stay constructible; the DI path supplies
     // it. Backs the scan-to-ship gate (carrier lookup) and the shipped activity-log row.
     AppDbContext? db = null)
@@ -77,11 +76,8 @@ public class ShipShipmentHandler(
             httpContext?.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
             out var uid) ? uid : 0;
 
-        if (relief is not null
-            && await relief.RelieveShipmentAsync(shipment, userId, cancellationToken) is { Count: > 0 } shortLines)
-            logger?.LogWarning(
-                "Shipping shipment {ShipmentId} with {Count} line(s) not relieved for want of free stock (backorder).",
-                shipment.Id, shortLines.Count);
+        if (relief is not null)
+            await relief.RelieveShipmentAsync(shipment, userId, cancellationToken);
 
         shipment.Status = ShipmentStatus.Shipped;
         shipment.ShippedDate = DateTimeOffset.UtcNow;
