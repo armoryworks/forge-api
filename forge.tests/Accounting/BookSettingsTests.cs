@@ -196,6 +196,28 @@ public class BookSettingsTests
     }
 
     [Fact]
+    public async Task SoftClosedOverride_OnResubmit_RecordsTheNewReason()
+    {
+        using var db = await SeedAsync(FiscalPeriodStatus.SoftClosed);
+        await new UpdateBookSettingsHandler(db)
+            .Handle(new UpdateBookSettingsCommand(BookId, 50m, null), CancellationToken.None);
+        var pending = await PostAsync(db, Entry(100m, overrideSoftClose: true, reason: "First reason"));
+        await new RejectJournalEntryHandler(db)
+            .Handle(new RejectJournalEntryCommand(pending.Id, "Wrong account"), CancellationToken.None);
+
+        var resubmitted = await new ResubmitJournalEntryHandler(
+                new ForgeGlPostingEngine(db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock()),
+                HttpAccessorFor(42),
+                db)
+            .Handle(new ResubmitJournalEntryCommand(pending.Id, Entry(100m, overrideSoftClose: true, reason: "Corrected late invoice")),
+                CancellationToken.None);
+
+        resubmitted.Status.Should().Be(JournalEntryStatus.PendingApproval.ToString());
+        (await db.ActivityLogs.Where(l => l.Action == "soft-close-override").Select(l => l.Description).ToListAsync())
+            .Should().HaveCount(2).And.Contain(d => d.Contains("Corrected late invoice"));
+    }
+
+    [Fact]
     public async Task SoftClosedPeriod_WithoutOverride_IsRefused()
     {
         using var db = await SeedAsync(FiscalPeriodStatus.SoftClosed);

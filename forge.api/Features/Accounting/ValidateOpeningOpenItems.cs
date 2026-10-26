@@ -9,12 +9,12 @@ using Forge.Data.Context;
 namespace Forge.Api.Features.Accounting;
 
 /// <summary>
-/// §7A conversion — dry run of the opening AR/AP open items before <c>POST opening-balances</c>: resolves
+/// §7A conversion — dry run of the opening AR/AP open items before they post: resolves
 /// each row's customer or vendor (by id, or by number or name for a CSV row), checks the amount, the dates and
 /// the document number the way the post will, and totals receivables and payables for the tie-out against
 /// the legacy control balances. Writes nothing.
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresAnyCapability("CAP-ACCT-MIGRATION", "CAP-ACCT-FULLGL")]
 public record ValidateOpeningOpenItemsQuery(ValidateOpeningOpenItemsRequestModel Model)
     : IRequest<OpeningOpenItemsValidationModel>;
 

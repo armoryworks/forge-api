@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
@@ -150,21 +151,32 @@ public class CreateManualJournalEntryHandler(
             ? await postingEngine.PostPendingAsync(postingRequest, postedByUserId, cancellationToken)
             : await postingEngine.PostAsync(postingRequest, postedByUserId, cancellationToken);
 
-        if (db is not null && request.AllowSoftClosedOverride && !string.IsNullOrWhiteSpace(request.OverrideReason))
-        {
-            var period = await db.FiscalPeriods.AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Id == entry.FiscalPeriodId, cancellationToken);
-            if (period?.Status == FiscalPeriodStatus.SoftClosed)
-            {
-                db.LogActivityAt(
-                    "soft-close-override",
-                    $"Journal entry {entry.EntryNumber} posted into soft-closed period {period.Name}: {request.OverrideReason.Trim()}",
-                    ("Book", request.BookId));
-                await db.SaveChangesAsync(cancellationToken);
-            }
-        }
+        if (db is not null)
+            await LogSoftCloseOverrideAsync(db, request, entry, cancellationToken);
 
         return entry.ToManualResult();
+    }
+
+    /// <summary>
+    /// Records the soft-close override reason in the book's activity log when <paramref name="entry"/> landed in
+    /// a soft-closed period under the override (on create and on a maker-checker resubmit).
+    /// </summary>
+    internal static async Task LogSoftCloseOverrideAsync(
+        AppDbContext db, CreateManualJournalEntryCommand request, JournalEntry entry, CancellationToken ct)
+    {
+        if (!request.AllowSoftClosedOverride || string.IsNullOrWhiteSpace(request.OverrideReason))
+            return;
+
+        var period = await db.FiscalPeriods.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == entry.FiscalPeriodId, ct);
+        if (period?.Status != FiscalPeriodStatus.SoftClosed)
+            return;
+
+        db.LogActivityAt(
+            "soft-close-override",
+            $"Journal entry {entry.EntryNumber} posted into soft-closed period {period.Name}: {request.OverrideReason.Trim()}",
+            ("Book", request.BookId));
+        await db.SaveChangesAsync(ct);
     }
 
     internal static PostingRequest ToPostingRequest(CreateManualJournalEntryCommand request) => new()

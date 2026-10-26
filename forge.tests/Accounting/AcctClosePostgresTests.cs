@@ -7,6 +7,7 @@ using QuestPDF.Infrastructure;
 
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Customers;
+using Forge.Api.Middleware;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
@@ -121,36 +122,35 @@ END $$;");
         await ResetAsync(db);
         await SeedAsync(db);
 
+        List<OpeningOpenItemRowModel> rows =
+        [
+            new(SubledgerPartyType.Customer, null, "CUST-0001", "OB-1001", new DateOnly(2025, 12, 1), new DateOnly(2025, 12, 31), 1200m, "Open invoice OB-1001"),
+            new(SubledgerPartyType.Customer, null, "Acme Fabrication", null, null, null, 300m, null),
+            new(SubledgerPartyType.Vendor, null, "VEND-0001", "V-77", null, null, 450m, "Open bill V-77"),
+        ];
         var check = await new ValidateOpeningOpenItemsHandler(db).Handle(
-            new ValidateOpeningOpenItemsQuery(new ValidateOpeningOpenItemsRequestModel(BookId,
-            [
-                new(SubledgerPartyType.Customer, null, "CUST-0001", "OB-1001", new DateOnly(2025, 12, 1), new DateOnly(2025, 12, 31), 1200m, "Open invoice OB-1001"),
-                new(SubledgerPartyType.Customer, null, "Acme Fabrication", null, null, null, 300m, null),
-                new(SubledgerPartyType.Vendor, null, "VEND-0001", "V-77", null, null, 450m, "Open bill V-77"),
-            ])),
+            new ValidateOpeningOpenItemsQuery(new ValidateOpeningOpenItemsRequestModel(BookId, rows)),
             CancellationToken.None);
         check.ErrorCount.Should().Be(0);
         check.ReceivablesTotal.Should().Be(1500m);
         check.PayablesTotal.Should().Be(450m);
-
         var customerId = check.Rows[0].PartyId!.Value;
         var vendorId = check.Rows[2].PartyId!.Value;
-        var lines = new List<OpeningBalanceLineModel>
-        {
-            new("AR_CONTROL", null, 1200m, 0m, SubledgerPartyType.Customer, customerId, "Open invoice OB-1001", "OB-1001", new DateOnly(2025, 12, 1), new DateOnly(2025, 12, 31)),
-            new("AR_CONTROL", null, 300m, 0m, SubledgerPartyType.Customer, customerId, null),
-            new("AP_CONTROL", null, 0m, 450m, SubledgerPartyType.Vendor, vendorId, "Open bill V-77", "V-77"),
-            new("OPENING_BALANCE_EQUITY", null, 0m, 1050m, null, null, "Opening AR/AP offset"),
-        };
 
-        await using (var tx = await db.Database.BeginTransactionAsync())
-        {
-            await new ConversionService(db, Engine(db), new BusinessIdentifierService(db, new SystemClock()))
-                .PostOpeningBalancesAsync(new PostOpeningBalancesModel(BookId, AsOf, lines), postedByUserId: 7);
-            await tx.CommitAsync();
-        }
+        var poster = new PostOpeningOpenItemsHandler(
+            db, new ConversionService(db, Engine(db), new BusinessIdentifierService(db, new SystemClock())));
+        var untied = () => poster.Handle(
+            new PostOpeningOpenItemsCommand(new PostOpeningOpenItemsRequestModel(BookId, AsOf, 1499m, 450m, rows)),
+            CancellationToken.None);
+        (await untied.Should().ThrowAsync<CodedConflictException>()).Which.Code.Should().Be(PostOpeningOpenItemsHandler.UntiedCode);
+
+        var posted = await poster.Handle(
+            new PostOpeningOpenItemsCommand(new PostOpeningOpenItemsRequestModel(BookId, AsOf, 1500m, 450m, rows)),
+            CancellationToken.None);
+        posted.TotalDebit.Should().Be(1500m);
 
         await using var verify = fixture.CreateContext();
+        (await verify.JournalLines.Where(l => l.GlAccountId == ObeId).SumAsync(l => l.Credit - l.Debit)).Should().Be(1050m);
         var ar = await new ArAgingService(verify, new SystemClock()).GetArAgingAsync(BookId, new DateOnly(2026, 1, 15));
         ar.Customers.Should().ContainSingle(c => c.CustomerId == customerId).Which.OpenBalance.Should().Be(1500m);
         ar.Reconciliation.IsReconciled.Should().BeTrue();
@@ -171,6 +171,12 @@ END $$;");
             CancellationToken.None);
         again.AlreadyPosted.Should().BeTrue();
         again.Rows[0].Errors.Should().Contain(ValidateOpeningOpenItemsHandler.DocumentNumberInUse);
+
+        var twice = () => new PostOpeningOpenItemsHandler(
+                verify, new ConversionService(verify, Engine(verify), new BusinessIdentifierService(verify, new SystemClock())))
+            .Handle(new PostOpeningOpenItemsCommand(new PostOpeningOpenItemsRequestModel(BookId, AsOf, 1500m, 450m, rows)),
+                CancellationToken.None);
+        (await twice.Should().ThrowAsync<CodedConflictException>()).Which.Code.Should().Be(PostOpeningOpenItemsHandler.AlreadyPostedCode);
     }
 
     [Fact]

@@ -183,7 +183,8 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
                 request.CurrencyId,
                 request.Memo,
                 request.AllowSoftClosedOverride,
-                request.Lines)),
+                request.Lines,
+                request.OverrideReason)),
             ct));
 
     /// <summary>
@@ -578,14 +579,6 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<OpeningBalanceResult>> PostOpeningBalances(
         [FromBody] PostOpeningBalancesModel model, CancellationToken ct)
         => Ok(await mediator.Send(new PostOpeningBalancesCommand(model), ct));
-
-    /// <summary>§7A conversion — dry run of the opening AR/AP open items: resolves each row's party, checks
-    /// amounts, dates and document numbers, and totals receivables and payables for the tie-out.</summary>
-    [RequiresCapability("CAP-ACCT-FULLGL")]
-    [HttpPost("opening-balances/validate")]
-    public async Task<ActionResult<OpeningOpenItemsValidationModel>> ValidateOpeningOpenItems(
-        [FromBody] ValidateOpeningOpenItemsRequestModel model, CancellationToken ct)
-        => Ok(await mediator.Send(new ValidateOpeningOpenItemsQuery(model), ct));
 
     // ─────────────────────────── Phase-4 fixed-asset depreciation ───────────────────────────
 

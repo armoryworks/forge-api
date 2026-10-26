@@ -64,7 +64,6 @@ public sealed class AccountingCloseRoleGateTests
     [InlineData("POST", "api/v1/accounting/bank-statements/lines/{lineId:long}/match/{journalLineId:long}", "CAP-ACCT-FULLGL")]
     [InlineData("GET", "api/v1/accounting/books/{id:int}/settings", "CAP-ACCT-GL-VIEW")]
     [InlineData("PUT", "api/v1/accounting/books/{id:int}/settings", "CAP-ACCT-FULLGL")]
-    [InlineData("POST", "api/v1/accounting/opening-balances/validate", "CAP-ACCT-FULLGL")]
     [InlineData("POST", "api/v1/accounting/opening-balances", "CAP-ACCT-FULLGL")]
     [InlineData("POST", "api/v1/accounting/payroll/runs/import/preview", "CAP-ACCT-FULLGL")]
     [InlineData("POST", "api/v1/accounting/payroll/runs/import", "CAP-ACCT-FULLGL")]
@@ -78,6 +77,23 @@ public sealed class AccountingCloseRoleGateTests
 
         EffectiveRoles(action).Should().BeEquivalentTo(["Controller"], $"{verb} {template}");
         EffectiveCapability(action).Should().Be(capability, $"{verb} {template}");
+    }
+
+    [Theory]
+    [InlineData("POST", "api/v1/accounting/conversion/open-items/validate")]
+    [InlineData("POST", "api/v1/accounting/conversion/open-items")]
+    public void Opening_open_items_are_controller_only_and_open_under_migration_or_full_gl(string verb, string template)
+    {
+        var action = Action(verb, template);
+
+        EffectiveRoles(action).Should().BeEquivalentTo(["Controller"], $"{verb} {template}");
+        EffectiveCapability(action).Should().BeNull($"{verb} {template} must not also need a single capability");
+        action.DeclaringType!.GetCustomAttribute<RequiresAnyCapabilityAttribute>()!.Capabilities
+            .Should().BeEquivalentTo(["CAP-ACCT-MIGRATION", "CAP-ACCT-FULLGL"], $"{verb} {template}");
+        typeof(ValidateOpeningOpenItemsQuery).GetCustomAttribute<RequiresAnyCapabilityAttribute>()!.Capabilities
+            .Should().BeEquivalentTo(["CAP-ACCT-MIGRATION", "CAP-ACCT-FULLGL"]);
+        typeof(PostOpeningOpenItemsCommand).GetCustomAttribute<RequiresAnyCapabilityAttribute>()!.Capabilities
+            .Should().BeEquivalentTo(["CAP-ACCT-MIGRATION", "CAP-ACCT-FULLGL"]);
     }
 
     [Theory]
@@ -120,7 +136,15 @@ public sealed class AccountingCloseRoleGateTests
         await AssertRefusedWithoutAsync<GetBookSettingsQuery, BookSettingsModel>(
             new GetBookSettingsQuery(1), "CAP-ACCT-GL-VIEW");
         await AssertRefusedWithoutAsync<ValidateOpeningOpenItemsQuery, OpeningOpenItemsValidationModel>(
-            new ValidateOpeningOpenItemsQuery(new ValidateOpeningOpenItemsRequestModel(1, [])), "CAP-ACCT-FULLGL");
+            new ValidateOpeningOpenItemsQuery(new ValidateOpeningOpenItemsRequestModel(1, [])), "CAP-ACCT-MIGRATION");
+        await new CapabilityGateBehavior<PostOpeningOpenItemsCommand, OpeningBalanceResult>(new Snapshot("CAP-ACCT-FULLGL"))
+            .Invoking(b => b.Handle(
+                new PostOpeningOpenItemsCommand(new PostOpeningOpenItemsRequestModel(1, new DateOnly(2026, 1, 1), 0m, 0m, [])),
+                _ => Task.FromResult(default(OpeningBalanceResult)!), CancellationToken.None))
+            .Should().NotThrowAsync();
+        await AssertRefusedWithoutAsync<PostOpeningOpenItemsCommand, OpeningBalanceResult>(
+            new PostOpeningOpenItemsCommand(new PostOpeningOpenItemsRequestModel(1, new DateOnly(2026, 1, 1), 0m, 0m, [])),
+            "CAP-ACCT-MIGRATION");
         await AssertRefusedWithoutAsync<GetPayRunJournalPreviewQuery, IReadOnlyList<PayRunJournalPreviewLineModel>>(
             new GetPayRunJournalPreviewQuery(1), "CAP-PAYROLL-RUN");
     }
