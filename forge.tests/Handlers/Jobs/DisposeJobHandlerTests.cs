@@ -50,6 +50,10 @@ public class DisposeJobHandlerTests
             .Setup(p => p.CapitalizeJobCostAsync(It.IsAny<int>(), It.IsAny<int?>(), It.IsAny<DateOnly>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((int jobId, int? _, DateOnly _, int _, CancellationToken _) =>
                 new JobCapitalizationResult(jobId, 0m, 0m, 0m, 0m, null, Posted: false));
+        _jobCostPosting
+            .Setup(p => p.CloseDisposedJobProductionCostAsync(It.IsAny<int>(), It.IsAny<DateOnly>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int jobId, DateOnly _, int _, CancellationToken _) =>
+                new JobProductionCostCloseResult(jobId, 0m, 0m, 0m, Posted: false));
 
         _handler = new DisposeJobHandler(
             _jobRepo.Object,
@@ -695,6 +699,79 @@ public class DisposeJobHandlerTests
         job.Disposition.Should().Be(JobDisposition.AddToInventory);
         _mediator.Verify(m => m.Send(It.IsAny<ReceiveProductionRunToStockCommand>(), It.IsAny<CancellationToken>()), Times.Never);
         _jobRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_AddToInventory_RefusedWhileChildJobsAreOpen_NamingThem()
+    {
+        _capabilities.Setup(c => c.IsEnabled(DisposeJobHandler.StockingCapability)).Returns(false);
+        var job = ArrangeJob(67, "JOB-0067");
+        job.PartId = 670;
+        _dbContext.Jobs.AddRange(
+            new Job { JobNumber = "JOB-0068", Title = "Sub A", ParentJobId = 67 },
+            new Job { JobNumber = "JOB-0069", Title = "Sub B", ParentJobId = 67, Disposition = JobDisposition.HoldForReview },
+            new Job { JobNumber = "JOB-0070", Title = "Sub C", ParentJobId = 67, CompletedDate = DateTimeOffset.UtcNow },
+            new Job { JobNumber = "JOB-0071", Title = "Sub D", ParentJobId = 67, Disposition = JobDisposition.Scrap },
+            new Job { JobNumber = "JOB-0072", Title = "Sub E", ParentJobId = 67, IsArchived = true });
+        await _dbContext.SaveChangesAsync();
+
+        var act = () => DisposeToInventory(67, null, null);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage(DisposeJobHandler.OpenChildrenMessage(["JOB-0068", "JOB-0069"]));
+        job.Disposition.Should().BeNull();
+        _jobCostPosting.Verify(p => p.CloseDisposedJobProductionCostAsync(
+            It.IsAny<int>(), It.IsAny<DateOnly>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_AddToInventory_AllowedOnceEveryChildJobIsClosed()
+    {
+        _capabilities.Setup(c => c.IsEnabled(DisposeJobHandler.StockingCapability)).Returns(false);
+        var job = ArrangeJob(73, "JOB-0073");
+        job.PartId = 730;
+        _dbContext.Jobs.AddRange(
+            new Job { JobNumber = "JOB-0074", Title = "Sub A", ParentJobId = 73, CompletedDate = DateTimeOffset.UtcNow },
+            new Job { JobNumber = "JOB-0075", Title = "Sub B", ParentJobId = 73, Disposition = JobDisposition.AddToInventory });
+        await _dbContext.SaveChangesAsync();
+
+        await DisposeToInventory(73, null, null);
+
+        job.Disposition.Should().Be(JobDisposition.AddToInventory);
+    }
+
+    [Fact]
+    public async Task Handle_ScrapWithOpenChildJobs_IsNotGuarded()
+    {
+        var job = ArrangeJob(76, "JOB-0076");
+        _dbContext.Jobs.Add(new Job { JobNumber = "JOB-0077", Title = "Sub A", ParentJobId = 76 });
+        await _dbContext.SaveChangesAsync();
+
+        await _handler.Handle(
+            new DisposeJobCommand(76, new DisposeJobRequestModel(JobDisposition.Scrap, "cracked casting"), 1),
+            CancellationToken.None);
+
+        job.Disposition.Should().Be(JobDisposition.Scrap);
+    }
+
+    [Theory]
+    [InlineData(JobDisposition.AddToInventory, true)]
+    [InlineData(JobDisposition.Scrap, true)]
+    [InlineData(JobDisposition.HoldForReview, false)]
+    [InlineData(JobDisposition.ShipToCustomer, false)]
+    [InlineData(JobDisposition.EnteredInError, false)]
+    public async Task Handle_ClosesTheJobCost_OnlyForInventoryAndScrap(JobDisposition disposition, bool closes)
+    {
+        _capabilities.Setup(c => c.IsEnabled(DisposeJobHandler.StockingCapability)).Returns(false);
+        var job = ArrangeJob(78, "JOB-0078");
+        job.PartId = 780;
+
+        await _handler.Handle(
+            new DisposeJobCommand(78, new DisposeJobRequestModel(disposition, "reason"), 1),
+            CancellationToken.None);
+
+        _jobCostPosting.Verify(p => p.CloseDisposedJobProductionCostAsync(
+            78, It.IsAny<DateOnly>(), 1, It.IsAny<CancellationToken>()), closes ? Times.Once() : Times.Never());
     }
 
     [Fact]

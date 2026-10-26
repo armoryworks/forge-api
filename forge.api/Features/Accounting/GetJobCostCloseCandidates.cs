@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities.Accounting;
+using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
 using Forge.Data.Context;
 
@@ -62,7 +63,7 @@ public class GetJobCostCloseCandidatesHandler(AppDbContext db)
 
         var jobs = await db.Jobs.AsNoTracking()
             .Where(j => jobIds.Contains(j.Id))
-            .Select(j => new { j.Id, j.JobNumber, j.Title, j.CompletedDate, IsComplete = j.CompletedDate != null || j.Disposition != null })
+            .Select(j => new { j.Id, j.JobNumber, j.Title, j.CompletedDate, IsComplete = j.CompletedDate != null || (j.Disposition != null && j.Disposition != JobDisposition.HoldForReview) })
             .ToListAsync(ct);
         var balanceByJob = balances.ToDictionary(b => b.JobId, b => b.Balance);
 

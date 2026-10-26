@@ -71,6 +71,10 @@ public class UpdateProductionRunHandler(AppDbContext db, IClock clock) : IReques
         if (newStatus == ProductionRunStatus.Completed && run.CompletedAt is null)
             run.CompletedAt = clock.UtcNow;
 
+        if (newStatus == ProductionRunStatus.Completed && run.RunTimeMinutes is not > 0)
+            run.RunTimeMinutes = Forge.Core.Entities.ProductionRun.DerivedRunTimeMinutes(
+                run.StartedAt, run.CompletedAt, run.SetupTimeMinutes) ?? run.RunTimeMinutes;
+
         run.Status = newStatus;
 
         await db.SaveChangesAsync(cancellationToken);

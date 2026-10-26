@@ -70,6 +70,65 @@ public class OeeInputsTests
     }
 
     [Fact]
+    public async Task RunStartedThenCompleted_DerivesItsRunTime_SoPerformanceIsNotZero()
+    {
+        var (job, part, press) = await SeedJobAtPressAsync();
+        press.IdealCycleTimeSeconds = 18m;
+        await _db.SaveChangesAsync();
+        var created = await new CreateProductionRunHandler(_db, _clock.Object)
+            .Handle(new CreateProductionRunCommand(job.Id, part.Id, 100, null, null), CancellationToken.None);
+        _clock.Setup(c => c.UtcNow).Returns(Now.AddHours(-1));
+        await new UpdateProductionRunHandler(_db, _clock.Object)
+            .Handle(new UpdateProductionRunCommand(job.Id, created.Id, 0, 0, "InProgress", null, null, null), CancellationToken.None);
+        _clock.Setup(c => c.UtcNow).Returns(Now);
+
+        var completed = await new UpdateProductionRunHandler(_db, _clock.Object)
+            .Handle(new UpdateProductionRunCommand(job.Id, created.Id, 100, 0, "Completed", null, 10m, null), CancellationToken.None);
+
+        completed.RunTimeMinutes.Should().Be(50m);
+        var oee = await new OeeService(_db).CalculateOeeAsync(press.Id, Day, Day, CancellationToken.None);
+        oee.RunTimeMinutes.Should().Be(50m);
+        oee.Performance.Should().Be(Math.Round(100m * 18m / 60m / 50m, 4));
+    }
+
+    [Fact]
+    public async Task ExplicitRunTime_WinsOverTheTimestamps()
+    {
+        var (job, part, press) = await SeedJobAtPressAsync();
+        press.IdealCycleTimeSeconds = 18m;
+        await _db.SaveChangesAsync();
+        var created = await new CreateProductionRunHandler(_db, _clock.Object)
+            .Handle(new CreateProductionRunCommand(job.Id, part.Id, 100, null, null), CancellationToken.None);
+        _clock.Setup(c => c.UtcNow).Returns(Now.AddHours(-1));
+        await new UpdateProductionRunHandler(_db, _clock.Object)
+            .Handle(new UpdateProductionRunCommand(job.Id, created.Id, 0, 0, "InProgress", null, null, null), CancellationToken.None);
+        _clock.Setup(c => c.UtcNow).Returns(Now);
+
+        var completed = await new UpdateProductionRunHandler(_db, _clock.Object)
+            .Handle(new UpdateProductionRunCommand(job.Id, created.Id, 100, 0, "Completed", null, 10m, 40m), CancellationToken.None);
+
+        completed.RunTimeMinutes.Should().Be(40m);
+        var oee = await new OeeService(_db).CalculateOeeAsync(press.Id, Day, Day, CancellationToken.None);
+        oee.Performance.Should().Be(Math.Round(100m * 18m / 60m / 40m, 4));
+    }
+
+    [Fact]
+    public async Task StoredRunWithoutRunTime_FallsBackToItsTimestampsOnRead()
+    {
+        var (job, part, press) = await SeedJobAtPressAsync();
+        var run = Run(job, part, press, completed: 120, runMinutes: null, idealSeconds: 30m);
+        run.CompletedAt = run.StartedAt!.Value.AddMinutes(90);
+        run.SetupTimeMinutes = 15m;
+        _db.ProductionRuns.Add(run);
+        await _db.SaveChangesAsync();
+
+        var oee = await new OeeService(_db).CalculateOeeAsync(press.Id, Day, Day, CancellationToken.None);
+
+        oee.RunTimeMinutes.Should().Be(75m);
+        oee.Performance.Should().Be(Math.Round(120m * 30m / 60m / 75m, 4));
+    }
+
+    [Fact]
     public async Task ScheduledTime_FollowsTheCalendarsWorkingDays()
     {
         _db.WorkingCalendars.Add(new WorkingCalendar { Name = "Plant", IsDefault = true });

@@ -32,6 +32,7 @@ public class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
             .HasDatabaseName("ux_time_entries_open_job_operation");
 
         builder.Property(t => t.LaborCost).HasPrecision(18, 4);
+        builder.Property(t => t.ActualLaborCost).HasPrecision(18, 4);
         builder.Property(t => t.BurdenCost).HasPrecision(18, 4);
         builder.Property(t => t.LaborMinutes).HasPrecision(10, 2);
 

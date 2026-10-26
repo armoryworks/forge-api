@@ -242,8 +242,8 @@ public class JobCostService(
 
             if (!burdenOnly)
             {
-                entry.LaborCost = laborHours * hourlyRate;       // standard-rate basis (efficiency variance)
-                entry.ActualLaborCost = laborHours * actualRate; // actual-rate basis (rate variance = actual − standard)
+                entry.LaborCost = Math.Round(laborHours * hourlyRate, 4, MidpointRounding.AwayFromZero);   // standard-rate basis (efficiency variance)
+                entry.ActualLaborCost = Math.Round(laborHours * actualRate, 4, MidpointRounding.AwayFromZero); // actual-rate basis (rate variance = actual − standard)
             }
             entry.BurdenCost = machineBasis
                 ? policy.Overhead(workCenterId, machineHours, machineHours * hourlyRate, burdenPerHour)

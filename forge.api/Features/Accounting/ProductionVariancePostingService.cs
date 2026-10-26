@@ -67,6 +67,14 @@ public interface IProductionVariancePostingService
         int jobId, DateOnly entryDate, int closedByUserId, CancellationToken ct = default);
 
     /// <summary>
+    /// The same close as <see cref="CloseJobProductionCostAsync"/>, run by a job disposition (added to inventory or
+    /// scrapped) rather than the accounting close: it is the business action, so both entries post on the
+    /// sub-ledger path (<see cref="SubledgerPosting"/>). Idempotent with the explicit close on the same entry keys.
+    /// </summary>
+    Task<JobProductionCostCloseResult> CloseDisposedJobProductionCostAsync(
+        int jobId, DateOnly entryDate, int disposedByUserId, CancellationToken ct = default);
+
+    /// <summary>
     /// Absorbs the job's labor, overhead and subcontract cost incurred so far, less what earlier receipts and
     /// closes already absorbed, into WIP ahead of a production receipt (Dr INVENTORY_WIP / Cr *_APPLIED, posted
     /// as the system principal). Returns the amount absorbed; zero while CAP-ACCT-FULLGL is off, when nothing
@@ -113,15 +121,23 @@ public sealed class ProductionVariancePostingService(
 
     private static readonly AccountType[] CapitalAccountTypes = [AccountType.Asset];
 
-    public async Task<JobProductionCostCloseResult> CloseJobProductionCostAsync(
-        int jobId, DateOnly entryDate, int closedByUserId, CancellationToken ct = default)
+    public Task<JobProductionCostCloseResult> CloseJobProductionCostAsync(
+        int jobId, DateOnly entryDate, int closedByUserId, CancellationToken ct = default) =>
+        CloseAsync(jobId, entryDate, closedByUserId, asSystem: false, ct);
+
+    public Task<JobProductionCostCloseResult> CloseDisposedJobProductionCostAsync(
+        int jobId, DateOnly entryDate, int disposedByUserId, CancellationToken ct = default) =>
+        CloseAsync(jobId, entryDate, disposedByUserId, asSystem: true, ct);
+
+    private async Task<JobProductionCostCloseResult> CloseAsync(
+        int jobId, DateOnly entryDate, int closedByUserId, bool asSystem, CancellationToken ct)
     {
         if (!capabilities.IsEnabled(FullGlCapability))
             return new JobProductionCostCloseResult(jobId, 0m, 0m, 0m, Posted: false);
 
         var book = await RequireBookAsync(ct);
         var jobLabel = await JobMemoLabel.ResolveAsync(db, terminology, jobId, ct);
-        var (laborStd, laborRateVar, laborActual, burden, subcontract) = await AbsorbAsync(book, jobId, jobLabel, entryDate, closedByUserId, asSystem: false, ct);
+        var (laborStd, laborRateVar, laborActual, burden, subcontract) = await AbsorbAsync(book, jobId, jobLabel, entryDate, closedByUserId, asSystem, ct);
 
         // ── 2) Sweep the job's remaining GL WIP balance to PRODUCTION_VARIANCE (idempotent on the var key). ──
         var varKey = $"{JournalSource.Inventory}:Job:{jobId}:PRODVARIANCE";
@@ -189,7 +205,7 @@ public sealed class ProductionVariancePostingService(
         else
             lines.Add(new PostingLine { AccountKey = KeyInventoryWip, Debit = -residual, JobId = jobId, Description = $"WIP clear — {jobLabel}" });
 
-        var entry = await postingEngine.PostAsync(new PostingRequest
+        var varianceRequest = new PostingRequest
         {
             BookId = book.Id,
             EntryDate = entryDate,
@@ -200,7 +216,10 @@ public sealed class ProductionVariancePostingService(
             Memo = $"Production variance — {jobLabel}",
             IdempotencyKey = varKey,
             Lines = lines,
-        }, closedByUserId, ct);
+        };
+        var entry = asSystem
+            ? await postingEngine.PostAsSystemAsync(varianceRequest, closedByUserId, ct)
+            : await postingEngine.PostAsync(varianceRequest, closedByUserId, ct);
 
         await TryAuditAsync(jobId, jobLabel, entry, laborActual, burden, residual, closedByUserId, ct);
 

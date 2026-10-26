@@ -9283,7 +9283,7 @@ CREATE TABLE public.time_entries (
     entry_type integer DEFAULT 0 NOT NULL,
     work_center_id integer,
     labor_cost numeric(18,4) DEFAULT 0.0 NOT NULL,
-    actual_labor_cost numeric DEFAULT 0.0 NOT NULL,
+    actual_labor_cost numeric(18,4) DEFAULT 0.0 NOT NULL,
     burden_cost numeric(18,4) DEFAULT 0.0 NOT NULL,
     is_billable boolean DEFAULT true NOT NULL,
     bill_rate numeric(10,2),

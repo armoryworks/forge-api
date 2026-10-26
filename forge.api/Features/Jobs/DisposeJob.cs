@@ -64,6 +64,13 @@ public class DisposeJobHandler(
 
     public const string StockingCapability = "CAP-MFG-COMPLETE";
 
+    public static string OpenChildrenMessage(IReadOnlyCollection<string> childJobNumbers) =>
+        $"This work order has open child work orders ({string.Join(", ", childJobNumbers)}). "
+        + "Complete or dispose them before adding it to inventory.";
+
+    public static bool ClosesJobCost(JobDisposition disposition) =>
+        disposition is JobDisposition.AddToInventory or JobDisposition.Scrap;
+
     private const int HeldNotesExcerptLength = 300;
 
     public static bool RequiresReason(JobDisposition disposition) =>
@@ -89,6 +96,10 @@ public class DisposeJobHandler(
         StockPlan? stockPlan = null;
         if (disposition == JobDisposition.AddToInventory)
         {
+            var openChildren = await OpenChildJobNumbersAsync(job.Id, cancellationToken);
+            if (openChildren.Count > 0)
+                throw new InvalidOperationException(OpenChildrenMessage(openChildren));
+
             var stock = await GetJobDispositionStockHandler.LoadAsync(db, job.Id, job.PartId, cancellationToken);
             if (stock.PartId is null && !stock.HasSeveralParts)
                 throw new InvalidOperationException(NoPartMessage);
@@ -134,9 +145,9 @@ public class DisposeJobHandler(
         {
             await CapitalizeAsync(job, request, cancellationToken);
         }
-        else if (stockPlan is not null)
+        else if (ClosesJobCost(disposition))
         {
-            await StockGoodOutputAsync(job, stockPlan, request, cancellationToken);
+            await DisposeAndCloseJobCostAsync(job, stockPlan, request, cancellationToken);
         }
         else
         {
@@ -194,6 +205,48 @@ public class DisposeJobHandler(
         if (tx is not null)
             await tx.CommitAsync(ct);
     }
+
+    private async Task DisposeAndCloseJobCostAsync(
+        Job job, StockPlan? stockPlan, DisposeJobCommand request, CancellationToken ct)
+    {
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(ct)
+            : null;
+
+        if (stockPlan is not null)
+            await StockGoodOutputAsync(job, stockPlan, request, ct);
+        else
+            await jobRepo.SaveChangesAsync(ct);
+
+        var close = await jobCostPosting.CloseDisposedJobProductionCostAsync(
+            job.Id, DateOnly.FromDateTime(clock.UtcNow.UtcDateTime), request.UserId, ct);
+
+        if (close.Posted && close.ProductionVariance != 0m)
+        {
+            var jobLabel = TermLabels.Lower((await terminology.GetOrDefaultsAsync(ct)).Singular("job"));
+            job.ActivityLogs.Add(new JobActivityLog
+            {
+                UserId = request.UserId,
+                Action = ActivityAction.StatusChanged,
+                Description = $"Closed the production cost of {jobLabel} {job.JobNumber}: "
+                    + $"{Math.Abs(close.ProductionVariance):N2} of work in process swept to production variance.",
+            });
+            await db.SaveChangesAsync(ct);
+        }
+
+        if (tx is not null)
+            await tx.CommitAsync(ct);
+    }
+
+    private async Task<List<string>> OpenChildJobNumbersAsync(int jobId, CancellationToken ct) =>
+        await db.Jobs.AsNoTracking()
+            .Where(j => j.ParentJobId == jobId
+                && !j.IsArchived
+                && j.CompletedDate == null
+                && (j.Disposition == null || j.Disposition == JobDisposition.HoldForReview))
+            .OrderBy(j => j.JobNumber)
+            .Select(j => j.JobNumber)
+            .ToListAsync(ct);
 
     private sealed record StockPlan(int PartId, int TopUpQuantity);
 
