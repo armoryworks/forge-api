@@ -585,11 +585,12 @@ public class QuickBooksAccountingService(
         if (string.IsNullOrEmpty(realmId))
             return null;
 
-        var cacheKey = $"{realmId}|{terms.Name}";
+        var name = TermName(terms);
+        var cacheKey = $"{realmId}|{name}";
         if (TermIds.TryGetValue(cacheKey, out var cached))
             return cached;
 
-        using var found = await QueryAsync($"select * from Term where Name = '{terms.Name.Replace("'", "\\'")}'", ct);
+        using var found = await QueryAsync($"select * from Term where Name = '{name.Replace("'", "\\'")}'", ct);
         string? id = null;
         if (found is not null
             && found.RootElement.TryGetProperty("QueryResponse", out var response)
@@ -608,11 +609,17 @@ public class QuickBooksAccountingService(
         return id;
     }
 
+    private const int TermNameMaxLength = 31;
+
+    /// <summary>The name QuickBooks stores for these terms: its Term names are at most 31 characters.</summary>
+    internal static string TermName(AccountingTerms terms)
+        => terms.Name.Length > TermNameMaxLength ? terms.Name[..TermNameMaxLength].TrimEnd() : terms.Name;
+
     internal static Dictionary<string, object?> BuildTermPayload(AccountingTerms terms)
     {
         var payload = new Dictionary<string, object?>
         {
-            ["Name"] = terms.Name.Length > 31 ? terms.Name[..31] : terms.Name,
+            ["Name"] = TermName(terms),
             ["Type"] = "STANDARD",
             ["DueDays"] = terms.DueDays,
         };

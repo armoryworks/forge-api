@@ -194,4 +194,16 @@ public class QuickBooksDocumentPayloadTests
         net.Should().NotContainKey("DiscountPercent");
         net["DueDays"].Should().Be(45);
     }
+
+    [Fact]
+    public void Long_term_names_are_cut_to_what_QuickBooks_stores_and_looked_up_the_same_way()
+    {
+        var terms = new AccountingTerms("1.5/15 Net 45 for distribution partners", 45, 1.5m, 15);
+
+        var name = QuickBooksAccountingService.TermName(terms);
+
+        name.Should().Be("1.5/15 Net 45 for distribution");
+        QuickBooksAccountingService.BuildTermPayload(terms)["Name"].Should().Be(name);
+        QuickBooksAccountingService.TermName(new AccountingTerms("Net 30", 30, 0m, 0)).Should().Be("Net 30");
+    }
 }
