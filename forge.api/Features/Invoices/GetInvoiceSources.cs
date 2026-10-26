@@ -28,7 +28,7 @@ public class GetInvoiceSourcesHandler(AppDbContext db)
             .OrderByDescending(so => so.CreatedAt)
             .Take(MaxResults)
             .Select(so => new InvoiceSourceSalesOrderResponseModel(
-                so.Id, so.OrderNumber, so.Customer.Name, so.TaxRate, so.CreditTerms))
+                so.Id, so.OrderNumber, so.Customer.Name, so.TaxRate, so.CreditTerms, so.CurrencyId))
             .ToListAsync(cancellationToken);
 
         var candidates = await db.Shipments.AsNoTracking()

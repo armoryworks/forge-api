@@ -7,6 +7,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Services.Fx;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -24,7 +25,9 @@ public record UpdateSalesOrderCommand(
     string? Notes,
     decimal? TaxRate,
     // Optional editable order number — see UpdateSalesOrderRequestModel.OrderNumber.
-    string? OrderNumber = null) : IRequest;
+    string? OrderNumber = null,
+    int? CurrencyId = null,
+    decimal? FxRate = null) : IRequest;
 
 public class UpdateSalesOrderValidator : AbstractValidator<UpdateSalesOrderCommand>
 {
@@ -41,6 +44,7 @@ public class UpdateSalesOrderValidator : AbstractValidator<UpdateSalesOrderComma
         RuleFor(x => x.Notes).MaximumLength(2000).When(x => x.Notes is not null);
         RuleFor(x => x.TaxRate).InclusiveBetween(0, 1).When(x => x.TaxRate.HasValue);
         RuleFor(x => x.OrderNumber).MaximumLength(20).When(x => !string.IsNullOrWhiteSpace(x.OrderNumber));
+        RuleFor(x => x.FxRate).GreaterThan(0m).When(x => x.FxRate.HasValue);
     }
 }
 
@@ -93,6 +97,19 @@ public class UpdateSalesOrderHandler(
         }
 
         var oldDeliveryDate = order.RequestedDeliveryDate;
+
+        var currency = await new DocumentCurrencyResolver(db).ResolveChangeAsync(
+            order.CurrencyId, order.FxRate, request.CurrencyId, request.FxRate, order.CreatedAt, cancellationToken);
+        if (currency is not null)
+        {
+            if (order.Status != SalesOrderStatus.Draft)
+                throw new CurrencyLockedException(
+                    CurrencyLockedException.DocumentLocked,
+                    "A sales order's currency and exchange rate can only change while it is Draft.");
+            order.CurrencyId = currency.CurrencyId;
+            order.FxRate = currency.FxRate;
+            db.LogActivityAt("updated", $"Order currency set to {currency.Code ?? currency.CurrencyId.ToString()} at {currency.FxRate}", ("SalesOrder", order.Id));
+        }
 
         if (request.ShippingAddressId is int shippingId && shippingId != order.ShippingAddressId)
         {

@@ -38,7 +38,11 @@ public class GetSalesOrdersListHandler(AppDbContext db)
             o.RequestedDeliveryDate,
             o.CreatedAt,
             o.Id,
-            null);
+            null,
+            o.CurrencyId,
+            o.Currency != null ? o.Currency.Code : null,
+            o.FxRate,
+            Math.Round(o.Lines.Sum(l => l.Quantity * l.UnitPrice) * o.FxRate, 2));
 
     /// <summary>
     /// Resolves a status filter value to a <see cref="SalesOrderStatus"/> by name,

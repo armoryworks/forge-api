@@ -1,14 +1,16 @@
 using MediatR;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Customers;
 
 public record GetCustomerByIdQuery(int Id) : IRequest<CustomerDetailResponseModel>;
 
-public class GetCustomerByIdHandler(ICustomerRepository repo)
+public class GetCustomerByIdHandler(ICustomerRepository repo, AppDbContext? db = null)
     : IRequestHandler<GetCustomerByIdQuery, CustomerDetailResponseModel>
 {
     public async Task<CustomerDetailResponseModel> Handle(GetCustomerByIdQuery request, CancellationToken cancellationToken)
@@ -60,7 +62,9 @@ public class GetCustomerByIdHandler(ICustomerRepository repo)
             Fax: customer.Fax,
             RowVersion: customer.Version,
             DefaultCreditTerms: customer.DefaultCreditTerms?.ToString(),
-            ExemptionExpiryDate: customer.ExemptionExpiryDate);
+            ExemptionExpiryDate: customer.ExemptionExpiryDate,
+            CurrencyId: customer.CurrencyId,
+            CurrencyLocked: db is not null && await PartyCurrency.CustomerHasPostedDocumentsAsync(db, customer.Id, cancellationToken));
     }
 
     private static AddressOutput? PickAddress(Customer customer, AddressType type)

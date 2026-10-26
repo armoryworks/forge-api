@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services.Fx;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -47,7 +48,8 @@ public class ConvertEstimateToQuoteHandler(
     IBusinessIdentifierService identifiers,
     // AUDIT-19-S1 pattern: optional/null-default so isolated unit-test constructions stay valid; DI supplies it.
     Forge.Api.Services.CustomerPriceResolver? priceResolver = null,
-    Forge.Api.Services.TaxOverrideGuard? taxGuard = null)
+    Forge.Api.Services.TaxOverrideGuard? taxGuard = null,
+    IClock? clock = null)
     : IRequestHandler<ConvertEstimateToQuoteCommand, QuoteListItemModel>
 {
     public async Task<QuoteListItemModel> Handle(ConvertEstimateToQuoteCommand request, CancellationToken ct)
@@ -87,6 +89,12 @@ public class ConvertEstimateToQuoteHandler(
             SourceEstimateId = estimate.Id,
             AssignedToId = estimate.AssignedToId ?? db.CurrentUserId,
         };
+
+        var currency = await new DocumentCurrencyResolver(db).ResolveAsync(
+            null, null, estimate.CurrencyId ?? estimate.Customer.CurrencyId,
+            (clock ?? new Forge.Integrations.SystemClock()).UtcNow, ct);
+        quote.CurrencyId = currency.CurrencyId;
+        quote.FxRate = currency.FxRate;
 
         // #24 / BE-3: carry the estimate's line items into the new quote, applying the caller's
         // per-line resolutions. Lump-sum lines (PartId == null) are prompted about at convert

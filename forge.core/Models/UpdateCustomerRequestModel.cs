@@ -24,4 +24,6 @@ public record UpdateCustomerRequestModel(
     decimal? CreditLimit = null,
     bool? ClearCreditLimit = null,
     string? DefaultCreditTerms = null,
-    bool? ClearDefaultCreditTerms = null);
+    bool? ClearDefaultCreditTerms = null,
+    int? CurrencyId = null,
+    bool? ClearCurrency = null);

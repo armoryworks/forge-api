@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Services.Fx;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -81,6 +82,8 @@ public class GetCustomerSummaryHandler(AppDbContext db, IClock clock)
             customer.TaxExemptionId,
             customer.Version,
             customer.DefaultCreditTerms?.ToString(),
-            customer.IsOnCreditHold);
+            customer.IsOnCreditHold,
+            customer.CurrencyId,
+            await PartyCurrency.CustomerHasPostedDocumentsAsync(db, customer.Id, ct));
     }
 }

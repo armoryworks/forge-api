@@ -74,5 +74,11 @@ public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder
             .WithOne(l => l.PurchaseOrder)
             .HasForeignKey(l => l.PurchaseOrderId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(e => e.Currency)
+            .WithMany()
+            .HasForeignKey(e => e.CurrencyId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(e => e.CurrencyId);
     }
 }

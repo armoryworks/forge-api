@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using Forge.Api.Validation;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -32,7 +33,8 @@ public record CreateCustomerCommand(
     // Optional caller-supplied customer number — see CreateCustomerRequestModel.CustomerNumber.
     string? CustomerNumber = null,
     string? Fax = null,
-    string? DefaultCreditTerms = null) : IRequest<CustomerListItemModel>;
+    string? DefaultCreditTerms = null,
+    int? CurrencyId = null) : IRequest<CustomerListItemModel>;
 
 public class CreateCustomerValidator : AbstractValidator<CreateCustomerCommand>
 {
@@ -137,6 +139,7 @@ public class CreateCustomerHandler(
                 ? terms
                 : null,
         };
+        await PartyCurrency.ApplyToCustomerAsync(db, customer, request.CurrencyId, request.DefaultCurrency, clear: false, cancellationToken);
 
         if (request.BillingAddress is not null)
             customer.Addresses.Add(MapAddress(request.BillingAddress, AddressType.Billing, label: "Billing"));
@@ -179,7 +182,8 @@ public class CreateCustomerHandler(
             customer.Phone,
             customer.IsActive,
             0, 0,
-            customer.CreatedAt);
+            customer.CreatedAt,
+            customer.CurrencyId);
     }
 
     // Uses a caller-supplied customer number when manual numbers are enabled and one

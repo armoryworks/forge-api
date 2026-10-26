@@ -407,6 +407,7 @@ public sealed class ForgeGlPostingEngine(
 
         // --- Resolve + validate every line's account, build the persisted lines. ---
         var lines = new List<JournalLine>(request.Lines.Count);
+        var controlLines = new HashSet<int>();
         decimal totalDebit = 0m;
         decimal totalCredit = 0m;
         var lineNumber = 0;
@@ -479,6 +480,9 @@ public sealed class ForgeGlPostingEngine(
                         $"Line {lineNumber}: cost center {ccId} is in book {ccBookId}, not entry book {request.BookId}.");
             }
 
+            if (account.IsControlAccount)
+                controlLines.Add(lineNumber - 1);
+
             var amount = l.Debit > 0 ? l.Debit : l.Credit;
             totalDebit += l.Debit;
             totalCredit += l.Credit;
@@ -520,6 +524,9 @@ public sealed class ForgeGlPostingEngine(
                 "UNBALANCED_RESIDUAL",
                 $"Entry has a {imbalance} residual within tolerance; add an explicit ROUNDING line so Σdebit == Σcredit exactly.");
 
+        if (request.FxRate != 1m)
+            BalanceFunctional(lines, controlLines, book.RoundingTolerance);
+
         // --- Resolve the fiscal period from EntryDate under a row lock; reject
         // HardClosed; block SoftClosed unless an audited override is supplied. ---
         var period = await ResolveAndLockPeriodAsync(request.BookId, request.EntryDate, ct);
@@ -535,6 +542,53 @@ public sealed class ForgeGlPostingEngine(
 
         return (lines, period);
     }
+
+    /// <summary>
+    /// A foreign-currency entry that balances in its transaction currency can be a cent or so out in functional,
+    /// because each line's functional amount is rounded on its own. A residual within the book's rounding
+    /// tolerance goes to the largest non-control line on the short side (or comes off the largest non-control
+    /// line on the long side when the short side has only control lines), so a control line always keeps the
+    /// functional amount its open item carries. A larger residual is refused as <c>UNBALANCED_FUNCTIONAL</c>.
+    /// </summary>
+    internal static void BalanceFunctional(List<JournalLine> lines, ISet<int> controlLines, decimal tolerance)
+    {
+        var debit = lines.Where(l => l.Debit > 0m).Sum(l => l.FunctionalAmount);
+        var credit = lines.Where(l => l.Credit > 0m).Sum(l => l.FunctionalAmount);
+        var residual = debit - credit;
+        if (residual == 0m)
+            return;
+
+        if (Math.Abs(residual) > tolerance)
+            throw new PostingException(
+                "UNBALANCED_FUNCTIONAL",
+                $"Entry is unbalanced in the functional currency: Σdebit {debit} vs Σcredit {credit} (residual {Math.Abs(residual)} exceeds tolerance {tolerance}).");
+
+        bool OnDebit(JournalLine l) => l.Debit > 0m;
+        var shortIsDebit = residual < 0m;
+
+        var target = Largest(lines, controlLines, l => OnDebit(l) == shortIsDebit);
+        if (target is not null)
+        {
+            target.FunctionalAmount += Math.Abs(residual);
+            return;
+        }
+
+        target = Largest(lines, controlLines, l => OnDebit(l) != shortIsDebit && l.FunctionalAmount > Math.Abs(residual));
+        if (target is null)
+            throw new PostingException(
+                "UNBALANCED_FUNCTIONAL",
+                $"Entry is {Math.Abs(residual)} out of balance in the functional currency and has no non-control line to take the rounding.");
+        target.FunctionalAmount -= Math.Abs(residual);
+    }
+
+    private static JournalLine? Largest(List<JournalLine> lines, ISet<int> controlLines, Func<JournalLine, bool> side)
+        => lines
+            .Select((line, index) => (line, index))
+            .Where(x => !controlLines.Contains(x.index) && side(x.line))
+            .OrderByDescending(x => x.line.FunctionalAmount)
+            .ThenBy(x => x.index)
+            .Select(x => x.line)
+            .FirstOrDefault();
 
     /// <summary>
     /// Builds a Posted journal entry header from resolved lines, allocates its

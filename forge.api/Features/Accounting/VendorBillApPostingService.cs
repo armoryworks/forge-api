@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Services;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums.Accounting;
@@ -66,6 +67,7 @@ public sealed class VendorBillApPostingService(
     // bill-vs-PO price difference going to PPV.
     private const string KeyGrni = "GRNI";
     private const string KeyPpv = "PURCHASE_PRICE_VARIANCE";
+    private const string GrniRateDifferenceSourceType = "VendorBillFx";
 
     public async Task PostVendorBillApprovedAsync(
         int vendorBillId, int approvedByUserId, CancellationToken ct = default)
@@ -134,6 +136,17 @@ public sealed class VendorBillApPostingService(
         // (Phase 3), a closed-period reversal becomes a policy choice the engine already guards.
         await postingEngine.ReverseAsSystemAsync(
             entry.Id, entry.EntryDate, $"Vendor bill {vendorBillId} voided", reversedByUserId, ct);
+
+        var fxKey = GrniRateDifferenceKey(vendorBillId);
+        var fxEntry = await db.Set<JournalEntry>()
+            .Where(e => e.BookId == entry.BookId
+                && e.IdempotencyKey == fxKey
+                && e.Status == JournalEntryStatus.Posted
+                && e.ReversedByEntryId == null)
+            .FirstOrDefaultAsync(ct);
+        if (fxEntry is not null)
+            await postingEngine.ReverseAsSystemAsync(
+                fxEntry.Id, fxEntry.EntryDate, $"Vendor bill {vendorBillId} voided", reversedByUserId, ct);
     }
 
     private async Task PostCoreAsync(int vendorBillId, int approvedByUserId, CancellationToken ct)
@@ -257,7 +270,92 @@ public sealed class VendorBillApPostingService(
 
         var entry = await postingEngine.PostAsSystemAsync(request, approvedByUserId, ct);
 
+        if (bill.PurchaseOrderId is not null)
+            await PostGrniRateDifferenceAsync(bill, book.Id, book.FunctionalCurrencyId, entry, entryDate, approvedByUserId, ct);
+
         await TryAuditAsync(bill, entry, total, approvedByUserId, ct);
+    }
+
+    /// <summary>The idempotency key of the functional-currency entry that settles a PO-matched bill's GRNI rate difference.</summary>
+    public static string GrniRateDifferenceKey(int vendorBillId) => $"{JournalSource.AP}:VendorBill:{vendorBillId}:FX_GRNI";
+
+    /// <summary>
+    /// A PO-matched bill clears GRNI at the bill's rate, while the receipt accrued it at the receipt's rate. This
+    /// functional-currency entry moves the difference between the two to purchase price variance, so GRNI nets
+    /// to zero for the billed goods: bill rate above the receipt rate posts Dr PPV / Cr GRNI, below posts
+    /// Dr GRNI / Cr PPV. The receipt rate of a PO line is the quantity-weighted rate of its receipts. Nothing
+    /// posts when the two agree, which is always the case for a single-currency bill.
+    /// </summary>
+    private async Task PostGrniRateDifferenceAsync(
+        VendorBill bill, int bookId, int functionalCurrencyId, JournalEntry billEntry, DateOnly entryDate,
+        int userId, CancellationToken ct)
+    {
+        var poLineIds = bill.Lines
+            .Where(l => l.Quantity > 0m && l.PurchaseOrderLineId is not null)
+            .Select(l => l.PurchaseOrderLineId!.Value)
+            .Distinct()
+            .ToList();
+        if (poLineIds.Count == 0)
+            return;
+
+        var receipts = await db.Set<ReceivingRecord>().AsNoTracking()
+            .Where(r => poLineIds.Contains(r.PurchaseOrderLineId) && r.QuantityReceived > 0m)
+            .Select(r => new { r.PurchaseOrderLineId, r.QuantityReceived, r.FxRate })
+            .ToListAsync(ct);
+        var receiptRates = receipts
+            .GroupBy(r => r.PurchaseOrderLineId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Sum(r => r.QuantityReceived * r.FxRate) / g.Sum(r => r.QuantityReceived));
+
+        if (bill.FxRate == 1m && receiptRates.Values.All(r => r == 1m))
+            return;
+
+        var grniAccountId = await db.AccountDeterminationRules.AsNoTracking()
+            .Where(r => r.BookId == bookId && r.Key == KeyGrni)
+            .Select(r => (int?)r.GlAccountId)
+            .FirstOrDefaultAsync(ct);
+        if (grniAccountId is null)
+            return;
+
+        var clearedAtBillRate = billEntry.Lines
+            .Where(l => l.GlAccountId == grniAccountId && l.Debit > 0m)
+            .Sum(l => l.FunctionalAmount);
+
+        var accruedAtReceiptRate = bill.Lines
+            .Where(l => l.Quantity > 0m && l.PurchaseOrderLine is not null)
+            .Sum(l => FxMath.ToFunctional(
+                l.Quantity * l.PurchaseOrderLine!.UnitPrice,
+                receiptRates.GetValueOrDefault(l.PurchaseOrderLine.Id, 1m)));
+
+        var difference = clearedAtBillRate - accruedAtReceiptRate;
+        if (difference == 0m)
+            return;
+
+        var lines = difference > 0m
+            ? new List<PostingLine>
+            {
+                new() { AccountKey = KeyPpv, Debit = difference, Description = $"Exchange-rate difference on received goods — bill {bill.BillNumber}" },
+                new() { AccountKey = KeyGrni, Credit = difference, Description = $"GRNI rate difference — bill {bill.BillNumber}" },
+            }
+            : new List<PostingLine>
+            {
+                new() { AccountKey = KeyGrni, Debit = -difference, Description = $"GRNI rate difference — bill {bill.BillNumber}" },
+                new() { AccountKey = KeyPpv, Credit = -difference, Description = $"Exchange-rate difference on received goods — bill {bill.BillNumber}" },
+            };
+
+        await postingEngine.PostAsSystemAsync(new PostingRequest
+        {
+            BookId = bookId,
+            EntryDate = entryDate,
+            Source = JournalSource.AP,
+            SourceType = GrniRateDifferenceSourceType,
+            SourceId = bill.Id,
+            CurrencyId = functionalCurrencyId,
+            Memo = $"Vendor bill {bill.BillNumber}: GRNI cleared at the bill rate vs the receipt rate",
+            IdempotencyKey = GrniRateDifferenceKey(bill.Id),
+            Lines = lines,
+        }, userId, ct);
     }
 
     /// <summary>

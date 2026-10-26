@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.CustomerPoDocuments;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -24,7 +25,8 @@ public class ConvertQuoteToOrderHandler(
     AppDbContext? db = null,
     ISystemSettingRepository? settings = null,
     IMediator? mediator = null,
-    IBusinessIdentifierService? identifiers = null)
+    IBusinessIdentifierService? identifiers = null,
+    IClock? clock = null)
     : IRequestHandler<ConvertQuoteToOrderCommand, SalesOrderListItemModel>
 {
     public async Task<SalesOrderListItemModel> Handle(ConvertQuoteToOrderCommand request, CancellationToken cancellationToken)
@@ -61,7 +63,17 @@ public class ConvertQuoteToOrderHandler(
             // F7: the customer's PO reference captured at quote time follows the order.
             CustomerPO = quote.CustomerPO,
             CreditTerms = quote.Customer.DefaultCreditTerms,
+            CurrencyId = quote.CurrencyId,
+            FxRate = quote.FxRate,
         };
+
+        if (db is not null)
+        {
+            var currency = await new DocumentCurrencyResolver(db).ResolveAsync(
+                null, null, quote.CurrencyId ?? quote.Customer.CurrencyId, (clock ?? new Forge.Integrations.SystemClock()).UtcNow, cancellationToken);
+            order.CurrencyId = currency.CurrencyId;
+            order.FxRate = currency.FxRate;
+        }
 
         var lineNumber = 1;
         foreach (var ql in quote.Lines)
@@ -146,7 +158,8 @@ public class ConvertQuoteToOrderHandler(
             order.Id, order.OrderNumber, order.CustomerId, quote.Customer.Name,
             order.Status.ToString(), order.CustomerPO, order.Lines.Count,
             total, null, order.CreatedAt,
-            SalesOrderId: order.Id, JobId: null);
+            SalesOrderId: order.Id, JobId: null,
+            CurrencyId: order.CurrencyId, FxRate: order.FxRate, TotalFunctional: FxMath.ToFunctional(total, order.FxRate));
     }
 
     private async Task<int?> FindDefaultAddressIdAsync(int customerId, AddressType addressType, CancellationToken ct)

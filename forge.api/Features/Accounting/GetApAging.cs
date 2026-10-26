@@ -15,12 +15,12 @@ namespace Forge.Api.Features.Accounting;
 /// <c>[Authorize(Roles = "Controller")]</c> per §5.7).</para>
 /// </summary>
 [RequiresCapability("CAP-ACCT-GL-VIEW")]
-public record GetApAgingQuery(int BookId, DateOnly? AsOfDate = null)
+public record GetApAgingQuery(int BookId, DateOnly? AsOfDate = null, int? CurrencyId = null)
     : IRequest<ApAging>;
 
 public class GetApAgingHandler(IApAgingService apAgingService)
     : IRequestHandler<GetApAgingQuery, ApAging>
 {
     public Task<ApAging> Handle(GetApAgingQuery request, CancellationToken cancellationToken)
-        => apAgingService.GetApAgingAsync(request.BookId, request.AsOfDate, cancellationToken);
+        => apAgingService.GetApAgingAsync(request.BookId, request.AsOfDate, cancellationToken, request.CurrencyId);
 }

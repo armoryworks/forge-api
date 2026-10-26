@@ -5,6 +5,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -28,7 +29,7 @@ public record CreateInvoiceCommand(
     // Multi-currency (Phase-4 FULLGL, additive). Null CurrencyId → the active book's functional currency;
     // FxRate is the booking rate (txn→functional). Defaults keep single-currency callers byte-for-byte unchanged.
     int? CurrencyId = null,
-    decimal FxRate = 1m,
+    decimal? FxRate = null,
     // Optional caller-supplied invoice number — see CreateInvoiceRequestModel.InvoiceNumber.
     string? InvoiceNumber = null) : IRequest<InvoiceListItemModel>;
 
@@ -54,7 +55,7 @@ public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
         RuleFor(x => x.CustomerPO).MaximumLength(50);
         RuleFor(x => x.InvoiceNumber).MaximumLength(20).When(x => !string.IsNullOrWhiteSpace(x.InvoiceNumber));
         // FX booking rate must be positive (a 0 or negative rate would zero/invert the functional amount).
-        RuleFor(x => x.FxRate).GreaterThan(0m);
+        RuleFor(x => x.FxRate).GreaterThan(0m).When(x => x.FxRate.HasValue);
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
             line.RuleFor(l => l.Description).NotEmpty();
@@ -93,11 +94,13 @@ public class CreateInvoiceHandler(
 
         string? salesOrderCustomerPo = null;
         CreditTerms? salesOrderTerms = null;
+        int? salesOrderCurrencyId = null;
+        var currencies = new DocumentCurrencyResolver(db);
         if (request.SalesOrderId is int linkedSoId)
         {
             var salesOrder = await db.SalesOrders.AsNoTracking()
                 .Where(so => so.Id == linkedSoId)
-                .Select(so => new { so.OrderNumber, so.CustomerId, so.CustomerPO, so.CreditTerms })
+                .Select(so => new { so.OrderNumber, so.CustomerId, so.CustomerPO, so.CreditTerms, so.CurrencyId })
                 .FirstOrDefaultAsync(cancellationToken)
                 ?? throw new KeyNotFoundException($"Sales order {linkedSoId} not found");
 
@@ -107,6 +110,10 @@ public class CreateInvoiceHandler(
 
             salesOrderCustomerPo = salesOrder.CustomerPO;
             salesOrderTerms = salesOrder.CreditTerms;
+            salesOrderCurrencyId = await currencies.EffectiveCurrencyIdAsync(salesOrder.CurrencyId, cancellationToken);
+            if (request.CurrencyId is int requestedCurrencyId && requestedCurrencyId != salesOrderCurrencyId)
+                throw DocumentCurrencyResolver.Failure("CurrencyId", DocumentCurrencyResolver.InvoiceSoCurrencyMismatchCode,
+                    $"An invoice for sales order {salesOrder.OrderNumber} must be in the order's currency ({await currencies.CodeForAsync(salesOrderCurrencyId.Value, cancellationToken)}).");
         }
 
         var linkedLineIds = request.Lines
@@ -234,18 +241,15 @@ public class CreateInvoiceHandler(
         // override. B2B customers reject invoices that don't echo their PO #.
         var customerPo = request.CustomerPO ?? salesOrderCustomerPo;
 
-        // Multi-currency (Phase-4 FULLGL, additive). Resolve the invoice currency to the caller-supplied
-        // CurrencyId, else the active book's functional currency (mirrors how the posting services load the
-        // book). When no book is seeded (single-currency installs that never enabled the GL), fall back to the
-        // seeded functional-currency default (1) — keeping the value functional and the row backward-compatible.
-        var currencyId = request.CurrencyId ?? await ResolveFunctionalCurrencyIdAsync(db, cancellationToken);
+        var currency = await currencies.ResolveAsync(
+            request.CurrencyId, request.FxRate, salesOrderCurrencyId ?? customer.CurrencyId, request.InvoiceDate, cancellationToken);
 
         var invoice = new Invoice
         {
             InvoiceNumber = invoiceNumber,
             CustomerId = request.CustomerId,
-            CurrencyId = currencyId,
-            FxRate = request.FxRate,
+            CurrencyId = currency.CurrencyId,
+            FxRate = currency.FxRate,
             SalesOrderId = request.SalesOrderId,
             ShipmentId = request.ShipmentId,
             InvoiceDate = request.InvoiceDate,
@@ -299,7 +303,9 @@ public class CreateInvoiceHandler(
                     .ToList(),
                 RefNumber: invoice.InvoiceNumber,
                 Amount: total,
-                Date: invoice.InvoiceDate);
+                Date: invoice.InvoiceDate,
+                CurrencyCode: currency.IsFunctional ? null : currency.Code,
+                ExchangeRate: currency.IsFunctional ? null : currency.FxRate);
             await syncQueue.EnqueueAsync("Invoice", invoice.Id, "CreateInvoice",
                 JsonSerializer.Serialize(document), cancellationToken);
         }
@@ -314,7 +320,8 @@ public class CreateInvoiceHandler(
         return new InvoiceListItemModel(
             invoice.Id, invoice.InvoiceNumber, invoice.CustomerId, customer.Name,
             invoice.Status.ToString(), invoice.InvoiceDate, invoice.DueDate,
-            total, 0, total, invoice.CreatedAt, currencyCode);
+            total, 0, total, invoice.CreatedAt, currencyCode,
+            invoice.CurrencyId, invoice.FxRate, FxMath.ToFunctional(total, invoice.FxRate));
     }
 
     private static string Qty(decimal quantity) => quantity.ToString("0.####", CultureInfo.InvariantCulture);
@@ -340,15 +347,4 @@ public class CreateInvoiceHandler(
         var setting = await systemSettings.FindByKeyAsync(AllowManualInvoiceNumbersKey, ct);
         return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
-
-    /// <summary>
-    /// The active book's functional currency, or the seeded functional-currency default (1) when no book is
-    /// present (single-currency installs that never enabled the GL). Read-only — never tracked.
-    /// </summary>
-    private static async Task<int> ResolveFunctionalCurrencyIdAsync(AppDbContext db, CancellationToken ct)
-        => await db.Books.AsNoTracking()
-            .Where(b => b.IsActive)
-            .OrderBy(b => b.Id)
-            .Select(b => b.FunctionalCurrencyId)
-            .FirstOrDefaultAsync(ct) is int id and > 0 ? id : 1;
 }

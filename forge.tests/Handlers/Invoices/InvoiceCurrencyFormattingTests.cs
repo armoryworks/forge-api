@@ -171,7 +171,7 @@ public class InvoiceCurrencyFormattingTests : IDisposable
         var bill = await handler.Handle(new CreateVendorBillCommand(
             vendor.Id, "V-1", null, DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, 0m, null,
             [new CreateVendorBillLineModel(null, "Steel", 2m, 600m, null)],
-            CurrencyId: _cad.Id), CancellationToken.None);
+            CurrencyId: _cad.Id, FxRate: 1m), CancellationToken.None);
 
         var log = await _db.ActivityLogs.AsNoTracking()
             .SingleAsync(a => a.EntityType == "VendorBill" && a.EntityId == bill.Id && a.Action == "created");

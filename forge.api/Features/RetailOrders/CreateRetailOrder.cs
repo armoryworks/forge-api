@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -134,6 +135,13 @@ public class CreateRetailOrderHandler(
             ConfirmedDate = orderDate,
             ShipTo = MapShipTo(model.ShipTo),
         };
+
+        var orderCurrency = await new DocumentCurrencyResolver(db).ResolveAsync(
+            null, null,
+            await db.Customers.AsNoTracking().Where(c => c.Id == order.CustomerId).Select(c => c.CurrencyId).FirstOrDefaultAsync(ct),
+            clock.UtcNow, ct);
+        order.CurrencyId = orderCurrency.CurrencyId;
+        order.FxRate = orderCurrency.FxRate;
 
         await AddLinesAsync(order, channel.Id, model, ct);
 

@@ -99,5 +99,12 @@ public class SalesOrderConfiguration : IEntityTypeConfiguration<SalesOrder>
             .WithOne(s => s.SalesOrder)
             .HasForeignKey(s => s.SalesOrderId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Property(e => e.FxRate).HasPrecision(18, 8).HasDefaultValue(1m);
+        builder.HasOne(e => e.Currency)
+            .WithMany()
+            .HasForeignKey(e => e.CurrencyId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(e => e.CurrencyId);
     }
 }

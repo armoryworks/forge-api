@@ -22,4 +22,7 @@ public record QuoteDetailResponseModel(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     string? CustomerPO = null,
-    uint RowVersion = 0);
+    uint RowVersion = 0,
+    int? CurrencyId = null,
+    string? CurrencyCode = null,
+    decimal FxRate = 1m);

@@ -11,4 +11,8 @@ public record PaymentListItemModel(
     decimal UnappliedAmount,
     DateTimeOffset PaymentDate,
     string? ReferenceNumber,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    int? CurrencyId = null,
+    string? CurrencyCode = null,
+    decimal FxRate = 1m,
+    decimal? TotalFunctional = null);

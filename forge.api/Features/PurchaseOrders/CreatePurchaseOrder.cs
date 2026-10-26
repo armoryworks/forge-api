@@ -5,6 +5,7 @@ using FluentValidation.Results;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Services.Fx;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -34,7 +35,9 @@ public record CreatePurchaseOrderCommand(
     int? VendorAddressId = null,
     int? ShipToLocationId = null,
     bool IsBlanket = false,
-    DateTimeOffset? BlanketExpirationDate = null) : IRequest<PurchaseOrderListItemModel>;
+    DateTimeOffset? BlanketExpirationDate = null,
+    int? CurrencyId = null,
+    decimal? FxRate = null) : IRequest<PurchaseOrderListItemModel>;
 
 public class CreatePurchaseOrderValidator : AbstractValidator<CreatePurchaseOrderCommand>
 {
@@ -64,6 +67,7 @@ public class CreatePurchaseOrderValidator : AbstractValidator<CreatePurchaseOrde
             .Length(3)
             .When(x => !string.IsNullOrEmpty(x.QuoteCurrency))
             .WithMessage("QuoteCurrency must be a 3-letter ISO-4217 code");
+        RuleFor(x => x.FxRate).GreaterThan(0m).When(x => x.FxRate.HasValue);
         RuleFor(x => x.VendorContactId).GreaterThan(0).When(x => x.VendorContactId.HasValue);
         RuleFor(x => x.VendorAddressId).GreaterThan(0).When(x => x.VendorAddressId.HasValue);
         RuleFor(x => x.ShipToLocationId).GreaterThan(0).When(x => x.ShipToLocationId.HasValue);
@@ -164,6 +168,14 @@ public class CreatePurchaseOrderHandler(
             IsBlanket = request.IsBlanket,
             BlanketExpirationDate = request.IsBlanket ? request.BlanketExpirationDate : null,
         };
+
+        var currencies = new DocumentCurrencyResolver(db);
+        var currencyId = request.CurrencyId
+            ?? vendor!.CurrencyId
+            ?? await currencies.CurrencyIdForCodeAsync(request.QuoteCurrency ?? defaultCurrency, cancellationToken)
+            ?? await currencies.GetFunctionalCurrencyIdAsync(cancellationToken);
+        await PurchaseOrderCurrency.ApplyAsync(
+            currencies, po, currencyId, request.FxRate, clock.UtcNow, rateRequired: false, cancellationToken);
 
         for (var i = 0; i < request.Lines.Count; i++)
         {

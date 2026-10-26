@@ -24,4 +24,7 @@ public record SalesOrderDetailResponseModel(
     List<SalesOrderReturnModel> Returns,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    uint RowVersion = 0);
+    uint RowVersion = 0,
+    int? CurrencyId = null,
+    string? CurrencyCode = null,
+    decimal FxRate = 1m);

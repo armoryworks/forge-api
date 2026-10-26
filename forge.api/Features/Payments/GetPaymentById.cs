@@ -1,13 +1,15 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Core.Settings;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Payments;
 
 public record GetPaymentByIdQuery(int Id) : IRequest<PaymentDetailResponseModel>;
 
-public class GetPaymentByIdHandler(IPaymentRepository repo, ISettingsService? settings = null)
+public class GetPaymentByIdHandler(IPaymentRepository repo, ISettingsService? settings = null, AppDbContext? db = null)
     : IRequestHandler<GetPaymentByIdQuery, PaymentDetailResponseModel>
 {
     public async Task<PaymentDetailResponseModel> Handle(GetPaymentByIdQuery request, CancellationToken cancellationToken)
@@ -38,6 +40,11 @@ public class GetPaymentByIdHandler(IPaymentRepository repo, ISettingsService? se
             payment.CreatedAt,
             payment.UpdatedAt,
             payment.Version,
-            CanVoid: (policy ?? PaymentsSettings.PolicyFull) == PaymentsSettings.PolicyFull);
+            CanVoid: (policy ?? PaymentsSettings.PolicyFull) == PaymentsSettings.PolicyFull,
+            CurrencyId: payment.CurrencyId,
+            CurrencyCode: db is not null && payment.CurrencyId is int currencyId
+                ? await db.Currencies.AsNoTracking().Where(c => c.Id == currencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken)
+                : null,
+            FxRate: payment.FxRate);
     }
 }

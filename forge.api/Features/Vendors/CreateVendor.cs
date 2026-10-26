@@ -1,9 +1,11 @@
 using FluentValidation;
 using MediatR;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Vendors;
 
@@ -23,7 +25,8 @@ public record CreateVendorCommand(
     string? TaxId = null,
     // Optional caller-supplied vendor number — see CreateVendorRequestModel.VendorNumber.
     string? VendorNumber = null,
-    string? Fax = null) : IRequest<VendorListItemModel>;
+    string? Fax = null,
+    int? CurrencyId = null) : IRequest<VendorListItemModel>;
 
 public class CreateVendorValidator : AbstractValidator<CreateVendorCommand>
 {
@@ -46,7 +49,8 @@ public class CreateVendorValidator : AbstractValidator<CreateVendorCommand>
 public class CreateVendorHandler(
     IVendorRepository repo,
     ISystemSettingRepository systemSettings,
-    IBusinessIdentifierService identifiers)
+    IBusinessIdentifierService identifiers,
+    AppDbContext? db = null)
     : IRequestHandler<CreateVendorCommand, VendorListItemModel>
 {
     // System setting that gates caller-supplied vendor numbers. Stored as "true"/"false".
@@ -74,6 +78,8 @@ public class CreateVendorHandler(
             Is1099 = request.Is1099,
             TaxId = string.IsNullOrWhiteSpace(request.TaxId) ? null : request.TaxId.Trim(),
         };
+        if (db is not null)
+            await PartyCurrency.ApplyToVendorAsync(db, vendor, request.CurrencyId, clear: false, cancellationToken);
 
         await repo.AddAsync(vendor, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);
@@ -83,7 +89,7 @@ public class CreateVendorHandler(
 
         return new VendorListItemModel(
             vendor.Id, vendor.CompanyName, vendor.VendorNumber, vendor.ContactName,
-            vendor.Email, vendor.Phone, vendor.IsActive, 0, vendor.CreatedAt);
+            vendor.Email, vendor.Phone, vendor.IsActive, 0, vendor.CreatedAt, vendor.CurrencyId);
     }
 
     // Uses a caller-supplied vendor number when manual numbers are enabled and one

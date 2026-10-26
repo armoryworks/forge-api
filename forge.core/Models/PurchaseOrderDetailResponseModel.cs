@@ -55,4 +55,6 @@ public record PurchaseOrderDetailResponseModel(
     string? ShipToAddressText = null,
     uint RowVersion = 0,
     int? ReceivingFallbackBinId = null,
-    string? ReceivingFallbackBinPath = null);
+    string? ReceivingFallbackBinPath = null,
+    int? CurrencyId = null,
+    string? CurrencyCode = null);

@@ -67,5 +67,12 @@ public class QuoteConfiguration : IEntityTypeConfiguration<Quote>
             .WithOne(l => l.Quote)
             .HasForeignKey(l => l.QuoteId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Property(e => e.FxRate).HasPrecision(18, 8).HasDefaultValue(1m);
+        builder.HasOne(e => e.Currency)
+            .WithMany()
+            .HasForeignKey(e => e.CurrencyId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(e => e.CurrencyId);
     }
 }

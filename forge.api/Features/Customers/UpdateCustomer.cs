@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Validation;
 using Forge.Api.Workflows;
+using Forge.Api.Services.Fx;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -34,7 +35,9 @@ public record UpdateCustomerCommand(
     decimal? CreditLimit = null,
     bool? ClearCreditLimit = null,
     string? DefaultCreditTerms = null,
-    bool? ClearDefaultCreditTerms = null) : IRequest;
+    bool? ClearDefaultCreditTerms = null,
+    int? CurrencyId = null,
+    bool? ClearCurrency = null) : IRequest;
 
 public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
 {
@@ -201,6 +204,10 @@ public class UpdateCustomerHandler(
             customer.DefaultCreditTerms = terms;
             changedFields.Add("defaultCreditTerms");
         }
+
+        if ((request.CurrencyId is not null || request.ClearCurrency == true)
+            && await PartyCurrency.ApplyToCustomerAsync(db, customer, request.CurrencyId, null, request.ClearCurrency == true, cancellationToken))
+            changedFields.Add("currency");
 
         // Phase 1r / Batch 15 — regulated-industry flags. Each is independent
         // (a customer can be both aerospace + ITAR-controlled, or automotive

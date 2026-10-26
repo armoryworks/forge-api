@@ -6,4 +6,4 @@ namespace Forge.Core.Models;
 /// "(deactivated)" entries, and the active-check on the server-side has a
 /// matching client-side hint.
 /// </summary>
-public record VendorResponseModel(int Id, string CompanyName, bool IsActive);
+public record VendorResponseModel(int Id, string CompanyName, bool IsActive, int? CurrencyId = null);

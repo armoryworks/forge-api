@@ -2,7 +2,9 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.PurchaseOrders;
 using Forge.Api.Services;
+using Forge.Api.Services.Fx;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -30,7 +32,7 @@ public record CreateVendorBillCommand(
     // Multi-currency (Phase-4 FULLGL, additive) — mirrors CreateInvoiceCommand. Null CurrencyId → the active
     // book's functional currency; FxRate is the booking rate. Defaults keep single-currency callers unchanged.
     int? CurrencyId = null,
-    decimal FxRate = 1m) : IRequest<VendorBillListItemModel>;
+    decimal? FxRate = null) : IRequest<VendorBillListItemModel>;
 
 public class CreateVendorBillValidator : AbstractValidator<CreateVendorBillCommand>
 {
@@ -42,7 +44,7 @@ public class CreateVendorBillValidator : AbstractValidator<CreateVendorBillComma
         RuleFor(x => x.DueDate).GreaterThanOrEqualTo(x => x.BillDate)
             .WithMessage("Due date must be on or after the bill date.");
         // FX booking rate must be positive (a 0 or negative rate would zero/invert the functional amount).
-        RuleFor(x => x.FxRate).GreaterThan(0m);
+        RuleFor(x => x.FxRate).GreaterThan(0m).When(x => x.FxRate.HasValue);
         // A zero-total bill would flip to Approved yet post no journal (the engine skips non-positive
         // totals) — a silent status/ledger divergence. Require a positive total.
         RuleFor(x => x)
@@ -103,16 +105,27 @@ public class CreateVendorBillHandler(
 
         var billNumber = await repo.GenerateNextBillNumberAsync(cancellationToken);
 
-        // Multi-currency (Phase-4 FULLGL, additive). Resolve the bill currency to the caller-supplied
-        // CurrencyId, else the active book's functional currency (mirrors the posting services / CreateInvoice).
-        var currencyId = request.CurrencyId ?? await ResolveFunctionalCurrencyIdAsync(db, cancellationToken);
+        var currencies = new DocumentCurrencyResolver(db);
+        int? inheritedCurrencyId = vendor.CurrencyId;
+        if (request.PurchaseOrderId is int linkedPoId)
+        {
+            var po = await db.PurchaseOrders.AsNoTracking().FirstOrDefaultAsync(p => p.Id == linkedPoId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Purchase order {linkedPoId} not found");
+            var poCurrencyId = await PurchaseOrderCurrency.EffectiveCurrencyIdAsync(currencies, po, cancellationToken);
+            if (request.CurrencyId is int requestedId && requestedId != poCurrencyId)
+                throw DocumentCurrencyResolver.Failure("CurrencyId", DocumentCurrencyResolver.BillPoCurrencyMismatchCode,
+                    $"A bill for PO {po.PONumber} must be in the PO's currency ({await currencies.CodeForAsync(poCurrencyId, cancellationToken) ?? po.QuoteCurrency}).");
+            inheritedCurrencyId = poCurrencyId;
+        }
+        var currency = await currencies.ResolveAsync(
+            request.CurrencyId, request.FxRate, inheritedCurrencyId, request.BillDate, cancellationToken);
 
         var bill = new VendorBill
         {
             BillNumber = billNumber,
             VendorId = request.VendorId,
-            CurrencyId = currencyId,
-            FxRate = request.FxRate,
+            CurrencyId = currency.CurrencyId,
+            FxRate = currency.FxRate,
             VendorInvoiceNumber = request.VendorInvoiceNumber,
             PurchaseOrderId = request.PurchaseOrderId,
             Status = VendorBillStatus.Draft,
@@ -158,17 +171,10 @@ public class CreateVendorBillHandler(
         return new VendorBillListItemModel(
             bill.Id, bill.BillNumber, bill.VendorId, vendor.CompanyName, bill.VendorInvoiceNumber,
             bill.Status.ToString(), bill.BillDate, bill.DueDate,
-            bill.Total, bill.AmountPaid, bill.BalanceDue, bill.CreatedAt);
+            bill.Total, bill.AmountPaid, bill.BalanceDue, bill.CreatedAt,
+            CurrencyId: bill.CurrencyId,
+            CurrencyCode: currency.Code,
+            FxRate: bill.FxRate,
+            TotalFunctional: FxMath.ToFunctional(bill.Total, bill.FxRate));
     }
-
-    /// <summary>
-    /// The active book's functional currency, or the seeded functional-currency default (1) when no book is
-    /// present (single-currency installs that never enabled the GL). Read-only — never tracked.
-    /// </summary>
-    private static async Task<int> ResolveFunctionalCurrencyIdAsync(AppDbContext db, CancellationToken ct)
-        => await db.Books.AsNoTracking()
-            .Where(b => b.IsActive)
-            .OrderBy(b => b.Id)
-            .Select(b => b.FunctionalCurrencyId)
-            .FirstOrDefaultAsync(ct) is int id and > 0 ? id : 1;
 }

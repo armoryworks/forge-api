@@ -36,7 +36,9 @@ public record CustomerDetailResponseModel(
     string? Fax = null,
     uint RowVersion = 0,
     string? DefaultCreditTerms = null,
-    DateOnly? ExemptionExpiryDate = null);
+    DateOnly? ExemptionExpiryDate = null,
+    int? CurrencyId = null,
+    bool CurrencyLocked = false);
 
 /// <summary>
 /// Minimal nested address shape returned alongside a customer record. Phase 3 F3.

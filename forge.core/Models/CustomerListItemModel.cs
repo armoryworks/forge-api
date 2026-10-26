@@ -10,4 +10,5 @@ public record CustomerListItemModel(
     bool IsActive,
     int ContactCount,
     int JobCount,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    int? CurrencyId = null);

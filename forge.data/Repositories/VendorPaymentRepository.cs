@@ -34,6 +34,11 @@ public class VendorPaymentRepository(AppDbContext db) : IVendorPaymentRepository
             .GroupBy(t => t.SourceId)
             .ToDictionary(g => g.Key, g => g.First());
 
+        var currencyIds = payments.Where(p => p.CurrencyId != null).Select(p => p.CurrencyId!.Value).Distinct().ToList();
+        var currencyCodes = await db.Currencies.AsNoTracking()
+            .Where(c => currencyIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, c => c.Code, ct);
+
         return payments.Select(p =>
         {
             latestTransmissions.TryGetValue(p.Id, out var tx);
@@ -42,7 +47,11 @@ public class VendorPaymentRepository(AppDbContext db) : IVendorPaymentRepository
                 vendorNames.TryGetValue(p.VendorId, out var n) ? n : $"Vendor {p.VendorId}",
                 p.Method.ToString(), p.Amount, p.AppliedAmount, p.UnappliedAmount,
                 p.PaymentDate, p.ReferenceNumber, p.CreatedAt,
-                tx?.Status.ToString(), tx?.AttemptCount ?? 0, tx?.Id);
+                tx?.Status.ToString(), tx?.AttemptCount ?? 0, tx?.Id,
+                p.CurrencyId,
+                p.CurrencyId is int cid ? currencyCodes.GetValueOrDefault(cid) : null,
+                p.FxRate,
+                p.FxRate == 1m ? p.Amount : Math.Round(p.Amount * p.FxRate, 2, MidpointRounding.AwayFromZero));
         }).ToList();
     }
 

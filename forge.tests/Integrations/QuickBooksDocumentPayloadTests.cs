@@ -16,28 +16,29 @@ namespace Forge.Tests.Integrations;
 
 public class QuickBooksDocumentPayloadTests
 {
-    private sealed class CapturingHandler(string responseJson) : HttpMessageHandler
+    private sealed class CapturingHandler(string responseJson, HttpStatusCode status = HttpStatusCode.OK) : HttpMessageHandler
     {
         public List<string> Bodies { get; } = [];
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Bodies.Add(await request.Content!.ReadAsStringAsync(cancellationToken));
-            return new HttpResponseMessage(HttpStatusCode.OK)
+            return new HttpResponseMessage(status)
             {
                 Content = new StringContent(responseJson, Encoding.UTF8, "application/json"),
             };
         }
     }
 
-    private static (QuickBooksAccountingService Service, CapturingHandler Handler) Create(string responseJson)
+    private static (QuickBooksAccountingService Service, CapturingHandler Handler) Create(
+        string responseJson, HttpStatusCode status = HttpStatusCode.OK)
     {
         var resolver = new Mock<IExternalIdentityResolver>();
         resolver
             .Setup(r => r.ResolveAsync("quickbooks", null, It.IsAny<TokenResolutionPolicy>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ResolvedExternalIdentity("token", "quickbooks", TokenScope.Install, null, "realm-1"));
 
-        var handler = new CapturingHandler(responseJson);
+        var handler = new CapturingHandler(responseJson, status);
         var service = new QuickBooksAccountingService(
             resolver.Object,
             new Forge.Tests.Helpers.StubHttpClientFactory(handler),
@@ -83,5 +84,46 @@ public class QuickBooksDocumentPayloadTests
         await service.CreatePurchaseOrderAsync(Document(AccountingDocumentType.PurchaseOrder), CancellationToken.None);
 
         LineAmounts(handler.Bodies.Single()).Should().Equal(10.13m, 0.83m);
+    }
+
+    [Fact]
+    public async Task CreateInvoiceAsync_ForeignDocument_SendsCurrencyRefAndExchangeRate()
+    {
+        var (service, handler) = Create("""{"Invoice":{"Id":"43"}}""");
+
+        await service.CreateInvoiceAsync(
+            Document(AccountingDocumentType.Invoice) with { CurrencyCode = "CAD", ExchangeRate = 0.73m },
+            CancellationToken.None);
+
+        using var doc = JsonDocument.Parse(handler.Bodies.Single());
+        doc.RootElement.GetProperty("CurrencyRef").GetProperty("value").GetString().Should().Be("CAD");
+        doc.RootElement.GetProperty("ExchangeRate").GetDecimal().Should().Be(0.73m);
+    }
+
+    [Fact]
+    public async Task CreateInvoiceAsync_HomeCurrencyDocument_SendsNoCurrencyRef()
+    {
+        var (service, handler) = Create("""{"Invoice":{"Id":"44"}}""");
+
+        await service.CreateInvoiceAsync(Document(AccountingDocumentType.Invoice), CancellationToken.None);
+
+        using var doc = JsonDocument.Parse(handler.Bodies.Single());
+        doc.RootElement.TryGetProperty("CurrencyRef", out _).Should().BeFalse();
+        doc.RootElement.TryGetProperty("ExchangeRate", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CreateInvoiceAsync_ForeignDocumentRefusedForCurrency_ExplainsMulticurrency()
+    {
+        var (service, _) = Create(
+            """{"Fault":{"Error":[{"Message":"Invalid Reference Id","Detail":"Currency CAD is not enabled"}],"type":"ValidationFault"}}""",
+            HttpStatusCode.BadRequest);
+
+        var act = () => service.CreateInvoiceAsync(
+            Document(AccountingDocumentType.Invoice) with { CurrencyCode = "CAD", ExchangeRate = 0.73m },
+            CancellationToken.None);
+
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message
+            .Should().StartWith("QuickBooks multicurrency is off");
     }
 }

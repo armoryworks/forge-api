@@ -20,6 +20,7 @@ public class GetPortalSalesOrdersHandler(AppDbContext db)
             .Where(o => o.CustomerId == request.CustomerId && o.Status != SalesOrderStatus.Draft);
         var orders = await scope
             .Include(o => o.Lines)
+            .Include(o => o.Currency)
             .OrderByDescending(o => o.CreatedAt)
             .Take(PortalReadRules.ListCap)
             .ToListAsync(ct);
@@ -33,6 +34,6 @@ public class GetPortalSalesOrdersHandler(AppDbContext db)
             OrderDate: o.ConfirmedDate ?? o.CreatedAt,
             RequestedDate: o.RequestedDeliveryDate,
             Total: o.Total,
-            CurrencyCode: currencyCode)).ToList(), totalCount);
+            CurrencyCode: o.Currency?.Code ?? currencyCode)).ToList(), totalCount);
     }
 }

@@ -20,4 +20,6 @@ public record UpdateVendorRequestModel(
     // User-settable vendor number. Supplying a changed value requires
     // vendors.allow_manual_numbers to be on; validated for uniqueness.
     string? VendorNumber = null,
-    string? Fax = null);
+    string? Fax = null,
+    int? CurrencyId = null,
+    bool? ClearCurrency = null);

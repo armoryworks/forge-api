@@ -36,5 +36,7 @@ public class ReceivingRecordConfiguration : IEntityTypeConfiguration<ReceivingRe
             .WithMany()
             .HasForeignKey(e => e.StorageLocationId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Property(e => e.FxRate).HasPrecision(18, 8).HasDefaultValue(1m);
     }
 }

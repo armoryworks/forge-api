@@ -148,6 +148,7 @@ public class PaymentTransmissionSettlementTests
             VendorId = vendorId,
             Method = method,
             Amount = amount,
+            FxRate = settlementFxRate,
             PaymentDate = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
         };
         if (billId is int bid && appliedAmount is decimal applied)
@@ -301,7 +302,7 @@ public class PaymentTransmissionSettlementTests
         var (db, vendorId) = await SeedAsync();
         var bill = await AddApprovedBillAsync(db, vendorId, currencyId: EurId, fxRate: 1.10m);
         var payment = await AddPaymentAsync(
-            db, vendorId, amount: 105m, billId: bill.Id, appliedAmount: 100m, settlementFxRate: 1.05m);
+            db, vendorId, amount: 100m, billId: bill.Id, appliedAmount: 100m, settlementFxRate: 1.05m);
         await OriginationService(db).PostVendorPaymentCreatedAsync(payment.Id, CreatorUserId);
         var transmission = await AddTransmissionAsync(db, payment);
 

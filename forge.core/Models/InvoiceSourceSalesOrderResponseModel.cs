@@ -7,4 +7,5 @@ public record InvoiceSourceSalesOrderResponseModel(
     string OrderNumber,
     string CustomerName,
     decimal TaxRate = 0m,
-    CreditTerms? CreditTerms = null);
+    CreditTerms? CreditTerms = null,
+    int? CurrencyId = null);

@@ -71,6 +71,13 @@ public class Customer : BaseAuditableEntity, IActiveAware, IConcurrencyVersioned
     /// </summary>
     public CreditTerms? DefaultCreditTerms { get; set; }
 
+    /// <summary>
+    /// Currency this customer trades in; new quotes, sales orders, invoices and payments start from it. Null = the functional currency.
+    /// Locked once the customer has a non-draft document.
+    /// </summary>
+    public int? CurrencyId { get; set; }
+    public Currency? Currency { get; set; }
+
     // Accounting integration
     public string? ExternalId { get; set; }
     public string? ExternalRef { get; set; }

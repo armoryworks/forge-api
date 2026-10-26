@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Services;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums;
@@ -249,7 +250,7 @@ public sealed class VendorPaymentCashPostingService(
         // net out cleanly. SINGLE CURRENCY (rate 1): cashFromApplications == AppliedAmount, so this equals
         // payment.UnappliedAmount — byte-identical to the prior behavior. (A tiny negative from rounding floors
         // to 0 so a 0/0 line is never emitted.)
-        var unapplied = Math.Max(0m, payment.Amount - cashFromApplications);
+        var unapplied = Math.Max(0m, FxMath.ToFunctional(payment.Amount - payment.AppliedAmount, payment.FxRate));
 
         var lines = new List<PostingLine>(4);
 

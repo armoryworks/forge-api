@@ -34,7 +34,9 @@ public class GetQuotePdfHandler(
             .ToList();
         var compiled = await compiler.CompileForQuoteAsync(quote.CustomerId, partIds, ct);
 
-        var money = await MoneyFormat.ForBaseCurrencyAsync(db, settings, ct);
+        var money = quote.CurrencyId is int currencyId
+            ? await MoneyFormat.ForCurrencyIdAsync(db, currencyId, await MoneyFormat.BaseCodeAsync(settings, ct), ct)
+            : await MoneyFormat.ForBaseCurrencyAsync(db, settings, ct);
         return new QuotePdfDocument(quote, companyName, compiled.Sections, money).GeneratePdf();
     }
 }

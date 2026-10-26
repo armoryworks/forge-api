@@ -9,7 +9,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/exchange-rates")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,Controller")]
 [RequiresCapability("CAP-MD-CURRENCIES")]
 public class ExchangeRatesController(IMediator mediator) : ControllerBase
 {

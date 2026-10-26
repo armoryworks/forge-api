@@ -123,7 +123,11 @@ public class PurchaseOrderRepository(AppDbContext db) : IPurchaseOrderRepository
                     po.OriginSource.ToString(),
                     null,
                     po.OriginReference,
-                    po.Lines.Count(l => l.ReceivedQuantity + l.CancelledShortCloseQuantity >= l.OrderedQuantity)),
+                    po.Lines.Count(l => l.ReceivedQuantity + l.CancelledShortCloseQuantity >= l.OrderedQuantity),
+                    po.CurrencyId,
+                    po.Currency != null ? po.Currency.Code : po.QuoteCurrency,
+                    po.FxRate ?? 1m,
+                    Math.Round(po.Lines.Sum(l => l.OrderedQuantity * l.UnitPrice) * (po.FxRate ?? 1m), 2)),
                 po.OriginUserId,
             })
             .ToListAsync(ct);

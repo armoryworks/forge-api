@@ -219,9 +219,10 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<ArAging>> GetArAging(
         [FromQuery] int bookId,
         [FromQuery] DateOnly? asOfDate,
+        [FromQuery] int? currencyId,
         CancellationToken ct)
     {
-        var result = await mediator.Send(new GetArAgingQuery(bookId, asOfDate), ct);
+        var result = await mediator.Send(new GetArAgingQuery(bookId, asOfDate, currencyId), ct);
         return Ok(result);
     }
 
@@ -234,9 +235,10 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<ApAging>> GetApAging(
         [FromQuery] int bookId,
         [FromQuery] DateOnly? asOfDate,
+        [FromQuery] int? currencyId,
         CancellationToken ct)
     {
-        var result = await mediator.Send(new GetApAgingQuery(bookId, asOfDate), ct);
+        var result = await mediator.Send(new GetApAgingQuery(bookId, asOfDate, currencyId), ct);
         return Ok(result);
     }
 
@@ -416,7 +418,24 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     [RequiresCapability("CAP-ACCT-FXREVAL")]
     public async Task<ActionResult<FxRevaluationResult>> RevalueFx(
         [FromBody] RevalueFxRequest body, CancellationToken ct)
-        => Ok(await mediator.Send(new RevalueFxCommand(body.BookId, body.CurrencyId, body.NewRate, body.AsOf), ct));
+        => Ok(await mediator.Send(new RevalueFxCommand(body.BookId, body.CurrencyId, body.NewRate, body.AsOf, body.Preview), ct));
+
+    /// <summary>
+    /// Revalue every active foreign currency with an open monetary position at the rates on file for the as-of
+    /// date. <c>preview</c> returns the adjustments without posting.
+    /// </summary>
+    [HttpPost("fx-revaluation/all")]
+    [RequiresCapability("CAP-ACCT-FXREVAL")]
+    public async Task<ActionResult<IReadOnlyList<FxRevaluationResult>>> RevalueAllFx(
+        [FromBody] RevalueAllFxRequest body, CancellationToken ct)
+        => Ok(await mediator.Send(new RevalueAllFxCommand(body.BookId, body.AsOf, body.Preview), ct));
+
+    /// <summary>Past unrealized FX revaluation runs for a book, newest first.</summary>
+    [HttpGet("fx-revaluations")]
+    [RequiresCapability("CAP-ACCT-FXREVAL")]
+    public async Task<ActionResult<IReadOnlyList<FxRevaluationRunModel>>> GetFxRevaluations(
+        [FromQuery] int bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new GetFxRevaluationsQuery(bookId), ct));
 
     /// <summary>
     /// Jobs with an open GL WIP balance and no production-cost close yet — the worklist the close action runs
@@ -708,7 +727,9 @@ public record PostFromTemplateRequest(DateOnly EntryDate, string? Memo);
 public record RunDepreciationRequest(int BookId, DateOnly PeriodMonth);
 
 /// <summary>Body for <c>POST /api/v1/accounting/fx-revaluation</c>.</summary>
-public record RevalueFxRequest(int BookId, int CurrencyId, decimal NewRate, DateOnly AsOf);
+public record RevalueFxRequest(int BookId, int CurrencyId, decimal? NewRate, DateOnly AsOf, bool Preview = false);
+
+public record RevalueAllFxRequest(int BookId, DateOnly AsOf, bool Preview = false);
 
 /// <summary>
 /// Request body for <c>POST /api/v1/accounting/journal-entries</c>. The

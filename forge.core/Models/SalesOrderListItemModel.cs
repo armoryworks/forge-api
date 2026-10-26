@@ -17,4 +17,8 @@ public record SalesOrderListItemModel(
     DateTimeOffset? RequestedDeliveryDate,
     DateTimeOffset CreatedAt,
     int? SalesOrderId,
-    int? JobId);
+    int? JobId,
+    int? CurrencyId = null,
+    string? CurrencyCode = null,
+    decimal FxRate = 1m,
+    decimal? TotalFunctional = null);

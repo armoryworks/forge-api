@@ -39,6 +39,9 @@ public class QuoteRepository(AppDbContext db) : IQuoteRepository
                 q.TaxRate,
                 q.ExpirationDate,
                 q.CreatedAt,
+                q.CurrencyId,
+                CurrencyCode = q.Currency != null ? q.Currency.Code : null,
+                q.FxRate,
             })
             .ToListAsync(ct);
 
@@ -51,7 +54,11 @@ public class QuoteRepository(AppDbContext db) : IQuoteRepository
             r.LineCount,
             r.Subtotal + Money.Round(r.Subtotal * r.TaxRate),
             r.ExpirationDate,
-            r.CreatedAt)).ToList();
+            r.CreatedAt,
+            r.CurrencyId,
+            r.CurrencyCode,
+            r.FxRate,
+            Money.Round((r.Subtotal + Money.Round(r.Subtotal * r.TaxRate)) * r.FxRate))).ToList();
     }
 
     public async Task<Quote?> FindAsync(int id, CancellationToken ct)

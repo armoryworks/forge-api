@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using indice.Edi;
 
 using Forge.Api.Features.Edi.X12;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -144,6 +145,13 @@ public sealed class X12EdiService(
                 CustomerPO = order.PurchaseOrderNumber,
                 Notes = $"Created from EDI 850 (transaction {transaction.Id}, partner {transaction.TradingPartner.Name}).",
             };
+
+            var salesOrderCurrency = await new DocumentCurrencyResolver(db).ResolveAsync(
+                null, null,
+                await db.Customers.AsNoTracking().Where(c => c.Id == salesOrder.CustomerId).Select(c => c.CurrencyId).FirstOrDefaultAsync(ct),
+                clock.UtcNow, ct);
+            salesOrder.CurrencyId = salesOrderCurrency.CurrencyId;
+            salesOrder.FxRate = salesOrderCurrency.FxRate;
 
             // Per-partner part-number translation (EDI_CORE_PLAN §Known functional gap → built):
             // map the partner's number to OUR number first, then match the catalog. A miss falls

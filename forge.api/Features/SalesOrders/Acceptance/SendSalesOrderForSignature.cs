@@ -52,7 +52,9 @@ public class SendSalesOrderForSignatureHandler(
 
         var pdfBytes = new SalesOrderAcceptancePdfDocument(
             companyName, order.OrderNumber, order.Customer?.Name ?? "Customer", null, lines,
-            await MoneyFormat.ForBaseCurrencyAsync(db, settings, cancellationToken)).GeneratePdf();
+            order.CurrencyId is int currencyId
+                ? await MoneyFormat.ForCurrencyIdAsync(db, currencyId, await MoneyFormat.BaseCodeAsync(settings, cancellationToken), cancellationToken)
+                : await MoneyFormat.ForBaseCurrencyAsync(db, settings, cancellationToken)).GeneratePdf();
 
         var templateId = await signing.CreateTemplateFromPdfAsync($"SO-Acceptance-{order.OrderNumber}", pdfBytes, cancellationToken);
         var submission = await signing.CreateSubmissionAsync(templateId, request.SignerEmail, request.SignerName, cancellationToken);

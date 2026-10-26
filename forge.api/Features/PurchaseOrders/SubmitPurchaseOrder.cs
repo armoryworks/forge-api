@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 
 using Forge.Api.Features.Approvals;
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -51,8 +52,13 @@ public class SubmitPurchaseOrderHandler(
             }
             else
             {
-                throw new InvalidOperationException(
-                    $"FX rate is required before submitting a {po.QuoteCurrency} PO (base currency is {baseCurrency}).");
+                var currencies = new DocumentCurrencyResolver(db);
+                var currencyId = await PurchaseOrderCurrency.EffectiveCurrencyIdAsync(currencies, po, cancellationToken);
+                if (po.CurrencyId is null && currencyId == await currencies.GetFunctionalCurrencyIdAsync(cancellationToken))
+                    throw new InvalidOperationException(
+                        $"FX rate is required before submitting a {po.QuoteCurrency} PO (base currency is {baseCurrency}).");
+                await PurchaseOrderCurrency.ApplyAsync(
+                    currencies, po, currencyId, null, clock.UtcNow, rateRequired: true, cancellationToken);
             }
         }
 

@@ -57,6 +57,12 @@ public class ReceivingRecord : BaseAuditableEntity
     /// </summary>
     public decimal? AllocatedFreight { get; set; }
 
+    /// <summary>
+    /// Rate from the PO currency to the functional currency used to value this receipt: the PO's rate,
+    /// else the rate on file for the receipt date. 1 for a functional-currency PO.
+    /// </summary>
+    public decimal FxRate { get; set; } = 1m;
+
     public PurchaseOrderLine PurchaseOrderLine { get; set; } = null!;
     public StorageLocation? StorageLocation { get; set; }
 }

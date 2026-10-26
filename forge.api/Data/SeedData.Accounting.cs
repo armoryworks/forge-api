@@ -33,6 +33,7 @@ public static partial class SeedData
         // get it backfilled. No-op on fresh installs and already-patched ones.
         await EnsureCashInTransitAsync(db);
         await EnsureDeterminationAccountsAsync(db);
+        await EnsureBaseCurrencyConsistentAsync(db);
         await EnsureKeyedAccountAsync(db, "FIXED_ASSETS", "15000", "Machinery & Equipment",
             AccountType.Asset, NormalBalance.Debit, [AccountType.Asset], CashFlowCategory.Investing);
         await EnsureKeyedAccountAsync(db, "GAIN_LOSS_ON_DISPOSAL", "91000", "Gain/Loss on Asset Disposal",

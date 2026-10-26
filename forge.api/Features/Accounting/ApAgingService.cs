@@ -46,7 +46,7 @@ public sealed class ApAgingService(AppDbContext db, IClock clock, Forge.Core.Set
                 await settings.GetStringAsync(Forge.Core.Settings.AccountingSettings.AgingBucketDaysKey, ct)));
     }
 
-    public async Task<ApAging> GetApAgingAsync(int bookId, DateOnly? asOfDate = null, CancellationToken ct = default)
+    public async Task<ApAging> GetApAgingAsync(int bookId, DateOnly? asOfDate = null, CancellationToken ct = default, int? currencyId = null)
     {
         await LoadBucketsAsync(ct);
 
@@ -64,7 +64,11 @@ public sealed class ApAgingService(AppDbContext db, IClock clock, Forge.Core.Set
         var vendorRows = new List<ApAgingVendorRow>();
         var grandBucketTotals = new decimal[BucketDefs.Count];
 
-        foreach (var group in items.GroupBy(i => i.VendorId))
+        var currencyCodes = await db.Currencies.AsNoTracking()
+            .ToDictionaryAsync(c => c.Id, c => c.Code, ct);
+        var reported = currencyId is int onlyCurrency ? items.Where(i => i.CurrencyId == onlyCurrency).ToList() : items;
+
+        foreach (var group in reported.GroupBy(i => i.VendorId))
         {
             var bucketAmounts = new decimal[BucketDefs.Count];
             foreach (var item in group)
@@ -83,6 +87,12 @@ public sealed class ApAgingService(AppDbContext db, IClock clock, Forge.Core.Set
                 VendorId = group.Key,
                 VendorName = vendorNames.TryGetValue(group.Key, out var name) ? name : $"Vendor {group.Key}",
                 OpenBalance = openBalance,
+                CurrencyCode = group.Select(i => i.CurrencyId).Distinct().Count() == 1
+                    ? currencyCodes.GetValueOrDefault(group.First().CurrencyId)
+                    : null,
+                OpenTxnBalance = group.Select(i => i.CurrencyId).Distinct().Count() == 1
+                    ? group.Sum(i => i.OpenTxnAmount)
+                    : null,
                 Buckets = BuildBuckets(bucketAmounts),
             });
         }

@@ -32,6 +32,12 @@ public class Quote : BaseAuditableEntity, IConcurrencyVersioned
     public int? AcceptedByContactId { get; set; }
     public decimal TaxRate { get; set; }
 
+    /// <summary>Currency the quote is denominated in. Null on rows from before multi-currency = the functional currency.</summary>
+    public int? CurrencyId { get; set; }
+
+    /// <summary>Rate from <see cref="CurrencyId"/> to the functional currency, captured on the quote date. 1 for the functional currency.</summary>
+    public decimal FxRate { get; set; } = 1m;
+
     /// <summary>
     /// The customer's own purchase-order reference, captured at quote time and
     /// carried onto the SalesOrder at conversion.
@@ -61,6 +67,7 @@ public class Quote : BaseAuditableEntity, IConcurrencyVersioned
 
     // Navigation
     public Customer Customer { get; set; } = null!;
+    public Currency? Currency { get; set; }
     public CustomerAddress? ShippingAddress { get; set; }
     public Quote? SourceEstimate { get; set; }
     public Quote? GeneratedQuote { get; set; }

@@ -18,7 +18,7 @@ public class VendorRepository(AppDbContext db) : IVendorRepository
         return await db.Vendors
             .OrderByDescending(v => v.IsActive)
             .ThenBy(v => v.CompanyName)
-            .Select(v => new VendorResponseModel(v.Id, v.CompanyName, v.IsActive))
+            .Select(v => new VendorResponseModel(v.Id, v.CompanyName, v.IsActive, v.CurrencyId))
             .ToListAsync(ct);
     }
 
@@ -103,7 +103,8 @@ public class VendorRepository(AppDbContext db) : IVendorRepository
                 v.Phone,
                 v.IsActive,
                 v.PurchaseOrders.Count(po => po.DeletedAt == null),
-                v.CreatedAt))
+                v.CreatedAt,
+                v.CurrencyId))
             .ToListAsync(ct);
 
         return new PagedResponse<VendorListItemModel>(

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Services;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -26,6 +27,19 @@ internal static class PaymentApplicationRules
             throw new InvalidOperationException(
                 $"Invoice {invoice.InvoiceNumber} is {invoice.Status}; only Sent, PartiallyPaid, or Overdue invoices can be paid");
 
+        var currencies = new DocumentCurrencyResolver(db);
+        var paymentCurrencyId = await currencies.EffectiveCurrencyIdAsync(payment.CurrencyId, ct);
+        var invoiceCurrencyId = await currencies.EffectiveCurrencyIdAsync(invoice.CurrencyId, ct);
+        if (invoiceCurrencyId != paymentCurrencyId)
+        {
+            var codes = await db.Currencies.AsNoTracking()
+                .Where(c => c.Id == invoiceCurrencyId || c.Id == paymentCurrencyId)
+                .ToDictionaryAsync(c => c.Id, c => c.Code, ct);
+            DocumentCurrencyResolver.EnsureSameCurrency(
+                paymentCurrencyId, invoiceCurrencyId, $"Invoice {invoice.InvoiceNumber}",
+                codes.GetValueOrDefault(paymentCurrencyId), codes.GetValueOrDefault(invoiceCurrencyId));
+        }
+
         var balanceDue = invoice.BalanceDue;
 
         if (app.Amount > balanceDue)
@@ -39,7 +53,7 @@ internal static class PaymentApplicationRules
         {
             InvoiceId = app.InvoiceId,
             Amount = app.Amount,
-            SettlementFxRate = app.SettlementFxRate,
+            SettlementFxRate = app.SettlementFxRate ?? payment.FxRate,
         });
 
         var newBalance = balanceDue - app.Amount;

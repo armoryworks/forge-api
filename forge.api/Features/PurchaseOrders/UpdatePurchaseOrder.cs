@@ -3,6 +3,7 @@ using System.Globalization;
 using FluentValidation;
 using FluentValidation.Results;
 using MediatR;
+using Forge.Api.Services.Fx;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -28,7 +29,8 @@ public record UpdatePurchaseOrderCommand(
     string? FxRateSource = null,
     int? VendorContactId = null,
     int? VendorAddressId = null,
-    int? ShipToLocationId = null) : IRequest;
+    int? ShipToLocationId = null,
+    int? CurrencyId = null) : IRequest;
 
 public class UpdatePurchaseOrderValidator : AbstractValidator<UpdatePurchaseOrderCommand>
 {
@@ -79,7 +81,8 @@ public class UpdatePurchaseOrderHandler(
             || request.EstimatedFreight.HasValue
             || !string.IsNullOrEmpty(request.QuoteCurrency)
             || request.FxRate.HasValue
-            || !string.IsNullOrEmpty(request.FxRateSource);
+            || !string.IsNullOrEmpty(request.FxRateSource)
+            || request.CurrencyId.HasValue;
         var contactChanged = request.VendorContactId.HasValue && request.VendorContactId != po.VendorContactId;
         var addressChanged = request.VendorAddressId.HasValue && request.VendorAddressId != po.VendorAddressId;
         var shipToChanged = request.ShipToLocationId.HasValue && request.ShipToLocationId != po.ShipToLocationId;
@@ -157,7 +160,19 @@ public class UpdatePurchaseOrderHandler(
                 po.EstimatedFreight = request.EstimatedFreight.Value;
                 changedFields.Add("estimatedFreight");
             }
-            if (!string.IsNullOrEmpty(request.QuoteCurrency) && request.QuoteCurrency != po.QuoteCurrency)
+            var currencies = new DocumentCurrencyResolver(db);
+            var requestedCurrencyId = request.CurrencyId
+                ?? (!string.IsNullOrEmpty(request.QuoteCurrency) && request.QuoteCurrency != po.QuoteCurrency
+                    ? await currencies.CurrencyIdForCodeAsync(request.QuoteCurrency, cancellationToken)
+                    : null);
+            if (requestedCurrencyId is int newCurrencyId
+                && newCurrencyId != await PurchaseOrderCurrency.EffectiveCurrencyIdAsync(currencies, po, cancellationToken))
+            {
+                await PurchaseOrderCurrency.ApplyAsync(
+                    currencies, po, newCurrencyId, request.FxRate, po.CreatedAt, rateRequired: false, cancellationToken);
+                changedFields.Add("currency");
+            }
+            else if (!string.IsNullOrEmpty(request.QuoteCurrency) && request.QuoteCurrency != po.QuoteCurrency)
             {
                 po.QuoteCurrency = request.QuoteCurrency;
                 changedFields.Add("quoteCurrency");

@@ -52,6 +52,12 @@ public sealed class ArAgingCustomerRow
     /// <summary>Net open receivable (functional) = Σ bucket amounts = Σ open items.</summary>
     public decimal OpenBalance { get; init; }
 
+    /// <summary>The currency of the customer's open items when they share one; null when they are mixed.</summary>
+    public string? CurrencyCode { get; init; }
+
+    /// <summary>Open balance in <see cref="CurrencyCode"/> (transaction amount); null when the items are in mixed currencies.</summary>
+    public decimal? OpenTxnBalance { get; init; }
+
     public IReadOnlyList<ArAgingBucket> Buckets { get; init; } = [];
 }
 

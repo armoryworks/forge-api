@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.ShopFloor;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -110,6 +111,13 @@ public class ApproveDraftFromCommunicationHandler(
             Status = SalesOrderStatus.Draft,
             Notes = request.Note,
         };
+
+        var orderCurrency = await new DocumentCurrencyResolver(db).ResolveAsync(
+            null, null,
+            await db.Customers.AsNoTracking().Where(c => c.Id == order.CustomerId).Select(c => c.CurrencyId).FirstOrDefaultAsync(ct),
+            clock.UtcNow, ct);
+        order.CurrencyId = orderCurrency.CurrencyId;
+        order.FxRate = orderCurrency.FxRate;
 
         var lineNumber = 1;
         foreach (var line in request.Lines)

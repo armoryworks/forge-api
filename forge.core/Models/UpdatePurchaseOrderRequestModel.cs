@@ -15,4 +15,5 @@ public record UpdatePurchaseOrderRequestModel(
     decimal? EstimatedFreight = null,
     string? QuoteCurrency = null,
     decimal? FxRate = null,
-    string? FxRateSource = null);
+    string? FxRateSource = null,
+    int? CurrencyId = null);

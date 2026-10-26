@@ -146,6 +146,11 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
                 cr.InspectionNotes)).ToList(),
             so.CreatedAt,
             so.UpdatedAt,
-            so.Version);
+            so.Version,
+            so.CurrencyId,
+            so.CurrencyId is int currencyId
+                ? await db.Currencies.AsNoTracking().Where(c => c.Id == currencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken)
+                : null,
+            so.FxRate);
     }
 }

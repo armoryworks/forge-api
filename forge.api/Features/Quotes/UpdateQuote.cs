@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Forge.Api.Services.Fx;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -15,7 +16,9 @@ public record UpdateQuoteCommand(
     decimal? TaxRate,
     string? CustomerPO = null,
     // Optional editable quote number — see UpdateQuoteRequestModel.QuoteNumber.
-    string? QuoteNumber = null) : IRequest;
+    string? QuoteNumber = null,
+    int? CurrencyId = null,
+    decimal? FxRate = null) : IRequest;
 
 public class UpdateQuoteValidator : AbstractValidator<UpdateQuoteCommand>
 {
@@ -27,6 +30,7 @@ public class UpdateQuoteValidator : AbstractValidator<UpdateQuoteCommand>
         RuleFor(x => x.TaxRate).InclusiveBetween(0, 1).When(x => x.TaxRate.HasValue);
         RuleFor(x => x.CustomerPO).MaximumLength(50).When(x => x.CustomerPO is not null);
         RuleFor(x => x.QuoteNumber).MaximumLength(20).When(x => !string.IsNullOrWhiteSpace(x.QuoteNumber));
+        RuleFor(x => x.FxRate).GreaterThan(0m).When(x => x.FxRate.HasValue);
     }
 }
 
@@ -78,6 +82,14 @@ public class UpdateQuoteHandler(
         if (quote.Status != QuoteStatus.Draft)
             throw new InvalidOperationException("Only Draft quotes can be updated");
 
+        var currency = await new DocumentCurrencyResolver(db).ResolveChangeAsync(
+            quote.CurrencyId, quote.FxRate, request.CurrencyId, request.FxRate, quote.CreatedAt, cancellationToken);
+        if (currency is not null)
+        {
+            quote.CurrencyId = currency.CurrencyId;
+            quote.FxRate = currency.FxRate;
+            db.LogActivityAt("updated", $"Quote currency set to {currency.Code ?? currency.CurrencyId.ToString()} at {currency.FxRate}", ("Quote", quote.Id));
+        }
         if (request.ShippingAddressId.HasValue) quote.ShippingAddressId = request.ShippingAddressId;
         if (request.ExpirationDate.HasValue) quote.ExpirationDate = request.ExpirationDate;
         if (request.Notes != null) quote.Notes = request.Notes;

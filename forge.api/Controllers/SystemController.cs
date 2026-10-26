@@ -19,7 +19,7 @@ namespace Forge.Api.Controllers;
 [Authorize]
 // app-init configuration (base currency, currency list) read before any feature renders
 [CapabilityBootstrap]
-public class SystemController(ICurrencyService currencyService, IMediator mediator) : ControllerBase
+public class SystemController(ICurrencyService currencyService, IMediator mediator, IClock clock) : ControllerBase
 {
     /// <summary>
     /// Returns the install's base currency so the UI can decide whether
@@ -43,5 +43,21 @@ public class SystemController(ICurrencyService currencyService, IMediator mediat
     {
         var all = await mediator.Send(new GetCurrenciesQuery(), ct);
         return Ok(all.Where(c => c.IsActive).ToList());
+    }
+
+    /// <summary>
+    /// The exchange rate the server books for a currency pair on a date (latest rate on or before it,
+    /// inverse or triangulated), so document forms can pre-fill their rate. 422 <c>fx-rate-missing</c>
+    /// when none is on file. <paramref name="to"/> defaults to the functional currency and
+    /// <paramref name="date"/> to today.
+    /// </summary>
+    [HttpGet("exchange-rate")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager,PM,Procurement,Controller")]
+    public async Task<ActionResult<ExchangeRateLookupResponseModel>> GetExchangeRate(
+        [FromQuery] int from, [FromQuery] int? to, [FromQuery] DateOnly? date, CancellationToken ct)
+    {
+        var target = to ?? await currencyService.GetBaseCurrencyIdAsync(ct);
+        var on = date ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
+        return Ok(await mediator.Send(new GetExchangeRateLookupQuery(from, target, on), ct));
     }
 }

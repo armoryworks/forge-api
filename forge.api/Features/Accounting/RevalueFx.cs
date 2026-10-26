@@ -11,9 +11,12 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Accounting;
 
-/// <summary>Phase-4b — run a period-end unrealized FX revaluation for a currency. CAP-ACCT-FXREVAL gated.</summary>
+/// <summary>
+/// Phase-4b — run a period-end unrealized FX revaluation for a currency. CAP-ACCT-FXREVAL gated. A null
+/// <c>NewRate</c> takes the rate on file for <c>AsOf</c>; <c>Preview</c> computes the adjustment without posting.
+/// </summary>
 [RequiresCapability("CAP-ACCT-FXREVAL")]
-public record RevalueFxCommand(int BookId, int CurrencyId, decimal NewRate, DateOnly AsOf)
+public record RevalueFxCommand(int BookId, int CurrencyId, decimal? NewRate, DateOnly AsOf, bool Preview = false)
     : IRequest<FxRevaluationResult>;
 
 public class RevalueFxHandler(
@@ -29,7 +32,7 @@ public class RevalueFxHandler(
             out var uid) ? uid : 0;
 
         await using var tx = db is not null ? await db.Database.BeginTransactionAsync(ct) : null;
-        var result = await service.RevalueAsync(request.BookId, request.CurrencyId, request.NewRate, request.AsOf, userId, ct);
+        var result = await service.RevalueAsync(request.BookId, request.CurrencyId, request.NewRate, request.AsOf, userId, ct, request.Preview);
         if (tx is not null) await tx.CommitAsync(ct);
         return result;
     }

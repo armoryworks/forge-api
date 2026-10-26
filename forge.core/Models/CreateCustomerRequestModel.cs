@@ -25,4 +25,5 @@ public record CreateCustomerRequestModel(
     // customers.allow_manual_numbers is on; otherwise auto-generated (CUST-#####).
     string? CustomerNumber = null,
     string? Fax = null,
-    string? DefaultCreditTerms = null);
+    string? DefaultCreditTerms = null,
+    int? CurrencyId = null);

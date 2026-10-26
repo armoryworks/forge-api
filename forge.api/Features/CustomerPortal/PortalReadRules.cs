@@ -11,10 +11,10 @@ namespace Forge.Api.Features.CustomerPortal;
 /// accept/decline action agree. A quote with no ExpirationDate never
 /// expires; otherwise it stays valid through the whole of its expiration
 /// day in the shop's time zone (the same date rule as
-/// <see cref="ClockStateRules.IsOverdue"/>). Orders and quotes carry no
-/// currency of their own, so they are labelled with the customer's
-/// DefaultCurrency, else the active book's functional currency — the
-/// currency CreateInvoice gives a new invoice. A list that is empty because
+/// <see cref="ClockStateRules.IsOverdue"/>). Orders and quotes are labelled
+/// with their own currency; one saved before documents carried a currency
+/// falls back to the customer's DefaultCurrency, else the active book's
+/// functional currency. A list that is empty because
 /// an external accounting provider owns the data says so with
 /// <see cref="ExternalAccountingHeader"/>, so the portal can point the
 /// customer there instead of showing an empty list.

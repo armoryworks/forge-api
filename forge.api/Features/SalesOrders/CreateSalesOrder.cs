@@ -1,10 +1,13 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Forge.Api.Services.Fx;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.SalesOrders;
 
@@ -20,7 +23,9 @@ public record CreateSalesOrderCommand(
     decimal TaxRate,
     List<CreateSalesOrderLineModel> Lines,
     // Optional caller-supplied order number — see CreateSalesOrderRequestModel.OrderNumber.
-    string? OrderNumber = null) : IRequest<SalesOrderListItemModel>;
+    string? OrderNumber = null,
+    int? CurrencyId = null,
+    decimal? FxRate = null) : IRequest<SalesOrderListItemModel>;
 
 public class CreateSalesOrderValidator : AbstractValidator<CreateSalesOrderCommand>
 {
@@ -36,6 +41,7 @@ public class CreateSalesOrderValidator : AbstractValidator<CreateSalesOrderComma
         // Matches the sales_orders.order_number column (varchar(20)). Uniqueness is
         // checked in the handler since it needs a DB lookup.
         RuleFor(x => x.OrderNumber).MaximumLength(20).When(x => !string.IsNullOrWhiteSpace(x.OrderNumber));
+        RuleFor(x => x.FxRate).GreaterThan(0m).When(x => x.FxRate.HasValue);
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
             line.RuleFor(l => l.Description).NotEmpty();
@@ -55,7 +61,9 @@ public class CreateSalesOrderHandler(
     // Optional/null-default so isolated unit-test constructions stay valid; DI supplies both.
     ISystemSettingRepository? systemSettings = null,
     IBusinessIdentifierService? identifiers = null,
-    Forge.Api.Services.TaxOverrideGuard? taxGuard = null)
+    Forge.Api.Services.TaxOverrideGuard? taxGuard = null,
+    AppDbContext? db = null,
+    IClock? clock = null)
     : IRequestHandler<CreateSalesOrderCommand, SalesOrderListItemModel>
 {
     // System setting that gates caller-supplied order numbers. Stored as "true"/"false".
@@ -104,6 +112,18 @@ public class CreateSalesOrderHandler(
             TaxRate = request.TaxRate,
         };
 
+        if (db is not null)
+        {
+            var quoteCurrencyId = request.QuoteId is int quoteId
+                ? await db.Quotes.AsNoTracking().Where(q => q.Id == quoteId).Select(q => q.CurrencyId).FirstOrDefaultAsync(cancellationToken)
+                : null;
+            var currency = await new DocumentCurrencyResolver(db).ResolveAsync(
+                request.CurrencyId, request.FxRate, quoteCurrencyId ?? customer!.CurrencyId,
+                (clock ?? new Forge.Integrations.SystemClock()).UtcNow, cancellationToken);
+            order.CurrencyId = currency.CurrencyId;
+            order.FxRate = currency.FxRate;
+        }
+
         var lineNumber = 1;
         for (var i = 0; i < request.Lines.Count; i++)
         {
@@ -145,7 +165,8 @@ public class CreateSalesOrderHandler(
             order.Id, order.OrderNumber, order.CustomerId, customer.Name,
             order.Status.ToString(), order.CustomerPO, order.Lines.Count,
             total, order.RequestedDeliveryDate, order.CreatedAt,
-            SalesOrderId: order.Id, JobId: null);
+            SalesOrderId: order.Id, JobId: null,
+            CurrencyId: order.CurrencyId, FxRate: order.FxRate, TotalFunctional: FxMath.ToFunctional(total, order.FxRate));
     }
 
     // Uses a caller-supplied order number when manual numbers are enabled and one

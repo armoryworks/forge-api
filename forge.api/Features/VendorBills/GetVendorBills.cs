@@ -1,8 +1,10 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.VendorBills;
 
@@ -18,7 +20,7 @@ public class GetVendorBillsHandler(IVendorBillRepository repo)
 
 public record GetVendorBillByIdQuery(int Id) : IRequest<VendorBillDetailModel>;
 
-public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorRepository vendorRepo)
+public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorRepository vendorRepo, AppDbContext? db = null)
     : IRequestHandler<GetVendorBillByIdQuery, VendorBillDetailModel>
 {
     public async Task<VendorBillDetailModel> Handle(GetVendorBillByIdQuery request, CancellationToken cancellationToken)
@@ -60,6 +62,10 @@ public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorReposit
             bill.ExpenseId,
             bill.PurchaseOrderId is int poId && poRefs.PoNumbers.TryGetValue(poId, out var poNumber)
                 ? poNumber
-                : null);
+                : null,
+            db is null
+                ? bill.Currency?.Code
+                : await db.Currencies.AsNoTracking()
+                    .Where(c => c.Id == bill.CurrencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken));
     }
 }

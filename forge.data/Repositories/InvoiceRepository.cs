@@ -101,7 +101,10 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
                 i.PaymentApplications.Sum(pa => pa.Amount),
                 i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) + Math.Round(i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) * i.TaxRate, 2) - i.PaymentApplications.Sum(pa => pa.Amount),
                 i.CreatedAt,
-                db.Currencies.Where(c => c.Id == i.CurrencyId).Select(c => c.Code).FirstOrDefault()))
+                db.Currencies.Where(c => c.Id == i.CurrencyId).Select(c => c.Code).FirstOrDefault(),
+                i.CurrencyId,
+                i.FxRate,
+                Math.Round((i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) + Math.Round(i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) * i.TaxRate, 2)) * i.FxRate, 2)))
             .ToListAsync(ct);
 
         return new PagedResponse<InvoiceListItemModel>(

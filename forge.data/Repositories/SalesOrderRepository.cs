@@ -37,7 +37,11 @@ public class SalesOrderRepository(AppDbContext db) : ISalesOrderRepository
                 so.RequestedDeliveryDate,
                 so.CreatedAt,
                 so.Id,
-                null))
+                null,
+                so.CurrencyId,
+                so.Currency != null ? so.Currency.Code : null,
+                so.FxRate,
+                Math.Round(so.Lines.Sum(l => l.Quantity * l.UnitPrice) * so.FxRate, 2)))
             .ToListAsync(ct);
     }
 

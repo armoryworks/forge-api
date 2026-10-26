@@ -151,7 +151,11 @@ public class GetPurchaseOrderByIdHandler(
             ShipToAddressText: shipTo is null ? null : PurchaseOrderParties.OneLine(shipTo),
             RowVersion: po.Version,
             ReceivingFallbackBinId: fallbackBin?.Id,
-            ReceivingFallbackBinPath: fallbackBin is null ? null : receivableDefaultBinPaths.GetValueOrDefault(fallbackBin.Id));
+            ReceivingFallbackBinPath: fallbackBin is null ? null : receivableDefaultBinPaths.GetValueOrDefault(fallbackBin.Id),
+            CurrencyId: po.CurrencyId,
+            CurrencyCode: po.CurrencyId is int currencyId
+                ? await db.Currencies.AsNoTracking().Where(c => c.Id == currencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken) ?? po.QuoteCurrency
+                : po.QuoteCurrency);
     }
 
     private async Task<Dictionary<int, string>> ResolveReceivableBinPathsAsync(

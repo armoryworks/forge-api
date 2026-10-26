@@ -49,6 +49,8 @@ public class GetInvoiceByIdHandler(IInvoiceRepository repo)
             invoice.CreatedAt,
             invoice.UpdatedAt,
             invoice.Version,
-            invoice.Currency?.Code);
+            invoice.Currency?.Code,
+            invoice.CurrencyId,
+            invoice.FxRate);
     }
 }

@@ -38,13 +38,22 @@ public class VendorBillRepository(AppDbContext db) : IVendorBillRepository
             .ToList();
         var failedPaymentIds = await GetFailedLatestTransmissionPaymentIdsAsync(paymentIds, ct);
 
+        var currencyIds = bills.Select(b => b.CurrencyId).Distinct().ToList();
+        var currencyCodes = await db.Currencies.AsNoTracking()
+            .Where(c => currencyIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, c => c.Code, ct);
+
         return bills.Select(b => new VendorBillListItemModel(
             b.Id, b.BillNumber, b.VendorId,
             vendorNames.TryGetValue(b.VendorId, out var n) ? n : $"Vendor {b.VendorId}",
             b.VendorInvoiceNumber, b.Status.ToString(), b.BillDate, b.DueDate,
             b.Total, b.AmountPaid, b.BalanceDue, b.CreatedAt,
             b.PaymentApplications.Any(a => failedPaymentIds.Contains(a.VendorPaymentId)),
-            b.ExpenseId)).ToList();
+            b.ExpenseId,
+            b.CurrencyId,
+            currencyCodes.GetValueOrDefault(b.CurrencyId),
+            b.FxRate,
+            b.FxRate == 1m ? b.Total : Math.Round(b.Total * b.FxRate, 2, MidpointRounding.AwayFromZero))).ToList();
     }
 
     public async Task<bool> HasFailedTransmissionAsync(IReadOnlyCollection<int> vendorPaymentIds, CancellationToken ct)

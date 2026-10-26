@@ -86,6 +86,12 @@ public class SalesOrder : BaseAuditableEntity, IConcurrencyVersioned
     public string? Notes { get; set; }
     public decimal TaxRate { get; set; }
 
+    /// <summary>Currency the order is denominated in. Null on rows from before multi-currency = the functional currency.</summary>
+    public int? CurrencyId { get; set; }
+
+    /// <summary>Rate from <see cref="CurrencyId"/> to the functional currency, captured on the order date. 1 for the functional currency.</summary>
+    public decimal FxRate { get; set; } = 1m;
+
     // Accounting integration
     public string? ExternalId { get; set; }
     public string? ExternalRef { get; set; }
@@ -114,6 +120,7 @@ public class SalesOrder : BaseAuditableEntity, IConcurrencyVersioned
         TaxCollectedBy == TaxCollectedBy.Marketplace ? 0m : TaxAmount;
 
     public Customer Customer { get; set; } = null!;
+    public Currency? Currency { get; set; }
     public Quote? Quote { get; set; }
     [ForeignKey(nameof(ParentSalesOrderId))]
     public SalesOrder? ParentSalesOrder { get; set; }

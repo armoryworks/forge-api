@@ -64,7 +64,8 @@ public sealed class ArAgingService(AppDbContext db, IClock clock, Forge.Core.Set
     public async Task<ArAging> GetArAgingAsync(
         int bookId,
         DateOnly? asOfDate = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        int? currencyId = null)
     {
         await LoadBucketsAsync(ct);
 
@@ -87,7 +88,11 @@ public sealed class ArAgingService(AppDbContext db, IClock clock, Forge.Core.Set
         var customerRows = new List<ArAgingCustomerRow>();
         var grandBucketTotals = new decimal[BucketDefs.Count];
 
-        foreach (var group in items.GroupBy(i => i.CustomerId))
+        var currencyCodes = await db.Currencies.AsNoTracking()
+            .ToDictionaryAsync(c => c.Id, c => c.Code, ct);
+        var reported = currencyId is int onlyCurrency ? items.Where(i => i.CurrencyId == onlyCurrency).ToList() : items;
+
+        foreach (var group in reported.GroupBy(i => i.CustomerId))
         {
             var bucketAmounts = new decimal[BucketDefs.Count];
 
@@ -112,6 +117,12 @@ public sealed class ArAgingService(AppDbContext db, IClock clock, Forge.Core.Set
                     ? name
                     : $"Customer {group.Key}",
                 OpenBalance = openBalance,
+                CurrencyCode = group.Select(i => i.CurrencyId).Distinct().Count() == 1
+                    ? currencyCodes.GetValueOrDefault(group.First().CurrencyId)
+                    : null,
+                OpenTxnBalance = group.Select(i => i.CurrencyId).Distinct().Count() == 1
+                    ? group.Sum(i => i.OpenTxnAmount)
+                    : null,
                 Buckets = BuildBuckets(bucketAmounts),
             });
         }

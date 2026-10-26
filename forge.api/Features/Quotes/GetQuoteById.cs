@@ -1,14 +1,16 @@
 using MediatR;
 
+using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Quotes;
 
 public record GetQuoteByIdQuery(int Id) : IRequest<QuoteDetailResponseModel>;
 
-public class GetQuoteByIdHandler(IQuoteRepository repo, IStandardCostResolver? costs = null)
+public class GetQuoteByIdHandler(IQuoteRepository repo, IStandardCostResolver? costs = null, AppDbContext? db = null)
     : IRequestHandler<GetQuoteByIdQuery, QuoteDetailResponseModel>
 {
     public async Task<QuoteDetailResponseModel> Handle(GetQuoteByIdQuery request, CancellationToken cancellationToken)
@@ -61,7 +63,12 @@ public class GetQuoteByIdHandler(IQuoteRepository repo, IStandardCostResolver? c
             quote.CreatedAt,
             quote.UpdatedAt,
             quote.CustomerPO,
-            RowVersion: quote.Version);
+            RowVersion: quote.Version,
+            CurrencyId: quote.CurrencyId,
+            CurrencyCode: db is not null && quote.CurrencyId is int currencyId
+                ? await db.Currencies.AsNoTracking().Where(c => c.Id == currencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken)
+                : null,
+            FxRate: quote.FxRate);
     }
 
     private static QuoteLineCostBreakdownModel? CostBreakdownFor(

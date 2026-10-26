@@ -39,5 +39,12 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .WithOne(a => a.Payment)
             .HasForeignKey(a => a.PaymentId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Property(e => e.FxRate).HasPrecision(18, 8).HasDefaultValue(1m);
+        builder.HasOne(e => e.Currency)
+            .WithMany()
+            .HasForeignKey(e => e.CurrencyId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(e => e.CurrencyId);
     }
 }

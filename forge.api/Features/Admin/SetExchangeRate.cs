@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -14,6 +15,10 @@ public class SetExchangeRateHandler(AppDbContext db) : IRequestHandler<SetExchan
     public async Task<ExchangeRateResponseModel> Handle(SetExchangeRateCommand command, CancellationToken cancellationToken)
     {
         var request = command.Request;
+        if (request.Rate <= 0m)
+            throw DocumentCurrencyResolver.Failure("Rate", "fx-rate-invalid", "The exchange rate must be greater than zero.");
+        if (request.FromCurrencyId == request.ToCurrencyId)
+            throw DocumentCurrencyResolver.Failure("ToCurrencyId", "fx-rate-same-currency", "Choose two different currencies.");
 
         var fromCurrency = await db.Currencies.FindAsync(new object[] { request.FromCurrencyId }, cancellationToken)
             ?? throw new KeyNotFoundException($"Currency {request.FromCurrencyId} not found");

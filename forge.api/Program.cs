@@ -448,6 +448,7 @@ try
     builder.Services.AddScoped<IPayrollService, Forge.Api.Features.Accounting.PayrollService>();
     // Phase-4b — period-end unrealized FX revaluation of the net foreign monetary position.
     builder.Services.AddScoped<IFxRevaluationService, Forge.Api.Features.Accounting.FxRevaluationService>();
+    builder.Services.AddScoped<Forge.Api.Services.Fx.DocumentCurrencyResolver>();
     // Phase-1 STAGE E — basic financial statements (§6 Phase-1 row "P&L + Balance
     // Sheet"). Profit & Loss (Income/Expense over a period range) and Balance
     // Sheet (Asset/Liability/Equity as of a date, with computed current-year-
@@ -945,7 +946,7 @@ try
                                    Forge.Api.Features.Edi.EdiPartNumberMapService>();
         builder.Services.AddSingleton<IEdiTransportService, MockEdiTransportService>();
         builder.Services.AddSingleton<ICpqService, MockCpqService>();
-        builder.Services.AddSingleton<ICurrencyService, MockCurrencyService>();
+        builder.Services.AddScoped<ICurrencyService, CurrencyService>();
         builder.Services.AddSingleton<ILocalizationService, MockLocalizationService>();
         builder.Services.AddScoped<IPlantContextService, MockPlantContextService>();
         builder.Services.AddSingleton<IMachineDataService, MockMachineDataService>();
@@ -1053,8 +1054,6 @@ try
                                    Forge.Api.Features.Edi.EdiPartNumberMapService>();
         builder.Services.AddSingleton<IEdiTransportService, MockEdiTransportService>();
         builder.Services.AddSingleton<ICpqService, Forge.Api.Services.Unavailable.UnavailableCpqService>();
-        // Currency: real CurrencyService reads currency.base from system_settings
-        // (FX methods still stubbed; base currency is the only piece in use today)
         builder.Services.AddScoped<ICurrencyService, CurrencyService>();
         builder.Services.AddSingleton<ILocalizationService, MockLocalizationService>();
         builder.Services.AddScoped<IPlantContextService, MockPlantContextService>();

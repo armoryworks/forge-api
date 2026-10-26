@@ -188,7 +188,8 @@ public class ApAgingServiceTests
             PaymentNumber = $"VPMT-{Guid.NewGuid():N}"[..13],
             VendorId = bill.VendorId,
             Method = PaymentMethod.Check,
-            Amount = Math.Round(appliedForeign * settlementFxRate, 2, MidpointRounding.AwayFromZero),
+            Amount = appliedForeign,
+            FxRate = settlementFxRate,
             PaymentDate = At(paymentDate),
             Applications = [new VendorPaymentApplication { VendorBillId = bill.Id, Amount = appliedForeign, SettlementFxRate = settlementFxRate }],
         };

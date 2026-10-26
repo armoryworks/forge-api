@@ -26,4 +26,6 @@ public record InvoiceDetailResponseModel(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     uint RowVersion = 0,
-    string? CurrencyCode = null);
+    string? CurrencyCode = null,
+    int? CurrencyId = null,
+    decimal FxRate = 1m);

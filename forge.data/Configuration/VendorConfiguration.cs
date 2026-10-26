@@ -42,5 +42,11 @@ public class VendorConfiguration : IEntityTypeConfiguration<Vendor>
         builder.Property(e => e.Is1099).HasColumnName("is_1099");
 
         builder.HasIndex(e => e.CompanyName);
+
+        builder.HasOne(e => e.Currency)
+            .WithMany()
+            .HasForeignKey(e => e.CurrencyId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(e => e.CurrencyId);
     }
 }

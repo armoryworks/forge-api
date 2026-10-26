@@ -165,6 +165,7 @@ public class Phase2ApPostingServiceTests
             VendorId = vendorId,
             Method = method,
             Amount = amount,
+            FxRate = settlementFxRate,
             PaymentDate = new DateTimeOffset(2026, 1, 20, 0, 0, 0, TimeSpan.Zero),
         };
         if (billId is int bid && appliedAmount is decimal applied)
@@ -659,7 +660,7 @@ public class Phase2ApPostingServiceTests
         var vendorId = await AddVendorAsync(db);
         var bill = await AddBillAsync(db, vendorId, currencyId: EurId, fxRate: 1.10m);
         var payment = await AddPaymentAsync(
-            db, vendorId, amount: 105m, billId: bill.Id, appliedAmount: 100m, settlementFxRate: 1.05m,
+            db, vendorId, amount: 100m, billId: bill.Id, appliedAmount: 100m, settlementFxRate: 1.05m,
             method: PaymentMethod.BankTransfer);
 
         await PaymentService(db, fullGlOn: true).PostVendorPaymentCreatedAsync(payment.Id, createdByUserId: 7);
@@ -682,7 +683,7 @@ public class Phase2ApPostingServiceTests
         using var db = await SeedAsync();
         var vendorId = await AddVendorAsync(db);
         var bill = await AddBillAsync(db, vendorId, currencyId: EurId, fxRate: 1.10m);
-        var payment = await AddPaymentAsync(db, vendorId, amount: 105m, billId: bill.Id, appliedAmount: 100m, settlementFxRate: 1.05m);
+        var payment = await AddPaymentAsync(db, vendorId, amount: 100m, billId: bill.Id, appliedAmount: 100m, settlementFxRate: 1.05m);
 
         await PaymentService(db, fullGlOn: true).PostVendorPaymentCreatedAsync(payment.Id, createdByUserId: 7);
 
@@ -711,7 +712,7 @@ public class Phase2ApPostingServiceTests
         using var db = await SeedAsync();
         var vendorId = await AddVendorAsync(db);
         var bill = await AddBillAsync(db, vendorId, currencyId: EurId, fxRate: 1.10m);
-        var payment = await AddPaymentAsync(db, vendorId, amount: 115m, billId: bill.Id, appliedAmount: 100m, settlementFxRate: 1.15m);
+        var payment = await AddPaymentAsync(db, vendorId, amount: 100m, billId: bill.Id, appliedAmount: 100m, settlementFxRate: 1.15m);
 
         await PaymentService(db, fullGlOn: true).PostVendorPaymentCreatedAsync(payment.Id, createdByUserId: 7);
 

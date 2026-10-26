@@ -34,4 +34,6 @@ public record CustomerSummaryResponseModel(
     string? TaxExemptionId = null,
     uint RowVersion = 0,
     string? DefaultCreditTerms = null,
-    bool IsOnCreditHold = false);
+    bool IsOnCreditHold = false,
+    int? CurrencyId = null,
+    bool CurrencyLocked = false);

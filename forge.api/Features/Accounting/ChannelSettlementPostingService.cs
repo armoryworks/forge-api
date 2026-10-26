@@ -226,6 +226,8 @@ public sealed class ChannelSettlementPostingService(
                     payment = new Payment
                     {
                         CustomerId = invoice.CustomerId,
+                        CurrencyId = book.FunctionalCurrencyId,
+                        FxRate = 1m,
                         Method = PaymentMethod.BankTransfer,
                         PaymentDate = paymentDate,
                         ReferenceNumber = settlement.ExternalSettlementId.Length > 50

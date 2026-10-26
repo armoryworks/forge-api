@@ -23,4 +23,7 @@ public record VendorDetailResponseModel(
     DateTimeOffset UpdatedAt,
     List<PurchaseOrderListItemModel> PurchaseOrders,
     string? Fax = null,
-    uint RowVersion = 0);
+    uint RowVersion = 0,
+    int? CurrencyId = null,
+    string? CurrencyCode = null,
+    bool CurrencyLocked = false);

@@ -6,4 +6,5 @@ public record AccountingCustomer(
     string? Email,
     string? Phone,
     string? CompanyName,
-    decimal Balance);
+    decimal Balance,
+    string? CurrencyCode = null);

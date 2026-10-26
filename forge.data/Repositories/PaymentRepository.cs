@@ -91,7 +91,11 @@ public class PaymentRepository(AppDbContext db) : IPaymentRepository
                 p.Amount - p.Applications.Sum(a => a.Amount),
                 p.PaymentDate,
                 p.ReferenceNumber,
-                p.CreatedAt))
+                p.CreatedAt,
+                p.CurrencyId,
+                p.Currency != null ? p.Currency.Code : null,
+                p.FxRate,
+                Math.Round(p.Amount * p.FxRate, 2)))
             .ToListAsync(ct);
 
         return new PagedResponse<PaymentListItemModel>(

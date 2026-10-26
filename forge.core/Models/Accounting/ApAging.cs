@@ -23,6 +23,13 @@ public sealed class ApAgingVendorRow
     public int VendorId { get; init; }
     public string VendorName { get; init; } = string.Empty;
     public decimal OpenBalance { get; init; }
+
+    /// <summary>The currency of the vendor's open items when they share one; null when they are mixed.</summary>
+    public string? CurrencyCode { get; init; }
+
+    /// <summary>Open balance in <see cref="CurrencyCode"/> (transaction amount); null when the items are in mixed currencies.</summary>
+    public decimal? OpenTxnBalance { get; init; }
+
     public IReadOnlyList<ApAgingBucket> Buckets { get; init; } = [];
 }
 

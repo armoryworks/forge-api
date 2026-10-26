@@ -30,4 +30,8 @@ public record PurchaseOrderListItemModel(
     string OriginSource = "Manual",
     string? OriginUserName = null,
     string? OriginReference = null,
-    int LinesFullyReceived = 0);
+    int LinesFullyReceived = 0,
+    int? CurrencyId = null,
+    string? CurrencyCode = null,
+    decimal FxRate = 1m,
+    decimal? TotalFunctional = null);

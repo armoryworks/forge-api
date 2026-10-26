@@ -20,7 +20,7 @@ public class CurrencyServiceTests
     {
         cache = new MemoryCache(new MemoryCacheOptions());
         var repo = new SystemSettingRepository(db);
-        return new CurrencyService(repo, cache, NullLogger<CurrencyService>.Instance);
+        return new CurrencyService(repo, cache, NullLogger<CurrencyService>.Instance, db);
     }
 
     [Fact]

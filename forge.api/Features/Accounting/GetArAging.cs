@@ -23,12 +23,12 @@ namespace Forge.Api.Features.Accounting;
 /// </para>
 /// </summary>
 [RequiresCapability("CAP-ACCT-GL-VIEW")]
-public record GetArAgingQuery(int BookId, DateOnly? AsOfDate = null)
+public record GetArAgingQuery(int BookId, DateOnly? AsOfDate = null, int? CurrencyId = null)
     : IRequest<ArAging>;
 
 public class GetArAgingHandler(IArAgingService arAgingService)
     : IRequestHandler<GetArAgingQuery, ArAging>
 {
     public Task<ArAging> Handle(GetArAgingQuery request, CancellationToken cancellationToken)
-        => arAgingService.GetArAgingAsync(request.BookId, request.AsOfDate, cancellationToken);
+        => arAgingService.GetArAgingAsync(request.BookId, request.AsOfDate, cancellationToken, request.CurrencyId);
 }

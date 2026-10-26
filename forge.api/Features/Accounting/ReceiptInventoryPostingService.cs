@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Services;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums;
@@ -137,8 +138,8 @@ public sealed class ReceiptInventoryPostingService(
         foreach (var rec in records.OrderBy(r => r.Id))
         {
             var line = rec.PurchaseOrderLine;
-            var baseCost = rec.QuantityReceived * line.UnitPrice;
-            var freight = rec.AllocatedFreight ?? 0m;
+            var baseCost = FxMath.ToFunctional(rec.QuantityReceived * line.UnitPrice, rec.FxRate);
+            var freight = FxMath.ToFunctional(rec.AllocatedFreight ?? 0m, rec.FxRate);
             var landed = baseCost + freight;
             if (landed <= 0m)
                 continue; // nothing to capitalize for this line

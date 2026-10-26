@@ -113,7 +113,8 @@ public class CustomerRepository(AppDbContext db) : ICustomerRepository
                 c.IsActive,
                 c.Contacts.Count(ct => ct.DeletedAt == null),
                 c.Jobs.Count(j => j.DeletedAt == null),
-                c.CreatedAt))
+                c.CreatedAt,
+                c.CurrencyId))
             .ToListAsync(ct);
 
         // explicitSort is unused at runtime but kept here to make the

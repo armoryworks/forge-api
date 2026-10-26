@@ -55,5 +55,11 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         // (LeadConfiguration's HasOne(ConvertedCustomer).WithOne(SourceLead)).
         // No additional Customer-side wiring required — EF Core resolves
         // the back-link from the FK on Lead.ConvertedCustomerId.
+
+        builder.HasOne(e => e.Currency)
+            .WithMany()
+            .HasForeignKey(e => e.CurrencyId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(e => e.CurrencyId);
     }
 }

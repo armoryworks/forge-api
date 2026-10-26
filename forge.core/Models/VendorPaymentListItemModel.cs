@@ -19,4 +19,8 @@ public record VendorPaymentListItemModel(
     DateTimeOffset CreatedAt,
     string? TransmissionStatus = null,
     int TransmissionAttempts = 0,
-    int? TransmissionId = null);
+    int? TransmissionId = null,
+    int? CurrencyId = null,
+    string? CurrencyCode = null,
+    decimal FxRate = 1m,
+    decimal? TotalFunctional = null);

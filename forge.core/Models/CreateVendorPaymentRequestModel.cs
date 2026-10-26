@@ -11,12 +11,13 @@ public record CreateVendorPaymentRequestModel(
     DateTimeOffset PaymentDate,
     string? ReferenceNumber,
     string? Notes,
-    List<CreateVendorPaymentApplicationModel>? Applications);
+    List<CreateVendorPaymentApplicationModel>? Applications,
+    int? CurrencyId = null,
+    decimal? FxRate = null);
 
 /// <summary>Links part of a vendor payment to a specific vendor bill.</summary>
 /// <remarks>
-/// <c>SettlementFxRate</c> (txn→functional, default 1) is the rate in effect when this payment settled the
-/// bill; the cash-disbursement posting realizes FX vs the bill's booking rate. Default keeps single-currency
-/// settlements unchanged.
+/// <c>SettlementFxRate</c> (txn→functional) is the rate in effect when this payment settled the bill; null
+/// takes the payment's rate. The cash-disbursement posting realizes FX vs the bill's booking rate.
 /// </remarks>
-public record CreateVendorPaymentApplicationModel(int VendorBillId, decimal Amount, decimal SettlementFxRate = 1m);
+public record CreateVendorPaymentApplicationModel(int VendorBillId, decimal Amount, decimal? SettlementFxRate = null);

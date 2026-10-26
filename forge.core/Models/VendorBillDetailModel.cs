@@ -30,4 +30,5 @@ public record VendorBillDetailModel(
     // Set when the bill was auto-promoted from a vendor-settled expense approval — the UI shows a
     // "from expense" chip and links back; such bills are voided via the expense, not directly.
     int? SourceExpenseId = null,
-    string? PurchaseOrderNumber = null);
+    string? PurchaseOrderNumber = null,
+    string? CurrencyCode = null);

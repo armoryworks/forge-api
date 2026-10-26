@@ -26,7 +26,8 @@ public class VendorPaymentsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new CreateVendorPaymentCommand(
             request.VendorId, request.Method, request.Amount, request.PaymentDate,
-            request.ReferenceNumber, request.Notes, request.Applications));
+            request.ReferenceNumber, request.Notes, request.Applications,
+            request.CurrencyId, request.FxRate));
         return CreatedAtAction(nameof(VendorPaymentReadsController.GetVendorPayment), "VendorPaymentReads", new { id = result.Id }, result);
     }
 

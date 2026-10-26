@@ -77,6 +77,12 @@ public class PurchaseOrder : BaseAuditableEntity, IConcurrencyVersioned
     public string QuoteCurrency { get; set; } = "USD";
 
     /// <summary>
+    /// Currency the PO is denominated in. Kept in step with <see cref="QuoteCurrency"/> on every write.
+    /// Null on rows from before multi-currency = the functional currency.
+    /// </summary>
+    public int? CurrencyId { get; set; }
+
+    /// <summary>
     /// Locked FX rate (quote currency → tenant functional currency)
     /// captured at PO confirmation (Draft → Confirmed transition). Used
     /// by the cost tab + landed cost calc. Pre-confirm POs have this
@@ -92,6 +98,7 @@ public class PurchaseOrder : BaseAuditableEntity, IConcurrencyVersioned
     public string? FxRateSource { get; set; }
 
     public Vendor Vendor { get; set; } = null!;
+    public Currency? Currency { get; set; }
     public Job? Job { get; set; }
     public VendorContact? VendorContact { get; set; }
     public VendorAddress? VendorAddress { get; set; }

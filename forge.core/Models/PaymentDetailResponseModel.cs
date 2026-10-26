@@ -16,4 +16,7 @@ public record PaymentDetailResponseModel(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     uint RowVersion = 0,
-    bool CanVoid = false);
+    bool CanVoid = false,
+    int? CurrencyId = null,
+    string? CurrencyCode = null,
+    decimal FxRate = 1m);

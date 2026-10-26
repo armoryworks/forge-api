@@ -46,6 +46,7 @@ public class CreateEstimateHandler(AppDbContext db) : IRequestHandler<CreateEsti
             ExpirationDate = request.ValidUntil,
             Notes = request.Notes,
             AssignedToId = request.AssignedToId ?? db.CurrentUserId,
+            CurrencyId = customer.CurrencyId,
         };
 
         db.Quotes.Add(estimate);

@@ -14,6 +14,12 @@ public class Payment : BaseAuditableEntity, IConcurrencyVersioned
     public int CustomerId { get; set; }
     public PaymentMethod Method { get; set; }
     public decimal Amount { get; set; }
+
+    /// <summary>Currency the payment is denominated in. Null on rows from before multi-currency = the functional currency.</summary>
+    public int? CurrencyId { get; set; }
+
+    /// <summary>Rate from <see cref="CurrencyId"/> to the functional currency, captured on the payment date. 1 for the functional currency.</summary>
+    public decimal FxRate { get; set; } = 1m;
     public DateTimeOffset PaymentDate { get; set; }
     public string? ReferenceNumber { get; set; }
     public string? Notes { get; set; }
@@ -28,5 +34,6 @@ public class Payment : BaseAuditableEntity, IConcurrencyVersioned
     public decimal UnappliedAmount => Amount - AppliedAmount;
 
     public Customer Customer { get; set; } = null!;
+    public Currency? Currency { get; set; }
     public ICollection<PaymentApplication> Applications { get; set; } = [];
 }

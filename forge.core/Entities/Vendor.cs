@@ -26,6 +26,13 @@ public class Vendor : BaseAuditableEntity, IActiveAware, IConcurrencyVersioned
     public string? ZipCode { get; set; }
     public string? Country { get; set; }
     public string? PaymentTerms { get; set; }
+
+    /// <summary>
+    /// Currency this vendor trades in; new purchase orders, bills and vendor payments start from it. Null = the functional currency.
+    /// Locked once the vendor has a non-draft document.
+    /// </summary>
+    public int? CurrencyId { get; set; }
+    public Currency? Currency { get; set; }
     public string? Notes { get; set; }
     public bool IsActive { get; set; } = true;
 

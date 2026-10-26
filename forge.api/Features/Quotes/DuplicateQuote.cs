@@ -76,6 +76,8 @@ public class DuplicateQuoteHandler(
             ShippingAddressId = source.ShippingAddressId,
             Notes = source.Notes,
             TaxRate = source.TaxRate,
+            CurrencyId = source.CurrencyId,
+            FxRate = source.FxRate,
             TaxDocumentId = taxDocumentId,
             CustomerPO = request.AsRevision ? source.CustomerPO : null,
             AssignedToId = request.AsRevision ? source.AssignedToId ?? db.CurrentUserId : db.CurrentUserId,

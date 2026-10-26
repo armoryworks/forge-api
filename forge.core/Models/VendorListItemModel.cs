@@ -9,4 +9,5 @@ public record VendorListItemModel(
     string? Phone,
     bool IsActive,
     int PoCount,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    int? CurrencyId = null);

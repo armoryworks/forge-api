@@ -195,7 +195,8 @@ public class ArAgingServiceTests
             PaymentNumber = $"PMT-{Guid.NewGuid():N}"[..12],
             CustomerId = invoice.CustomerId,
             Method = PaymentMethod.Check,
-            Amount = Math.Round(appliedForeign * settlementFxRate, 2, MidpointRounding.AwayFromZero),
+            Amount = appliedForeign,
+            FxRate = settlementFxRate,
             PaymentDate = At(paymentDate),
             Applications = [new PaymentApplication { InvoiceId = invoice.Id, Amount = appliedForeign, SettlementFxRate = settlementFxRate }],
         };

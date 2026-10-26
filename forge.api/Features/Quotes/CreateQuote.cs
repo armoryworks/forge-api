@@ -6,6 +6,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services.Fx;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -25,7 +26,9 @@ public record CreateQuoteCommand(
     string? CustomerPO = null,
     // Optional caller-supplied quote number — see CreateQuoteRequestModel.QuoteNumber.
     string? QuoteNumber = null,
-    int? AssignedToId = null) : IRequest<QuoteListItemModel>;
+    int? AssignedToId = null,
+    int? CurrencyId = null,
+    decimal? FxRate = null) : IRequest<QuoteListItemModel>;
 
 public class CreateQuoteValidator : AbstractValidator<CreateQuoteCommand>
 {
@@ -38,6 +41,7 @@ public class CreateQuoteValidator : AbstractValidator<CreateQuoteCommand>
         // Matches the quotes.quote_number column (varchar(20)). Uniqueness is
         // checked in the handler since it needs a DB lookup.
         RuleFor(x => x.AssignedToId).GreaterThan(0).When(x => x.AssignedToId is not null);
+        RuleFor(x => x.FxRate).GreaterThan(0m).When(x => x.FxRate.HasValue);
         RuleFor(x => x.QuoteNumber).MaximumLength(20).When(x => !string.IsNullOrWhiteSpace(x.QuoteNumber));
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
@@ -61,7 +65,8 @@ public class CreateQuoteHandler(
     ISystemSettingRepository? systemSettings = null,
     IBusinessIdentifierService? identifiers = null,
     IHttpContextAccessor? httpContext = null,
-    AppDbContext? db = null)
+    AppDbContext? db = null,
+    IClock? clock = null)
     : IRequestHandler<CreateQuoteCommand, QuoteListItemModel>
 {
     // System setting that gates caller-supplied quote numbers. Stored as "true"/"false".
@@ -103,6 +108,15 @@ public class CreateQuoteHandler(
             AssignedToId = request.AssignedToId ?? ActingUserId(),
         };
 
+        if (db is not null)
+        {
+            var currency = await new DocumentCurrencyResolver(db).ResolveAsync(
+                request.CurrencyId, request.FxRate, customer!.CurrencyId,
+                (clock ?? new Forge.Integrations.SystemClock()).UtcNow, cancellationToken);
+            quote.CurrencyId = currency.CurrencyId;
+            quote.FxRate = currency.FxRate;
+        }
+
         var lineNumber = 1;
         for (var i = 0; i < request.Lines.Count; i++)
         {
@@ -142,7 +156,8 @@ public class CreateQuoteHandler(
         return new QuoteListItemModel(
             quote.Id, quote.QuoteNumber, quote.CustomerId, customer.Name,
             quote.Status.ToString(), quote.Lines.Count, quote.Subtotal,
-            quote.ExpirationDate, quote.CreatedAt);
+            quote.ExpirationDate, quote.CreatedAt,
+            quote.CurrencyId, null, quote.FxRate, FxMath.ToFunctional(quote.Subtotal, quote.FxRate));
     }
 
     private int? ActingUserId() =>

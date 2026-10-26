@@ -1,12 +1,16 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
+
+using Forge.Api.Services.Fx;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Vendors;
 
 public record GetVendorByIdQuery(int Id) : IRequest<VendorDetailResponseModel>;
 
-public class GetVendorByIdHandler(IVendorRepository repo)
+public class GetVendorByIdHandler(IVendorRepository repo, AppDbContext? db = null)
     : IRequestHandler<GetVendorByIdQuery, VendorDetailResponseModel>
 {
     public async Task<VendorDetailResponseModel> Handle(GetVendorByIdQuery request, CancellationToken cancellationToken)
@@ -51,6 +55,11 @@ public class GetVendorByIdHandler(IVendorRepository repo)
                 po.CreatedAt,
                 LinesFullyReceived: po.Lines.Count(l => l.ReceivedQuantity + l.CancelledShortCloseQuantity >= l.OrderedQuantity))).ToList(),
             vendor.Fax,
-            vendor.Version);
+            vendor.Version,
+            vendor.CurrencyId,
+            db is not null && vendor.CurrencyId is int currencyId
+                ? await db.Currencies.AsNoTracking().Where(c => c.Id == currencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken)
+                : null,
+            db is not null && await PartyCurrency.VendorHasPostedDocumentsAsync(db, vendor.Id, cancellationToken));
     }
 }

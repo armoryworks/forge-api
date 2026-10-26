@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Jobs;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -106,6 +107,7 @@ public class ConvertLeadHandler(
             DefaultTaxCodeId = data.DefaultTaxCodeId,
             DefaultCurrency = data.DefaultCurrency,
         };
+        await PartyCurrency.ApplyToCustomerAsync(db, customer, null, customer.DefaultCurrency, clear: false, cancellationToken);
 
         // Capture addresses on the customer's Addresses collection so a
         // single SaveChanges persists customer + addresses together. Mirrors

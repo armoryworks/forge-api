@@ -163,7 +163,8 @@ public class OpenItemBackfillTests
             PaymentNumber = $"PMT-{Guid.NewGuid():N}"[..12],
             CustomerId = invoice.CustomerId,
             Method = PaymentMethod.Check,
-            Amount = Math.Round(appliedForeign * settlementFxRate, 2, MidpointRounding.AwayFromZero),
+            Amount = appliedForeign,
+            FxRate = settlementFxRate,
             PaymentDate = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero),
             Applications = [new PaymentApplication { InvoiceId = invoice.Id, Amount = appliedForeign, SettlementFxRate = settlementFxRate }],
         };

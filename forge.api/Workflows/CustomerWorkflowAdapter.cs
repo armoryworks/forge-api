@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Controllers;
 using Forge.Api.Middleware;
 
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -88,6 +89,7 @@ public class CustomerWorkflowAdapter(
         };
         if (customer.CreditLimit is not null || customer.IsTaxExempt || customer.TaxExemptionId is not null)
             EnsureMaySetCommercialTerms();
+        await PartyCurrency.ApplyToCustomerAsync(db, customer, null, customer.DefaultCurrency, clear: false, ct);
         db.Customers.Add(customer);
         await db.SaveChangesAsync(ct);
 
@@ -171,7 +173,10 @@ public class CustomerWorkflowAdapter(
         if (TryReadDecimal(fields, "creditLimit", out var creditLimit))
             customer.CreditLimit = creditLimit;
         if (TryReadString(fields, "defaultCurrency", out var currency))
+        {
             customer.DefaultCurrency = currency?.Trim().NullIfEmpty();
+            await PartyCurrency.ApplyToCustomerAsync(db, customer, null, customer.DefaultCurrency, clear: customer.DefaultCurrency is null && customer.CurrencyId is not null, ct);
+        }
         if (TryReadBool(fields, "isTaxExempt", out var isTaxExempt) && isTaxExempt.HasValue)
             customer.IsTaxExempt = isTaxExempt.Value;
         if (TryReadString(fields, "taxExemptionId", out var taxExemptionId))

@@ -18,4 +18,5 @@ public record CreateVendorRequestModel(
     // Optional caller-supplied vendor number. Honoured only when
     // vendors.allow_manual_numbers is on; otherwise auto-generated (VEND-#####).
     string? VendorNumber = null,
-    string? Fax = null);
+    string? Fax = null,
+    int? CurrencyId = null);

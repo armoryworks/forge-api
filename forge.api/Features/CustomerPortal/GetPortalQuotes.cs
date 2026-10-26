@@ -20,6 +20,7 @@ public class GetPortalQuotesHandler(AppDbContext db, IClock clock)
                 && q.Status != QuoteStatus.Draft && q.Status != QuoteStatus.ConvertedToQuote);
         var quotes = await scope
             .Include(q => q.Lines)
+            .Include(q => q.Currency)
             .OrderByDescending(q => q.CreatedAt)
             .Take(PortalReadRules.ListCap)
             .ToListAsync(ct);
@@ -37,6 +38,6 @@ public class GetPortalQuotesHandler(AppDbContext db, IClock clock)
             QuoteDate: q.SentDate ?? q.CreatedAt,
             ExpiresAt: q.ExpirationDate,
             Total: q.EstimatedAmount ?? q.Total,
-            CurrencyCode: currencyCode)).ToList(), totalCount);
+            CurrencyCode: q.Currency?.Code ?? currencyCode)).ToList(), totalCount);
     }
 }

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.PaymentSchedules;
 using Forge.Api.Services;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -25,7 +26,9 @@ public record CreatePaymentCommand(
     string? Notes,
     List<CreatePaymentApplicationModel>? Applications,
     // Optional caller-supplied payment number — see CreatePaymentRequestModel.PaymentNumber.
-    string? PaymentNumber = null) : IRequest<PaymentListItemModel>;
+    string? PaymentNumber = null,
+    int? CurrencyId = null,
+    decimal? FxRate = null) : IRequest<PaymentListItemModel>;
 
 public class CreatePaymentValidator : AbstractValidator<CreatePaymentCommand>
 {
@@ -33,6 +36,7 @@ public class CreatePaymentValidator : AbstractValidator<CreatePaymentCommand>
     {
         RuleFor(x => x.CustomerId).GreaterThan(0);
         RuleFor(x => x.Amount).GreaterThan(0);
+        RuleFor(x => x.FxRate).GreaterThan(0m).When(x => x.FxRate.HasValue);
         RuleFor(x => x.Method).NotEmpty()
             // Constrain to the PaymentMethod enum so an invalid string is a 400, not a 500 from the
             // handler's Enum.Parse (parity with CreateVendorPayment — Phase-2 review).
@@ -54,7 +58,7 @@ public class CreatePaymentValidator : AbstractValidator<CreatePaymentCommand>
                 app.RuleFor(a => a.Amount).GreaterThan(0);
                 // Settlement FX rate must be positive (a 0 or negative rate would zero/invert the functional
                 // cash amount, breaking the realized-FX plug). Default 1 satisfies this for single-currency.
-                app.RuleFor(a => a.SettlementFxRate).GreaterThan(0m);
+                app.RuleFor(a => a.SettlementFxRate).GreaterThan(0m).When(a => a.SettlementFxRate.HasValue);
             });
         });
     }
@@ -101,10 +105,19 @@ public class CreatePaymentHandler(
         var paymentNumber = await ResolvePaymentNumberAsync(request, cancellationToken);
         var method = Enum.Parse<PaymentMethod>(request.Method, true);
 
+        var firstInvoiceId = request.Applications?.FirstOrDefault()?.InvoiceId;
+        var firstInvoiceCurrencyId = firstInvoiceId is int invoiceId
+            ? await db.Invoices.AsNoTracking().Where(i => i.Id == invoiceId).Select(i => (int?)i.CurrencyId).FirstOrDefaultAsync(cancellationToken)
+            : null;
+        var currency = await new DocumentCurrencyResolver(db).ResolveAsync(
+            request.CurrencyId, request.FxRate, firstInvoiceCurrencyId ?? customer.CurrencyId, request.PaymentDate, cancellationToken);
+
         var payment = new Payment
         {
             PaymentNumber = paymentNumber,
             CustomerId = request.CustomerId,
+            CurrencyId = currency.CurrencyId,
+            FxRate = currency.FxRate,
             Method = method,
             Amount = request.Amount,
             PaymentDate = request.PaymentDate,
@@ -218,7 +231,8 @@ public class CreatePaymentHandler(
             payment.Id, payment.PaymentNumber, payment.CustomerId, customer.Name,
             payment.Method.ToString(), payment.Amount, appliedTotal,
             payment.Amount - appliedTotal, payment.PaymentDate,
-            payment.ReferenceNumber, payment.CreatedAt);
+            payment.ReferenceNumber, payment.CreatedAt,
+            payment.CurrencyId, currency.Code, payment.FxRate, FxMath.ToFunctional(payment.Amount, payment.FxRate));
     }
 
     // Uses a caller-supplied payment number when manual numbers are enabled and one

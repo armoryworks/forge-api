@@ -71,15 +71,17 @@ public class QuickBooksAccountingService(
 
     public async Task<string> CreateCustomerAsync(AccountingCustomer customer, CancellationToken ct)
     {
-        var payload = new
+        var payload = new Dictionary<string, object?>
         {
-            DisplayName = customer.Name,
-            CompanyName = customer.CompanyName,
-            PrimaryEmailAddr = customer.Email is not null ? new { Address = customer.Email } : null,
-            PrimaryPhone = customer.Phone is not null ? new { FreeFormNumber = customer.Phone } : null,
+            ["DisplayName"] = customer.Name,
+            ["CompanyName"] = customer.CompanyName,
+            ["PrimaryEmailAddr"] = customer.Email is not null ? new { Address = customer.Email } : null,
+            ["PrimaryPhone"] = customer.Phone is not null ? new { FreeFormNumber = customer.Phone } : null,
         };
+        if (customer.CurrencyCode is { Length: > 0 } customerCurrency)
+            payload["CurrencyRef"] = new { value = customerCurrency };
 
-        var result = await PostEntityAsync("customer", payload, ct);
+        var result = await PostEntityAsync("customer", payload, ct, customer.CurrencyCode);
         var id = result?.RootElement.GetProperty("Customer").GetProperty("Id").GetString()
             ?? throw new InvalidOperationException("Failed to create QuickBooks customer");
 
@@ -90,7 +92,7 @@ public class QuickBooksAccountingService(
     public async Task<string> CreateEstimateAsync(AccountingDocument document, CancellationToken ct)
     {
         var payload = BuildDocumentPayload(document);
-        var result = await PostEntityAsync("estimate", payload, ct);
+        var result = await PostEntityAsync("estimate", payload, ct, document.CurrencyCode);
         var id = result?.RootElement.GetProperty("Estimate").GetProperty("Id").GetString()
             ?? throw new InvalidOperationException("Failed to create QuickBooks estimate");
 
@@ -102,7 +104,7 @@ public class QuickBooksAccountingService(
     public async Task<string> CreateInvoiceAsync(AccountingDocument document, CancellationToken ct)
     {
         var payload = BuildDocumentPayload(document);
-        var result = await PostEntityAsync("invoice", payload, ct);
+        var result = await PostEntityAsync("invoice", payload, ct, document.CurrencyCode);
         var id = result?.RootElement.GetProperty("Invoice").GetProperty("Id").GetString()
             ?? throw new InvalidOperationException("Failed to create QuickBooks invoice");
 
@@ -492,7 +494,7 @@ public class QuickBooksAccountingService(
         return JsonDocument.Parse(body);
     }
 
-    private async Task<JsonDocument?> PostEntityAsync(string entity, object payload, CancellationToken ct)
+    private async Task<JsonDocument?> PostEntityAsync(string entity, object payload, CancellationToken ct, string? foreignCurrency = null)
     {
         var (client, realmId) = await GetAuthenticatedClientAsync(ct);
         if (client is null) throw new InvalidOperationException("QuickBooks not connected");
@@ -511,6 +513,9 @@ public class QuickBooksAccountingService(
         if (!response.IsSuccessStatusCode)
         {
             logger.LogError("[QuickBooks] POST {Entity} failed: {StatusCode} {Body}", entity, response.StatusCode, body);
+            if (foreignCurrency is not null && IsMulticurrencyFault(body))
+                throw new InvalidOperationException(
+                    $"QuickBooks multicurrency is off; turn it on in QuickBooks or keep this customer in the home currency (document currency {foreignCurrency}).");
             throw new InvalidOperationException($"QuickBooks API error: {response.StatusCode}");
         }
 
@@ -547,12 +552,20 @@ public class QuickBooksAccountingService(
         return (client, realmId);
     }
 
-    private static object BuildDocumentPayload(AccountingDocument document)
+    /// <summary>
+    /// True when a QuickBooks validation fault is about currency, which is what QuickBooks answers when a
+    /// document or customer names a currency and the company has multicurrency turned off.
+    /// </summary>
+    internal static bool IsMulticurrencyFault(string body)
+        => body.Contains("Fault", StringComparison.OrdinalIgnoreCase)
+           && body.Contains("currency", StringComparison.OrdinalIgnoreCase);
+
+    internal static Dictionary<string, object?> BuildDocumentPayload(AccountingDocument document)
     {
-        return new
+        var payload = new Dictionary<string, object?>
         {
-            CustomerRef = new { value = document.CustomerExternalId },
-            Line = document.LineItems.Select((li, i) => new
+            ["CustomerRef"] = new { value = document.CustomerExternalId },
+            ["Line"] = document.LineItems.Select((li, i) => new
             {
                 Id = (i + 1).ToString(),
                 DetailType = "SalesItemLineDetail",
@@ -565,9 +578,16 @@ public class QuickBooksAccountingService(
                 },
                 Description = li.Description,
             }).ToArray(),
-            DocNumber = document.RefNumber,
-            TxnDate = document.Date.ToString("yyyy-MM-dd"),
+            ["DocNumber"] = document.RefNumber,
+            ["TxnDate"] = document.Date.ToString("yyyy-MM-dd"),
         };
+        if (document.CurrencyCode is { Length: > 0 } currency)
+        {
+            payload["CurrencyRef"] = new { value = currency };
+            if (document.ExchangeRate is decimal rate and > 0m)
+                payload["ExchangeRate"] = rate;
+        }
+        return payload;
     }
 
     private static AccountingItem MapItem(JsonElement i)

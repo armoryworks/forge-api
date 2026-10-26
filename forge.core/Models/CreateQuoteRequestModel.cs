@@ -11,7 +11,9 @@ public record CreateQuoteRequestModel(
     // Optional caller-supplied quote number — honored only when the
     // quotes.allow_manual_numbers setting is on; otherwise auto-generated.
     string? QuoteNumber = null,
-    int? AssignedToId = null);
+    int? AssignedToId = null,
+    int? CurrencyId = null,
+    decimal? FxRate = null);
 
 public record CreateQuoteLineModel(
     int? PartId,

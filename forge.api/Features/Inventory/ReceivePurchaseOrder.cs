@@ -10,6 +10,7 @@ using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Lots;
 using Forge.Api.Features.PurchaseOrders;
 using Forge.Api.Features.ShopFloor;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -90,6 +91,9 @@ public class ReceivePurchaseOrderHandler(
             LotNumber = lot,
             ReceiptNumber = receiptNumber,
             InspectionStatus = ReceivingInspectionPolicy.InitialStatus(line.Part?.RequiresReceivingInspection == true, capabilities),
+            FxRate = db is null
+                ? line.PurchaseOrder.FxRate ?? 1m
+                : await PurchaseOrderCurrency.ReceiptRateAsync(new DocumentCurrencyResolver(db), line.PurchaseOrder, clock.UtcNow, cancellationToken),
         };
 
         await poRepo.AddReceivingRecordAsync(record, cancellationToken);

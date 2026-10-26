@@ -9,4 +9,8 @@ public record QuoteListItemModel(
     int LineCount,
     decimal Total,
     DateTimeOffset? ExpirationDate,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    int? CurrencyId = null,
+    string? CurrencyCode = null,
+    decimal FxRate = 1m,
+    decimal? TotalFunctional = null);

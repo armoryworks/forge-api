@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Jobs;
 using Forge.Api.Services;
+using Forge.Api.Services.Fx;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -31,7 +32,9 @@ public record CreateVendorPaymentCommand(
     DateTimeOffset PaymentDate,
     string? ReferenceNumber,
     string? Notes,
-    List<CreateVendorPaymentApplicationModel>? Applications) : IRequest<VendorPaymentListItemModel>;
+    List<CreateVendorPaymentApplicationModel>? Applications,
+    int? CurrencyId = null,
+    decimal? FxRate = null) : IRequest<VendorPaymentListItemModel>;
 
 public class CreateVendorPaymentValidator : AbstractValidator<CreateVendorPaymentCommand>
 {
@@ -39,6 +42,7 @@ public class CreateVendorPaymentValidator : AbstractValidator<CreateVendorPaymen
     {
         RuleFor(x => x.VendorId).GreaterThan(0);
         RuleFor(x => x.Amount).GreaterThan(0).MoneyScale();
+        RuleFor(x => x.FxRate).GreaterThan(0m).When(x => x.FxRate.HasValue);
         RuleFor(x => x.Method).NotEmpty()
             // Constrain to the PaymentMethod enum so an invalid string is a 400, not a 500 from the
             // handler's Enum.Parse (the parse would throw ArgumentException unmapped by the middleware).
@@ -60,7 +64,7 @@ public class CreateVendorPaymentValidator : AbstractValidator<CreateVendorPaymen
                 app.RuleFor(a => a.Amount).GreaterThan(0).MoneyScale();
                 // Settlement FX rate must be positive (a 0 or negative rate would zero/invert the functional
                 // cash amount, breaking the realized-FX plug). Default 1 satisfies this for single-currency.
-                app.RuleFor(a => a.SettlementFxRate).GreaterThan(0m);
+                app.RuleFor(a => a.SettlementFxRate).GreaterThan(0m).When(a => a.SettlementFxRate.HasValue);
             });
         });
     }
@@ -99,10 +103,20 @@ public class CreateVendorPaymentHandler(
         var paymentNumber = await repo.GenerateNextVendorPaymentNumberAsync(cancellationToken);
         var method = Enum.Parse<PaymentMethod>(request.Method, true);
 
+        var currencies = new DocumentCurrencyResolver(db);
+        var firstBillId = request.Applications?.FirstOrDefault()?.VendorBillId;
+        var firstBillCurrencyId = firstBillId is int billId
+            ? await db.VendorBills.AsNoTracking().Where(b => b.Id == billId).Select(b => (int?)b.CurrencyId).FirstOrDefaultAsync(cancellationToken)
+            : null;
+        var currency = await currencies.ResolveAsync(
+            request.CurrencyId, request.FxRate, firstBillCurrencyId ?? vendor.CurrencyId, request.PaymentDate, cancellationToken);
+
         var payment = new VendorPayment
         {
             PaymentNumber = paymentNumber,
             VendorId = request.VendorId,
+            CurrencyId = currency.CurrencyId,
+            FxRate = currency.FxRate,
             Method = method,
             Amount = request.Amount,
             PaymentDate = request.PaymentDate,
@@ -133,6 +147,12 @@ public class CreateVendorPaymentHandler(
                     throw new InvalidOperationException(
                         $"Vendor bill {bill.BillNumber} is {bill.Status}; only Approved or PartiallyPaid bills can be paid");
 
+                var billCurrencyId = await currencies.EffectiveCurrencyIdAsync(bill.CurrencyId, cancellationToken);
+                if (billCurrencyId != currency.CurrencyId)
+                    DocumentCurrencyResolver.EnsureSameCurrency(
+                        currency.CurrencyId, billCurrencyId, $"Vendor bill {bill.BillNumber}",
+                        currency.Code, await currencies.CodeForAsync(billCurrencyId, cancellationToken));
+
                 // Consume the canonical VendorBill.BalanceDue (single source of truth), mirroring F-027.
                 var balanceDue = bill.BalanceDue;
 
@@ -149,7 +169,7 @@ public class CreateVendorPaymentHandler(
                 {
                     VendorBillId = app.VendorBillId,
                     Amount = app.Amount,
-                    SettlementFxRate = app.SettlementFxRate,
+                    SettlementFxRate = app.SettlementFxRate ?? payment.FxRate,
                 });
                 appliedTotal += app.Amount;
 
@@ -285,6 +305,7 @@ public class CreateVendorPaymentHandler(
             payment.Id, payment.PaymentNumber, payment.VendorId, vendor.CompanyName,
             payment.Method.ToString(), payment.Amount, appliedTotal, payment.Amount - appliedTotal,
             payment.PaymentDate, payment.ReferenceNumber, payment.CreatedAt,
-            transmission?.Status.ToString(), transmission?.AttemptCount ?? 0, transmission?.Id);
+            transmission?.Status.ToString(), transmission?.AttemptCount ?? 0, transmission?.Id,
+            payment.CurrencyId, currency.Code, payment.FxRate, FxMath.ToFunctional(payment.Amount, payment.FxRate));
     }
 }

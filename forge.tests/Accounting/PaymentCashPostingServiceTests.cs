@@ -181,15 +181,18 @@ public class PaymentCashPostingServiceTests
         db.Invoices.Add(invoice);
         await db.SaveChangesAsync();
 
-        // Payment.Amount is functional cash. Default = the application's cash leg (foreign × settlement), i.e.
-        // fully applied with no unapplied remainder.
-        var amount = paymentAmountFunctional
-            ?? Math.Round(appliedForeign * settlementFxRate, 2, MidpointRounding.AwayFromZero);
+        // Payment.Amount is in the payment's (= the invoice's) currency at the settlement rate. Default = fully
+        // applied with no unapplied remainder.
+        var amount = paymentAmountFunctional is decimal functional
+            ? Math.Round(functional / settlementFxRate, 2, MidpointRounding.AwayFromZero)
+            : appliedForeign;
 
         var payment = new Payment
         {
             PaymentNumber = "PMT-FX-1",
             CustomerId = customer.Id,
+            CurrencyId = invoiceCurrencyId,
+            FxRate = settlementFxRate,
             Method = PaymentMethod.Check,
             Amount = amount,
             PaymentDate = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero),

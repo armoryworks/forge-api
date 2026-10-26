@@ -8,6 +8,16 @@ namespace Forge.Core.Interfaces;
 /// </summary>
 public interface IFxRevaluationService
 {
+    /// <summary>
+    /// Re-measures one currency's monetary position at <paramref name="newRate"/>, or at the rate on file for
+    /// <paramref name="asOf"/> when it is null. With <paramref name="preview"/> nothing posts and the result
+    /// carries the adjustment that would post.
+    /// </summary>
     Task<FxRevaluationResult> RevalueAsync(
-        int bookId, int currencyId, decimal newRate, DateOnly asOf, int postedByUserId, CancellationToken ct = default);
+        int bookId, int currencyId, decimal? newRate, DateOnly asOf, int postedByUserId,
+        CancellationToken ct = default, bool preview = false);
+
+    /// <summary>Revalues every active non-functional currency that has a monetary position.</summary>
+    Task<IReadOnlyList<FxRevaluationResult>> RevalueAllAsync(
+        int bookId, DateOnly asOf, int postedByUserId, CancellationToken ct = default, bool preview = false);
 }

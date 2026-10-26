@@ -10,6 +10,7 @@ using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.Inventory;
 using Forge.Api.Features.Lots;
 using Forge.Api.Features.ShopFloor;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -73,6 +74,10 @@ public class ReceiveItemsHandler(
 
         // F-033: source-state whitelist — Draft POs haven't been sent to vendor
         PurchaseOrderSubmission.EnsureReceivable(po);
+
+        var receiptFxRate = db is null
+            ? po.FxRate ?? 1m
+            : await PurchaseOrderCurrency.ReceiptRateAsync(new DocumentCurrencyResolver(db), po, clock.UtcNow, cancellationToken);
 
         // Bought-parts effort PR3 — receipt-level freight capture. All
         // ReceivingRecords created in this call share a ReceiptNumber and
@@ -139,6 +144,7 @@ public class ReceiveItemsHandler(
                 FreightAllocationMethod = request.FreightAllocationMethod,
                 // Filled in below once totals are known.
                 AllocatedFreight = null,
+                FxRate = receiptFxRate,
             };
             newRecords.Add((receiveItem, line, rec, baseQty, lot));
 

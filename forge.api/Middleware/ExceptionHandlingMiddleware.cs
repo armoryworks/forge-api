@@ -285,6 +285,41 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
 
             await context.Response.WriteAsJsonAsync(problem);
         }
+        catch (Services.Fx.FxRateMissingException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status422UnprocessableEntity;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status422UnprocessableEntity,
+                Title = "Exchange rate missing",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = Services.Fx.FxRateMissingException.Code;
+            problem.Extensions["fromCurrency"] = ex.FromCode;
+            problem.Extensions["toCurrency"] = ex.ToCode;
+            problem.Extensions["date"] = ex.Date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
+        catch (Services.Fx.CurrencyLockedException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Currency locked",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = ex.Code;
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
         catch (Features.Parts.RoutingGraphStaleException ex)
         {
             context.Response.StatusCode = StatusCodes.Status409Conflict;

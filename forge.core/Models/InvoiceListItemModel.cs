@@ -12,4 +12,7 @@ public record InvoiceListItemModel(
     decimal AmountPaid,
     decimal BalanceDue,
     DateTimeOffset CreatedAt,
-    string? CurrencyCode = null);
+    string? CurrencyCode = null,
+    int? CurrencyId = null,
+    decimal FxRate = 1m,
+    decimal? TotalFunctional = null);

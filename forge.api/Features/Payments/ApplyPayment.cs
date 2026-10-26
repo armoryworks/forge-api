@@ -35,7 +35,7 @@ public class ApplyPaymentValidator : AbstractValidator<ApplyPaymentCommand>
             {
                 app.RuleFor(a => a.InvoiceId).GreaterThan(0);
                 app.RuleFor(a => a.Amount).GreaterThan(0);
-                app.RuleFor(a => a.SettlementFxRate).GreaterThan(0m);
+                app.RuleFor(a => a.SettlementFxRate).GreaterThan(0m).When(a => a.SettlementFxRate.HasValue);
             });
         });
     }

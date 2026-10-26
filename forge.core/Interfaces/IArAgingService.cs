@@ -24,12 +24,14 @@ public interface IArAgingService
     /// <paramref name="asOfDate"/> (null = today in the engine's clock). Returns
     /// one row per customer with a non-zero open balance, bucketed by the age of
     /// each posting's <c>EntryDate</c>, plus an AR-control-vs-aging
-    /// reconciliation.
+    /// reconciliation. <paramref name="currencyId"/> limits the rows and buckets
+    /// to documents in that currency; the reconciliation always covers every document.
     /// </summary>
     Task<ArAging> GetArAgingAsync(
         int bookId,
         DateOnly? asOfDate = null,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        int? currencyId = null);
 
     /// <summary>
     /// Reconciles the derived aging total against the posted AR-control account
