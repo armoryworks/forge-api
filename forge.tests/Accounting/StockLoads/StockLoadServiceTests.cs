@@ -206,6 +206,48 @@ public sealed class StockLoadServiceTests
     }
 
     [Fact]
+    public async Task Void_after_the_journal_was_reversed_by_hand_relieves_the_ledger_only_once()
+    {
+        using var ctx = await StockLoadTestContext.CreateAsync();
+        var load = await ctx.CreateLoadAsync(StockLoadGlMode.OffsetEquity, Line("RM-100", "A1", 10m, 5m));
+        var posted = await ctx.PostAsync(load.Id);
+        await Engine(ctx.Db).ReverseAsync(posted.JournalEntryId!.Value, StockLoadTestContext.AsOf, "Posted in error", 7);
+
+        await ctx.VoidAsync(load.Id);
+
+        (await ctx.Db.JournalEntries.IgnoreQueryFilters()
+            .AnyAsync(e => e.IdempotencyKey == $"Conversion:StockLoad:{load.Id}:VOID")).Should().BeFalse();
+        var rec = await new InventoryValuationService(ctx.Db).ReconcileAsync(BookId);
+        rec.StoreValue.Should().Be(0m);
+        rec.GlInventoryBalance.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task Offset_equity_warns_when_the_opening_journal_already_debited_the_account()
+    {
+        using var ctx = await StockLoadTestContext.CreateAsync();
+        await Engine(ctx.Db).PostAsync(new PostingRequest
+        {
+            BookId = BookId, EntryDate = StockLoadTestContext.AsOf, Source = JournalSource.Conversion,
+            SourceType = "OpeningJournal", CurrencyId = 1, IdempotencyKey = $"Conversion:Book:{BookId}:OPENING",
+            Lines =
+            [
+                new PostingLine { GlAccountId = RawId, Debit = 1000m },
+                new PostingLine { GlAccountId = StockLoadTestContext.ObeId, Credit = 1000m },
+            ],
+        }, 7);
+
+        var raw = await ctx.CreateLoadAsync(StockLoadGlMode.OffsetEquity, Line("RM-100", "A1", 10m, 100m));
+        var fg = await ctx.CreateLoadAsync(StockLoadGlMode.OffsetEquity, Line("FG-310", "A1", 1m, 471m));
+
+        var result = await ctx.ValidateAsync(raw.Id);
+        result.IsValid.Should().BeTrue();
+        result.Issues.Should().ContainSingle(i => i.Code == "stock-load-opening-journal-has-inventory"
+            && i.Severity == StockLoadIssueSeverity.Warning);
+        (await ctx.ValidateAsync(fg.Id)).Issues.Should().NotContain(i => i.Code == "stock-load-opening-journal-has-inventory");
+    }
+
+    [Fact]
     public async Task Only_a_draft_can_be_changed_posted_or_deleted()
     {
         using var ctx = await StockLoadTestContext.CreateAsync();

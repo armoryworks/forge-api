@@ -230,6 +230,20 @@ public sealed class StockLoadService(
             issues.Add(Warning(0, "stock-load-date-differs",
                 $"The as-of date {load.AsOfDate:yyyy-MM-dd} differs from the opening journal's date {openingDate:yyyy-MM-dd}."));
 
+        if (load.GlMode == StockLoadGlMode.OffsetEquity && opening.ByAccount.Count > 0)
+        {
+            var covered = await ValuationOnlyTotalsAsync(load.BookId, load.Id, ct);
+            foreach (var accountId in totals.Keys.Order())
+            {
+                var uncovered = opening.ByAccount.GetValueOrDefault(accountId) - covered.GetValueOrDefault(accountId);
+                if (uncovered <= 0m)
+                    continue;
+                var account = accounts.Names.GetValueOrDefault(accountId);
+                issues.Add(Warning(0, "stock-load-opening-journal-has-inventory",
+                    $"The posted opening journal already debited {uncovered:0.00} to {account.Number} {account.Name}. Posting this load against Opening Balance Equity adds its value a second time; choose valuation only to load the matching stock without a journal."));
+            }
+        }
+
         if (load.GlMode == StockLoadGlMode.ValuationOnly)
         {
             if (opening.ByAccount.Count == 0)
@@ -277,6 +291,8 @@ public sealed class StockLoadService(
         var partIds = load.Lines.Select(l => l.PartId).Distinct().Order().ToList();
         foreach (var partId in partIds)
             await db.AcquireAdvisoryLockAsync("inventory.ship-relief", partId.ToString(CultureInfo.InvariantCulture), ct);
+        if (load.GlMode == StockLoadGlMode.ValuationOnly)
+            await db.AcquireAdvisoryLockAsync("inventory.stock-load.valuation-only", load.BookId.ToString(CultureInfo.InvariantCulture), ct);
 
         var result = await ValidateAsync(load, ct);
         if (!result.IsValid)
@@ -439,10 +455,11 @@ public sealed class StockLoadService(
         foreach (var group in load.Lines.GroupBy(l => l.PartId).OrderBy(g => g.Key))
             await valuation.ReverseReceiptAsync(load.BookId, group.Key, group.Sum(l => l.Quantity), group.Sum(l => l.ExtendedValue), ct);
 
-        if (load.JournalEntryId is long entryId)
+        var original = load.JournalEntryId is long entryId
+            ? await db.JournalEntries.AsNoTracking().Include(e => e.Lines).FirstAsync(e => e.Id == entryId, ct)
+            : null;
+        if (original is { Status: JournalEntryStatus.Posted, ReversedByEntryId: null })
         {
-            var original = await db.JournalEntries.AsNoTracking().Include(e => e.Lines)
-                .FirstAsync(e => e.Id == entryId, ct);
             var entryDate = await VoidEntryDateAsync(load.BookId, load.AsOfDate, DateOnly.FromDateTime(now.UtcDateTime), ct);
             await postingEngine.PostAsync(new PostingRequest
             {
