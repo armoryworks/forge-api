@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -24,6 +25,10 @@ public class ClosePurchaseOrderHandler(
         if (po.Status != PurchaseOrderStatus.Received)
             throw new InvalidOperationException("Only received purchase orders can be closed");
 
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         po.Status = PurchaseOrderStatus.Closed;
         db.LogActivityAt("closed", "Closed", ("PurchaseOrder", po.Id));
         await repo.SaveChangesAsync(cancellationToken);
@@ -32,5 +37,8 @@ public class ClosePurchaseOrderHandler(
             await apPosting.PostPurchaseOrderFreightCloseAsync(
                 po.Id, DateOnly.FromDateTime((clock ?? new Forge.Integrations.SystemClock()).UtcNow.UtcDateTime),
                 db.CurrentUserId ?? 0, cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
     }
 }

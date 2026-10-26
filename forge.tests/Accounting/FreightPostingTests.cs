@@ -383,6 +383,28 @@ public class FreightPostingTests
     }
 
     [Fact]
+    public async Task CarrierBill_RoundingCent_KeepsClearedAmountEqualToTheClearingDebit()
+    {
+        using var db = await SeedAsync();
+        var (vendorId, poId) = await AddPoWithFreightReceiptAsync(db, 50m);
+        var bill = await AddFreightBillAsync(db, vendorId, 10.005m, poId, "BILL-R");
+        bill.Lines.Add(new VendorBillLine
+        {
+            Description = "Carrier freight", Quantity = 1, UnitPrice = 10.005m, LineNumber = 2,
+            LineType = DocumentLineType.Freight, FreightForPurchaseOrderId = poId, AccountDeterminationKey = "FREIGHT_IN",
+        });
+        await db.SaveChangesAsync();
+
+        await ApService(db).PostVendorBillApprovedAsync(bill.Id, approvedByUserId: 7);
+
+        var entry = await BillEntryAsync(db, bill.Id);
+        var clearingDebit = entry.Lines.Where(l => l.Debit > 0m).Sum(l => l.Debit);
+        clearingDebit.Should().Be(20.01m);
+        bill.Lines.Sum(l => l.FreightClearedAmount ?? 0m).Should().Be(20.01m);
+        (await ApService(db).OpenFreightAccrualAsync(BookId, poId, null, CancellationToken.None)).Should().Be(29.99m);
+    }
+
+    [Fact]
     public async Task GrniReconciliation_ShowsTheOpenFreightAccrualByPo()
     {
         using var db = await SeedAsync();

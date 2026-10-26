@@ -2,6 +2,7 @@ using System.Security.Claims;
 
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.DomainEvents;
@@ -63,6 +64,10 @@ public class ShortClosePurchaseOrderHandler(
             }
         }
 
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         po.Status = PurchaseOrderStatus.Closed;
         po.ShortCloseReason = request.Reason.Trim();
         po.ShortClosedAt = clock.UtcNow;
@@ -82,6 +87,9 @@ public class ShortClosePurchaseOrderHandler(
         if (apPosting is not null)
             await apPosting.PostPurchaseOrderFreightCloseAsync(
                 po.Id, DateOnly.FromDateTime(clock.UtcNow.UtcDateTime), userId, cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
         await mediator.Publish(
             new PurchaseOrderShortClosedEvent(po.Id, userId, po.ShortCloseReason, totalCancelled),

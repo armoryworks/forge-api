@@ -548,14 +548,17 @@ public sealed class VendorBillApPostingService(
     /// cleared is kept on the line (<see cref="VendorBillLine.FreightClearedAmount"/>, functional) so the next
     /// bill clears only what is left. A line with no PO debits its own account or key (FREIGHT_IN by default,
     /// FREIGHT_OUT for an outbound carrier bill). <paramref name="roundingDifference"/> (cents between the
-    /// rounded bill and its rounded lines when the bill has only freight) goes on the last debit.
+    /// rounded bill and its rounded lines when the bill has only freight) goes on the last debit that is not a
+    /// clearing debit, or on the last clearing debit (and its cleared amount) when every debit clears.
     /// </summary>
     private async Task BuildFreightDebitsAsync(
         VendorBill bill, int bookId, IReadOnlyList<VendorBillLine> freightLines, List<PostingLine> lines,
         decimal roundingDifference, CancellationToken ct)
     {
         var clearedHere = new Dictionary<int, decimal>();
+        var clearingLines = new Dictionary<int, VendorBillLine>();
         var first = lines.Count;
+        await LockFreightPurchaseOrdersAsync(freightLines, ct);
         foreach (var l in freightLines)
         {
             var amount = Money.Round(l.LineTotal);
@@ -584,6 +587,7 @@ public sealed class VendorBillApPostingService(
                 var clearedFunctional = FxMath.ToFunctional(clearTxn, bill.FxRate);
                 l.FreightClearedAmount = clearedFunctional;
                 clearedHere[poId] = clearedHere.GetValueOrDefault(poId) + clearedFunctional;
+                clearingLines[lines.Count] = l;
                 lines.Add(new PostingLine
                 {
                     AccountKey = KeyFreightClearing,
@@ -603,8 +607,18 @@ public sealed class VendorBillApPostingService(
 
         if (roundingDifference != 0m && lines.Count > first)
         {
-            var last = lines[^1];
-            lines[^1] = new PostingLine
+            var target = lines.Count - 1;
+            for (var i = lines.Count - 1; i >= first; i--)
+            {
+                if (!clearingLines.ContainsKey(i))
+                {
+                    target = i;
+                    break;
+                }
+            }
+
+            var last = lines[target];
+            lines[target] = new PostingLine
             {
                 AccountKey = last.AccountKey,
                 GlAccountId = last.GlAccountId,
@@ -612,7 +626,28 @@ public sealed class VendorBillApPostingService(
                 Debit = last.Debit + roundingDifference,
                 Description = last.Description,
             };
+            if (clearingLines.TryGetValue(target, out var clearingLine))
+                clearingLine.FreightClearedAmount = FxMath.ToFunctional(last.Debit + roundingDifference, bill.FxRate);
         }
+    }
+
+    /// <summary>
+    /// Locks the purchase orders whose freight these lines clear, so two bills (or a bill and a PO close) can't
+    /// both clear the same accrual. Postgres only; a no-op on other providers.
+    /// </summary>
+    private async Task LockFreightPurchaseOrdersAsync(IReadOnlyList<VendorBillLine> freightLines, CancellationToken ct)
+    {
+        var poIds = freightLines
+            .Select(l => l.FreightForPurchaseOrderId)
+            .OfType<int>()
+            .Distinct()
+            .Order()
+            .ToArray();
+        if (poIds.Length == 0 || !db.Database.IsNpgsql())
+            return;
+
+        await db.Database.ExecuteSqlRawAsync(
+            "SELECT id FROM purchase_orders WHERE id = ANY({0}) ORDER BY id FOR UPDATE", [poIds], ct);
     }
 
     /// <summary>
