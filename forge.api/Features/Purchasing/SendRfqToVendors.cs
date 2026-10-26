@@ -40,6 +40,7 @@ public class SendRfqToVendorsHandler(
         var rfq = await db.RequestForQuotes
             .AsNoTracking()
             .Include(r => r.Part)
+            .Include(r => r.VendorResponses)
             .FirstOrDefaultAsync(r => r.Id == request.RfqId, ct)
             ?? throw new KeyNotFoundException($"RFQ {request.RfqId} not found");
 
@@ -55,14 +56,17 @@ public class SendRfqToVendorsHandler(
         foreach (var id in vendorIds.Where(id => !vendors.ContainsKey(id)))
             throw new KeyNotFoundException($"Vendor {id} not found");
 
-        var reachable = vendorIds.Where(id => !string.IsNullOrWhiteSpace(vendors[id].Email)).ToList();
-        var withoutEmail = vendorIds
+        var invited = rfq.VendorResponses.Select(r => r.VendorId).ToHashSet();
+        var alreadyInvited = vendorIds.Where(invited.Contains).ToList();
+        var newVendorIds = vendorIds.Where(id => !invited.Contains(id)).ToList();
+        var reachable = newVendorIds.Where(id => !string.IsNullOrWhiteSpace(vendors[id].Email)).ToList();
+        var withoutEmail = newVendorIds
             .Where(id => string.IsNullOrWhiteSpace(vendors[id].Email))
             .Select(id => new RfqVendorWithoutEmailModel(id, vendors[id].CompanyName))
             .ToList();
 
         if (reachable.Count == 0)
-            return new SendRfqToVendorsResponseModel(rfq.Id, [], withoutEmail);
+            return new SendRfqToVendorsResponseModel(rfq.Id, [], withoutEmail, alreadyInvited);
 
         var companyName = await CompanyIdentity.GetCompanyNameAsync(db, ct)
             ?? throw new InvalidOperationException(SendPurchaseOrderEmailHandler.MissingCompanyNameMessage);
@@ -93,7 +97,7 @@ public class SendRfqToVendorsHandler(
                 $"rfq-email:{rfq.Id}:{vendorId}:{to}", message, entityType: "RequestForQuote", entityId: rfq.Id, ct: ct);
         }
 
-        return new SendRfqToVendorsResponseModel(rfq.Id, reachable, withoutEmail);
+        return new SendRfqToVendorsResponseModel(rfq.Id, reachable, withoutEmail, alreadyInvited);
     }
 
     private static string BuildHtmlBody(RequestForQuote rfq, Vendor vendor, string companyName)

@@ -136,4 +136,20 @@ public class SendRfqToVendorsTests
         _sent.Should().BeEmpty();
         _db.RequestForQuotes.Single().Status.Should().Be(status);
     }
+
+    [Fact]
+    public async Task A_vendor_already_on_the_rfq_is_not_emailed_again_and_is_reported()
+    {
+        await SeedAsync();
+        await _handler.Handle(new SendRfqToVendorsCommand(9, [4]), CancellationToken.None);
+        _sent.Clear();
+
+        var result = await _handler.Handle(new SendRfqToVendorsCommand(9, [4, 5]), CancellationToken.None);
+
+        result.EmailedVendorIds.Should().Equal(5);
+        result.AlreadyInvitedVendorIds.Should().Equal(4);
+        _sent.Select(s => s.Message.To).Should().Equal("sales@coil.example");
+        _db.ActivityLogs.Where(a => a.EntityType == "RequestForQuote" && a.Action == "sent")
+            .Select(a => a.Description).Should().BeEquivalentTo(["Sent to Mill Supply", "Sent to Coil Works"]);
+    }
 }
