@@ -12,6 +12,8 @@ namespace Forge.Api.Capabilities;
 ///     checked against the current <see cref="CapabilitySnapshot"/>; if
 ///     disabled, returns 403 with the WU-02 error envelope per 4D §3.3 /
 ///     4D-decisions-log #1.
+///   • Endpoints marked <see cref="RequiresAnyCapabilityAttribute"/> pass when
+///     any one of the listed capabilities is enabled.
 ///   • Endpoints with no marker pass through unchanged (Phase A default —
 ///     no production endpoints are yet gated).
 /// </summary>
@@ -34,13 +36,19 @@ public class CapabilityGateMiddleware(RequestDelegate next, ILogger<CapabilityGa
         }
 
         var requires = endpoint.Metadata.GetMetadata<RequiresCapabilityAttribute>();
-        if (requires is null)
+        var requiresAny = endpoint.Metadata.GetMetadata<RequiresAnyCapabilityAttribute>();
+        if (requires is null && requiresAny is null)
         {
             await next(context);
             return;
         }
 
-        if (snapshots.IsEnabled(requires.Capability))
+        var blocked = requires is not null && !snapshots.IsEnabled(requires.Capability)
+            ? requires.Capability
+            : requiresAny is { Capabilities.Count: > 0 } && !requiresAny.Capabilities.Any(snapshots.IsEnabled)
+                ? requiresAny.Capabilities[0]
+                : null;
+        if (blocked is null)
         {
             await next(context);
             return;
@@ -48,11 +56,11 @@ public class CapabilityGateMiddleware(RequestDelegate next, ILogger<CapabilityGa
 
         logger.LogInformation(
             "[CAPABILITY-GATE] Capability {Capability} disabled — short-circuiting {Method} {Path}",
-            requires.Capability, context.Request.Method, context.Request.Path);
+            blocked, context.Request.Method, context.Request.Path);
 
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
         context.Response.ContentType = "application/problem+json";
-        context.Response.Headers["X-Capability-Disabled"] = requires.Capability;
+        context.Response.Headers["X-Capability-Disabled"] = blocked;
 
         var payload = new
         {
@@ -61,7 +69,7 @@ public class CapabilityGateMiddleware(RequestDelegate next, ILogger<CapabilityGa
                 new
                 {
                     code = "capability-disabled",
-                    capability = requires.Capability,
+                    capability = blocked,
                     message = "This capability is disabled for this installation.",
                 },
             },

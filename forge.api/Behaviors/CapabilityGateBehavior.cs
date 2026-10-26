@@ -13,7 +13,8 @@ namespace Forge.Api.Behaviors;
 /// Reads <see cref="RequiresCapabilityAttribute"/> from the request type;
 /// if present and the named capability is disabled in the
 /// <see cref="ICapabilitySnapshotProvider"/> snapshot, throws
-/// <see cref="CapabilityDisabledException"/>. The global exception middleware
+/// <see cref="CapabilityDisabledException"/>. A <see cref="RequiresAnyCapabilityAttribute"/>
+/// throws only when none of its capabilities is enabled. The global exception middleware
 /// translates this to a 403 envelope on the HTTP path; Hangfire records the
 /// throw on the background-job path.
 ///
@@ -32,17 +33,21 @@ public sealed class CapabilityGateBehavior<TRequest, TResponse>(ICapabilitySnaps
         (RequiresCapabilityAttribute?)Attribute.GetCustomAttribute(
             typeof(TRequest), typeof(RequiresCapabilityAttribute));
 
+    private static readonly RequiresAnyCapabilityAttribute? _anyAttribute =
+        (RequiresAnyCapabilityAttribute?)Attribute.GetCustomAttribute(
+            typeof(TRequest), typeof(RequiresAnyCapabilityAttribute));
+
     public async Task<TResponse> Handle(
         TRequest request,
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
-        if (_attribute is null)
-            return await next();
+        if (_attribute is not null && !snapshots.IsEnabled(_attribute.Capability))
+            throw new CapabilityDisabledException(_attribute.Capability);
 
-        if (snapshots.IsEnabled(_attribute.Capability))
-            return await next();
+        if (_anyAttribute is { Capabilities.Count: > 0 } && !_anyAttribute.Capabilities.Any(snapshots.IsEnabled))
+            throw new CapabilityDisabledException(_anyAttribute.Capabilities[0]);
 
-        throw new CapabilityDisabledException(_attribute.Capability);
+        return await next();
     }
 }

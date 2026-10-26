@@ -61,4 +61,5 @@ public record GlAccountModel(
     bool IsPostable,
     bool IsControlAccount,
     bool RequiresJob,
-    bool RequiresCostCenter);
+    bool RequiresCostCenter,
+    bool IsInventoryControl = false);

@@ -40,6 +40,7 @@ public sealed class ControllerCapabilityGateTests
     private static bool IsGated(Type controller)
     {
         if (controller.GetCustomAttribute<RequiresCapabilityAttribute>(inherit: true) is not null ||
+            controller.GetCustomAttribute<RequiresAnyCapabilityAttribute>(inherit: true) is not null ||
             controller.GetCustomAttribute<CapabilityBootstrapAttribute>(inherit: true) is not null)
             return true;
 
@@ -50,6 +51,7 @@ public sealed class ControllerCapabilityGateTests
 
         return actions.Count > 0 && actions.All(m =>
             m.GetCustomAttribute<RequiresCapabilityAttribute>(inherit: true) is not null ||
+            m.GetCustomAttribute<RequiresAnyCapabilityAttribute>(inherit: true) is not null ||
             m.GetCustomAttribute<CapabilityBootstrapAttribute>(inherit: true) is not null);
     }
 
