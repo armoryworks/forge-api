@@ -148,7 +148,6 @@ public class NcrLotHoldTests : IDisposable
         new ShipmentRepository(_db),
         new InventoryReliefService(_db, NullLogger<InventoryReliefService>.Instance),
         _accessor,
-        NullLogger<ShipShipmentHandler>.Instance,
         _db);
 
     private async Task<Job> JobAsync()
@@ -571,16 +570,17 @@ public class NcrLotHoldTests : IDisposable
     }
 
     [Fact]
-    public async Task ShipShipment_WithAPlainShortfall_StillShipsAsABackorder()
+    public async Task ShipShipment_WithAPlainShortfall_IsRefusedAsShortStockNotAHold()
     {
         await SeedAsync();
         await StockAsync(_binA, OtherLot, 2);
         var shipment = await ShipmentAsync(_part, 5, "920");
 
-        await ShipHandler().Handle(new ShipShipmentCommand(shipment.Id), CancellationToken.None);
+        var act = () => ShipHandler().Handle(new ShipShipmentCommand(shipment.Id), CancellationToken.None);
 
+        (await act.Should().ThrowAsync<InsufficientStockException>()).Which.Should().NotBeOfType<QualityHoldException>();
         (await _db.Shipments.AsNoTracking().SingleAsync(s => s.Id == shipment.Id)).Status
-            .Should().Be(ShipmentStatus.Shipped);
+            .Should().Be(ShipmentStatus.Pending);
     }
 
     [Fact]

@@ -139,11 +139,11 @@ public class ShipShipmentInventoryReliefTests : IDisposable
     }
 
     /// <summary>
-    /// A line short of free stock does not block the ship or the lines after it: it is left unrelieved
-    /// and logged on the shipment, while a stocked line is still relieved.
+    /// A line short of free stock refuses the whole ship, naming the part with the quantity needed and free:
+    /// the shipment stays Pending and no bin is drawn, not even for the line that has stock.
     /// </summary>
     [Fact]
-    public async Task ShipShipment_ShortLine_ShipsRelievesTheOthersAndLogsIt()
+    public async Task ShipShipment_ShortLine_RefusesTheShipAndLeavesBinsAndStatusUnchanged()
     {
         var customer = new Customer { Name = "Short line customer" };
         _db.Customers.Add(customer);
@@ -173,13 +173,16 @@ public class ShipShipmentInventoryReliefTests : IDisposable
         _db.Shipments.Add(shipment);
         await _db.SaveChangesAsync();
 
-        await _sp.GetRequiredService<IMediator>().Send(new ShipShipmentCommand(shipment.Id));
+        var act = () => _sp.GetRequiredService<IMediator>().Send(new ShipShipmentCommand(shipment.Id));
 
+        await act.Should().ThrowAsync<InsufficientStockException>().WithMessage("*P-SHORT-SHIP needs 4, 0 free*");
         _db.ChangeTracker.Clear();
-        (await _db.Shipments.FindAsync(shipment.Id))!.Status.Should().Be(ShipmentStatus.Shipped);
-        (await _db.BinContents.FindAsync(stockedBin.Id))!.Quantity.Should().Be(3m);
-        _db.ActivityLogs.Count(a => a.EntityType == "Shipment" && a.EntityId == shipment.Id
-            && a.Action == "inventory_not_relieved").Should().Be(1);
+        var after = (await _db.Shipments.FindAsync(shipment.Id))!;
+        after.Status.Should().Be(ShipmentStatus.Pending);
+        after.ShippedDate.Should().BeNull();
+        (await _db.BinContents.FindAsync(stockedBin.Id))!.Quantity.Should().Be(5m);
+        _db.BinMovements.Should().BeEmpty();
+        _db.ShipmentLines.Where(l => l.ShipmentId == shipment.Id).Should().OnlyContain(l => l.InventoryRelievedAt == null);
     }
 
     /// <summary>

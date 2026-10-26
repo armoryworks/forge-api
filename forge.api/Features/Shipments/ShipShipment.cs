@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 
 using MediatR;
@@ -9,6 +10,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Shipments;
 
@@ -21,7 +23,6 @@ public class ShipShipmentHandler(
     // mock-based handler tests that don't register it → ship flips status only, as before.
     InventoryReliefService? relief = null,
     IHttpContextAccessor? httpContext = null,
-    ILogger<ShipShipmentHandler>? logger = null,
     // Optional / null-default so the mock-based handler tests stay constructible; the DI path supplies
     // it. Backs the scan-to-ship gate (carrier lookup) and the shipped activity-log row.
     AppDbContext? db = null)
@@ -29,6 +30,13 @@ public class ShipShipmentHandler(
 {
     public async Task Handle(ShipShipmentCommand request, CancellationToken cancellationToken)
     {
+        await using var tx = db is not null && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        if (db is not null)
+            await db.AcquireAdvisoryLockAsync(
+                "shipments.ship", request.Id.ToString(CultureInfo.InvariantCulture), cancellationToken);
+
         // Load with Lines + each line's SalesOrderLine so relief can resolve PartId; fall back to the lean
         // load when relief isn't wired (keeps the no-relief path identical to before).
         var shipment = (relief is not null
@@ -77,11 +85,8 @@ public class ShipShipmentHandler(
             httpContext?.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
             out var uid) ? uid : 0;
 
-        if (relief is not null
-            && await relief.RelieveShipmentAsync(shipment, userId, cancellationToken) is { Count: > 0 } shortLines)
-            logger?.LogWarning(
-                "Shipping shipment {ShipmentId} with {Count} line(s) not relieved for want of free stock (backorder).",
-                shipment.Id, shortLines.Count);
+        if (relief is not null)
+            await relief.RelieveShipmentAsync(shipment, userId, cancellationToken);
 
         shipment.Status = ShipmentStatus.Shipped;
         shipment.ShippedDate = DateTimeOffset.UtcNow;
@@ -108,6 +113,9 @@ public class ShipShipmentHandler(
         });
 
         await repo.SaveChangesAsync(cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
     }
 
     private static async Task<string> ComputeScanCodeAsync(

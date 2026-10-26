@@ -23,4 +23,5 @@ public record SalesOrderDetailResponseModel(
     List<SalesOrderShipmentModel> Shipments,
     List<SalesOrderReturnModel> Returns,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    uint RowVersion = 0);

@@ -18,7 +18,7 @@ namespace Forge.Tests.Handlers.Shipments;
 ///   - INV-INV1a: bins never go negative
 ///   - Idempotency: double-call is a safe no-op
 ///   - FIFO ordering across bins
-///   - Insufficient stock leaves the line unrelieved and logged (never-negative guard)
+///   - A line short of free stock refuses the whole shipment and draws nothing (never-negative guard)
 /// </summary>
 public class InventoryReliefServiceTests : IDisposable
 {
@@ -222,7 +222,7 @@ public class InventoryReliefServiceTests : IDisposable
     // ── INV-INV1a: never-negative — throws when stock insufficient ───────────
 
     [Fact]
-    public async Task RelieveShipment_InsufficientStock_LeavesTheLineUnrelievedAndLogsIt_NeverNegative()
+    public async Task RelieveShipment_InsufficientStock_RefusesNamingThePart_NeverNegative()
     {
         var (_, so, part) = await SeedSpineAsync("P-INSUFF-001", 20m);
         var soLine = so.Lines.First();
@@ -238,20 +238,20 @@ public class InventoryReliefServiceTests : IDisposable
             .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
             .FirstAsync(s => s.Id == shipment.Id);
 
-        var shortLines = await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
+        var act = () => _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
 
-        shortLines.Should().Equal(loaded.Lines.Single().Id);
+        var refused = (await act.Should().ThrowAsync<InsufficientStockException>()
+            .WithMessage("*P-INSUFF-001 needs 10, 3 free*")).Which;
+        refused.Lines.Should().ContainSingle().Which.Should().Be(
+            new ShortStockLine(loaded.Lines.Single().Id, part.Id, "P-INSUFF-001", 10m, 3m));
         _db.ChangeTracker.Clear();
         (await _db.BinContents.FirstAsync()).Quantity.Should().Be(3m, "bin must not be decremented when stock is short");
         (await _db.ShipmentLines.SingleAsync(l => l.ShipmentId == shipment.Id)).InventoryRelievedAt.Should().BeNull();
         (await _db.BinMovements.AnyAsync()).Should().BeFalse();
-        var log = await _db.ActivityLogs.SingleAsync(a => a.EntityType == "Shipment" && a.EntityId == shipment.Id
-            && a.Action == "inventory_not_relieved");
-        log.Description.Should().Contain("10 needed, 3 free");
     }
 
     [Fact]
-    public async Task RelieveShipment_AShortLine_DoesNotStopTheLinesAfterIt()
+    public async Task RelieveShipment_AShortLine_RefusesTheWholeShipment_AndDrawsNothing()
     {
         var (_, so, shortPart) = await SeedSpineAsync("P-SHORT-001", 10m);
         var stocked = new Part { PartNumber = "P-STOCKED-001", Name = "Stocked" };
@@ -275,15 +275,72 @@ public class InventoryReliefServiceTests : IDisposable
             .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
             .FirstAsync(s => s.Id == shipment.Id);
 
-        var shortLines = await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
+        var act = () => _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
 
+        var refused = (await act.Should().ThrowAsync<InsufficientStockException>()).Which;
+        refused.Lines.Should().ContainSingle().Which.PartNumber.Should().Be("P-SHORT-001");
+        refused.Message.Should().NotContain("P-STOCKED-001");
         _db.ChangeTracker.Clear();
-        var lines = await _db.ShipmentLines.Where(l => l.ShipmentId == shipment.Id).OrderBy(l => l.Id).ToListAsync();
-        shortLines.Should().Equal(lines[0].Id);
-        lines[0].InventoryRelievedAt.Should().BeNull();
-        lines[1].InventoryRelievedAt.Should().NotBeNull();
-        (await _db.BinContents.SingleAsync(b => b.EntityId == stocked.Id)).Quantity.Should().Be(3m);
+        var lines = await _db.ShipmentLines.Where(l => l.ShipmentId == shipment.Id).ToListAsync();
+        lines.Should().OnlyContain(l => l.InventoryRelievedAt == null);
+        (await _db.BinContents.SingleAsync(b => b.EntityId == stocked.Id)).Quantity.Should().Be(5m);
         (await _db.BinContents.SingleAsync(b => b.EntityId == shortPart.Id)).Quantity.Should().Be(3m);
+        (await _db.BinMovements.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RelieveShipment_TwoLinesOfOnePart_ShareItsStock()
+    {
+        var (_, so, part) = await SeedSpineAsync("P-SHARED-001", 10m);
+        _db.BinContents.Add(MakeBin(part.Id, 6m));
+        var shipment = new Shipment
+        {
+            ShipmentNumber = "SH-SHARED",
+            SalesOrderId = so.Id,
+            Status = ShipmentStatus.Pending,
+            Lines =
+            [
+                new ShipmentLine { PartId = part.Id, Quantity = 4m },
+                new ShipmentLine { PartId = part.Id, Quantity = 4m },
+            ],
+        };
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+        var loaded = await _db.Shipments
+            .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
+            .FirstAsync(s => s.Id == shipment.Id);
+
+        var act = () => _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
+
+        (await act.Should().ThrowAsync<InsufficientStockException>()).Which.Lines
+            .Should().ContainSingle().Which.Should().Match<ShortStockLine>(l => l.Needed == 4m && l.Free == 2m);
+        _db.ChangeTracker.Clear();
+        (await _db.BinContents.SingleAsync(b => b.EntityId == part.Id)).Quantity.Should().Be(6m);
+    }
+
+    [Fact]
+    public async Task RelieveShipment_ServicePartLine_IsSkipped()
+    {
+        var (_, so, _) = await SeedSpineAsync("P-SVC-HOST", 1m);
+        var service = new Part { PartNumber = "P-SVC-001", Name = "Setup charge", InventoryClass = InventoryClass.Service };
+        _db.Parts.Add(service);
+        await _db.SaveChangesAsync();
+        var shipment = new Shipment
+        {
+            ShipmentNumber = "SH-SVC",
+            SalesOrderId = so.Id,
+            Status = ShipmentStatus.Pending,
+            Lines = [new ShipmentLine { PartId = service.Id, Quantity = 1m }],
+        };
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+        var loaded = await _db.Shipments
+            .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
+            .FirstAsync(s => s.Id == shipment.Id);
+
+        await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
+
+        (await _db.BinMovements.AnyAsync()).Should().BeFalse();
     }
 
     [Fact]
@@ -301,9 +358,9 @@ public class InventoryReliefServiceTests : IDisposable
             .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
             .FirstAsync(s => s.Id == shipment.Id);
 
-        var shortLines = await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
+        var act = () => _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
 
-        shortLines.Should().ContainSingle();
+        (await act.Should().ThrowAsync<InsufficientStockException>()).Which.Lines.Single().Free.Should().Be(2m);
         _db.ChangeTracker.Clear();
         var binAfter = await _db.BinContents.FindAsync(bin.Id);
         binAfter!.Quantity.Should().Be(10m);
@@ -330,9 +387,8 @@ public class InventoryReliefServiceTests : IDisposable
             .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
             .FirstAsync(s => s.Id == shipment.Id);
 
-        var shortLines = await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
+        await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
 
-        shortLines.Should().BeEmpty();
         _db.ChangeTracker.Clear();
         var binAfter = await _db.BinContents.FindAsync(bin.Id);
         binAfter!.Quantity.Should().Be(5m);
@@ -360,9 +416,8 @@ public class InventoryReliefServiceTests : IDisposable
             .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
             .FirstAsync(s => s.Id == shipment.Id);
 
-        var shortLines = await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
+        await _svc.RelieveShipmentAsync(loaded, userId: 1, CancellationToken.None);
 
-        shortLines.Should().BeEmpty();
         _db.ChangeTracker.Clear();
         (await _db.BinContents.FindAsync(older.Id))!.Quantity.Should().Be(10m);
         var reservedAfter = await _db.BinContents.FindAsync(reserved.Id);

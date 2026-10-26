@@ -1,5 +1,8 @@
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+
+using Npgsql;
 
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -16,11 +19,48 @@ public record AssignPartGtinCommand(int PartId, string? ManualGtin) : IRequest<A
 
 public record AssignPartGtinResponseModel(int PartId, string Gtin, string Source);
 
+public class AssignPartGtinValidator : AbstractValidator<AssignPartGtinCommand>
+{
+    public AssignPartGtinValidator()
+    {
+        RuleFor(x => x.ManualGtin)
+            .Must(g => string.IsNullOrWhiteSpace(g) || Gs1.IsValidGtin(g.Trim()))
+            .WithMessage("That isn't a valid GTIN — check the length (8/12/13/14 digits) and check digit.");
+    }
+}
+
 public class AssignPartGtinHandler(AppDbContext db, ISystemSettingRepository settings, IBarcodeService barcodes)
     : IRequestHandler<AssignPartGtinCommand, AssignPartGtinResponseModel>
 {
+    private const string GtinIndex = "ux_parts_gtin";
+    private const int AllocationAttempts = 3;
+
     public async Task<AssignPartGtinResponseModel> Handle(AssignPartGtinCommand request, CancellationToken cancellationToken)
     {
+        var allocating = string.IsNullOrWhiteSpace(request.ManualGtin);
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                var result = await AssignAsync(request, cancellationToken);
+                await barcodes.RefreshPartBarcodeAsync(result.PartId, cancellationToken);
+                return result;
+            }
+            catch (DbUpdateException ex) when (allocating && attempt < AllocationAttempts
+                && ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: GtinIndex })
+            {
+                db.ChangeTracker.Clear();
+            }
+        }
+    }
+
+    private async Task<AssignPartGtinResponseModel> AssignAsync(AssignPartGtinCommand request, CancellationToken cancellationToken)
+    {
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        await db.AcquireAdvisoryLockAsync("parts.gtin", string.Empty, cancellationToken);
+
         var part = await db.Parts.FirstOrDefaultAsync(p => p.Id == request.PartId, cancellationToken)
             ?? throw new KeyNotFoundException($"Part {request.PartId} not found.");
 
@@ -30,8 +70,6 @@ public class AssignPartGtinHandler(AppDbContext db, ISystemSettingRepository set
         if (!string.IsNullOrWhiteSpace(request.ManualGtin))
         {
             gtin = request.ManualGtin.Trim();
-            if (!Gs1.IsValidGtin(gtin))
-                throw new InvalidOperationException("That isn't a valid GTIN — check the length (8/12/13/14 digits) and check digit.");
             if (await db.Parts.AnyAsync(p => p.Gtin == gtin && p.Id != part.Id, cancellationToken))
                 throw new InvalidOperationException($"GTIN {gtin} is already assigned to another part.");
             source = "Manual";
@@ -65,9 +103,10 @@ public class AssignPartGtinHandler(AppDbContext db, ISystemSettingRepository set
         part.Gtin = gtin;
         db.LogActivityAt("part-gtin-assigned", $"GS1 GTIN {gtin} assigned ({source})", ("Part", part.Id));
         await db.SaveChangesAsync(cancellationToken);
-        await settings.SaveChangesAsync(cancellationToken);
 
-        await barcodes.RefreshPartBarcodeAsync(part.Id, cancellationToken);
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
+
         return new AssignPartGtinResponseModel(part.Id, gtin, source);
     }
 }
