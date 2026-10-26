@@ -70,6 +70,26 @@ public static class CustomerDeposits
     }
 
     /// <summary>
+    /// How much of <paramref name="amount"/>, credited by <paramref name="memo"/> against a deposit invoice, is deposit
+    /// the sales order's later invoices have not used yet. The rest was already taken off a later invoice as earned
+    /// revenue, so crediting it is a return or a bad debt rather than a smaller deposit.
+    /// </summary>
+    public static async Task<decimal> UnusedOnCreditAsync(AppDbContext db, CreditMemo memo, decimal amount, CancellationToken ct)
+    {
+        if (memo.InvoiceId is not int invoiceId)
+            return 0m;
+        var deposit = await db.Invoices.AsNoTracking()
+            .Where(i => i.Id == invoiceId)
+            .Select(i => new { i.SalesOrderId, i.CurrencyId })
+            .FirstOrDefaultAsync(ct);
+        if (deposit?.SalesOrderId is not int salesOrderId)
+            return amount;
+
+        var pool = await PoolAsync(db, salesOrderId, deposit.CurrencyId, 0, ct, excludeCreditMemoId: memo.Id);
+        return Math.Min(amount, pool.Remaining);
+    }
+
+    /// <summary>
     /// Refuses to void a deposit invoice when the sales order's other sent invoices have used more deposit than
     /// would be left without it.
     /// </summary>
@@ -90,10 +110,12 @@ public static class CustomerDeposits
 
     /// <summary>
     /// The deposit billed for a sales order (sent, unvoided milestone invoices in <paramref name="currencyId"/>),
-    /// the functional value it was booked at, and what the order's other sent, unvoided invoices have used.
+    /// the functional value it was booked at, and what the order's other sent, unvoided invoices have used. A credit
+    /// memo named by <paramref name="excludeCreditMemoId"/> is left out of the credits that reduce the deposit.
     /// </summary>
     public static async Task<DepositPool> PoolAsync(
-        AppDbContext db, int salesOrderId, int currencyId, int excludeInvoiceId, CancellationToken ct)
+        AppDbContext db, int salesOrderId, int currencyId, int excludeInvoiceId, CancellationToken ct,
+        int excludeCreditMemoId = 0)
     {
         var depositInvoiceIds = await db.PaymentMilestones.AsNoTracking()
             .Where(m => m.InvoiceId != null && m.PaymentSchedule.SalesOrderId == salesOrderId)
@@ -123,7 +145,7 @@ public static class CustomerDeposits
             ? new Dictionary<int, decimal>()
             : (await db.CreditMemos.AsNoTracking()
                 .Include(m => m.Lines)
-                .Where(m => m.InvoiceId != null && depositIds.Contains(m.InvoiceId.Value)
+                .Where(m => m.InvoiceId != null && depositIds.Contains(m.InvoiceId.Value) && m.Id != excludeCreditMemoId
                     && m.Status != CreditMemoStatus.Draft && m.Status != CreditMemoStatus.Voided)
                 .ToListAsync(ct))
                 .GroupBy(m => m.InvoiceId!.Value)

@@ -369,6 +369,59 @@ public class CustomerDepositPostingTests
         await AssertArTiesAsync(db);
     }
 
+    private static async Task IssueMemoAsync(AppDbContext db, Invoice deposit, string number, decimal amount)
+    {
+        var memo = new CreditMemo
+        {
+            CreditMemoNumber = number, CustomerId = deposit.CustomerId, CurrencyId = deposit.CurrencyId, FxRate = deposit.FxRate,
+            InvoiceId = deposit.Id, ReasonType = CreditMemoReasonType.PriceAdjustment, Reason = "Deposit credited",
+            Status = CreditMemoStatus.Issued, CreditDate = InvoiceDate,
+            Lines = [new CreditMemoLine { LineNumber = 1, LineType = CreditMemoLineType.Item, Description = "Deposit", Quantity = 1m, UnitPrice = amount, TaxCode = InvoiceLine.NonTaxableCode }],
+        };
+        db.CreditMemos.Add(memo);
+        await db.SaveChangesAsync();
+        await MemoPosting(db).PostIssueAsync(memo.Id, issuedByUserId: 7);
+    }
+
+    [Fact]
+    public async Task CreditMemoOnADepositAlreadyUsed_IsAReturn_NotADebitOnCustomerDeposits()
+    {
+        var (db, order) = await SeedAsync();
+        var schedule = await ScheduleAsync(db, order);
+        var deposit = await DraftAsync(db, order, "INV-D1", 500m, milestoneOf: schedule);
+        await SendAsync(db, deposit);
+        await SendAsync(db, await DraftAsync(db, order, "INV-F1", 1000m));
+
+        await IssueMemoAsync(db, deposit, "CM-000001", 200m);
+
+        (await NetAsync(db, CustomerDepositsId)).Should().Be(0m);
+        (await NetAsync(db, SalesReturnsId)).Should().Be(200m);
+        (await NetAsync(db, RevenueId)).Should().Be(-1000m);
+        await AssertArTiesAsync(db);
+    }
+
+    [Fact]
+    public async Task CreditMemoOnAPartlyUsedDeposit_SplitsBetweenCustomerDepositsAndReturns()
+    {
+        var (db, order) = await SeedAsync();
+        var schedule = await ScheduleAsync(db, order);
+        var deposit = await DraftAsync(db, order, "INV-D1", 500m, milestoneOf: schedule);
+        await SendAsync(db, deposit);
+        await SendAsync(db, await DraftAsync(db, order, "INV-F1", 300m));
+        (await NetAsync(db, CustomerDepositsId)).Should().Be(-200m);
+
+        await IssueMemoAsync(db, deposit, "CM-000001", 500m);
+
+        (await NetAsync(db, CustomerDepositsId)).Should().Be(0m);
+        (await NetAsync(db, SalesReturnsId)).Should().Be(300m);
+        await AssertArTiesAsync(db);
+
+        var later = await DraftAsync(db, order, "INV-F2", 400m);
+        await SendAsync(db, later);
+        later.Total.Should().Be(400m);
+        (await NetAsync(db, CustomerDepositsId)).Should().Be(0m);
+    }
+
     [Fact]
     public async Task ForeignDeposit_IsRelievedAtTheRateItWasBooked()
     {

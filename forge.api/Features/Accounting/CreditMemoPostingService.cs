@@ -108,11 +108,14 @@ public sealed class CreditMemoPostingService(
 
         var againstDeposit = memo.InvoiceId is int creditedInvoiceId
             && await CustomerDeposits.IsDepositInvoiceAsync(db, creditedInvoiceId, ct);
-        var lines = againstDeposit
+        var unusedDeposit = againstDeposit ? await CustomerDeposits.UnusedOnCreditAsync(db, memo, total, ct) : 0m;
+        var lines = unusedDeposit >= total
             ? BuildDepositCreditLines(memo, total)
             : memo.IsWriteOff
                 ? await BuildWriteOffLinesAsync(memo, total, ct)
                 : BuildIssueLines(memo, total);
+        if (unusedDeposit > 0m && unusedDeposit < total)
+            lines = MoveToCustomerDeposits(memo, lines, unusedDeposit);
 
         if (!await db.ArOpenItems.IgnoreQueryFilters()
                 .AnyAsync(i => i.SourceType == OpenItemSourceType && i.SourceId == memo.Id, ct))
@@ -184,8 +187,9 @@ public sealed class CreditMemoPostingService(
     }
 
     /// <summary>
-    /// The issue lines of a memo (a write-off included) against a payment-milestone invoice: the invoice billed a
-    /// deposit, not a sale, so crediting it reduces Customer Deposits rather than booking a return or a bad debt.
+    /// The issue lines of a memo (a write-off included) against a payment-milestone invoice whose deposit no later
+    /// invoice has used: the invoice billed a deposit, not a sale, so crediting it reduces Customer Deposits rather
+    /// than booking a return or a bad debt.
     /// </summary>
     internal static List<PostingLine> BuildDepositCreditLines(CreditMemo memo, decimal total)
     {
@@ -202,6 +206,48 @@ public sealed class CreditMemoPostingService(
                 Description = $"AR credit — credit memo {number}",
             },
         ];
+    }
+
+    /// <summary>
+    /// Re-points <paramref name="unusedDeposit"/> of a memo's debits to Customer Deposits: the part of a deposit
+    /// invoice that no later invoice has taken off yet. The rest stays a return or a bad debt, because a later invoice
+    /// already booked it as revenue.
+    /// </summary>
+    internal static List<PostingLine> MoveToCustomerDeposits(CreditMemo memo, List<PostingLine> lines, decimal unusedDeposit)
+    {
+        var remaining = unusedDeposit;
+        var moved = new List<PostingLine>(lines.Count + 1);
+        foreach (var line in lines)
+        {
+            if (remaining <= 0m || line.Debit <= 0m || line.AccountKey == KeySalesTaxPayable)
+            {
+                moved.Add(line);
+                continue;
+            }
+
+            var take = Math.Min(line.Debit, remaining);
+            remaining -= take;
+            if (line.Debit > take)
+                moved.Add(new PostingLine
+                {
+                    AccountKey = line.AccountKey,
+                    GlAccountId = line.GlAccountId,
+                    JobId = line.JobId,
+                    CostCenterId = line.CostCenterId,
+                    PartyType = line.PartyType,
+                    PartyId = line.PartyId,
+                    Debit = line.Debit - take,
+                    Description = line.Description,
+                });
+        }
+
+        moved.Insert(0, new PostingLine
+        {
+            AccountKey = KeyCustomerDeposits,
+            Debit = unusedDeposit - remaining,
+            Description = $"Customer deposit credited — credit memo {memo.CreditMemoNumber}",
+        });
+        return moved;
     }
 
     private async Task<List<PostingLine>> BuildWriteOffLinesAsync(CreditMemo memo, decimal total, CancellationToken ct)
