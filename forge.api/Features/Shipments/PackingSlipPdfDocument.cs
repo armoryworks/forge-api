@@ -11,11 +11,13 @@ public class PackingSlipPdfDocument : IDocument
 {
     private readonly Shipment _shipment;
     private readonly string? _companyName;
+    private readonly ShipmentCustoms? _customs;
 
-    public PackingSlipPdfDocument(Shipment shipment, string? companyName)
+    public PackingSlipPdfDocument(Shipment shipment, string? companyName, ShipmentCustoms? customs = null)
     {
         _shipment = shipment;
         _companyName = companyName;
+        _customs = customs;
     }
 
     public void Compose(IDocumentContainer container)
@@ -117,6 +119,11 @@ public class PackingSlipPdfDocument : IDocument
                     cols.ConstantColumn(40);    // #
                     cols.RelativeColumn(4);     // Description
                     cols.ConstantColumn(80);    // Part #
+                    if (_customs is not null)
+                    {
+                        cols.ConstantColumn(75);
+                        cols.ConstantColumn(45);
+                    }
                     cols.ConstantColumn(60);    // Qty
                 });
 
@@ -127,6 +134,11 @@ public class PackingSlipPdfDocument : IDocument
                     header.Cell().Background(Colors.Teal.Darken2).Padding(5).Text("#").Style(headerStyle);
                     header.Cell().Background(Colors.Teal.Darken2).Padding(5).Text("Description").Style(headerStyle);
                     header.Cell().Background(Colors.Teal.Darken2).Padding(5).Text("Part #").Style(headerStyle);
+                    if (_customs is not null)
+                    {
+                        header.Cell().Background(Colors.Teal.Darken2).Padding(5).Text("HTS Code").Style(headerStyle);
+                        header.Cell().Background(Colors.Teal.Darken2).Padding(5).Text("Origin").Style(headerStyle);
+                    }
                     header.Cell().Background(Colors.Teal.Darken2).Padding(5).AlignRight().Text("Qty").Style(headerStyle);
                 });
 
@@ -147,9 +159,20 @@ public class PackingSlipPdfDocument : IDocument
                             desc.Item().Text($"HAZMAT class {hazmatClass}").Bold().FontColor(Colors.Red.Darken2);
                     });
                     table.Cell().Background(bg).Padding(5).Text(partNumber);
+                    if (_customs is not null)
+                    {
+                        var customs = _customs.For(line);
+                        table.Cell().Background(bg).Padding(5).Text(ShipmentCustoms.Display(customs.HtsCode));
+                        table.Cell().Background(bg).Padding(5).Text(ShipmentCustoms.Display(customs.CountryOfOrigin));
+                    }
                     table.Cell().Background(bg).Padding(5).AlignRight().Text(line.Quantity.ToString());
                 }
             });
+
+            if (_customs is not null)
+                col.Item().PaddingTop(6)
+                    .Text($"International shipment {_customs.ShipFromCountry} to {_customs.ShipToCountry}: HTS code and country of origin per line.")
+                    .FontSize(8).FontColor(Colors.Grey.Darken1);
 
             col.Item().PaddingTop(20).Row(row =>
             {

@@ -89,6 +89,17 @@ public class SalesChannel : BaseAuditableEntity, IActiveAware
     /// <summary>True when orders on this channel carry a consumer identity rather than an account.</summary>
     public bool IsRetail => ChannelType is SalesChannelType.DirectRetail or SalesChannelType.Marketplace;
 
+    /// <summary>
+    /// The prefix as order numbering uses it: trimmed, upper-case and without
+    /// trailing dashes, because numbering adds its own ("WEB-" → "WEB", so
+    /// orders read "WEB-00001", not "WEB--00001"). Null when nothing is left.
+    /// </summary>
+    public static string? NormalizeOrderNumberPrefix(string? prefix)
+    {
+        var normalized = prefix?.Trim().TrimEnd('-').TrimEnd().ToUpperInvariant();
+        return string.IsNullOrEmpty(normalized) ? null : normalized;
+    }
+
     public ICollection<SalesOrder> SalesOrders { get; set; } = [];
     public ICollection<RetailBuyer> RetailBuyers { get; set; } = [];
     public ICollection<ChannelListing> Listings { get; set; } = [];

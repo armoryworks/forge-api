@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -17,6 +18,10 @@ namespace Forge.Api.Features.ECommerce;
 /// batches in Discrepancy forever trains people to ignore the list, which
 /// defeats the point of having it. Accepting requires a written reason, and
 /// re-importing never overwrites an accepted batch.</para>
+///
+/// <para>With built-in accounting on, accepting posts the batch to the GL through
+/// <see cref="IChannelSettlementPostingService"/>; the accepted variance lands on
+/// marketplace fees.</para>
 /// </summary>
 public record AcceptChannelSettlementCommand(int Id, string ResolutionNotes)
     : IRequest<ChannelSettlementResponseModel>;
@@ -31,7 +36,7 @@ public class AcceptChannelSettlementValidator : AbstractValidator<AcceptChannelS
     }
 }
 
-public class AcceptChannelSettlementHandler(AppDbContext db)
+public class AcceptChannelSettlementHandler(AppDbContext db, IChannelSettlementPostingService posting)
     : IRequestHandler<AcceptChannelSettlementCommand, ChannelSettlementResponseModel>
 {
     public async Task<ChannelSettlementResponseModel> Handle(
@@ -57,7 +62,13 @@ public class AcceptChannelSettlementHandler(AppDbContext db)
                 + $"{settlement.ExternalSettlementId}: {settlement.ResolutionNotes}",
             ("SalesChannel", settlement.ChannelId));
 
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
         await db.SaveChangesAsync(ct);
+        await posting.PostSettlementAsync(settlement.Id, db.CurrentUserId ?? 0, ct);
+        await db.SaveChangesAsync(ct);
+
+        await tx.CommitAsync(ct);
 
         return await GetHeaderAsync(db, settlement.Id, ct);
     }

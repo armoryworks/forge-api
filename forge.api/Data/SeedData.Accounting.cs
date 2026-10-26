@@ -37,6 +37,10 @@ public static partial class SeedData
             AccountType.Asset, NormalBalance.Debit, [AccountType.Asset], CashFlowCategory.Investing);
         await EnsureKeyedAccountAsync(db, "GAIN_LOSS_ON_DISPOSAL", "91000", "Gain/Loss on Asset Disposal",
             AccountType.Income, NormalBalance.Credit, [AccountType.Income, AccountType.Expense]);
+        await EnsureKeyedAccountAsync(db, "MARKETPLACE_RESERVE", "12500", "Marketplace Reserves Held",
+            AccountType.Asset, NormalBalance.Debit, [AccountType.Asset]);
+        await EnsureKeyedAccountAsync(db, "MARKETPLACE_FEES", "61500", "Marketplace Fees",
+            AccountType.Expense, NormalBalance.Debit, [AccountType.Expense]);
 
         // AR-002/AP-001 open-item sub-ledger backfill — runs on EVERY boot, before
         // the run-once guard, so installs that posted AR/AP journals before the
@@ -119,6 +123,7 @@ public static partial class SeedData
             ("10150", "Cash in Transit",             AccountType.Asset,     NormalBalance.Debit,  false, null,                         "CASH_IN_TRANSIT"),
             ("11000", "Accounts Receivable",         AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.AR,        "AR_CONTROL"),
             ("12000", "Prepaid Expenses",            AccountType.Asset,     NormalBalance.Debit,  false, null,                         "PREPAID_EXPENSE"),
+            ("12500", "Marketplace Reserves Held",   AccountType.Asset,     NormalBalance.Debit,  false, null,                         "MARKETPLACE_RESERVE"),
             ("13100", "Inventory — Raw Materials",   AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.Inventory, "INVENTORY_RAW"),
             ("13200", "Inventory — Work in Process", AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.Inventory, "INVENTORY_WIP"),
             ("13250", "Inventory — Subassemblies",   AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.Inventory, "INVENTORY_SUBASSEMBLY"),
@@ -178,6 +183,7 @@ public static partial class SeedData
             // determination is deferred (§12); Phase 1 routes all expense
             // categories to this single operating-expense account.
             ("60000", "General & Administrative",    AccountType.Expense,   NormalBalance.Debit,  false, null,                         "OPERATING_EXPENSE"),
+            ("61500", "Marketplace Fees",            AccountType.Expense,   NormalBalance.Debit,  false, null,                         "MARKETPLACE_FEES"),
             ("66000", "Wages",                       AccountType.Expense,   NormalBalance.Debit,  false, null,                         "WAGE_EXPENSE"),
             ("66100", "Employer Payroll Tax",        AccountType.Expense,   NormalBalance.Debit,  false, null,                         "EMPLOYER_PAYROLL_TAX_EXPENSE"),
 

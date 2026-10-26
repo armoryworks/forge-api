@@ -36,7 +36,9 @@ public class GenerateBillOfLadingPdfHandler(
         var companyAddress = (await settings.FindByKeyAsync("company_address", ct))?.Value;
         var companyPhone = (await settings.FindByKeyAsync("company_phone", ct))?.Value;
 
-        var document = new BillOfLadingPdfDocument(shipment, companyName, companyAddress, companyPhone);
+        var customs = await ShipmentCustoms.LoadAsync(db, shipment, ct);
+
+        var document = new BillOfLadingPdfDocument(shipment, companyName, companyAddress, companyPhone, customs);
         return document.GeneratePdf();
     }
 }

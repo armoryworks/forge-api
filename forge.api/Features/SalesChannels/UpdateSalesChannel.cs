@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -69,9 +70,7 @@ public class UpdateSalesChannelHandler(AppDbContext db)
 
         if (model.OrderNumberPrefix is not null)
         {
-            var prefix = string.IsNullOrWhiteSpace(model.OrderNumberPrefix)
-                ? null
-                : model.OrderNumberPrefix.Trim().ToUpperInvariant();
+            var prefix = SalesChannel.NormalizeOrderNumberPrefix(model.OrderNumberPrefix);
             if (prefix != channel.OrderNumberPrefix)
             {
                 channel.OrderNumberPrefix = prefix;

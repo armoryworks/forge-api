@@ -206,6 +206,19 @@ public class GetSalesTaxLiabilityHandlerTests : IDisposable
     }
 
     [Fact]
+    public async Task HalfCentLine_RoundsAwayFromZeroLikeTheInvoiceAndThePosting()
+    {
+        await SeedCustomerAsync();
+        var invoice = await AddInvoiceAsync(await AddOrderAsync("WA"), 0.5m, 2.125m);
+
+        var report = await _handler.Handle(new GetSalesTaxLiabilityQuery(), default);
+
+        report.TotalTaxableBase.Should().Be(2.13m);
+        report.TotalLiability.Should().Be(1.07m);
+        report.TotalLiability.Should().Be(InvoiceArPostingService.ComputePostedAmounts(invoice).TaxAmount);
+    }
+
+    [Fact]
     public async Task DateFilter_UsesTheInvoiceDate()
     {
         await SeedCustomerAsync();

@@ -147,6 +147,75 @@ public class GetTaxRateForCustomerHandlerTests
         result.Should().BeNull();
     }
 
+    private static async Task<Customer> AddCustomerAtAsync(
+        AppDbContext db, string city, string state, string country, Action<Customer>? configure = null)
+    {
+        db.CompanyLocations.Add(new CompanyLocation
+        {
+            Name = "Plant", Line1 = "1 Main", City = "Provo", State = "UT", PostalCode = "84601", Country = "US", IsDefault = true,
+        });
+        var customer = new Customer { Name = $"{city} buyer" };
+        configure?.Invoke(customer);
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+        db.CustomerAddresses.Add(new CustomerAddress
+        {
+            CustomerId = customer.Id, Label = "HQ", Line1 = "1 Main", City = city, State = state, PostalCode = "00000",
+            Country = country, IsDefault = true,
+        });
+        await db.SaveChangesAsync();
+        return customer;
+    }
+
+    [Fact]
+    public async Task Foreign_customer_with_no_tax_code_and_no_matching_rate_gets_no_sales_tax()
+    {
+        using var db = TestDbContextFactory.Create();
+        await SeedUtahAsync(db);
+        var customer = await AddCustomerAtAsync(db, "Calgary", "AB", "CA");
+
+        var result = await Handler(db).Handle(new GetTaxRateForCustomerQuery(customer.Id), CancellationToken.None);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Domestic_customer_in_a_state_with_no_rate_gets_the_default_rate()
+    {
+        using var db = TestDbContextFactory.Create();
+        await SeedUtahAsync(db);
+        var customer = await AddCustomerAtAsync(db, "Boise", "ID", "USA");
+
+        var result = await Handler(db).Handle(new GetTaxRateForCustomerQuery(customer.Id), CancellationToken.None);
+
+        result!.Code.Should().Be("UT-UTCO");
+    }
+
+    [Fact]
+    public async Task Domestic_customer_in_a_rated_state_gets_that_state_rate()
+    {
+        using var db = TestDbContextFactory.Create();
+        await SeedUtahAsync(db);
+        var customer = await AddCustomerAtAsync(db, "Provo", "UT", "US");
+
+        var result = await Handler(db).Handle(new GetTaxRateForCustomerQuery(customer.Id), CancellationToken.None);
+
+        result!.Code.Should().Be("UT-UTCO");
+        result.StateCode.Should().Be("UT");
+    }
+
+    [Fact]
+    public async Task Foreign_customer_with_an_explicit_tax_code_keeps_it()
+    {
+        using var db = TestDbContextFactory.Create();
+        var (state, _, _) = await SeedUtahAsync(db);
+        var customer = await AddCustomerAtAsync(db, "Calgary", "AB", "Canada", c => c.DefaultTaxCodeId = state.Id);
+
+        var result = await Handler(db).Handle(new GetTaxRateForCustomerQuery(customer.Id), CancellationToken.None);
+
+        result!.Code.Should().Be("UT-STATE");
+    }
+
     private static TaxOverrideGuard Guard(AppDbContext db)
     {
         var mediator = new Mock<IMediator>();

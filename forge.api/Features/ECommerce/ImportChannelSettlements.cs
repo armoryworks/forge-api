@@ -3,6 +3,7 @@ using System.Text.Json;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -24,7 +25,10 @@ namespace Forge.Api.Features.ECommerce;
 ///
 /// <para>⚡ ACCOUNTING BOUNDARY — the settlement record itself is operational and
 /// app-resident in every mode, because the connector is what writes it. What
-/// changes by mode is where the resulting journal lives.</para>
+/// changes by mode is where the resulting journal lives: with built-in accounting
+/// on, a batch that reconciles is posted through
+/// <see cref="IChannelSettlementPostingService"/>, and a batch already posted is
+/// never restated by a later import.</para>
 /// </summary>
 public record ImportChannelSettlementsCommand(int ChannelId, DateTimeOffset? Since = null)
     : IRequest<ImportChannelSettlementsResult>;
@@ -41,6 +45,7 @@ public class ImportChannelSettlementsHandler(
     IECommerceServiceFactory connectorFactory,
     IECommerceCredentialProtector protector,
     IClock clock,
+    IChannelSettlementPostingService posting,
     ILogger<ImportChannelSettlementsHandler> logger)
     : IRequestHandler<ImportChannelSettlementsCommand, ImportChannelSettlementsResult>
 {
@@ -104,6 +109,7 @@ public class ImportChannelSettlementsHandler(
             .Include(s => s.Lines)
             .Where(s => s.ChannelId == channel.Id && existingIds.Contains(s.ExternalSettlementId))
             .ToDictionaryAsync(s => s.ExternalSettlementId, ct);
+        var posted = await posting.PostedSettlementIdsAsync(existing.Values.Select(s => s.Id).ToList(), ct);
 
         var imported = 0;
         var updated = 0;
@@ -137,6 +143,14 @@ public class ImportChannelSettlementsHandler(
                     continue;
                 }
 
+                if (posted.Contains(settlement.Id))
+                {
+                    logger.LogInformation(
+                        "[CHANNEL-SETTLEMENT] {External} is already posted to the ledger — leaving it alone",
+                        settlement.ExternalSettlementId);
+                    continue;
+                }
+
                 // Replace the lines wholesale. A marketplace can restate a batch
                 // before finalising it, and merging would double-count.
                 db.ChannelSettlementLines.RemoveRange(settlement.Lines);
@@ -150,6 +164,7 @@ public class ImportChannelSettlementsHandler(
             settlement.ReportedNetAmount = polledSettlement.NetAmount;
             settlement.CurrencyCode = polledSettlement.CurrencyCode;
             settlement.RawPayloadJson = JsonSerializer.Serialize(polledSettlement);
+            var unmatchedInBatch = 0;
 
             foreach (var line in polledSettlement.Lines)
             {
@@ -166,6 +181,7 @@ public class ImportChannelSettlementsHandler(
                     // needs to see — dropping it would make the batch appear to
                     // tie out while hiding real money.
                     unmatched++;
+                    unmatchedInBatch++;
                 }
 
                 settlement.Lines.Add(new ChannelSettlementLine
@@ -182,7 +198,7 @@ public class ImportChannelSettlementsHandler(
             var computed = settlement.Lines.Sum(l => l.Amount);
             var variance = settlement.ReportedNetAmount - computed;
 
-            settlement.Status = Math.Abs(variance) <= ReconciliationTolerance && unmatched == 0
+            settlement.Status = Math.Abs(variance) <= ReconciliationTolerance && unmatchedInBatch == 0
                 ? ChannelSettlementStatus.Reconciled
                 : ChannelSettlementStatus.Discrepancy;
 
@@ -192,11 +208,20 @@ public class ImportChannelSettlementsHandler(
                     "[CHANNEL-SETTLEMENT] {External} on {Channel}: reported {Reported}, lines sum to {Computed} " +
                     "(variance {Variance}), {Unmatched} unmatched order line(s)",
                     settlement.ExternalSettlementId, channel.Code,
-                    settlement.ReportedNetAmount, computed, variance, unmatched);
+                    settlement.ReportedNetAmount, computed, variance, unmatchedInBatch);
             }
         }
 
         await db.SaveChangesAsync(ct);
+
+        foreach (var settlement in db.ChannelSettlements.Local
+                     .Where(s => s.ChannelId == channel.Id
+                         && s.Status == ChannelSettlementStatus.Reconciled
+                         && !posted.Contains(s.Id))
+                     .ToList())
+        {
+            await posting.PostSettlementAsync(settlement.Id, db.CurrentUserId ?? 0, ct);
+        }
 
         var reconciled = await db.ChannelSettlements
             .CountAsync(s => s.ChannelId == channel.Id && s.Status == ChannelSettlementStatus.Reconciled, ct);

@@ -10,7 +10,8 @@ namespace Forge.Api.Features.Shipments;
 /// <summary>
 /// The combined "wrapped" ship document: a landscape page with the carrier's shipping label on the
 /// left, and the company details + Forge master QR (scan-to-ship) + a color-coded, symbolic carrier
-/// badge on the right so the carrier is unmistakable at a glance.
+/// badge on the right so the carrier is unmistakable at a glance. A cross-border shipment also lists
+/// each line's HTS code and country of origin.
 /// </summary>
 public class ShipDocumentPdfDocument(
     Shipment shipment,
@@ -18,7 +19,8 @@ public class ShipDocumentPdfDocument(
     string companyName,
     string? companyAddress,
     string? companyPhone,
-    CarrierBadgeStyle carrier) : IDocument
+    CarrierBadgeStyle carrier,
+    ShipmentCustoms? customs = null) : IDocument
 {
     public void Compose(IDocumentContainer container)
     {
@@ -61,6 +63,21 @@ public class ShipDocumentPdfDocument(
                     right.Item().Text($"Ship to: {shipment.SalesOrder.Customer.Name}").FontSize(11);
                     if (!string.IsNullOrWhiteSpace(shipment.TrackingNumber))
                         right.Item().Text($"Tracking: {shipment.TrackingNumber}").FontSize(11).FontColor(Colors.Grey.Darken2);
+
+                    if (customs is not null)
+                    {
+                        right.Item().PaddingTop(10)
+                            .Text($"Customs: {customs.ShipFromCountry} to {customs.ShipToCountry}").Bold().FontSize(10);
+                        foreach (var line in shipment.Lines.OrderBy(l => l.Id))
+                        {
+                            var info = customs.For(line);
+                            var label = line.Part?.PartNumber ?? line.SalesOrderLine?.Part?.PartNumber
+                                ?? line.SalesOrderLine?.Description ?? line.Description ?? "—";
+                            right.Item().Text(
+                                    $"{label} × {line.Quantity} · HTS {ShipmentCustoms.Display(info.HtsCode)} · Origin {ShipmentCustoms.Display(info.CountryOfOrigin)}")
+                                .FontSize(9);
+                        }
+                    }
 
                     // Forge master QR — the coverage-bound scan-to-ship code.
                     var master = shipment.ScanCode

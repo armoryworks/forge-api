@@ -499,6 +499,8 @@ try
     // Posts Dr Cash / Cr AR (applied) / Cr Customer Deposits (unapplied).
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IPaymentCashPostingService,
                                Forge.Api.Features.Accounting.PaymentCashPostingService>();
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IChannelSettlementPostingService,
+                               Forge.Api.Features.Accounting.ChannelSettlementPostingService>();
     // Phase-1 STAGE C — Expense / AP posting wired INLINE into the approved
     // transition of the UpdateExpenseStatus handler. Self-gates on
     // CAP-ACCT-FULLGL: a no-op while the capability is OFF (the default), so the

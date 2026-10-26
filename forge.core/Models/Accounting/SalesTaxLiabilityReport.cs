@@ -3,9 +3,10 @@ namespace Forge.Core.Models.Accounting;
 /// <summary>
 /// Sales-tax liability report — what sales tax the business owes a taxing
 /// authority, aggregated by jurisdiction (ship-to US state) over an optional
-/// date range. Read-only aggregate over finalized
-/// <see cref="Forge.Core.Entities.Invoice"/>s by invoice date, in functional
-/// currency, so it ties to the Sales Tax Payable account the invoices post to.
+/// date range, in functional currency. With the built-in GL on it reads the tax
+/// each invoice's AR entry posted to Sales Tax Payable (by entry date, void
+/// reversals included), so it ties to that account; otherwise it is built from
+/// finalized <see cref="Forge.Core.Entities.Invoice"/>s by invoice date.
 ///
 /// <para><b>Seller liability, not collected tax.</b> Under marketplace-facilitator
 /// law the platform collects and remits tax on the orders it brokers; that money

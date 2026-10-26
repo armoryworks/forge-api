@@ -110,7 +110,7 @@ public class CreateRetailOrderHandler(
         var orderDate = model.OrderDate ?? clock.UtcNow;
         var buyer = await UpsertBuyerAsync(channel, model, orderDate, ct);
 
-        var prefix = channel.OrderNumberPrefix ?? "SO";
+        var prefix = SalesChannel.NormalizeOrderNumberPrefix(channel.OrderNumberPrefix) ?? "SO";
         var orderNumber = await orderRepo.GenerateNextOrderNumberAsync(prefix, ct);
 
         var order = new SalesOrder
@@ -228,6 +228,11 @@ public class CreateRetailOrderHandler(
     /// us; refusing to import it because a listing was never mapped would leave
     /// a real obligation invisible. The line lands with a null PartId and its
     /// description, and shows up in unmapped-listing triage.</para>
+    ///
+    /// <para>A SKU with no listing on the channel falls back to a part whose
+    /// part number matches it, ignoring case — a phone or counter order keyed by
+    /// part number links to the part without a listing having been mapped first.
+    /// An ambiguous match (two parts differing only by case) links nothing.</para>
     /// </summary>
     private async Task AddLinesAsync(
         SalesOrder order, int channelId, CreateRetailOrderRequestModel model, CancellationToken ct)
@@ -251,6 +256,22 @@ public class CreateRetailOrderHandler(
                 .Select(cl => new { Sku = cl.ExternalSku!, PartId = cl.PartId!.Value })
                 .ToDictionaryAsync(x => x.Sku, x => x.PartId, ct);
 
+        var unlisted = skus
+            .Where(s => !skuToPart.ContainsKey(s))
+            .Select(s => s.Trim().ToUpperInvariant())
+            .Distinct()
+            .ToList();
+        var partByNumber = unlisted.Count == 0
+            ? []
+            : (await db.Parts
+                .AsNoTracking()
+                .Where(p => unlisted.Contains(p.PartNumber.ToUpper()))
+                .Select(p => new { p.Id, p.PartNumber })
+                .ToListAsync(ct))
+                .GroupBy(p => p.PartNumber.Trim().ToUpperInvariant())
+                .Where(g => g.Count() == 1)
+                .ToDictionary(g => g.Key, g => g.Single().Id);
+
         var lineNumber = 1;
         foreach (var line in model.Lines)
         {
@@ -260,6 +281,12 @@ public class CreateRetailOrderHandler(
                 && skuToPart.TryGetValue(line.ExternalSku, out var mapped))
             {
                 partId = mapped;
+            }
+            else if (partId is null
+                && !string.IsNullOrWhiteSpace(line.ExternalSku)
+                && partByNumber.TryGetValue(line.ExternalSku.Trim().ToUpperInvariant(), out var byNumber))
+            {
+                partId = byNumber;
             }
 
             order.Lines.Add(new SalesOrderLine
