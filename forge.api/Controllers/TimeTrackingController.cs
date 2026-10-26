@@ -164,7 +164,7 @@ public class TimeTrackingController(IMediator mediator) : ControllerBase
     [HttpGet("overtime/{userId:int}")]
     [Authorize(Roles = "Admin,Manager,OfficeManager,Controller")]
     public async Task<ActionResult<OvertimeBreakdownResponseModel>> GetOvertimeBreakdown(
-        int userId, [FromQuery] DateOnly weekOf, CancellationToken ct)
+        int userId, [FromQuery] DateOnly? weekOf, CancellationToken ct)
         => Ok(await mediator.Send(new GetOvertimeBreakdownQuery(userId, weekOf), ct));
 
     [HttpGet("overtime-rules")]
