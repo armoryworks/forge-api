@@ -18,7 +18,7 @@ public class VendorRepository(AppDbContext db) : IVendorRepository
         return await db.Vendors
             .OrderByDescending(v => v.IsActive)
             .ThenBy(v => v.CompanyName)
-            .Select(v => new VendorResponseModel(v.Id, v.CompanyName, v.IsActive, v.CurrencyId))
+            .Select(v => new VendorResponseModel(v.Id, v.CompanyName, v.IsActive, v.CurrencyId, v.PaymentTermsId))
             .ToListAsync(ct);
     }
 
