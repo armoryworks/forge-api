@@ -55,7 +55,7 @@ public class CreateExpenseHandler(
             ReceiptFileId = data.ReceiptFileId,
             ExpenseDate = data.ExpenseDate,
             // Vendor-settled: a named vendor routes the expense to Accounts Payable — approval
-            // promotes it into a vendor bill paid through the AP pipeline. Absent → cash.
+            // promotes it into a vendor bill paid through the AP pipeline. Absent → owed to the employee.
             VendorId = data.VendorId,
             SettlementTarget = data.VendorId is not null ? ExpenseSettlementTarget.AccountsPayable : null,
         };

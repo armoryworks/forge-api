@@ -26,6 +26,7 @@ public class ExpensesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Manager,Engineer,OfficeManager")]
     public async Task<ActionResult<ExpenseResponseModel>> CreateExpense([FromBody] CreateExpenseRequestModel request)
     {
         var result = await mediator.Send(new CreateExpenseCommand(request));
@@ -33,6 +34,7 @@ public class ExpensesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin,Manager,Engineer,OfficeManager")]
     public async Task<ActionResult<ExpenseResponseModel>> UpdateExpense(int id, [FromBody] UpdateExpenseRequestModel request)
     {
         var result = await mediator.Send(new UpdateExpenseCommand(id, request));
@@ -71,6 +73,7 @@ public class ExpensesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("receipts")]
+    [Authorize(Roles = "Admin,Manager,Engineer,OfficeManager")]
     [RequestSizeLimit(52_428_800)]
     public async Task<ActionResult<FileAttachmentResponseModel>> UploadReceipt(IFormFile file)
     {
@@ -104,6 +107,7 @@ public class ExpensesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("recurring")]
+    [Authorize(Roles = "Admin,Manager,Engineer,OfficeManager")]
     public async Task<ActionResult<RecurringExpenseResponseModel>> CreateRecurringExpense(
         [FromBody] CreateRecurringExpenseRequestModel request)
     {
@@ -112,6 +116,7 @@ public class ExpensesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("recurring/{id:int}")]
+    [Authorize(Roles = "Admin,Manager,Engineer,OfficeManager")]
     public async Task<ActionResult<RecurringExpenseResponseModel>> UpdateRecurringExpense(
         int id, [FromBody] UpdateRecurringExpenseRequestModel request)
     {
@@ -120,6 +125,7 @@ public class ExpensesController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("recurring/{id:int}")]
+    [Authorize(Roles = "Admin,Manager,Engineer,OfficeManager")]
     public async Task<IActionResult> DeleteRecurringExpense(int id)
     {
         await mediator.Send(new DeleteRecurringExpenseCommand(id));

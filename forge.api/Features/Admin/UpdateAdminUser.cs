@@ -19,7 +19,8 @@ public record UpdateAdminUserCommand(
     string? AvatarColor,
     bool? IsActive,
     List<string>? Roles,
-    string? Email = null) : IRequest<AdminUserResponseModel>;
+    string? Email = null,
+    DateTimeOffset? HireDate = null) : IRequest<AdminUserResponseModel>;
 
 public class UpdateAdminUserValidator : AbstractValidator<UpdateAdminUserCommand>
 {
@@ -88,6 +89,12 @@ public class UpdateAdminUserHandler(
         {
             var errors = string.Join("; ", result.Errors.Select(e => e.Description));
             throw new InvalidOperationException($"Failed to update user: {errors}");
+        }
+
+        if (request.HireDate is not null)
+        {
+            await EmployeeHireDate.SetAsync(db, user.Id, request.HireDate.Value, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
         }
 
         UserDeactivationResult? deactivated = null;

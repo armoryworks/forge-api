@@ -137,6 +137,7 @@ public static partial class SeedData
             // ── Liabilities (2xxxx) ─────────────────────────────────────────
             ("20000", "Accounts Payable",            AccountType.Liability, NormalBalance.Credit, true,  ControlAccountType.AP,        "AP_CONTROL"),
             ("21000", "Goods Received Not Invoiced", AccountType.Liability, NormalBalance.Credit, false, null,                         "GRNI"),
+            ("21500", "Employee Reimbursements Payable", AccountType.Liability, NormalBalance.Credit, false, null,                     "EMPLOYEE_REIMBURSEMENT_PAYABLE"),
             ("22000", "Freight Clearing",            AccountType.Liability, NormalBalance.Credit, false, null,                         "FREIGHT_CLEARING"),
             ("23000", "Sales Tax Payable",           AccountType.Liability, NormalBalance.Credit, false, null,                         "SALES_TAX_PAYABLE"),
             ("24000", "Deferred Revenue",            AccountType.Liability, NormalBalance.Credit, false, null,                         "DEFERRED_REVENUE"),
@@ -596,6 +597,7 @@ public static partial class SeedData
     internal static readonly (string Key, string Number, string Name, AccountType Type, NormalBalance Normal)[] PatchedDeterminationAccounts =
     [
         ("FX_REVALUATION", "19900", "FX Revaluation Adjustment", AccountType.Asset, NormalBalance.Debit),
+        ("EMPLOYEE_REIMBURSEMENT_PAYABLE", "21500", "Employee Reimbursements Payable", AccountType.Liability, NormalBalance.Credit),
         ("EMPLOYEE_TAX_PAYABLE", "26200", "Employee Taxes Withheld", AccountType.Liability, NormalBalance.Credit),
         ("EMPLOYER_TAX_PAYABLE", "26300", "Employer Payroll Taxes Payable", AccountType.Liability, NormalBalance.Credit),
         ("NET_PAY_PAYABLE", "26400", "Net Pay Payable", AccountType.Liability, NormalBalance.Credit),
@@ -624,9 +626,27 @@ public static partial class SeedData
                 if (mapped.Any(m => m.BookId == book.Id && m.Key == d.Key))
                     continue;
 
-                var taken = await db.GlAccounts.IgnoreQueryFilters()
-                    .AnyAsync(a => a.BookId == book.Id && a.AccountNumber == d.Number);
-                if (taken)
+                var existing = await db.GlAccounts.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(a => a.BookId == book.Id && a.AccountNumber == d.Number);
+                if (existing is not null && existing.IsActive && existing.IsPostable
+                    && !existing.IsControlAccount && existing.AccountType == d.Type
+                    && string.Equals(existing.Name.Trim(), d.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    db.AccountDeterminationRules.Add(new AccountDeterminationRule
+                    {
+                        BookId = book.Id,
+                        Key = d.Key,
+                        GlAccountId = existing.Id,
+                    });
+                    await db.SaveChangesAsync();
+
+                    Log.Information(
+                        "Mapped {Key} to the existing GL account {Number} '{Name}' in Book '{Book}'.",
+                        d.Key, d.Number, existing.Name, book.Code);
+                    continue;
+                }
+
+                if (existing is not null)
                 {
                     Log.Warning(
                         "GL account {Number} already exists in Book '{Book}', so the {Key} determination rule was not created. Map {Key} to an account before using the features that post to it.",

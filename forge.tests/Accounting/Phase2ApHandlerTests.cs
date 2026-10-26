@@ -696,4 +696,50 @@ public class Phase2ApHandlerTests
         (await db.Set<PurchaseOrderLine>().SingleAsync(l => l.Id == poLineId))
             .UnbilledReceivedQuantity.Should().Be(2m);
     }
+
+    [Fact]
+    public async Task Approve_by_the_user_who_entered_the_bill_is_refused_for_segregation_of_duties()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: true);
+        db.CurrentUserId = 7;
+        var bill = await h.CreateBill.Handle(BillCmd(vendorId), CancellationToken.None);
+
+        var act = async () => await h.Approve.Handle(new ApproveVendorBillCommand(bill.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("Segregation of duties*");
+        (await db.VendorBills.SingleAsync(b => b.Id == bill.Id)).Status.Should().Be(VendorBillStatus.Draft);
+        (await db.JournalEntries.IgnoreQueryFilters().AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Approve_by_a_second_user_succeeds_and_records_the_creator()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: true);
+        db.CurrentUserId = 9;
+        var bill = await h.CreateBill.Handle(BillCmd(vendorId), CancellationToken.None);
+
+        await h.Approve.Handle(new ApproveVendorBillCommand(bill.Id), CancellationToken.None);
+
+        var saved = await db.VendorBills.SingleAsync(b => b.Id == bill.Id);
+        saved.CreatedByUserId.Should().Be(9);
+        saved.Status.Should().Be(VendorBillStatus.Approved);
+    }
+
+    [Fact]
+    public async Task A_bill_entered_before_creators_were_recorded_falls_back_to_its_created_activity()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: false);
+        db.CurrentUserId = 7;
+        var bill = await h.CreateBill.Handle(BillCmd(vendorId), CancellationToken.None);
+        var stored = await db.VendorBills.SingleAsync(b => b.Id == bill.Id);
+        stored.CreatedByUserId = null;
+        await db.SaveChangesAsync();
+
+        var act = async () => await h.Approve.Handle(new ApproveVendorBillCommand(bill.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("Segregation of duties*");
+    }
 }

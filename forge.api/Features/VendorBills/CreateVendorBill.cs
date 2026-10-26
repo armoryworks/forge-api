@@ -120,6 +120,7 @@ public class CreateVendorBillHandler(
             DueDate = request.DueDate,
             TaxAmount = request.TaxAmount,
             Notes = request.Notes,
+            CreatedByUserId = db.CurrentUserId,
         };
 
         var lineNumber = 1;

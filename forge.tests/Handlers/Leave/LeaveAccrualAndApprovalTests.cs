@@ -95,20 +95,69 @@ public class LeaveAccrualAndApprovalTests
     }
 
     [Fact]
-    public async Task Accrual_skips_users_without_an_employee_profile_or_start_date_and_honours_the_waiting_period()
+    public async Task Accrual_skips_non_employees_and_honours_the_waiting_period()
     {
         await SetUpAsync(waitingDays: 90);
-        var kiosk = await _h.AddUserAsync();
-        var noStart = await AddEmployeeAsync(null);
+        var contractor = await _h.AddUserAsync();
+        contractor.IsNonEmployee = true;
+        contractor.CreatedAt = new DateTimeOffset(2016, 1, 4, 0, 0, 0, TimeSpan.Zero);
+        await _h.Db.SaveChangesAsync();
         var newHire = await AddEmployeeAsync(new DateTimeOffset(2026, 10, 5, 0, 0, 0, TimeSpan.Zero));
         var veteran = await AddEmployeeAsync(new DateTimeOffset(2016, 6, 13, 0, 0, 0, TimeSpan.Zero));
 
         await LockAsync(2026, 10, 18);
 
-        (await BalanceAsync(kiosk.Id)).Should().BeNull();
-        (await BalanceAsync(noStart)).Should().BeNull();
+        (await BalanceAsync(contractor.Id)).Should().BeNull();
         (await BalanceAsync(newHire)).Should().BeNull("a 90-day waiting period has not passed");
         (await BalanceAsync(veteran))!.Balance.Should().Be(3.08m);
+    }
+
+    [Fact]
+    public async Task Employees_with_no_hire_date_accrue_from_account_creation_and_the_fallback_is_logged()
+    {
+        await SetUpAsync(waitingDays: 90);
+        var noProfile = await _h.AddUserAsync();
+        noProfile.CreatedAt = new DateTimeOffset(2025, 3, 3, 0, 0, 0, TimeSpan.Zero);
+        var noStart = await AddEmployeeAsync(null);
+        var noStartUser = await _h.Db.Users.SingleAsync(u => u.Id == noStart);
+        noStartUser.CreatedAt = new DateTimeOffset(2025, 3, 3, 0, 0, 0, TimeSpan.Zero);
+        var justCreated = await _h.AddUserAsync();
+        justCreated.CreatedAt = new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero);
+        await _h.Db.SaveChangesAsync();
+
+        await LockAsync(2026, 10, 18);
+
+        (await BalanceAsync(noProfile.Id))!.Balance.Should().Be(3.08m);
+        (await BalanceAsync(noStart))!.Balance.Should().Be(3.08m);
+        (await BalanceAsync(justCreated.Id)).Should().BeNull("the waiting period runs from account creation too");
+        var logged = await _h.Db.ActivityLogs.AsNoTracking()
+            .Where(a => a.Action == "leave-accrual-no-hire-date" && a.EntityType == "ApplicationUser")
+            .Select(a => a.EntityId)
+            .ToListAsync();
+        logged.Should().BeEquivalentTo([noProfile.Id, noStart]);
+        (await _h.Db.ActivityLogs.SingleAsync(a => a.EntityId == noStart && a.Action == "leave-accrual-no-hire-date"))
+            .Description.Should().Be("No hire date, accruing PTO from account creation (2025-03-03)");
+
+        _h.Now = MondayMorningMountain.AddDays(7);
+        await LockAsync(2026, 10, 25);
+
+        (await BalanceAsync(noStart))!.Balance.Should().Be(6.16m);
+        (await _h.Db.ActivityLogs.CountAsync(a => a.Action == "leave-accrual-no-hire-date")).Should().Be(2,
+            "the fallback is logged on the first accrual only");
+    }
+
+    [Fact]
+    public async Task A_hire_date_wins_over_account_creation()
+    {
+        await SetUpAsync(waitingDays: 90);
+        var recent = await AddEmployeeAsync(new DateTimeOffset(2026, 10, 5, 0, 0, 0, TimeSpan.Zero));
+        var user = await _h.Db.Users.SingleAsync(u => u.Id == recent);
+        user.CreatedAt = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        await _h.Db.SaveChangesAsync();
+
+        await LockAsync(2026, 10, 18);
+
+        (await BalanceAsync(recent)).Should().BeNull();
     }
 
     [Fact]

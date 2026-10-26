@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.TimeTracking;
 using Forge.Core.Entities;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Leave;
 
@@ -16,13 +17,21 @@ public static class LeaveAccrual
         if (policies.Count == 0)
             return 0;
 
-        var staff = (await db.EmployeeProfiles.AsNoTracking()
+        var users = await db.Users.AsNoTracking()
+            .Where(u => u.IsActive && !u.IsNonEmployee)
+            .WithoutServiceAccounts(db)
+            .Select(u => new { u.Id, u.CreatedAt })
+            .ToListAsync(ct);
+        var hireDates = (await db.EmployeeProfiles.AsNoTracking()
                 .Where(p => p.UserId != null && p.StartDate != null)
-                .Join(db.Users.Where(u => u.IsActive), p => p.UserId, u => (int?)u.Id,
-                    (p, u) => new { UserId = u.Id, StartDate = p.StartDate!.Value })
+                .Select(p => new { UserId = p.UserId!.Value, StartDate = p.StartDate!.Value })
                 .ToListAsync(ct))
-            .GroupBy(s => s.UserId)
-            .Select(g => (UserId: g.Key, Hired: DateOnly.FromDateTime(g.Min(s => s.StartDate).DateTime)))
+            .GroupBy(p => p.UserId)
+            .ToDictionary(g => g.Key, g => DateOnly.FromDateTime(g.Min(p => p.StartDate).DateTime));
+        var staff = users
+            .Select(u => hireDates.TryGetValue(u.Id, out var hiredOn)
+                ? (UserId: u.Id, Hired: hiredOn, HasHireDate: true)
+                : (UserId: u.Id, Hired: DateOnly.FromDateTime(u.CreatedAt.UtcDateTime), HasHireDate: false))
             .ToList();
         if (staff.Count == 0)
             return 0;
@@ -40,7 +49,7 @@ public static class LeaveAccrual
         foreach (var policy in policies)
         {
             var policyStart = DateOnly.FromDateTime(policy.CreatedAt.UtcDateTime);
-            foreach (var (userId, hired) in staff)
+            foreach (var (userId, hired, hasHireDate) in staff)
             {
                 var anchor = policy.AccrueFromHireDate || hired > policyStart ? hired : policyStart;
                 var eligibleFrom = anchor.AddDays(Math.Max(policy.WaitingPeriodDays ?? 0, 0));
@@ -69,6 +78,12 @@ public static class LeaveAccrual
                     balance.Balance += add;
                     balance.AccruedThisYear += add;
                 }
+
+                if (!hasHireDate && accruedThrough is null)
+                    db.LogActivityAt(
+                        "leave-accrual-no-hire-date",
+                        $"No hire date, accruing {policy.Name} from account creation ({hired:yyyy-MM-dd})",
+                        ("ApplicationUser", userId));
 
                 balance.LastAccrualDate = new DateTimeOffset(lastClosed.End.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
                 credited++;

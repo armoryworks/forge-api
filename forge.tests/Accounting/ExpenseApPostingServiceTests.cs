@@ -1,8 +1,10 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.Expenses;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums;
@@ -21,8 +23,9 @@ namespace Forge.Tests.Accounting;
 /// approved"). Proves:
 ///   • DARK by default — a no-op while CAP-ACCT-FULLGL is OFF (zero behavior change);
 ///   • vendor-settled expense → Dr OPERATING_EXPENSE / Cr AP_CONTROL (party = vendor);
-///   • cash-settled expense (no vendor / Cash target) → Dr OPERATING_EXPENSE / Cr CASH;
-///   • a null SettlementTarget infers AP when a VendorId is present, else Cash;
+///   • company-paid expense (Cash target) → Dr OPERATING_EXPENSE / Cr CASH;
+///   • a null SettlementTarget infers AP when a VendorId is present, else Employee Reimbursements Payable;
+///   • reimbursing an out-of-pocket expense clears Employee Reimbursements Payable against CASH, once;
 ///   • a vendor-settled expense with no vendor is a hard PostingException (control-line party, §5.2);
 ///   • idempotent — a re-approve returns the existing entry (no duplicate).
 /// </summary>
@@ -35,6 +38,7 @@ public class ExpenseApPostingServiceTests
     private const int CashId = 100;
     private const int ApControlId = 101;
     private const int OperatingExpenseId = 102;
+    private const int EmployeeReimbursementId = 103;
 
     private const int OpenPeriodId = 1000;
 
@@ -93,12 +97,14 @@ public class ExpenseApPostingServiceTests
         db.Set<GlAccount>().AddRange(
             new GlAccount { Id = CashId, BookId = BookId, AccountNumber = "10100", Name = "Cash", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
             new GlAccount { Id = ApControlId, BookId = BookId, AccountNumber = "20000", Name = "Accounts Payable", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsControlAccount = true, ControlType = ControlAccountType.AP, IsPostable = true, IsActive = true },
-            new GlAccount { Id = OperatingExpenseId, BookId = BookId, AccountNumber = "60000", Name = "General & Administrative", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true });
+            new GlAccount { Id = OperatingExpenseId, BookId = BookId, AccountNumber = "60000", Name = "General & Administrative", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
+            new GlAccount { Id = EmployeeReimbursementId, BookId = BookId, AccountNumber = "21500", Name = "Employee Reimbursements Payable", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true });
 
         db.Set<AccountDeterminationRule>().AddRange(
             new AccountDeterminationRule { BookId = BookId, Key = "CASH", GlAccountId = CashId },
             new AccountDeterminationRule { BookId = BookId, Key = "AP_CONTROL", GlAccountId = ApControlId },
-            new AccountDeterminationRule { BookId = BookId, Key = "OPERATING_EXPENSE", GlAccountId = OperatingExpenseId });
+            new AccountDeterminationRule { BookId = BookId, Key = "OPERATING_EXPENSE", GlAccountId = OperatingExpenseId },
+            new AccountDeterminationRule { BookId = BookId, Key = "EMPLOYEE_REIMBURSEMENT_PAYABLE", GlAccountId = EmployeeReimbursementId });
 
         await db.SaveChangesAsync();
         return db;
@@ -224,18 +230,122 @@ public class ExpenseApPostingServiceTests
     }
 
     [Fact]
-    public async Task Post_WhenFullGlOn_NullTargetNoVendor_InfersCash()
+    public async Task Post_WhenFullGlOn_NullTargetNoVendor_CreditsEmployeeReimbursementsPayable()
     {
         using var db = await SeedAsync();
-        // No target, no vendor → cash.
         var expense = await AddExpenseAsync(db, amount: 45m, settlementTarget: null, vendorId: null);
         var service = CreateService(db, fullGlOn: true);
 
         await service.PostExpenseApprovedAsync(expense.Id, approvedByUserId: 7);
 
         var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
-        entry.Lines.Single(l => l.GlAccountId == CashId).Credit.Should().Be(45m);
+        entry.Lines.Single(l => l.GlAccountId == OperatingExpenseId).Debit.Should().Be(45m);
+        entry.Lines.Single(l => l.GlAccountId == EmployeeReimbursementId).Credit.Should().Be(45m);
+        entry.Lines.Should().NotContain(l => l.GlAccountId == CashId);
         entry.Lines.Should().NotContain(l => l.GlAccountId == ApControlId);
+    }
+
+    [Fact]
+    public async Task Out_of_pocket_expense_in_a_book_without_the_reimbursement_rule_credits_cash_and_reimburses_nothing()
+    {
+        using var db = await SeedAsync();
+        db.Set<AccountDeterminationRule>().Remove(
+            await db.Set<AccountDeterminationRule>().SingleAsync(r => r.Key == "EMPLOYEE_REIMBURSEMENT_PAYABLE"));
+        await db.SaveChangesAsync();
+        var expense = await AddExpenseAsync(db, amount: 45m);
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostExpenseApprovedAsync(expense.Id, approvedByUserId: 7);
+        await service.PostExpenseReimbursedAsync(expense.Id, 7, new DateOnly(2026, 1, 28));
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == CashId).Credit.Should().Be(45m);
+        entry.Lines.Should().NotContain(l => l.GlAccountId == EmployeeReimbursementId);
+    }
+
+    private static ReimburseExpenseHandler ReimburseHandler(AppDbContext db, bool fullGlOn)
+    {
+        var clock = new Mock<IClock>();
+        clock.Setup(c => c.UtcNow).Returns(new DateTimeOffset(2026, 1, 28, 15, 0, 0, TimeSpan.Zero));
+        return new ReimburseExpenseHandler(db, clock.Object, apPosting: CreateService(db, fullGlOn));
+    }
+
+    private static async Task<decimal> NetCreditAsync(AppDbContext db, int accountId)
+        => await db.Set<JournalLine>().Where(l => l.GlAccountId == accountId).SumAsync(l => l.Credit - l.Debit);
+
+    [Fact]
+    public async Task Approve_then_reimburse_out_of_pocket_clears_21500_and_credits_cash_once()
+    {
+        using var db = await SeedAsync();
+        var expense = await AddExpenseAsync(db, amount: 64.25m, settlementTarget: null, vendorId: null);
+        await CreateService(db, fullGlOn: true).PostExpenseApprovedAsync(expense.Id, approvedByUserId: 7);
+
+        await ReimburseHandler(db, fullGlOn: true).Handle(new ReimburseExpenseCommand(expense.Id), CancellationToken.None);
+
+        (await NetCreditAsync(db, EmployeeReimbursementId)).Should().Be(0m);
+        (await NetCreditAsync(db, CashId)).Should().Be(64.25m);
+        var payout = await db.JournalEntries.Include(e => e.Lines)
+            .SingleAsync(e => e.IdempotencyKey == $"AP:Expense:{expense.Id}:REIMBURSEMENT");
+        payout.EntryDate.Should().Be(new DateOnly(2026, 1, 28));
+        payout.Lines.Single(l => l.GlAccountId == EmployeeReimbursementId).Debit.Should().Be(64.25m);
+        payout.Lines.Single(l => l.GlAccountId == CashId).Credit.Should().Be(64.25m);
+        (await db.Expenses.SingleAsync(e => e.Id == expense.Id)).Status.Should().Be(ExpenseStatus.Reimbursed);
+    }
+
+    [Fact]
+    public async Task Reimbursing_twice_is_refused_and_posts_nothing_more()
+    {
+        using var db = await SeedAsync();
+        var expense = await AddExpenseAsync(db, amount: 30m, settlementTarget: null, vendorId: null);
+        await CreateService(db, fullGlOn: true).PostExpenseApprovedAsync(expense.Id, approvedByUserId: 7);
+        var handler = ReimburseHandler(db, fullGlOn: true);
+        await handler.Handle(new ReimburseExpenseCommand(expense.Id), CancellationToken.None);
+
+        var again = async () => await handler.Handle(new ReimburseExpenseCommand(expense.Id), CancellationToken.None);
+
+        await again.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already been reimbursed*");
+        (await db.JournalEntries.CountAsync()).Should().Be(2);
+        (await NetCreditAsync(db, CashId)).Should().Be(30m);
+    }
+
+    [Fact]
+    public async Task Reimbursement_is_idempotent_at_the_posting_layer()
+    {
+        using var db = await SeedAsync();
+        var expense = await AddExpenseAsync(db, amount: 30m, settlementTarget: null, vendorId: null);
+        var service = CreateService(db, fullGlOn: true);
+        await service.PostExpenseApprovedAsync(expense.Id, approvedByUserId: 7);
+
+        await service.PostExpenseReimbursedAsync(expense.Id, 7, new DateOnly(2026, 1, 28));
+        await service.PostExpenseReimbursedAsync(expense.Id, 7, new DateOnly(2026, 1, 28));
+
+        (await NetCreditAsync(db, CashId)).Should().Be(30m);
+        (await NetCreditAsync(db, EmployeeReimbursementId)).Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task Reimbursing_a_company_paid_expense_posts_no_second_cash_credit()
+    {
+        using var db = await SeedAsync();
+        var expense = await AddExpenseAsync(db, amount: 80m, settlementTarget: ExpenseSettlementTarget.Cash);
+        await CreateService(db, fullGlOn: true).PostExpenseApprovedAsync(expense.Id, approvedByUserId: 7);
+
+        await ReimburseHandler(db, fullGlOn: true).Handle(new ReimburseExpenseCommand(expense.Id), CancellationToken.None);
+
+        (await db.JournalEntries.CountAsync()).Should().Be(1);
+        (await NetCreditAsync(db, CashId)).Should().Be(80m);
+    }
+
+    [Fact]
+    public async Task Reimbursing_while_full_gl_is_off_only_changes_the_status()
+    {
+        using var db = await SeedAsync();
+        var expense = await AddExpenseAsync(db, amount: 30m, settlementTarget: null, vendorId: null);
+
+        await ReimburseHandler(db, fullGlOn: false).Handle(new ReimburseExpenseCommand(expense.Id), CancellationToken.None);
+
+        (await db.JournalEntries.IgnoreQueryFilters().AnyAsync()).Should().BeFalse();
+        (await db.Expenses.SingleAsync(e => e.Id == expense.Id)).Status.Should().Be(ExpenseStatus.Reimbursed);
     }
 
     [Fact]

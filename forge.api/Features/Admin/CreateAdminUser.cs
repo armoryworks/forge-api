@@ -18,7 +18,8 @@ public record CreateAdminUserCommand(
     string LastName,
     string? Initials,
     string? AvatarColor,
-    List<string> Roles) : IRequest<CreateAdminUserResponseModel>;
+    List<string> Roles,
+    DateTimeOffset? HireDate = null) : IRequest<CreateAdminUserResponseModel>;
 
 public record CreateAdminUserResponseModel(
     int Id,
@@ -115,7 +116,10 @@ public class CreateAdminUserHandler(
             }
         }
 
-        if (autoPaths.Count > 0)
+        if (request.HireDate is not null)
+            await EmployeeHireDate.SetAsync(db, user.Id, request.HireDate.Value, cancellationToken);
+
+        if (autoPaths.Count > 0 || request.HireDate is not null)
             await db.SaveChangesAsync(cancellationToken);
 
         return new CreateAdminUserResponseModel(
