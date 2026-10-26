@@ -469,6 +469,42 @@ public class Phase2ProductionVariancePostingServiceTests
         (await EntryByKeyAsync(db, $"Inventory:Job:{JobId}:WIPABSORB:Run:1")).Should().BeNull();
     }
 
+    [Fact]
+    public async Task Close_WithResolver_AfterAReceiptCappedAtTheJobsWip_StillDecomposesTheVariance()
+    {
+        using var db = await SeedAsync();
+        await PostMaterialToJobAsync(db, 80m);
+        var part = new Part { PartNumber = "FG-STD", Description = "x", InventoryClass = InventoryClass.FinishedGood, ProcurementSource = ProcurementSource.Make, ManualCostOverride = 13m };
+        db.Add(part);
+        var wc = new WorkCenter { Name = "WC", Code = "WC-STD", LaborCostPerHour = 2m, BurdenRatePerHour = 1m, IsActive = true };
+        db.Add(wc);
+        await db.SaveChangesAsync();
+        db.Add(new Operation { PartId = part.Id, StepNumber = 1, Title = "Op", EstimatedMs = 3_600_000L, WorkCenterId = wc.Id });
+        db.Add(new MaterialIssue { JobId = JobId, PartId = part.Id, Quantity = 8m, UnitCost = 10m, IssuedById = 7, IssuedAt = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero), IssueType = MaterialIssueType.Issue });
+        var run = new ProductionRun { JobId = JobId, PartId = part.Id, RunNumber = "RUN-CAP", TargetQuantity = 10, CompletedQuantity = 10, ReceivedQuantity = 10, ReceivedToStockAt = DateTimeOffset.UtcNow, Status = ProductionRunStatus.Completed };
+        db.Add(run);
+        await db.SaveChangesAsync();
+        var receipt = new ProductionReceiptPostingService(db, Engine(db), new FakeCapabilities(true),
+            valuation: new InventoryValuationService(db), conversion: ServiceWithStd(db));
+        await receipt.PostProductionReceiptAsync(run.Id, EntryDate, 7);
+        (await WipByJobAsync(db)).Should().Be(0m);
+
+        var result = await ServiceWithStd(db).CloseJobProductionCostAsync(JobId, EntryDate, 7);
+
+        result.MaterialUsageVariance.Should().Be(-20m);
+        result.LaborEfficiencyVariance.Should().Be(-20m);
+        result.OverheadEfficiencyVariance.Should().Be(-10m);
+        result.ProductionVarianceResidual.Should().Be(50m);
+        var variance = await EntryByKeyAsync(db, $"Inventory:Job:{JobId}:PRODVARIANCE");
+        variance!.Lines.Single(l => l.GlAccountId == MatUsageId).Credit.Should().Be(20m);
+        variance.Lines.Single(l => l.GlAccountId == LaborEffId).Credit.Should().Be(20m);
+        variance.Lines.Single(l => l.GlAccountId == OhEffId).Credit.Should().Be(10m);
+        variance.Lines.Single(l => l.GlAccountId == ProdVarId).Debit.Should().Be(50m);
+        variance.Lines.Should().NotContain(l => l.GlAccountId == WipId);
+        (await WipByJobAsync(db)).Should().Be(0m);
+        (await db.JournalLines.Where(l => l.GlAccountId == ProdVarId).SumAsync(l => l.Debit - l.Credit)).Should().Be(0m);
+    }
+
     private static async Task PostMaterialToJobAsync(AppDbContext db, decimal amount)
         => await Engine(db).PostAsync(new PostingRequest
         {
