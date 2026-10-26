@@ -2,6 +2,7 @@ using System.Globalization;
 
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Payments;
@@ -30,7 +31,8 @@ public class ApplyCreditMemoValidator : AbstractValidator<ApplyCreditMemoCommand
 /// Applies part of an issued credit memo to an open invoice of the same customer and currency: the invoice's balance
 /// due drops by the amount and the memo's open amount with it.
 /// </summary>
-public class ApplyCreditMemoHandler(AppDbContext db, ICreditMemoPostingService posting, IClock clock, IMediator mediator)
+public class ApplyCreditMemoHandler(AppDbContext db, ICreditMemoPostingService posting, IClock clock, IMediator mediator,
+    IHttpContextAccessor? httpContextAccessor = null)
     : IRequestHandler<ApplyCreditMemoCommand, CreditMemoDetailResponseModel>
 {
     public async Task<CreditMemoDetailResponseModel> Handle(ApplyCreditMemoCommand request, CancellationToken ct)
@@ -40,6 +42,7 @@ public class ApplyCreditMemoHandler(AppDbContext db, ICreditMemoPostingService p
 
         var memo = await CreditMemoRules.LoadMemoAsync(db, request.Id, ct)
             ?? throw new KeyNotFoundException($"Credit memo {request.Id} not found");
+        CreditMemoRules.EnsureWriteOffApprover(memo, httpContextAccessor?.HttpContext?.User);
         var invoice = await CreditMemoRules.LoadInvoiceAsync(db, request.InvoiceId, ct)
             ?? throw new KeyNotFoundException($"Invoice {request.InvoiceId} not found");
 

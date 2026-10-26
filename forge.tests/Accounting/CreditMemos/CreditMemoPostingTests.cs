@@ -1,12 +1,16 @@
+using System.Security.Claims;
+
 using FluentAssertions;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
 using Forge.Api.Features.CreditMemos;
 using Forge.Api.Features.CustomerReturns;
 using Forge.Api.Features.Invoices;
+using Forge.Api.Middleware;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums;
@@ -254,6 +258,63 @@ public class CreditMemoPostingTests
         (await act.Should().ThrowAsync<ValidationException>())
             .Which.Errors.Should().Contain(e => e.ErrorCode == CreditMemoRules.WriteOffExceedsBalanceCode);
     }
+
+    [Fact]
+    public async Task Credit_memo_endpoints_refuse_a_write_off_reason_or_line()
+    {
+        using var ctx = await CreditMemoTestContext.CreateAsync();
+        var customer = await ctx.CustomerAsync();
+
+        var byReason = () => CreateAsync(ctx, new CreateCreditMemoRequestModel(customer.Id, null, CreditMemoReasonType.WriteOff,
+            "Bad debt", null, [new CreditMemoLineRequestModel(CreditMemoLineType.Item, null, null, "Bad debt", 1m, 50m)]));
+        var byLine = () => CreateAsync(ctx, new CreateCreditMemoRequestModel(customer.Id, null, CreditMemoReasonType.Goodwill,
+            "Goodwill", null, [new CreditMemoLineRequestModel(CreditMemoLineType.WriteOff, null, null, "Bad debt", 1m, 50m)]));
+
+        (await byReason.Should().ThrowAsync<ValidationException>())
+            .Which.Errors.Should().Contain(e => e.ErrorCode == CreditMemoRules.WriteOffReservedCode);
+        (await byLine.Should().ThrowAsync<ValidationException>())
+            .Which.Errors.Should().Contain(e => e.ErrorCode == CreditMemoRules.WriteOffReservedCode);
+        (await ctx.Db.CreditMemos.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Write_off_is_never_refunded_and_only_an_admin_or_manager_unapplies_it()
+    {
+        using var ctx = await CreditMemoTestContext.CreateAsync();
+        var customer = await ctx.CustomerAsync();
+        var invoice = await ctx.PostedInvoiceAsync(customer,
+            [new InvoiceLine { Description = "Service", Quantity = 1m, UnitPrice = 196m, LineNumber = 1 }]);
+        var memo = await new WriteOffInvoiceHandler(ctx.Db, ctx.Issuer(), ctx.Clock, Mediator(ctx))
+            .Handle(new WriteOffInvoiceCommand(invoice.Id, null, "Customer out of business"), CancellationToken.None);
+
+        var asOfficeManager = () => new UnapplyCreditMemoHandler(ctx.Db, ctx.Posting(), ctx.Clock, Mediator(ctx), UserInRole("OfficeManager"))
+            .Handle(new UnapplyCreditMemoCommand(memo.Id, memo.Applications.Single().Id), CancellationToken.None);
+        await asOfficeManager.Should().ThrowAsync<ForbiddenException>();
+
+        memo = await new UnapplyCreditMemoHandler(ctx.Db, ctx.Posting(), ctx.Clock, Mediator(ctx), UserInRole("Manager"))
+            .Handle(new UnapplyCreditMemoCommand(memo.Id, memo.Applications.Single().Id), CancellationToken.None);
+        memo.OpenAmount.Should().Be(196m);
+
+        var reapply = () => new ApplyCreditMemoHandler(ctx.Db, ctx.Posting(), ctx.Clock, Mediator(ctx), UserInRole("OfficeManager"))
+            .Handle(new ApplyCreditMemoCommand(memo.Id, invoice.Id, 196m), CancellationToken.None);
+        await reapply.Should().ThrowAsync<ForbiddenException>();
+
+        var refund = () => new RefundCreditMemoHandler(ctx.Db, ctx.Posting(), Mediator(ctx), new CreditMemoRefundSync(ctx.Db))
+            .Handle(new RefundCreditMemoCommand(memo.Id, new CustomerRefundRequestModel(196m, PaymentMethod.Check, Today, null)),
+                CancellationToken.None);
+        (await refund.Should().ThrowAsync<ValidationException>())
+            .Which.Errors.Should().Contain(e => e.ErrorCode == CreditMemoRules.WriteOffRefundCode);
+        (await ctx.Db.CustomerRefunds.CountAsync()).Should().Be(0);
+    }
+
+    private static IHttpContextAccessor UserInRole(string role)
+        => new HttpContextAccessor
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Role, role)], "Test")),
+            },
+        };
 
     [Fact]
     public async Task Crediting_more_than_was_invoiced_on_a_line_is_refused_across_memos()

@@ -1,10 +1,12 @@
 using System.Globalization;
+using System.Security.Claims;
 
 using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.ShopFloor;
+using Forge.Api.Middleware;
 using Forge.Api.Services;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
@@ -29,6 +31,9 @@ internal static class CreditMemoRules
     public const string CreditMemoInvoiceCode = "credit-memo-invoice";
     public const string RefundExceedsOpenCode = "refund-exceeds-open";
     public const string WriteOffExceedsBalanceCode = "writeoff-exceeds-balance";
+    public const string WriteOffReservedCode = "credit-memo-write-off-reserved";
+    public const string WriteOffRefundCode = "credit-memo-write-off-refund";
+    public const string WriteOffApproverMessage = "Only an admin or a manager can apply or unapply a write-off.";
 
     private static readonly InvoiceStatus[] ApplicableStatuses =
         [InvoiceStatus.Sent, InvoiceStatus.PartiallyPaid, InvoiceStatus.Overdue];
@@ -37,6 +42,25 @@ internal static class CreditMemoRules
         => new(message, [new ValidationFailure(property, message) { ErrorCode = code }]);
 
     public static int UserId(AppDbContext db) => db.CurrentUserId ?? 0;
+
+    /// <summary>
+    /// Refuses a write-off reason or line on a memo built through the credit memo endpoints
+    /// (<c>credit-memo-write-off-reserved</c>): bad debt is written off only through the invoice write-off, which
+    /// needs an admin or a manager.
+    /// </summary>
+    public static void EnsureNoWriteOff(CreditMemoReasonType reasonType, IReadOnlyList<CreditMemoLineRequestModel> lines)
+    {
+        if (reasonType == CreditMemoReasonType.WriteOff || lines.Any(l => l.LineType == CreditMemoLineType.WriteOff))
+            throw Failure("ReasonType", WriteOffReservedCode,
+                "Bad debt is written off from the invoice (Write off balance), not with a credit memo.");
+    }
+
+    /// <summary>Refuses applying or unapplying a write-off memo unless the user is an admin or a manager.</summary>
+    public static void EnsureWriteOffApprover(CreditMemo memo, ClaimsPrincipal? user)
+    {
+        if (memo.IsWriteOff && user?.IsInRole("Admin") != true && user?.IsInRole("Manager") != true)
+            throw new ForbiddenException(WriteOffApproverMessage);
+    }
 
     public static async Task<DateOnly> ShopTodayAsync(AppDbContext db, DateTimeOffset now, CancellationToken ct)
         => DateOnly.FromDateTime(ClockStateRules.LocalToday(await ClockStateRules.ShopTimeZoneAsync(db, ct), now));

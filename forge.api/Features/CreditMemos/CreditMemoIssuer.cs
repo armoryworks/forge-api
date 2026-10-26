@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +33,8 @@ public class CreditMemoIssuer(
             throw CreditMemoRules.Failure("Id", CreditMemoRules.CreditMemoNotDraftCode,
                 $"Credit memo {memo.CreditMemoNumber} is {memo.Status}; only a draft can be issued.");
 
+        if (memo.InvoiceId is int creditedInvoiceId && db.Database.CurrentTransaction is not null)
+            await db.AcquireAdvisoryLockAsync("credit-memos.invoice", creditedInvoiceId.ToString(CultureInfo.InvariantCulture), ct);
         await CreditMemoRules.EnsureIssuableAsync(db, memo, ct);
 
         var userId = CreditMemoRules.UserId(db);

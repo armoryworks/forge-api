@@ -36,14 +36,13 @@ public class UpdateCreditMemoHandler(AppDbContext db, IMediator mediator)
                 $"Credit memo {memo.CreditMemoNumber} is {memo.Status}; only a draft can be edited.");
 
         var data = request.Data;
+        CreditMemoRules.EnsureNoWriteOff(data.ReasonType, data.Lines);
         memo.ReasonType = data.ReasonType;
         memo.Reason = data.Reason.Trim();
         memo.CreditDate = data.CreditDate;
         memo.Notes = data.Notes;
         if (data.TaxRate is decimal rate)
             memo.TaxRate = rate;
-        if (memo.IsWriteOff)
-            memo.TaxRate = 0m;
 
         db.CreditMemoLines.RemoveRange(memo.Lines);
         await CreditMemoRules.SetLinesAsync(db, memo, data.Lines, ct);

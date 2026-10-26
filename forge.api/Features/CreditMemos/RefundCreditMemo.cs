@@ -51,6 +51,10 @@ public class RefundCreditMemoHandler(AppDbContext db, ICreditMemoPostingService 
             throw CreditMemoRules.Failure("Id", CreditMemoRules.CreditMemoNotOpenCode,
                 $"Credit memo {memo.CreditMemoNumber} is {memo.Status}; only an issued memo with an open amount can be refunded.");
 
+        if (memo.IsWriteOff)
+            throw CreditMemoRules.Failure("Id", CreditMemoRules.WriteOffRefundCode,
+                $"Credit memo {memo.CreditMemoNumber} writes off bad debt; a write-off can't be refunded.");
+
         var data = request.Data;
         var money = await MoneyFormat.ForCurrencyIdAsync(db, memo.CurrencyId, ct);
         if (data.Amount > memo.OpenAmount)

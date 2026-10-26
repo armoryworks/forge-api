@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Http;
 
 using Forge.Api.Features.Accounting;
 using Forge.Api.Services;
@@ -12,7 +13,8 @@ namespace Forge.Api.Features.CreditMemos;
 public record UnapplyCreditMemoCommand(int Id, int ApplicationId) : IRequest<CreditMemoDetailResponseModel>;
 
 /// <summary>Takes a credit memo application back off its invoice: the invoice's balance and the memo's open amount return.</summary>
-public class UnapplyCreditMemoHandler(AppDbContext db, ICreditMemoPostingService posting, IClock clock, IMediator mediator)
+public class UnapplyCreditMemoHandler(AppDbContext db, ICreditMemoPostingService posting, IClock clock, IMediator mediator,
+    IHttpContextAccessor? httpContextAccessor = null)
     : IRequestHandler<UnapplyCreditMemoCommand, CreditMemoDetailResponseModel>
 {
     public async Task<CreditMemoDetailResponseModel> Handle(UnapplyCreditMemoCommand request, CancellationToken ct)
@@ -20,6 +22,7 @@ public class UnapplyCreditMemoHandler(AppDbContext db, ICreditMemoPostingService
         await using var tx = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
         var memo = await CreditMemoRules.LoadMemoAsync(db, request.Id, ct)
             ?? throw new KeyNotFoundException($"Credit memo {request.Id} not found");
+        CreditMemoRules.EnsureWriteOffApprover(memo, httpContextAccessor?.HttpContext?.User);
         var application = memo.Applications.FirstOrDefault(a => a.Id == request.ApplicationId && a.ReversedAt == null)
             ?? throw new KeyNotFoundException($"Application {request.ApplicationId} not found on credit memo {memo.CreditMemoNumber}");
         var invoice = await CreditMemoRules.LoadInvoiceAsync(db, application.InvoiceId, ct)

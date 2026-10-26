@@ -53,6 +53,7 @@ public class CreateCreditMemoHandler(AppDbContext db, IClock clock, IMediator me
     public async Task<CreditMemoDetailResponseModel> Handle(CreateCreditMemoCommand request, CancellationToken ct)
     {
         var data = request.Data;
+        CreditMemoRules.EnsureNoWriteOff(data.ReasonType, data.Lines);
         var customer = await db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == data.CustomerId, ct)
             ?? throw new KeyNotFoundException($"Customer {data.CustomerId} not found");
 
@@ -92,9 +93,6 @@ public class CreateCreditMemoHandler(AppDbContext db, IClock clock, IMediator me
             memo.FxRate = currency.FxRate;
             memo.TaxRate = data.TaxRate ?? 0m;
         }
-
-        if (data.ReasonType == CreditMemoReasonType.WriteOff)
-            memo.TaxRate = 0m;
 
         await CreditMemoRules.SetLinesAsync(db, memo, data.Lines, ct);
 
