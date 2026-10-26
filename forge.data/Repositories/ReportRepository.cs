@@ -425,6 +425,16 @@ public class ReportRepository(AppDbContext db) : IReportRepository
             : Math.Round(i.FreightSubtotal * i.FxRate, 2, MidpointRounding.AwayFromZero));
         if (totalFreight != 0m)
             result.Add(new SimplePnlReportItem("Freight Income (invoice basis)", "Revenue", totalFreight));
+        var discountsTaken = await db.PaymentApplications.AsNoTracking()
+            .Where(a => a.DiscountAmount > 0m
+                && a.Payment.PaymentDate >= startUtc && a.Payment.PaymentDate <= endUtc)
+            .Select(a => new { a.DiscountAmount, a.SettlementFxRate })
+            .ToListAsync(ct);
+        var totalDiscounts = discountsTaken.Sum(a => a.SettlementFxRate == 1m
+            ? a.DiscountAmount
+            : Math.Round(a.DiscountAmount * a.SettlementFxRate, 2, MidpointRounding.AwayFromZero));
+        if (totalDiscounts != 0m)
+            result.Add(new SimplePnlReportItem("Sales Discounts (payment basis)", "Revenue", -totalDiscounts));
 
         // Expenses by category
         var rawExpenses = await db.Expenses

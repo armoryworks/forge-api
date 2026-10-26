@@ -40,6 +40,9 @@ public class EarlyPaymentDiscountPostingTests
     private const int ApControlId = 201;
     private const int PurchaseDiscountsId = 202;
     private const int AdvanceId = 203;
+    private const int EurId = 2;
+    private const int FxGainId = 301;
+    private const int FxLossId = 302;
 
     private static readonly DateTimeOffset InvoiceDate = new(2026, 1, 25, 7, 0, 0, TimeSpan.Zero);
 
@@ -299,6 +302,56 @@ public class EarlyPaymentDiscountPostingTests
     }
 
     [Fact]
+    public async Task Foreign_invoice_discount_posts_at_the_settlement_rate_and_relieves_ar_at_booking()
+    {
+        using var db = await SeedAsync();
+        const int EurId = 2;
+        const int FxLossId = 104;
+        db.Set<Currency>().Add(new Currency { Id = EurId, Code = "EUR", Name = "Euro", Symbol = "€" });
+        db.Set<GlAccount>().Add(Account(FxLossId, "79100", "Realized FX Loss", AccountType.Expense, NormalBalance.Debit));
+        db.Set<AccountDeterminationRule>().Add(new AccountDeterminationRule { BookId = BookId, Key = "FX_LOSS", GlAccountId = FxLossId });
+        var customer = new Customer { Name = "Euro Buyer" };
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+        var invoice = new Invoice
+        {
+            InvoiceNumber = "INV-2020", CustomerId = customer.Id, CurrencyId = EurId, FxRate = 1.10m, Status = InvoiceStatus.Sent,
+            InvoiceDate = InvoiceDate, DueDate = InvoiceDate.AddDays(30),
+            DiscountPercent = 2m, DiscountDueDate = InvoiceDate.AddDays(10),
+            Lines = [new InvoiceLine { Description = "Widget", Quantity = 1m, UnitPrice = 1000m, LineNumber = 1 }],
+        };
+        db.Invoices.Add(invoice);
+        await db.SaveChangesAsync();
+        db.ArOpenItems.Add(new ArOpenItem
+        {
+            BookId = BookId, CustomerId = customer.Id, SourceId = invoice.Id, DocumentNumber = invoice.InvoiceNumber,
+            DocumentDate = invoice.InvoiceDate, DueDate = invoice.DueDate, CurrencyId = EurId, FxRate = 1.10m,
+            OriginalTxnAmount = 1000m, OriginalFunctionalAmount = 1100m,
+        });
+        var payment = new Payment
+        {
+            PaymentNumber = "PMT-EUR", CustomerId = customer.Id, Method = PaymentMethod.Check, Amount = 980m,
+            CurrencyId = EurId, FxRate = 1.05m, PaymentDate = InvoiceDate.AddDays(8),
+        };
+        payment.Applications.Add(new PaymentApplication { InvoiceId = invoice.Id, Amount = 980m, DiscountAmount = 20m, SettlementFxRate = 1.05m });
+        db.Payments.Add(payment);
+        await db.SaveChangesAsync();
+
+        await ArPosting(db).PostPaymentCreatedAsync(payment.Id, 7, CancellationToken.None);
+
+        var net = await NetByAccountAsync(db);
+        net[CashId].Should().Be(1029m);
+        net[SalesDiscountsId].Should().Be(21m);
+        net[FxLossId].Should().Be(50m);
+        net[ArControlId].Should().Be(-1100m);
+        net.Values.Sum().Should().Be(0m);
+        var openItem = await db.ArOpenItems.SingleAsync();
+        openItem.AppliedTxnAmount.Should().Be(1000m);
+        openItem.AppliedFunctionalAmount.Should().Be(1100m);
+        openItem.Status.Should().Be(OpenItemStatus.Closed);
+    }
+
+    [Fact]
     public async Task Applying_unapplied_cash_later_takes_the_discount_on_the_payment_date()
     {
         using var db = await SeedAsync();
@@ -392,5 +445,91 @@ public class EarlyPaymentDiscountPostingTests
         var command = sent.Should().ContainSingle().Subject;
         command.Amount.Should().Be(4900m);
         command.Applications!.Should().ContainSingle(a => a.VendorBillId == bill.Id && a.DiscountAmount == 100m);
+    }
+
+    [Fact]
+    public async Task Foreign_currency_discount_posts_at_the_settlement_rate_with_the_fx_plug()
+    {
+        using var db = await SeedAsync();
+        db.Set<Currency>().Add(new Currency { Id = EurId, Code = "EUR", Name = "Euro", Symbol = "€" });
+        db.Set<GlAccount>().AddRange(
+            Account(FxGainId, "90000", "Foreign Exchange Gain", AccountType.Income, NormalBalance.Credit),
+            Account(FxLossId, "90100", "Foreign Exchange Loss", AccountType.Expense, NormalBalance.Debit));
+        db.Set<AccountDeterminationRule>().AddRange(
+            new AccountDeterminationRule { BookId = BookId, Key = "FX_GAIN", GlAccountId = FxGainId },
+            new AccountDeterminationRule { BookId = BookId, Key = "FX_LOSS", GlAccountId = FxLossId });
+        var customer = new Customer { Name = "Euro Buyer" };
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        var invoice = new Invoice
+        {
+            InvoiceNumber = "INV-EUR-1", CustomerId = customer.Id, CurrencyId = EurId, FxRate = 1.10m, Status = InvoiceStatus.Sent,
+            InvoiceDate = InvoiceDate, DueDate = InvoiceDate.AddDays(30),
+            DiscountPercent = 2m, DiscountDueDate = InvoiceDate.AddDays(10),
+            Lines = [new InvoiceLine { Description = "Widget", Quantity = 1m, UnitPrice = 1000m, LineNumber = 1 }],
+        };
+        db.Invoices.Add(invoice);
+        await db.SaveChangesAsync();
+        db.ArOpenItems.Add(new ArOpenItem
+        {
+            BookId = BookId, CustomerId = customer.Id, SourceId = invoice.Id, DocumentNumber = invoice.InvoiceNumber,
+            DocumentDate = invoice.InvoiceDate, DueDate = invoice.DueDate, CurrencyId = EurId,
+            OriginalTxnAmount = 1000m, OriginalFunctionalAmount = 1100m,
+        });
+        var payment = new Payment
+        {
+            PaymentNumber = "PMT-EUR-1", CustomerId = customer.Id, CurrencyId = EurId, FxRate = 1.05m,
+            Method = PaymentMethod.Check, Amount = 980m, PaymentDate = InvoiceDate.AddDays(8),
+            Applications = [new PaymentApplication { InvoiceId = invoice.Id, Amount = 980m, DiscountAmount = 20m, SettlementFxRate = 1.05m }],
+        };
+        db.Set<Payment>().Add(payment);
+        await db.SaveChangesAsync();
+
+        await ArPosting(db).PostPaymentCreatedAsync(payment.Id, createdByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == CashId).Debit.Should().Be(1029m);
+        entry.Lines.Single(l => l.GlAccountId == SalesDiscountsId).Debit.Should().Be(21m);
+        entry.Lines.Single(l => l.GlAccountId == FxLossId).Debit.Should().Be(50m);
+        entry.Lines.Single(l => l.GlAccountId == ArControlId).Credit.Should().Be(1100m);
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+
+        var openItem = await db.ArOpenItems.SingleAsync();
+        openItem.AppliedTxnAmount.Should().Be(1000m);
+        openItem.AppliedFunctionalAmount.Should().Be(1100m);
+    }
+
+    [Fact]
+    public async Task Paying_from_suggestions_refuses_the_whole_run_when_one_pick_is_out_of_terms()
+    {
+        using var db = await SeedAsync();
+        var first = await AddDiscountBillAsync(db);
+        var otherVendor = new Vendor { CompanyName = "Bolt Works" };
+        db.Vendors.Add(otherVendor);
+        await db.SaveChangesAsync();
+        var second = new VendorBill
+        {
+            BillNumber = "BILL-3002", VendorId = otherVendor.Id, CurrencyId = UsdId, Status = VendorBillStatus.Approved,
+            BillDate = InvoiceDate, DueDate = InvoiceDate.AddDays(30),
+            DiscountPercent = 2m, DiscountDueDate = InvoiceDate.AddDays(10),
+            Lines = [new VendorBillLine { Description = "Bolts", Quantity = 1m, UnitPrice = 1000m, LineNumber = 1 }],
+        };
+        db.VendorBills.Add(second);
+        await db.SaveChangesAsync();
+        var sender = new Mock<ISender>();
+
+        var act = () => new CreateVendorPaymentsFromSuggestionsHandler(db, sender.Object).Handle(
+            new CreateVendorPaymentsFromSuggestionsCommand(new CreateVendorPaymentsFromSuggestionsRequestModel(
+                InvoiceDate.AddDays(8), "Check", "RUN-2", null,
+                [
+                    new VendorPaymentSuggestionSelectionModel(first.Id, 4900m, 100m),
+                    new VendorPaymentSuggestionSelectionModel(second.Id, 950m, 50m),
+                ])),
+            CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>())
+            .Which.Errors.Should().Contain(e => e.ErrorCode == "discount-not-allowed" && e.PropertyName == "Request.Items[1].DiscountAmount");
+        sender.Verify(s => s.Send(It.IsAny<CreateVendorPaymentCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

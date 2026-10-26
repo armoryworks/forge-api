@@ -40,7 +40,7 @@ public static class InvoicedMilestonePayments
         var paidByInvoice = await db.PaymentApplications
             .Where(a => milestoneInvoiceIds.Contains(a.InvoiceId))
             .GroupBy(a => a.InvoiceId)
-            .Select(g => new { InvoiceId = g.Key, Paid = g.Sum(a => a.Amount) })
+            .Select(g => new { InvoiceId = g.Key, Paid = g.Sum(a => a.Amount + a.DiscountAmount) })
             .ToDictionaryAsync(x => x.InvoiceId, x => x.Paid, ct);
 
         var changed = false;

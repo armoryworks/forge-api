@@ -379,9 +379,9 @@ public static partial class SeedData
 
                     foreach (var app in invoice.PaymentApplications.Where(a => postedPaymentIds.Contains(a.PaymentId)))
                     {
-                        item.AppliedTxnAmount += app.Amount;
+                        item.AppliedTxnAmount += app.Amount + app.DiscountAmount;
                         item.AppliedFunctionalAmount +=
-                            Math.Round(app.Amount * invoice.FxRate, 2, MidpointRounding.AwayFromZero);
+                            Math.Round((app.Amount + app.DiscountAmount) * invoice.FxRate, 2, MidpointRounding.AwayFromZero);
                     }
 
                     item.RecomputeStatus();
@@ -457,9 +457,9 @@ public static partial class SeedData
 
                     foreach (var app in bill.PaymentApplications.Where(a => postedVendorPaymentIds.Contains(a.VendorPaymentId)))
                     {
-                        item.AppliedTxnAmount += app.Amount;
+                        item.AppliedTxnAmount += app.Amount + app.DiscountAmount;
                         item.AppliedFunctionalAmount +=
-                            Math.Round(app.Amount * bill.FxRate, 2, MidpointRounding.AwayFromZero);
+                            Math.Round((app.Amount + app.DiscountAmount) * bill.FxRate, 2, MidpointRounding.AwayFromZero);
                     }
 
                     item.RecomputeStatus();
