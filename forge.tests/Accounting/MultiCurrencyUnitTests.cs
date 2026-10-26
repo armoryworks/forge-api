@@ -436,6 +436,20 @@ public class MultiCurrencyUnitTests
     }
 
     [Fact]
+    public void BalanceFunctional_ManyLines_AbsorbsTheirCombinedRounding()
+    {
+        var lines = Enumerable.Range(0, 10)
+            .Select(_ => new JournalLine { Credit = 10.01m, FunctionalAmount = 7.36m })
+            .Prepend(new JournalLine { Debit = 100.10m, FunctionalAmount = 73.57m })
+            .ToList();
+
+        ForgeGlPostingEngine.BalanceFunctional(lines, new HashSet<int> { 0 }, 0.01m);
+
+        lines.Skip(1).Sum(l => l.FunctionalAmount).Should().Be(73.57m);
+        lines[0].FunctionalAmount.Should().Be(73.57m);
+    }
+
+    [Fact]
     public void FxMath_RateOne_LeavesTheAmountUnrounded()
     {
         FxMath.ToFunctional(10.005m, 1m).Should().Be(10.005m);

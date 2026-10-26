@@ -545,10 +545,11 @@ public sealed class ForgeGlPostingEngine(
 
     /// <summary>
     /// A foreign-currency entry that balances in its transaction currency can be a cent or so out in functional,
-    /// because each line's functional amount is rounded on its own. A residual within the book's rounding
-    /// tolerance goes to the largest non-control line on the short side (or comes off the largest non-control
-    /// line on the long side when the short side has only control lines), so a control line always keeps the
-    /// functional amount its open item carries. A larger residual is refused as <c>UNBALANCED_FUNCTIONAL</c>.
+    /// because each line's functional amount is rounded on its own. Each line can be off by at most half the
+    /// book's rounding tolerance, so a residual up to that much per line (and never less than the tolerance)
+    /// goes to the largest non-control line on the short side (or comes off the largest non-control line on the
+    /// long side when the short side has only control lines), so a control line always keeps the functional
+    /// amount its open item carries. A larger residual is refused as <c>UNBALANCED_FUNCTIONAL</c>.
     /// </summary>
     internal static void BalanceFunctional(List<JournalLine> lines, ISet<int> controlLines, decimal tolerance)
     {
@@ -558,10 +559,11 @@ public sealed class ForgeGlPostingEngine(
         if (residual == 0m)
             return;
 
-        if (Math.Abs(residual) > tolerance)
+        var allowed = Math.Max(tolerance, lines.Count * tolerance / 2m);
+        if (Math.Abs(residual) > allowed)
             throw new PostingException(
                 "UNBALANCED_FUNCTIONAL",
-                $"Entry is unbalanced in the functional currency: Σdebit {debit} vs Σcredit {credit} (residual {Math.Abs(residual)} exceeds tolerance {tolerance}).");
+                $"Entry is unbalanced in the functional currency: Σdebit {debit} vs Σcredit {credit} (residual {Math.Abs(residual)} exceeds the rounding allowance {allowed}).");
 
         bool OnDebit(JournalLine l) => l.Debit > 0m;
         var shortIsDebit = residual < 0m;
