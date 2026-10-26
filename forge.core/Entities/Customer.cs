@@ -71,6 +71,9 @@ public class Customer : BaseAuditableEntity, IActiveAware, IConcurrencyVersioned
     /// </summary>
     public CreditTerms? DefaultCreditTerms { get; set; }
 
+    /// <summary>Freight terms a new sales order for this customer starts from. Null = the install default.</summary>
+    public FreightTerms? FreightTerms { get; set; }
+
     /// <summary>
     /// Currency this customer trades in; new quotes, sales orders, invoices and payments start from it. Null = the functional currency.
     /// Locked once the customer has a non-draft document.

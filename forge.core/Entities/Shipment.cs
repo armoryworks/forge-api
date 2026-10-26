@@ -32,6 +32,12 @@ public class Shipment : BaseAuditableEntity, IConcurrencyVersioned
     public DateTimeOffset? ShippedDate { get; set; }
     public DateTimeOffset? DeliveredDate { get; set; }
     public decimal? ShippingCost { get; set; }
+
+    /// <summary>
+    /// Freight billed to the customer for this shipment, separate from <see cref="ShippingCost"/> (what the
+    /// carrier charges). An invoice created from the shipment adds it as a freight line. Null = none.
+    /// </summary>
+    public decimal? FreightCharge { get; set; }
     public decimal? Weight { get; set; }
     // Package dimensions (inches) for rate-shopping + the carrier label. Derived/entered on the shipment.
     public decimal? Length { get; set; }

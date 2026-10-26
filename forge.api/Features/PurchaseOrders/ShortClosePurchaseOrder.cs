@@ -3,6 +3,7 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.DomainEvents;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -23,7 +24,8 @@ public class ShortClosePurchaseOrderHandler(
     IMediator mediator,
     IHttpContextAccessor httpContext,
     IClock clock,
-    AppDbContext db)
+    AppDbContext db,
+    IVendorBillApPostingService? apPosting = null)
     : IRequestHandler<ShortClosePurchaseOrderCommand, int>
 {
     public async Task<int> Handle(ShortClosePurchaseOrderCommand request, CancellationToken cancellationToken)
@@ -77,6 +79,10 @@ public class ShortClosePurchaseOrderHandler(
         // wired (out of scope for this WU — emit and let the listener decide).
         var claim = httpContext.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
         var userId = int.TryParse(claim, out var u) ? u : 0;
+        if (apPosting is not null)
+            await apPosting.PostPurchaseOrderFreightCloseAsync(
+                po.Id, DateOnly.FromDateTime(clock.UtcNow.UtcDateTime), userId, cancellationToken);
+
         await mediator.Publish(
             new PurchaseOrderShortClosedEvent(po.Id, userId, po.ShortCloseReason, totalCancelled),
             cancellationToken);

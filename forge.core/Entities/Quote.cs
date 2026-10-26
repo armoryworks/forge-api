@@ -62,7 +62,8 @@ public class Quote : BaseAuditableEntity, IConcurrencyVersioned
 
     // Computed (Quote-type only)
     public decimal Subtotal => Lines.Sum(l => l.LineTotal);
-    public decimal TaxAmount => Money.Round(Subtotal * TaxRate);
+    public decimal FreightSubtotal => Lines.Where(l => l.IsFreight).Sum(l => l.LineTotal);
+    public decimal TaxAmount => Money.Round((Subtotal - FreightSubtotal) * TaxRate);
     public decimal Total => Subtotal + TaxAmount;
 
     // Navigation

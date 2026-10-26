@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 
+using Forge.Api.Features.Freight;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -23,7 +24,12 @@ public class AddQuoteLineValidator : AbstractValidator<AddQuoteLineCommand>
     public AddQuoteLineValidator()
     {
         RuleFor(x => x.QuoteId).GreaterThan(0);
-        RuleFor(x => x.Data.Description).NotEmpty();
+        RuleFor(x => x.Data.Description).NotEmpty().When(x => x.Data.LineType != DocumentLineType.Freight);
+        RuleFor(x => x.Data.LineType).IsInEnum();
+        RuleFor(x => x.Data.PartId).Null()
+            .When(x => x.Data.LineType == DocumentLineType.Freight)
+            .WithMessage("A freight line can't name a part.")
+            .WithErrorCode(FreightLines.PartCode);
         RuleFor(x => x.Data.Quantity).GreaterThan(0).UnitScale();
         RuleFor(x => x.Data.UnitPrice).GreaterThanOrEqualTo(0).UnitScale();
     }
@@ -61,10 +67,14 @@ public class AddQuoteLineHandler(
             unitPrice = await priceResolver.ResolveUnitPriceAsync(quote.CustomerId, request.Data.PartId.Value, request.Data.Quantity, cancellationToken)
                         ?? unitPrice;
 
+        var description = request.Data.LineType == DocumentLineType.Freight && string.IsNullOrWhiteSpace(request.Data.Description)
+            ? FreightLines.DefaultDescription
+            : request.Data.Description;
         quote.Lines.Add(new QuoteLine
         {
             PartId = request.Data.PartId,
-            Description = request.Data.Description,
+            Description = description,
+            LineType = request.Data.LineType,
             Quantity = request.Data.Quantity,
             UnitPrice = unitPrice,
             LineNumber = nextLineNumber,
@@ -73,7 +83,7 @@ public class AddQuoteLineHandler(
 
         db.LogActivityAt(
             "line-added",
-            $"Added quote line {nextLineNumber}: {request.Data.Description} ({request.Data.Quantity} × {unitPrice})",
+            $"Added quote line {nextLineNumber}: {description} ({request.Data.Quantity} × {unitPrice})",
             ("Quote", quote.Id));
 
         await repo.SaveChangesAsync(cancellationToken);

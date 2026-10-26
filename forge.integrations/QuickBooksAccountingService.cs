@@ -103,6 +103,10 @@ public class QuickBooksAccountingService(
 
     public async Task<string> CreateInvoiceAsync(AccountingDocument document, CancellationToken ct)
     {
+        if (document.LineItems.Any(li => li.IsFreight && li.ItemExternalId is null)
+            && !await ShippingPreferenceOnAsync(ct))
+            throw new InvalidOperationException(FreightItemMissingMessage);
+
         var payload = BuildDocumentPayload(document);
         var result = await PostEntityAsync("invoice", payload, ct, document.CurrencyCode);
         var id = result?.RootElement.GetProperty("Invoice").GetProperty("Id").GetString()
@@ -125,9 +129,11 @@ public class QuickBooksAccountingService(
                 Amount = Math.Round(li.Quantity * li.UnitPrice, 2, MidpointRounding.AwayFromZero),
                 ItemBasedExpenseLineDetail = new
                 {
-                    ItemRef = li.ItemExternalId is not null ? new { value = li.ItemExternalId } : null,
+                    ItemRef = li.ItemExternalId is not null ? new { value = li.ItemExternalId }
+                        : li.IsFreight ? new { value = ShippingItemId } : null,
                     Qty = li.Quantity,
                     UnitPrice = li.UnitPrice,
+                    TaxCodeRef = li.Taxable is bool taxable ? new { value = taxable ? "TAX" : "NON" } : null,
                 },
                 Description = li.Description,
             }).ToArray(),
@@ -559,6 +565,27 @@ public class QuickBooksAccountingService(
     internal static bool IsMulticurrencyFault(string body)
         => body.Contains("Fault", StringComparison.OrdinalIgnoreCase)
            && body.Contains("currency", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The sync failure for an invoice with freight when QuickBooks has no item to put it on.</summary>
+    internal const string FreightItemMissingMessage =
+        "Map a QuickBooks item for freight (setting qbo.freight_item_id), or turn on shipping in QuickBooks sales form settings.";
+
+    /// <summary>The QuickBooks item reference for the built-in shipping line when the company's shipping preference is on.</summary>
+    internal const string ShippingItemId = "SHIPPING_ITEM_ID";
+
+    private async Task<bool> ShippingPreferenceOnAsync(CancellationToken ct)
+    {
+        using var result = await QueryAsync("select * from Preferences", ct);
+        if (result is null
+            || !result.RootElement.TryGetProperty("QueryResponse", out var response)
+            || !response.TryGetProperty("Preferences", out var preferences)
+            || preferences.GetArrayLength() == 0)
+            return false;
+
+        return preferences[0].TryGetProperty("SalesFormsPrefs", out var sales)
+            && sales.TryGetProperty("AllowShipping", out var allow)
+            && allow.ValueKind == JsonValueKind.True;
+    }
 
     internal static Dictionary<string, object?> BuildDocumentPayload(AccountingDocument document)
     {

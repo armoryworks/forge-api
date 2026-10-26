@@ -24,6 +24,7 @@ public class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
         builder.Property(e => e.TrackingNumber).HasMaxLength(100);
         builder.Property(e => e.Notes).HasMaxLength(2000);
         builder.Property(e => e.ShippingCost).HasPrecision(18, 4);
+        builder.Property(e => e.FreightCharge).HasPrecision(18, 2);
         builder.Property(e => e.Weight).HasPrecision(12, 4);
         builder.Property(e => e.ServiceType).HasMaxLength(200);
         builder.Property(e => e.FreightClass).HasMaxLength(50);

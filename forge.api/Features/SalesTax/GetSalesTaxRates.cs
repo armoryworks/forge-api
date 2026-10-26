@@ -17,7 +17,7 @@ public class GetSalesTaxRatesHandler(AppDbContext db) : IRequestHandler<GetSales
             .Select(r => new SalesTaxRateResponseModel(
                 r.Id, r.Name, r.Code, r.StateCode, r.Rate,
                 r.EffectiveFrom, r.EffectiveTo, r.IsDefault, r.IsActive,
-                r.Description, r.ExemptFlag, r.GlPostingAccount))
+                r.Description, r.ExemptFlag, r.GlPostingAccount, r.FreightTaxable))
             .ToListAsync(cancellationToken);
     }
 }

@@ -69,6 +69,7 @@ public class CreateSalesTaxRateHandler(AppDbContext db, IClock clock) : IRequest
             // Phase 3 F5 — full-record fields written at create time.
             ExemptFlag = request.Data.ExemptFlag,
             GlPostingAccount = request.Data.GlPostingAccount?.Trim(),
+            FreightTaxable = request.Data.FreightTaxable ?? false,
         };
 
         db.SalesTaxRates.Add(rate);
@@ -77,6 +78,6 @@ public class CreateSalesTaxRateHandler(AppDbContext db, IClock clock) : IRequest
         return new SalesTaxRateResponseModel(
             rate.Id, rate.Name, rate.Code, rate.StateCode, rate.Rate,
             rate.EffectiveFrom, rate.EffectiveTo, rate.IsDefault, rate.IsActive,
-            rate.Description, rate.ExemptFlag, rate.GlPostingAccount);
+            rate.Description, rate.ExemptFlag, rate.GlPostingAccount, rate.FreightTaxable);
     }
 }

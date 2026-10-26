@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using MediatR;
 
 using Forge.Api.Features.Shipments;
+using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -77,8 +78,8 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
             so.Notes,
             so.TaxRate,
             subtotal,
-            subtotal * so.TaxRate,
-            subtotal * (1 + so.TaxRate),
+            so.TaxAmount,
+            subtotal + so.TaxAmount,
             so.Lines.Select(l => new SalesOrderLineResponseModel(
                 l.Id,
                 l.PartId,
@@ -103,7 +104,9 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
                     j.IsArchived,
                     j.CompletedDate != null || j.Disposition != null || j.IsArchived)).ToList(),
                 CreateJobsForSalesOrderLinesHandler.SkipReason(l, routedPartIds) is null,
-                l.ShipsGoods
+                l.ShipsGoods,
+                l.LineType,
+                l.TaxCode != InvoiceLine.NonTaxableCode
             )).ToList(),
             so.Shipments.Select(s => new SalesOrderShipmentModel(
                 s.Id,
@@ -151,6 +154,8 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
             so.CurrencyId is int currencyId
                 ? await db.Currencies.AsNoTracking().Where(c => c.Id == currencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken)
                 : null,
-            so.FxRate);
+            so.FxRate,
+            so.FreightTerms?.ToString(),
+            so.FreightSubtotal);
     }
 }

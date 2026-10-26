@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
@@ -42,6 +43,7 @@ public sealed class GrniReconciliationService(AppDbContext db, IClock clock, For
 {
     private const string KeyGrni = "GRNI";
     private const string ReceiptSourceType = "Receipt";
+    private const string KeyFreightClearing = "FREIGHT_CLEARING";
 
     // accounting.aging.bucket-days (admin-editable; default = the standard 30/60/90 ladder).
     // Loaded per call by LoadBucketsAsync; null settings (isolated tests) keep the standard ladder.
@@ -155,6 +157,7 @@ public sealed class GrniReconciliationService(AppDbContext db, IClock clock, For
         }
 
         var (uncovered, truncated) = await SweepUncoveredAsync(bookId, asOf, openLines, ct);
+        var freightClearing = await FreightClearingRowsAsync(bookId, asOf, ct);
 
         return new GrniReconciliation
         {
@@ -168,13 +171,90 @@ public sealed class GrniReconciliationService(AppDbContext db, IClock clock, For
             GrandTotal = poRows.Sum(r => r.OpenAmount),
             UncoveredReceipts = uncovered,
             UncoveredTruncated = truncated,
+            FreightClearingGlBalance = await GlBalanceForKeyAsync(bookId, KeyFreightClearing, asOf, ct),
+            FreightClearingOpen = freightClearing.Sum(r => r.OpenAmount),
+            FreightClearing = freightClearing,
         };
     }
 
-    private async Task<decimal> GlGrniBalanceAsync(int bookId, DateOnly asOf, CancellationToken ct)
+    /// <summary>
+    /// Freight accrued per PO in FREIGHT_CLEARING on/before <paramref name="asOf"/>: the credits of its posted
+    /// receipt entries, less the amounts freight lines on approved bills (dated on/before the as-of) cleared,
+    /// less what closing the PO released. Only POs with something accrued, and a non-zero open amount, appear.
+    /// </summary>
+    private async Task<List<GrniFreightClearingRow>> FreightClearingRowsAsync(int bookId, DateOnly asOf, CancellationToken ct)
+    {
+        var accounts = await db.AccountDeterminationRules
+            .Where(r => r.BookId == bookId && r.Key == KeyFreightClearing)
+            .Select(r => r.GlAccountId)
+            .ToListAsync(ct);
+        if (accounts.Count == 0)
+            return [];
+
+        var glByPo = await
+            (from line in db.JournalLines.IgnoreQueryFilters()
+             join entry in db.JournalEntries.IgnoreQueryFilters() on line.JournalEntryId equals entry.Id
+             where entry.BookId == bookId
+                 && accounts.Contains(line.GlAccountId)
+                 && entry.Status == JournalEntryStatus.Posted
+                 && entry.EntryDate <= asOf
+                 && entry.SourceId != null
+                 && (entry.SourceType == ReceiptSourceType || entry.SourceType == VendorBillApPostingService.PurchaseOrderFreightCloseSourceType)
+             group new { line.Credit, line.Debit, line.FunctionalAmount } by new { entry.SourceType, PoId = (int)entry.SourceId!.Value } into g
+             select new
+             {
+                 g.Key.SourceType,
+                 g.Key.PoId,
+                 Credit = g.Sum(x => x.Credit > 0 ? x.FunctionalAmount : 0m),
+                 Debit = g.Sum(x => x.Debit > 0 ? x.FunctionalAmount : 0m),
+             })
+            .ToListAsync(ct);
+
+        var accrued = glByPo.Where(g => g.SourceType == ReceiptSourceType).ToDictionary(g => g.PoId, g => g.Credit - g.Debit);
+        if (accrued.Count == 0)
+            return [];
+
+        var released = glByPo.Where(g => g.SourceType != ReceiptSourceType).ToDictionary(g => g.PoId, g => g.Debit - g.Credit);
+        var poIds = accrued.Keys.ToList();
+        var asOfEnd = new DateTimeOffset(asOf.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero);
+        var billed = await db.Set<VendorBillLine>()
+            .Where(l => l.FreightForPurchaseOrderId != null && poIds.Contains(l.FreightForPurchaseOrderId.Value)
+                && l.FreightClearedAmount != null
+                && l.VendorBill.Status != VendorBillStatus.Void && l.VendorBill.Status != VendorBillStatus.Draft
+                && l.VendorBill.BillDate <= asOfEnd)
+            .GroupBy(l => l.FreightForPurchaseOrderId!.Value)
+            .Select(g => new { PoId = g.Key, Amount = g.Sum(l => l.FreightClearedAmount!.Value) })
+            .ToDictionaryAsync(x => x.PoId, x => x.Amount, ct);
+
+        var pos = await db.Set<PurchaseOrder>().IgnoreQueryFilters()
+            .Where(p => poIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.PONumber, p.VendorId, VendorName = p.Vendor.CompanyName })
+            .ToDictionaryAsync(p => p.Id, ct);
+
+        return poIds
+            .Select(id => new GrniFreightClearingRow
+            {
+                PurchaseOrderId = id,
+                PoNumber = pos.TryGetValue(id, out var po) ? po.PONumber : $"PO {id}",
+                VendorId = po?.VendorId ?? 0,
+                VendorName = po?.VendorName ?? string.Empty,
+                Accrued = accrued[id],
+                Billed = billed.GetValueOrDefault(id),
+                Released = released.GetValueOrDefault(id),
+            })
+            .Where(r => r.OpenAmount != 0m)
+            .OrderByDescending(r => r.OpenAmount)
+            .ThenBy(r => r.PoNumber)
+            .ToList();
+    }
+
+    private Task<decimal> GlGrniBalanceAsync(int bookId, DateOnly asOf, CancellationToken ct)
+        => GlBalanceForKeyAsync(bookId, KeyGrni, asOf, ct);
+
+    private async Task<decimal> GlBalanceForKeyAsync(int bookId, string key, DateOnly asOf, CancellationToken ct)
     {
         var grniAccountIds = await db.AccountDeterminationRules
-            .Where(r => r.BookId == bookId && r.Key == KeyGrni)
+            .Where(r => r.BookId == bookId && r.Key == key)
             .Select(r => r.GlAccountId)
             .ToListAsync(ct);
 

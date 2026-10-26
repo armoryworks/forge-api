@@ -14,4 +14,5 @@ public record SalesTaxRateResponseModel(
     // Phase 3 F5 — surface full-record fields on the response so a POST-with-
     // everything can be verified via a GET round-trip.
     bool ExemptFlag = false,
-    string? GlPostingAccount = null);
+    string? GlPostingAccount = null,
+    bool FreightTaxable = false);

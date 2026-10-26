@@ -27,7 +27,9 @@ public record UpdateSalesOrderCommand(
     // Optional editable order number — see UpdateSalesOrderRequestModel.OrderNumber.
     string? OrderNumber = null,
     int? CurrencyId = null,
-    decimal? FxRate = null) : IRequest;
+    decimal? FxRate = null,
+    FreightTerms? FreightTerms = null,
+    bool? ClearFreightTerms = null) : IRequest;
 
 public class UpdateSalesOrderValidator : AbstractValidator<UpdateSalesOrderCommand>
 {
@@ -126,6 +128,13 @@ public class UpdateSalesOrderHandler(
             if (!CreditTermsExtensions.TryParseLenient(request.CreditTerms, out var terms))
                 throw new ValidationException(CreditTermsExtensions.AllowedValuesMessage);
             order.CreditTerms = terms;
+        }
+        if (request.ClearFreightTerms == true) order.FreightTerms = null;
+        else if (request.FreightTerms is { } freightTerms)
+        {
+            if (!Enum.IsDefined(freightTerms))
+                throw new ValidationException("Unknown freight terms.");
+            order.FreightTerms = freightTerms;
         }
         if (request.RequestedDeliveryDate.HasValue) order.RequestedDeliveryDate = request.RequestedDeliveryDate;
         if (request.CustomerPO != null) order.CustomerPO = request.CustomerPO;

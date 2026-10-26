@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record CreateInvoiceRequestModel(
@@ -17,12 +19,14 @@ public record CreateInvoiceRequestModel(
     decimal? FxRate = null,
     // Optional caller-supplied invoice number. Honored only when the
     // invoices.allow_manual_numbers setting is on; otherwise auto-generated.
-    string? InvoiceNumber = null);
+    string? InvoiceNumber = null,
+    int? SalesTaxRateId = null);
 
 public record CreateInvoiceLineModel(
     int? PartId,
     string Description,
     decimal Quantity,
     decimal UnitPrice,
-    bool Taxable = true,
-    int? SalesOrderLineId = null);
+    bool? Taxable = null,
+    int? SalesOrderLineId = null,
+    DocumentLineType LineType = DocumentLineType.Item);

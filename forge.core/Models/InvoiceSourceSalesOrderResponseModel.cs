@@ -8,4 +8,5 @@ public record InvoiceSourceSalesOrderResponseModel(
     string CustomerName,
     decimal TaxRate = 0m,
     CreditTerms? CreditTerms = null,
-    int? CurrencyId = null);
+    int? CurrencyId = null,
+    List<InvoiceSourceShipmentLineResponseModel>? FreightLines = null);

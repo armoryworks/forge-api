@@ -6,4 +6,6 @@ public record InvoiceSourceShipmentResponseModel(
     int SalesOrderId,
     string SalesOrderNumber,
     DateTimeOffset? ShippedDate,
-    List<InvoiceSourceShipmentLineResponseModel> Lines);
+    List<InvoiceSourceShipmentLineResponseModel> Lines,
+    decimal? FreightCharge = null,
+    List<string>? Warnings = null);

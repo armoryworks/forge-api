@@ -33,6 +33,12 @@ public class SalesTaxRate : BaseAuditableEntity
     public bool ExemptFlag { get; set; }
 
     /// <summary>
+    /// True when this jurisdiction taxes separately stated delivery charges. Freight lines on invoices taxed at
+    /// this rate start taxable; otherwise they start non-taxable. Default false.
+    /// </summary>
+    public bool FreightTaxable { get; set; }
+
+    /// <summary>
     /// External-accounting GL posting account this tax should map to when the
     /// accounting-sync integration is configured. Optional — populated by the
     /// provider's tax-account mapping flow. Phase 3 F5.

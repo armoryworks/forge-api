@@ -159,10 +159,12 @@ public static partial class SeedData
 
             // ── Income (4xxxx) ──────────────────────────────────────────────
             ("40000", "Sales Revenue",               AccountType.Income,    NormalBalance.Credit, false, null,                         "SALES_REVENUE"),
+            ("40500", "Freight Income",              AccountType.Income,    NormalBalance.Credit, false, null,                         "FREIGHT_INCOME"),
             ("41000", "Sales Returns & Allowances",  AccountType.Income,    NormalBalance.Debit,  false, null,                         "SALES_RETURNS"),
 
             // ── COGS (5xxxx) ────────────────────────────────────────────────
             ("50000", "Cost of Goods Sold",          AccountType.Expense,   NormalBalance.Debit,  false, null,                         "COGS"),
+            ("50100", "Freight-In",                  AccountType.Expense,   NormalBalance.Debit,  false, null,                         "FREIGHT_IN"),
             ("51000", "Purchase Price Variance",     AccountType.Expense,   NormalBalance.Debit,  false, null,                         "PURCHASE_PRICE_VARIANCE"),
             ("51100", "Material Usage Variance",     AccountType.Expense,   NormalBalance.Debit,  false, null,                         "MATERIAL_USAGE_VARIANCE"),
             ("51200", "Production Variance",         AccountType.Expense,   NormalBalance.Debit,  false, null,                         "PRODUCTION_VARIANCE"),
@@ -186,6 +188,7 @@ public static partial class SeedData
             // determination is deferred (§12); Phase 1 routes all expense
             // categories to this single operating-expense account.
             ("60000", "General & Administrative",    AccountType.Expense,   NormalBalance.Debit,  false, null,                         "OPERATING_EXPENSE"),
+            ("61200", "Freight-Out (Delivery Expense)", AccountType.Expense, NormalBalance.Debit, false, null,                        "FREIGHT_OUT"),
             ("61500", "Marketplace Fees",            AccountType.Expense,   NormalBalance.Debit,  false, null,                         "MARKETPLACE_FEES"),
             ("66000", "Wages",                       AccountType.Expense,   NormalBalance.Debit,  false, null,                         "WAGE_EXPENSE"),
             ("66100", "Employer Payroll Tax",        AccountType.Expense,   NormalBalance.Debit,  false, null,                         "EMPLOYER_PAYROLL_TAX_EXPENSE"),
@@ -606,6 +609,9 @@ public static partial class SeedData
         ("WAGE_EXPENSE", "66000", "Wages", AccountType.Expense, NormalBalance.Debit),
         ("EMPLOYER_PAYROLL_TAX_EXPENSE", "66100", "Employer Payroll Tax", AccountType.Expense, NormalBalance.Debit),
         ("OPENING_BALANCE_EQUITY", "39000", "Opening Balance Equity", AccountType.Equity, NormalBalance.Credit),
+        ("FREIGHT_INCOME", "40500", "Freight Income", AccountType.Income, NormalBalance.Credit),
+        ("FREIGHT_IN", "50100", "Freight-In", AccountType.Expense, NormalBalance.Debit),
+        ("FREIGHT_OUT", "61200", "Freight-Out (Delivery Expense)", AccountType.Expense, NormalBalance.Debit),
     ];
 
     internal static async Task EnsureDeterminationAccountsAsync(AppDbContext db)

@@ -6,6 +6,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Freight;
 using Forge.Api.Services.Fx;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
@@ -45,7 +46,12 @@ public class CreateQuoteValidator : AbstractValidator<CreateQuoteCommand>
         RuleFor(x => x.QuoteNumber).MaximumLength(20).When(x => !string.IsNullOrWhiteSpace(x.QuoteNumber));
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
-            line.RuleFor(l => l.Description).NotEmpty();
+            line.RuleFor(l => l.Description).NotEmpty().When(l => l.LineType != DocumentLineType.Freight);
+            line.RuleFor(l => l.LineType).IsInEnum();
+            line.RuleFor(l => l.PartId).Null()
+                .When(l => l.LineType == DocumentLineType.Freight)
+                .WithMessage("A freight line can't name a part.")
+                .WithErrorCode(FreightLines.PartCode);
             // Phase 3 / WU-23 (F8-broad): decimal quantity supports fractional UoM.
             line.RuleFor(l => l.Quantity).GreaterThan(0m).UnitScale();
             line.RuleFor(l => l.UnitPrice).GreaterThanOrEqualTo(0).UnitScale();
@@ -138,7 +144,10 @@ public class CreateQuoteHandler(
             quote.Lines.Add(new QuoteLine
             {
                 PartId = line.PartId,
-                Description = line.Description,
+                Description = line.LineType == DocumentLineType.Freight && string.IsNullOrWhiteSpace(line.Description)
+                    ? FreightLines.DefaultDescription
+                    : line.Description,
+                LineType = line.LineType,
                 Quantity = line.Quantity,
                 UnitPrice = unitPrice,
                 LineNumber = lineNumber++,

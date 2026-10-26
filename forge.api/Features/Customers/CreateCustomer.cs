@@ -34,7 +34,8 @@ public record CreateCustomerCommand(
     string? CustomerNumber = null,
     string? Fax = null,
     string? DefaultCreditTerms = null,
-    int? CurrencyId = null) : IRequest<CustomerListItemModel>;
+    int? CurrencyId = null,
+    FreightTerms? FreightTerms = null) : IRequest<CustomerListItemModel>;
 
 public class CreateCustomerValidator : AbstractValidator<CreateCustomerCommand>
 {
@@ -138,6 +139,7 @@ public class CreateCustomerHandler(
             DefaultCreditTerms = CreditTermsExtensions.TryParseLenient(request.DefaultCreditTerms, out var terms)
                 ? terms
                 : null,
+            FreightTerms = request.FreightTerms,
         };
         await PartyCurrency.ApplyToCustomerAsync(db, customer, request.CurrencyId, request.DefaultCurrency, clear: false, cancellationToken);
 

@@ -5,6 +5,8 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Freight;
+using Forge.Api.Features.SalesTax;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -31,7 +33,8 @@ public record CreateInvoiceCommand(
     int? CurrencyId = null,
     decimal? FxRate = null,
     // Optional caller-supplied invoice number — see CreateInvoiceRequestModel.InvoiceNumber.
-    string? InvoiceNumber = null) : IRequest<InvoiceListItemModel>;
+    string? InvoiceNumber = null,
+    int? SalesTaxRateId = null) : IRequest<InvoiceListItemModel>;
 
 public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
 {
@@ -58,7 +61,13 @@ public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
         RuleFor(x => x.FxRate).GreaterThan(0m).When(x => x.FxRate.HasValue);
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
-            line.RuleFor(l => l.Description).NotEmpty();
+            line.RuleFor(l => l.LineType).IsInEnum();
+            line.RuleFor(l => l.Description).NotEmpty().When(l => l.LineType != DocumentLineType.Freight);
+            line.RuleFor(l => l.Description).MaximumLength(500);
+            line.RuleFor(l => l.PartId).Null()
+                .When(l => l.LineType == DocumentLineType.Freight)
+                .WithMessage("A freight line can't name a part.")
+                .WithErrorCode(FreightLines.PartCode);
             // Phase 3 / WU-23 (F8-broad): decimal quantity supports fractional UoM.
             line.RuleFor(l => l.Quantity).GreaterThan(0m);
             line.RuleFor(l => l.UnitPrice).GreaterThanOrEqualTo(0);
@@ -83,6 +92,9 @@ public class CreateInvoiceHandler(
 {
     // System setting that gates caller-supplied invoice numbers. Stored as "true"/"false".
     private const string AllowManualInvoiceNumbersKey = "invoices.allow_manual_numbers";
+
+    /// <summary>System setting naming the QuickBooks item freight lines sync to.</summary>
+    public const string FreightItemSettingKey = "qbo.freight_item_id";
 
     private static readonly ShipmentStatus[] ShippedStatuses =
         [ShipmentStatus.Shipped, ShipmentStatus.InTransit, ShipmentStatus.Delivered];
@@ -131,6 +143,8 @@ public class CreateInvoiceHandler(
                 .CountAsync(cancellationToken);
             if (lineIdsOnOrder != linkedLineIds.Count)
                 throw new ValidationException("An invoice line names a sales-order line that is not on this invoice's sales order.");
+
+            await EnsureSalesOrderFreightNotBilledAsync(request, cancellationToken);
         }
 
         if (request.ShipmentId is int shipmentId)
@@ -244,6 +258,10 @@ public class CreateInvoiceHandler(
         var currency = await currencies.ResolveAsync(
             request.CurrencyId, request.FxRate, salesOrderCurrencyId ?? customer.CurrencyId, request.InvoiceDate, cancellationToken);
 
+        var invoiceDay = DateOnly.FromDateTime(request.InvoiceDate.UtcDateTime);
+        var customerExempt = customer.IsTaxExemptOn(invoiceDay);
+        var jurisdiction = await ResolveJurisdictionAsync(request, cancellationToken);
+
         var invoice = new Invoice
         {
             InvoiceNumber = invoiceNumber,
@@ -255,7 +273,8 @@ public class CreateInvoiceHandler(
             InvoiceDate = request.InvoiceDate,
             DueDate = request.DueDate,
             CreditTerms = creditTerms,
-            TaxRate = customer.IsTaxExemptOn(DateOnly.FromDateTime(request.InvoiceDate.UtcDateTime)) ? 0m : request.TaxRate,
+            TaxRate = customerExempt ? 0m : request.TaxRate,
+            SalesTaxRateId = jurisdiction?.Id,
             Notes = request.Notes,
             CustomerPO = customerPo,
         };
@@ -263,14 +282,23 @@ public class CreateInvoiceHandler(
         var lineNumber = 1;
         foreach (var line in request.Lines)
         {
+            var isFreight = line.LineType == DocumentLineType.Freight;
             invoice.Lines.Add(new InvoiceLine
             {
                 PartId = line.PartId,
-                Description = line.Description,
+                Description = isFreight && string.IsNullOrWhiteSpace(line.Description) ? FreightLines.DefaultDescription : line.Description,
                 Quantity = line.Quantity,
                 UnitPrice = line.UnitPrice,
                 LineNumber = lineNumber++,
-                TaxCode = line.Taxable ? null : InvoiceLine.NonTaxableCode,
+                LineType = line.LineType,
+                TaxCode = isFreight
+                    ? line.Taxable switch
+                    {
+                        true => FreightLines.TaxableCode,
+                        false => InvoiceLine.NonTaxableCode,
+                        null => FreightLines.DefaultTaxCode(jurisdiction?.FreightTaxable ?? false, customerExempt),
+                    }
+                    : line.Taxable == false ? InvoiceLine.NonTaxableCode : null,
                 SalesOrderLineId = line.SalesOrderLineId,
             });
         }
@@ -295,11 +323,16 @@ public class CreateInvoiceHandler(
         if (accountingProviders is not null && syncQueue is not null
             && await accountingProviders.GetConnectedExternalProviderAsync(cancellationToken) is not null)
         {
+            var freightItemId = invoice.Lines.Any(l => l.IsFreight) && systemSettings is not null
+                ? (await systemSettings.FindByKeyAsync(FreightItemSettingKey, cancellationToken))?.Value is { Length: > 0 } itemId ? itemId : null
+                : null;
             var document = new AccountingDocument(
                 Type: AccountingDocumentType.Invoice,
                 CustomerExternalId: customer.ExternalId ?? string.Empty,
                 LineItems: invoice.Lines
-                    .Select(l => new AccountingLineItem(l.Description, l.Quantity, l.UnitPrice, ItemExternalId: null))
+                    .Select(l => l.IsFreight
+                        ? new AccountingLineItem(l.Description, l.Quantity, l.UnitPrice, freightItemId, IsFreight: true, Taxable: l.IsTaxable)
+                        : new AccountingLineItem(l.Description, l.Quantity, l.UnitPrice, ItemExternalId: null))
                     .ToList(),
                 RefNumber: invoice.InvoiceNumber,
                 Amount: total,
@@ -322,6 +355,45 @@ public class CreateInvoiceHandler(
             invoice.Status.ToString(), invoice.InvoiceDate, invoice.DueDate,
             total, 0, total, invoice.CreatedAt, currencyCode,
             invoice.CurrencyId, invoice.FxRate, FxMath.ToFunctional(total, invoice.FxRate));
+    }
+
+    private async Task<SalesTaxRateResponseModel?> ResolveJurisdictionAsync(CreateInvoiceCommand request, CancellationToken ct)
+    {
+        if (request.SalesTaxRateId is int rateId)
+        {
+            return await db.SalesTaxRates.AsNoTracking()
+                .Where(r => r.Id == rateId)
+                .Select(r => new SalesTaxRateResponseModel(
+                    r.Id, r.Name, r.Code, r.StateCode, r.Rate, r.EffectiveFrom, r.EffectiveTo,
+                    r.IsDefault, r.IsActive, r.Description, r.ExemptFlag, r.GlPostingAccount, r.FreightTaxable))
+                .FirstOrDefaultAsync(ct)
+                ?? throw new KeyNotFoundException($"Sales tax rate {rateId} not found");
+        }
+
+        var resolved = await GetTaxRateForCustomerHandler.ResolveAsync(db, request.CustomerId, request.InvoiceDate, ct);
+        return resolved is not null && decimal.Round(resolved.Rate, 6) == decimal.Round(request.TaxRate, 6)
+            ? resolved
+            : null;
+    }
+
+    private async Task EnsureSalesOrderFreightNotBilledAsync(CreateInvoiceCommand request, CancellationToken ct)
+    {
+        var freightOrderLineIds = request.Lines
+            .Where(l => l.LineType == DocumentLineType.Freight && l.SalesOrderLineId != null)
+            .Select(l => l.SalesOrderLineId!.Value)
+            .Distinct()
+            .ToList();
+        if (freightOrderLineIds.Count == 0)
+            return;
+
+        var billedOn = await db.InvoiceLines.AsNoTracking()
+            .Where(il => il.SalesOrderLineId != null && freightOrderLineIds.Contains(il.SalesOrderLineId.Value)
+                && il.Invoice.Status != InvoiceStatus.Voided)
+            .Select(il => il.Invoice.InvoiceNumber)
+            .FirstOrDefaultAsync(ct);
+        if (billedOn is not null)
+            throw FreightLines.Failure("Lines", FreightLines.SoFreightAlreadyBilledCode,
+                $"This sales order's freight is already billed on invoice {billedOn}.");
     }
 
     private static string Qty(decimal quantity) => quantity.ToString("0.####", CultureInfo.InvariantCulture);

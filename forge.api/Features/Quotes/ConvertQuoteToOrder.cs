@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.CustomerPoDocuments;
+using Forge.Api.Features.Freight;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -63,6 +64,7 @@ public class ConvertQuoteToOrderHandler(
             // F7: the customer's PO reference captured at quote time follows the order.
             CustomerPO = quote.CustomerPO,
             CreditTerms = quote.Customer.DefaultCreditTerms,
+            FreightTerms = quote.Customer.FreightTerms,
             CurrencyId = quote.CurrencyId,
             FxRate = quote.FxRate,
         };
@@ -86,6 +88,10 @@ public class ConvertQuoteToOrderHandler(
                 UnitPrice = ql.UnitPrice,
                 LineNumber = lineNumber++,
                 Notes = ql.Notes,
+                LineType = ql.LineType,
+                TaxCode = !ql.IsFreight ? null
+                    : db is null ? InvoiceLine.NonTaxableCode
+                    : await FreightLines.TaxCodeForAsync(db, quote.CustomerId, (clock ?? new Forge.Integrations.SystemClock()).UtcNow, null, cancellationToken),
             });
         }
 

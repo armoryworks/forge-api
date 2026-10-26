@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 /// <summary>
@@ -31,4 +33,6 @@ public record CreateVendorBillLineModel(
     string? AccountDeterminationKey,
     // STAGE-D 3-way match: the PO line this bill line matches (required when the bill is PO-linked).
     int? PurchaseOrderLineId = null,
-    int? GlAccountId = null);
+    int? GlAccountId = null,
+    DocumentLineType LineType = DocumentLineType.Item,
+    int? FreightForPurchaseOrderId = null);

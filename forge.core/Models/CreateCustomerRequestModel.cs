@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 /// <summary>
@@ -26,4 +28,5 @@ public record CreateCustomerRequestModel(
     string? CustomerNumber = null,
     string? Fax = null,
     string? DefaultCreditTerms = null,
-    int? CurrencyId = null);
+    int? CurrencyId = null,
+    FreightTerms? FreightTerms = null);

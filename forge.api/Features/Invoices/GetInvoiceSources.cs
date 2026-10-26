@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Freight;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -53,7 +54,8 @@ public class GetInvoiceSourcesHandler(AppDbContext db)
                         l.SalesOrderLine != null ? l.SalesOrderLine.UnitPrice : 0m,
                         l.SalesOrderLine == null || l.SalesOrderLine.TaxCode != InvoiceLine.NonTaxableCode,
                         l.SalesOrderLineId))
-                    .ToList()))
+                    .ToList(),
+                s.FreightCharge))
             .ToListAsync(cancellationToken);
 
         var fullyInvoiced = await FullyInvoicedSalesOrderIdsAsync(
@@ -64,7 +66,79 @@ public class GetInvoiceSourcesHandler(AppDbContext db)
             .Take(MaxResults)
             .ToList();
 
+        var orderIds = salesOrders.Select(so => so.Id).Concat(shipments.Select(s => s.SalesOrderId)).Distinct().ToList();
+        var freight = await SalesOrderFreightAsync(orderIds, cancellationToken);
+
+        salesOrders = salesOrders
+            .Select(so => freight.TryGetValue(so.Id, out var f) && f.Unbilled.Count > 0 ? so with { FreightLines = f.Unbilled } : so)
+            .ToList();
+        shipments = shipments.Select(s => WithFreight(s, freight.GetValueOrDefault(s.SalesOrderId))).ToList();
+
         return new InvoiceSourcesResponseModel(salesOrders, shipments);
+    }
+
+    /// <summary>
+    /// A shipment's freight lines: the order's quoted freight while it is still unbilled (quoted freight bills
+    /// once, on the first invoice), else the shipment's own freight charge when the order quotes no freight. An
+    /// order that quotes freight never bills a shipment's charge as well; that case carries the
+    /// <see cref="FreightLines.SoFreightAlreadyBilledCode"/> warning instead.
+    /// </summary>
+    internal static InvoiceSourceShipmentResponseModel WithFreight(
+        InvoiceSourceShipmentResponseModel shipment, (bool HasAny, List<InvoiceSourceShipmentLineResponseModel> Unbilled) freight)
+    {
+        var charge = shipment.FreightCharge ?? 0m;
+        if (freight.Unbilled is { Count: > 0 })
+            return shipment with
+            {
+                Lines = [.. shipment.Lines, .. freight.Unbilled],
+                Warnings = charge > 0m ? [FreightLines.SoFreightAlreadyBilledCode] : null,
+            };
+
+        if (freight.HasAny)
+            return charge > 0m ? shipment with { Warnings = [FreightLines.SoFreightAlreadyBilledCode] } : shipment;
+
+        if (charge <= 0m)
+            return shipment;
+
+        return shipment with
+        {
+            Lines =
+            [
+                .. shipment.Lines,
+                new InvoiceSourceShipmentLineResponseModel(
+                    null, null, FreightLines.DefaultDescription, 1m, charge, Taxable: false, LineType: DocumentLineType.Freight),
+            ],
+        };
+    }
+
+    private async Task<Dictionary<int, (bool HasAny, List<InvoiceSourceShipmentLineResponseModel> Unbilled)>> SalesOrderFreightAsync(
+        List<int> salesOrderIds, CancellationToken ct)
+    {
+        if (salesOrderIds.Count == 0) return [];
+
+        var lines = await db.SalesOrderLines.AsNoTracking()
+            .Where(l => salesOrderIds.Contains(l.SalesOrderId) && l.LineType == DocumentLineType.Freight)
+            .OrderBy(l => l.LineNumber)
+            .Select(l => new
+            {
+                l.Id,
+                l.SalesOrderId,
+                l.Description,
+                l.Quantity,
+                l.UnitPrice,
+                Taxable = l.TaxCode != InvoiceLine.NonTaxableCode,
+                Billed = db.InvoiceLines.Any(il => il.SalesOrderLineId == l.Id && il.Invoice.Status != InvoiceStatus.Voided),
+            })
+            .ToListAsync(ct);
+
+        return lines
+            .GroupBy(l => l.SalesOrderId)
+            .ToDictionary(
+                g => g.Key,
+                g => (true, g.Where(l => !l.Billed)
+                    .Select(l => new InvoiceSourceShipmentLineResponseModel(
+                        null, null, l.Description, l.Quantity, l.UnitPrice, l.Taxable, l.Id, DocumentLineType.Freight))
+                    .ToList()));
     }
 
     private async Task<HashSet<int>> FullyInvoicedSalesOrderIdsAsync(List<int> salesOrderIds, CancellationToken ct)

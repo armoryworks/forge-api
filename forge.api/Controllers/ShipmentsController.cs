@@ -45,7 +45,7 @@ public class ShipmentsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new CreateShipmentCommand(
             request.SalesOrderId, request.ShippingAddressId, request.Carrier,
             request.TrackingNumber, request.ShippingCost, request.Weight,
-            request.Notes, request.Lines, request.CarrierId, request.ShipmentNumber));
+            request.Notes, request.Lines, request.CarrierId, request.ShipmentNumber, request.FreightCharge));
         return CreatedAtAction(nameof(GetShipment), new { id = result.Id }, result);
     }
 
@@ -56,7 +56,7 @@ public class ShipmentsController(IMediator mediator) : ControllerBase
         await mediator.Send(new UpdateShipmentCommand(
             id, request.Carrier, request.TrackingNumber,
             request.ShippingCost, request.Weight, request.Notes, request.ShippingAddressId,
-            request.Length, request.Width, request.Height, request.ShipmentNumber));
+            request.Length, request.Width, request.Height, request.ShipmentNumber, request.FreightCharge));
         return NoContent();
     }
 

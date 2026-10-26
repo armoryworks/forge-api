@@ -60,6 +60,18 @@ public sealed class GrniReconciliation
 
     public const int UncoveredReceiptLimit = 200;
     public bool UncoveredTruncated { get; init; }
+
+    /// <summary>Net FREIGHT_CLEARING balance from the GL (credit-positive), on/before <c>AsOf</c>.</summary>
+    public decimal FreightClearingGlBalance { get; init; }
+
+    /// <summary>Σ of the per-PO open freight accruals in <see cref="FreightClearing"/>.</summary>
+    public decimal FreightClearingOpen { get; init; }
+
+    /// <summary>GL minus the per-PO open freight accruals. Zero when receipts, freight bills and closes agree.</summary>
+    public decimal FreightClearingVariance => FreightClearingGlBalance - FreightClearingOpen;
+
+    /// <summary>Freight accrued at receipt and not yet cleared, per purchase order (non-zero rows only).</summary>
+    public IReadOnlyList<GrniFreightClearingRow> FreightClearing { get; init; } = [];
 }
 
 /// <summary>One purchase order's open GRNI, split across the aging buckets (aged by earliest receipt date).</summary>

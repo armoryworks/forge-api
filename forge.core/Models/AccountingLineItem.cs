@@ -4,4 +4,6 @@ public record AccountingLineItem(
     string Description,
     decimal Quantity,
     decimal UnitPrice,
-    string? ItemExternalId);
+    string? ItemExternalId,
+    bool IsFreight = false,
+    bool? Taxable = null);

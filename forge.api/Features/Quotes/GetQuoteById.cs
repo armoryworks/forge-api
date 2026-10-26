@@ -59,7 +59,8 @@ public class GetQuoteByIdHandler(IQuoteRepository repo, IStandardCostResolver? c
                 l.LineNumber,
                 l.Notes,
                 CostBreakdownFor(l, unitCosts),
-                EffectiveMarginFor(l, unitCosts))).ToList(),
+                EffectiveMarginFor(l, unitCosts),
+                l.LineType)).ToList(),
             quote.CreatedAt,
             quote.UpdatedAt,
             quote.CustomerPO,
@@ -68,7 +69,8 @@ public class GetQuoteByIdHandler(IQuoteRepository repo, IStandardCostResolver? c
             CurrencyCode: db is not null && quote.CurrencyId is int currencyId
                 ? await db.Currencies.AsNoTracking().Where(c => c.Id == currencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken)
                 : null,
-            FxRate: quote.FxRate);
+            FxRate: quote.FxRate,
+            FreightSubtotal: quote.FreightSubtotal);
     }
 
     private static QuoteLineCostBreakdownModel? CostBreakdownFor(

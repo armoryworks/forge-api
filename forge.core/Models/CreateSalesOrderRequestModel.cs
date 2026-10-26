@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record CreateSalesOrderRequestModel(
@@ -15,7 +17,8 @@ public record CreateSalesOrderRequestModel(
     // sales_orders.allow_manual_numbers setting is on; otherwise auto-generated.
     string? OrderNumber = null,
     int? CurrencyId = null,
-    decimal? FxRate = null);
+    decimal? FxRate = null,
+    FreightTerms? FreightTerms = null);
 
 // Phase 3 / WU-10 / F8-partial — Quantity is decimal (was int). UoM-aware shops
 // need fractional quantities — material-by-weight, by-time, by-volume.
@@ -24,4 +27,6 @@ public record CreateSalesOrderLineModel(
     string Description,
     decimal Quantity,
     decimal UnitPrice,
-    string? Notes);
+    string? Notes,
+    DocumentLineType LineType = DocumentLineType.Item,
+    bool? Taxable = null);

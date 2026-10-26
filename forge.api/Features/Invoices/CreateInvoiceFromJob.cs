@@ -81,7 +81,7 @@ public class CreateInvoiceFromJobHandler(AppDbContext db, IMediator mediator, IC
                 Lines:
                 [
                     new CreateInvoiceLineModel(orderLine.PartId, description, quantity, orderLine.UnitPrice,
-                        Taxable: orderLine.TaxCode != InvoiceLine.NonTaxableCode, SalesOrderLineId: orderLine.Id),
+                        Taxable: orderLine.TaxCode == InvoiceLine.NonTaxableCode ? false : null, SalesOrderLineId: orderLine.Id),
                 ]);
         }
         else if (job.QuotedPrice > 0m)

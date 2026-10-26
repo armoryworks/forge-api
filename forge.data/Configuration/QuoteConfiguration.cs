@@ -11,6 +11,7 @@ public class QuoteConfiguration : IEntityTypeConfiguration<Quote>
     {
         builder.Ignore(e => e.IsDeleted);
         builder.Ignore(e => e.Subtotal);
+        builder.Ignore(e => e.FreightSubtotal);
         builder.Ignore(e => e.TaxAmount);
         builder.Ignore(e => e.Total);
 

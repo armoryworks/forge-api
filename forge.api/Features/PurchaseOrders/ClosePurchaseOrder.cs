@@ -1,4 +1,5 @@
 using MediatR;
+using Forge.Api.Features.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -8,7 +9,11 @@ namespace Forge.Api.Features.PurchaseOrders;
 
 public record ClosePurchaseOrderCommand(int Id) : IRequest;
 
-public class ClosePurchaseOrderHandler(IPurchaseOrderRepository repo, AppDbContext db)
+public class ClosePurchaseOrderHandler(
+    IPurchaseOrderRepository repo,
+    AppDbContext db,
+    IVendorBillApPostingService? apPosting = null,
+    IClock? clock = null)
     : IRequestHandler<ClosePurchaseOrderCommand>
 {
     public async Task Handle(ClosePurchaseOrderCommand request, CancellationToken cancellationToken)
@@ -22,5 +27,10 @@ public class ClosePurchaseOrderHandler(IPurchaseOrderRepository repo, AppDbConte
         po.Status = PurchaseOrderStatus.Closed;
         db.LogActivityAt("closed", "Closed", ("PurchaseOrder", po.Id));
         await repo.SaveChangesAsync(cancellationToken);
+
+        if (apPosting is not null)
+            await apPosting.PostPurchaseOrderFreightCloseAsync(
+                po.Id, DateOnly.FromDateTime((clock ?? new Forge.Integrations.SystemClock()).UtcNow.UtcDateTime),
+                db.CurrentUserId ?? 0, cancellationToken);
     }
 }

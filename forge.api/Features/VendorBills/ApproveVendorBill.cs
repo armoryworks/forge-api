@@ -63,7 +63,7 @@ public class ApproveVendorBillHandler(
         // clearing the GRNI accrued at receipt, leaving the accrual stranded and BilledQuantity un-advanced.
         if (bill.PurchaseOrderId is not null)
         {
-            if (bill.Lines.Any(l => l.PurchaseOrderLineId is null))
+            if (bill.Lines.Any(l => l.PurchaseOrderLineId is null && !l.IsFreight))
                 throw new InvalidOperationException(
                     $"Vendor bill {bill.BillNumber} is PO-matched but has a line with no purchase-order line "
                   + "reference (3-way match requires every line to match a PO line).");

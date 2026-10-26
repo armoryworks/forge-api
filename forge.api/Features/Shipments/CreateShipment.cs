@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Freight;
 using Forge.Api.Features.Quality;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -26,13 +27,15 @@ public record CreateShipmentCommand(
     // Carrier string are unchanged. Drives the scan-to-ship gate + delivery automation.
     int? CarrierId = null,
     // Optional caller-supplied shipment number — gated by shipments.allow_manual_numbers.
-    string? ShipmentNumber = null) : IRequest<ShipmentListItemModel>;
+    string? ShipmentNumber = null,
+    decimal? FreightCharge = null) : IRequest<ShipmentListItemModel>;
 
 public class CreateShipmentValidator : AbstractValidator<CreateShipmentCommand>
 {
     public CreateShipmentValidator()
     {
         RuleFor(x => x.SalesOrderId).GreaterThan(0);
+        RuleFor(x => x.FreightCharge).GreaterThanOrEqualTo(0m).When(x => x.FreightCharge.HasValue);
         RuleFor(x => x.Lines).NotEmpty().WithMessage("At least one line item is required");
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
@@ -99,6 +102,12 @@ public class CreateShipmentHandler(
             CarrierId = request.CarrierId,
             TrackingNumber = request.TrackingNumber,
             ShippingCost = request.ShippingCost,
+            FreightCharge = request.FreightCharge is decimal charge
+                ? Math.Round(charge, 2, MidpointRounding.AwayFromZero)
+                : FreightTermsResolver.DefaultCharge(
+                    db is null ? FreightTermsResolver.FallbackTerms
+                        : await FreightTermsResolver.ForSalesOrderAsync(db, request.SalesOrderId, cancellationToken),
+                    request.ShippingCost),
             Weight = request.Weight,
             Notes = request.Notes,
         };
@@ -114,6 +123,9 @@ public class CreateShipmentHandler(
                 // SO-line based: validate remaining quantity
                 var orderLine = order.Lines.FirstOrDefault(l => l.Id == line.SalesOrderLineId)
                     ?? throw new KeyNotFoundException($"Sales order line {line.SalesOrderLineId} not found");
+                if (orderLine.IsFreight)
+                    throw new InvalidOperationException(
+                        $"Line {orderLine.LineNumber} is a freight charge, which is invoiced, not shipped.");
 
                 var open = OpenToShip(orderLine);
                 if (line.Quantity > open)

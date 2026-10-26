@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 
+using Forge.Api.Features.Freight;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -22,7 +23,12 @@ public class AddSalesOrderLineValidator : AbstractValidator<AddSalesOrderLineCom
     public AddSalesOrderLineValidator()
     {
         RuleFor(x => x.SalesOrderId).GreaterThan(0);
-        RuleFor(x => x.Data.Description).NotEmpty();
+        RuleFor(x => x.Data.Description).NotEmpty().When(x => x.Data.LineType != DocumentLineType.Freight);
+        RuleFor(x => x.Data.LineType).IsInEnum();
+        RuleFor(x => x.Data.PartId).Null()
+            .When(x => x.Data.LineType == DocumentLineType.Freight)
+            .WithMessage("A freight line can't name a part.")
+            .WithErrorCode(FreightLines.PartCode);
         RuleFor(x => x.Data.Quantity).GreaterThan(0);
         RuleFor(x => x.Data.UnitPrice).GreaterThanOrEqualTo(0);
     }
@@ -32,7 +38,8 @@ public class AddSalesOrderLineHandler(
     ISalesOrderRepository repo,
     IPartRepository partRepo,
     AppDbContext db,
-    IMediator mediator)
+    IMediator mediator,
+    IClock? clock = null)
     : IRequestHandler<AddSalesOrderLineCommand, SalesOrderDetailResponseModel>
 {
     public async Task<SalesOrderDetailResponseModel> Handle(AddSalesOrderLineCommand request, CancellationToken cancellationToken)
@@ -51,19 +58,27 @@ public class AddSalesOrderLineHandler(
 
         var nextLineNumber = order.Lines.Count == 0 ? 1 : order.Lines.Max(l => l.LineNumber) + 1;
 
+        var isFreight = request.Data.LineType == DocumentLineType.Freight;
+        var description = isFreight && string.IsNullOrWhiteSpace(request.Data.Description)
+            ? FreightLines.DefaultDescription
+            : request.Data.Description;
         order.Lines.Add(new SalesOrderLine
         {
             PartId = request.Data.PartId,
-            Description = request.Data.Description,
+            Description = description,
             Quantity = request.Data.Quantity,
             UnitPrice = request.Data.UnitPrice,
             LineNumber = nextLineNumber,
             Notes = request.Data.Notes,
+            LineType = request.Data.LineType,
+            TaxCode = isFreight
+                ? await FreightLines.TaxCodeForAsync(db, order.CustomerId, (clock ?? new Forge.Integrations.SystemClock()).UtcNow, request.Data.Taxable, cancellationToken)
+                : null,
         });
 
         db.LogActivityAt(
             "line-added",
-            $"Added order line {nextLineNumber}: {request.Data.Description} ({request.Data.Quantity} × {request.Data.UnitPrice})",
+            $"Added order line {nextLineNumber}: {description} ({request.Data.Quantity} × {request.Data.UnitPrice})",
             ("SalesOrder", order.Id));
 
         await repo.SaveChangesAsync(cancellationToken);

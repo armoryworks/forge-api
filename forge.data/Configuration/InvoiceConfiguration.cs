@@ -13,6 +13,7 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
     {
         builder.Ignore(e => e.IsDeleted);
         builder.Ignore(e => e.Subtotal);
+        builder.Ignore(e => e.FreightSubtotal);
         builder.Ignore(e => e.TaxAmount);
         builder.Ignore(e => e.Total);
         builder.Ignore(e => e.AmountPaid);
@@ -65,6 +66,12 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.HasOne(e => e.Shipment)
             .WithOne(s => s.Invoice)
             .HasForeignKey<Invoice>(e => e.ShipmentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(e => e.SalesTaxRateId);
+        builder.HasOne(e => e.SalesTaxRate)
+            .WithMany()
+            .HasForeignKey(e => e.SalesTaxRateId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(e => e.Lines)

@@ -84,6 +84,7 @@ public class GetCustomerSummaryHandler(AppDbContext db, IClock clock)
             customer.DefaultCreditTerms?.ToString(),
             customer.IsOnCreditHold,
             customer.CurrencyId,
-            await PartyCurrency.CustomerHasPostedDocumentsAsync(db, customer.Id, ct));
+            await PartyCurrency.CustomerHasPostedDocumentsAsync(db, customer.Id, ct),
+            customer.FreightTerms);
     }
 }

@@ -29,4 +29,6 @@ public record ShipmentDetailResponseModel(
     List<ShipmentLineResponseModel> Lines,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    string? InvoiceNumber = null);
+    string? InvoiceNumber = null,
+    decimal? FreightCharge = null,
+    string? FreightTerms = null);

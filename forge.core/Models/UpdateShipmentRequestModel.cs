@@ -12,4 +12,5 @@ public record UpdateShipmentRequestModel(
     decimal? Height = null,
     // Optional caller-supplied shipment number — editable only before the shipment
     // has shipped, gated by shipments.allow_manual_numbers.
-    string? ShipmentNumber = null);
+    string? ShipmentNumber = null,
+    decimal? FreightCharge = null);

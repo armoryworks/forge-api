@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.Freight;
 using Forge.Api.Services.Fx;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
@@ -25,7 +26,8 @@ public record CreateSalesOrderCommand(
     // Optional caller-supplied order number — see CreateSalesOrderRequestModel.OrderNumber.
     string? OrderNumber = null,
     int? CurrencyId = null,
-    decimal? FxRate = null) : IRequest<SalesOrderListItemModel>;
+    decimal? FxRate = null,
+    FreightTerms? FreightTerms = null) : IRequest<SalesOrderListItemModel>;
 
 public class CreateSalesOrderValidator : AbstractValidator<CreateSalesOrderCommand>
 {
@@ -42,9 +44,15 @@ public class CreateSalesOrderValidator : AbstractValidator<CreateSalesOrderComma
         // checked in the handler since it needs a DB lookup.
         RuleFor(x => x.OrderNumber).MaximumLength(20).When(x => !string.IsNullOrWhiteSpace(x.OrderNumber));
         RuleFor(x => x.FxRate).GreaterThan(0m).When(x => x.FxRate.HasValue);
+        RuleFor(x => x.FreightTerms).IsInEnum().When(x => x.FreightTerms.HasValue);
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
-            line.RuleFor(l => l.Description).NotEmpty();
+            line.RuleFor(l => l.LineType).IsInEnum();
+            line.RuleFor(l => l.Description).NotEmpty().When(l => l.LineType != DocumentLineType.Freight);
+            line.RuleFor(l => l.PartId).Null()
+                .When(l => l.LineType == DocumentLineType.Freight)
+                .WithMessage("A freight line can't name a part.")
+                .WithErrorCode(FreightLines.PartCode);
             // Phase 3 / WU-10 — fractional quantity allowed; zero / negative not.
             line.RuleFor(l => l.Quantity).GreaterThan(0m);
             line.RuleFor(l => l.UnitPrice).GreaterThanOrEqualTo(0m);
@@ -110,6 +118,7 @@ public class CreateSalesOrderHandler(
             CustomerPO = request.CustomerPO,
             Notes = request.Notes,
             TaxRate = request.TaxRate,
+            FreightTerms = request.FreightTerms ?? customer.FreightTerms,
         };
 
         if (db is not null)
@@ -138,14 +147,19 @@ public class CreateSalesOrderHandler(
                 ActiveCheck.EnsureActive(part, "Part", $"lines[{i}].partId", partId);
             }
 
+            var isFreight = line.LineType == DocumentLineType.Freight;
             order.Lines.Add(new SalesOrderLine
             {
                 PartId = line.PartId,
-                Description = line.Description,
+                Description = isFreight && string.IsNullOrWhiteSpace(line.Description) ? FreightLines.DefaultDescription : line.Description,
                 Quantity = line.Quantity,
                 UnitPrice = line.UnitPrice,
                 LineNumber = lineNumber++,
                 Notes = line.Notes,
+                LineType = line.LineType,
+                TaxCode = !isFreight ? null
+                    : db is null ? (line.Taxable == true ? FreightLines.TaxableCode : InvoiceLine.NonTaxableCode)
+                    : await FreightLines.TaxCodeForAsync(db, request.CustomerId, (clock ?? new Forge.Integrations.SystemClock()).UtcNow, line.Taxable, cancellationToken),
             });
         }
 

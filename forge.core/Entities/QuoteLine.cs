@@ -1,3 +1,4 @@
+using Forge.Core.Enums;
 using Forge.Core.Models.Accounting;
 
 namespace Forge.Core.Entities;
@@ -11,9 +12,14 @@ public class QuoteLine : BaseEntity
     public decimal Quantity { get; set; }
     public decimal UnitPrice { get; set; }
     public int LineNumber { get; set; }
+
+    /// <summary>Item (default) or Freight. A freight line has no part, never ships and posts to Freight Income.</summary>
+    public DocumentLineType LineType { get; set; } = DocumentLineType.Item;
     public string? Notes { get; set; }
 
     public decimal LineTotal => Money.Round(Quantity * UnitPrice);
+
+    public bool IsFreight => LineType == DocumentLineType.Freight;
 
     public Quote Quote { get; set; } = null!;
     public Part? Part { get; set; }

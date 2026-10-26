@@ -45,6 +45,14 @@ public class VendorBillLineConfiguration : IEntityTypeConfiguration<VendorBillLi
             .HasConstraintName("fk_vendor_bill_lines_job")
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.Property(e => e.FreightClearedAmount).HasPrecision(18, 2);
+        builder.HasIndex(e => e.FreightForPurchaseOrderId).HasDatabaseName("ix_vendor_bill_lines_freight_for_purchase_order_id");
+        builder.HasOne(e => e.FreightForPurchaseOrder)
+            .WithMany()
+            .HasForeignKey(e => e.FreightForPurchaseOrderId)
+            .HasConstraintName("fk_vendor_bill_lines_freight_purchase_order")
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(e => e.GlAccountId).HasDatabaseName("ix_vendor_bill_lines_gl_account");
         builder.HasOne(e => e.GlAccount)
             .WithMany()

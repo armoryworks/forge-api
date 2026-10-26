@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Entities;
 
 /// <summary>
@@ -14,11 +16,16 @@ public class InvoiceLine : BaseEntity
     public decimal UnitPrice { get; set; }
     public int LineNumber { get; set; }
 
+    /// <summary>Item (default) or Freight. A freight line has no part, never ships and posts to Freight Income.</summary>
+    public DocumentLineType LineType { get; set; } = DocumentLineType.Item;
+
     public const string NonTaxableCode = "NON";
 
     public decimal LineTotal => Math.Round(Quantity * UnitPrice, 2, MidpointRounding.AwayFromZero);
 
     public bool IsTaxable => TaxCode != NonTaxableCode;
+
+    public bool IsFreight => LineType == DocumentLineType.Freight;
 
     // F-032: per-line taxability code required by QBO AST. Null = inherit invoice-level default.
     // Values: "TAX" (taxable), "NON" (non-taxable). Propagated from Part.TaxCode at invoice creation.

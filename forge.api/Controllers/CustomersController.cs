@@ -111,7 +111,8 @@ public class CustomersController(IMediator mediator) : ControllerBase
             CustomerNumber: request.CustomerNumber,
             Fax: request.Fax,
             DefaultCreditTerms: request.DefaultCreditTerms,
-            CurrencyId: request.CurrencyId));
+            CurrencyId: request.CurrencyId,
+            FreightTerms: request.FreightTerms));
         return CreatedAtAction(nameof(GetCustomer), new { id = result.Id }, result);
     }
 
@@ -158,7 +159,9 @@ public class CustomersController(IMediator mediator) : ControllerBase
             DefaultCreditTerms: request.DefaultCreditTerms,
             ClearDefaultCreditTerms: request.ClearDefaultCreditTerms,
             CurrencyId: request.CurrencyId,
-            ClearCurrency: request.ClearCurrency));
+            ClearCurrency: request.ClearCurrency,
+            FreightTerms: request.FreightTerms,
+            ClearFreightTerms: request.ClearFreightTerms));
         return NoContent();
     }
 

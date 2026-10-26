@@ -121,7 +121,7 @@ public class QuotePdfDocument : IDocument
                     header.Cell().Background(Colors.Blue.Darken2).Padding(5).AlignRight().Text("Total").Style(headerStyle);
                 });
 
-                var lines = _quote.Lines.OrderBy(l => l.LineNumber).ToList();
+                var lines = _quote.Lines.OrderBy(l => l.IsFreight).ThenBy(l => l.LineNumber).ToList();
                 for (var i = 0; i < lines.Count; i++)
                 {
                     var line = lines[i];
@@ -141,8 +141,17 @@ public class QuotePdfDocument : IDocument
                 totals.Item().Row(row =>
                 {
                     row.RelativeItem().Text("Subtotal:").SemiBold();
-                    row.ConstantItem(100).AlignRight().Text(_money.Format(_quote.Subtotal));
+                    row.ConstantItem(100).AlignRight().Text(_money.Format(_quote.Subtotal - _quote.FreightSubtotal));
                 });
+
+                if (_quote.Lines.Any(l => l.IsFreight))
+                {
+                    totals.Item().Row(row =>
+                    {
+                        row.RelativeItem().Text("Freight:").SemiBold();
+                        row.ConstantItem(100).AlignRight().Text(_money.Format(_quote.FreightSubtotal));
+                    });
+                }
 
                 if (_quote.TaxRate > 0)
                 {

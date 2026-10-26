@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 // Phase 3 / WU-10 / F8-partial — quantities are decimal (was int).
@@ -16,4 +18,6 @@ public record SalesOrderLineResponseModel(
     string? Notes,
     List<SalesOrderLineJobModel> Jobs,
     bool NeedsJob,
-    bool ShipsGoods = true);
+    bool ShipsGoods = true,
+    DocumentLineType LineType = DocumentLineType.Item,
+    bool Taxable = true);

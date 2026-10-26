@@ -27,7 +27,7 @@ namespace Forge.Api.Features.Accounting;
 /// <para><b>Posting (per §7 / matrix row 1–2):</b>
 /// <list type="bullet">
 ///   <item>Dr AR_CONTROL (the customer's receivable, party = the customer)</item>
-///   <item>Cr SALES_REVENUE per line — when control has transferred (delivered)</item>
+///   <item>Cr SALES_REVENUE per item line, Cr FREIGHT_INCOME per freight line — when control has transferred (delivered)</item>
 ///   <item>Cr DEFERRED_REVENUE per line — when the invoice precedes delivery
 ///         (PointInTime rev-rec); reclassified to revenue on delivery (TODO below)</item>
 ///   <item>Cr SALES_TAX_PAYABLE for the invoice tax (skipped for tax-exempt customers)</item>
@@ -65,8 +65,8 @@ public interface IInvoiceArPostingService
 
     /// <summary>
     /// Delivery trigger for an invoice that was finalized BEFORE delivery (§8.4 / matrix row 2):
-    /// reclassifies the invoice's DEFERRED_REVENUE credits to SALES_REVENUE (Dr deferred / Cr
-    /// revenue per original line) and posts the COGS / inventory relief that was deferred with
+    /// reclassifies the invoice's DEFERRED_REVENUE credits, rebuilt from the invoice's lines (Dr deferred /
+    /// Cr SALES_REVENUE per item line, Cr FREIGHT_INCOME per freight line) and posts the COGS / inventory relief that was deferred with
     /// it. A no-op while CAP-ACCT-FULLGL is off, when the invoice was booked straight to revenue,
     /// or when its original AR entry is absent/reversed. Idempotent (purpose <c>:REVENUE_RECLASS</c>;
     /// COGS keeps its own <c>:COGS</c> key).
@@ -110,6 +110,7 @@ public sealed class InvoiceArPostingService(
     // never hardcode account numbers — they resolve a (BookId, Key) rule (§5.1).
     private const string KeyArControl = "AR_CONTROL";
     private const string KeySalesRevenue = "SALES_REVENUE";
+    private const string KeyFreightIncome = "FREIGHT_INCOME";
     private const string KeyDeferredRevenue = "DEFERRED_REVENUE";
     private const string KeySalesTaxPayable = "SALES_TAX_PAYABLE";
 
@@ -193,32 +194,18 @@ public sealed class InvoiceArPostingService(
             .Select(r => r.GlAccountId)
             .Distinct()
             .ToListAsync(ct);
-        var deferredLines = original.Lines
+        var deferredCredit = original.Lines
             .Where(l => deferredAccounts.Contains(l.GlAccountId) && l.Credit > 0m)
-            .OrderBy(l => l.LineNumber)
-            .ToList();
-        if (deferredLines.Count == 0)
+            .Sum(l => l.Credit);
+        if (deferredCredit == 0m)
         {
             // Straight-to-revenue invoice — revenue and COGS were both recognized at finalize.
             return;
         }
 
-        var lines = new List<PostingLine>(deferredLines.Count * 2);
-        foreach (var deferred in deferredLines)
-        {
-            lines.Add(new PostingLine
-            {
-                AccountKey = KeyDeferredRevenue,
-                Debit = deferred.Credit,
-                Description = $"Delivery reclass — {deferred.Description}",
-            });
-            lines.Add(new PostingLine
-            {
-                AccountKey = KeySalesRevenue,
-                Credit = deferred.Credit,
-                Description = $"Delivery reclass — {deferred.Description}",
-            });
-        }
+        var lines = BuildReclassLines(invoice, deferredCredit);
+        if (lines.Count == 0)
+            return;
 
         // EntryDate = the delivery date (the recognition event); reclass at the invoice's
         // BOOKING rate so deferred clears exactly and no FX effect arises here (unrealized
@@ -435,11 +422,12 @@ public sealed class InvoiceArPostingService(
             if (amount == 0m)
                 continue; // a 0-value line contributes nothing to the credit side
 
+            var lineKey = revenueKey == KeyDeferredRevenue ? KeyDeferredRevenue : RecognizedKeyFor(line);
             lines.Add(new PostingLine
             {
-                AccountKey = revenueKey,
+                AccountKey = lineKey,
                 Credit = amount,
-                Description = $"{(revenueKey == KeyDeferredRevenue ? "Deferred revenue" : "Revenue")} — "
+                Description = $"{(lineKey == KeyDeferredRevenue ? "Deferred revenue" : line.IsFreight ? "Freight income" : "Revenue")} — "
                             + $"invoice {invoice.InvoiceNumber} line {line.LineNumber}: {line.Description}",
             });
         }
@@ -664,6 +652,46 @@ public sealed class InvoiceArPostingService(
     }
 
     /// <summary>
+    /// The delivery reclass, rebuilt from the invoice's lines rather than from the journal: per non-zero line,
+    /// Dr DEFERRED_REVENUE / Cr SALES_REVENUE for items and Cr FREIGHT_INCOME for freight, at the amounts
+    /// <see cref="ComputePostedAmounts"/> gives. When the lines no longer add up to what the original entry
+    /// deferred (a line edited after finalize), the difference goes on the largest line so the reclass clears
+    /// deferred revenue exactly.
+    /// </summary>
+    internal static List<PostingLine> BuildReclassLines(Invoice invoice, decimal deferredCredit)
+    {
+        var posted = ComputePostedAmounts(invoice).Lines
+            .Where(p => p.Amount != 0m)
+            .Select(p => (p.Line, p.Amount))
+            .ToList();
+        if (posted.Count == 0)
+            return [];
+
+        var residual = deferredCredit - posted.Sum(p => p.Amount);
+        if (residual != 0m)
+        {
+            var largest = 0;
+            for (var i = 1; i < posted.Count; i++)
+                if (Math.Abs(posted[i].Amount) > Math.Abs(posted[largest].Amount))
+                    largest = i;
+            posted[largest] = (posted[largest].Line, posted[largest].Amount + residual);
+        }
+
+        var lines = new List<PostingLine>(posted.Count * 2);
+        foreach (var (line, amount) in posted)
+        {
+            var description = $"Delivery reclass — invoice {invoice.InvoiceNumber} line {line.LineNumber}: {line.Description}";
+            lines.Add(new PostingLine { AccountKey = KeyDeferredRevenue, Debit = amount, Description = description });
+            lines.Add(new PostingLine { AccountKey = RecognizedKeyFor(line), Credit = amount, Description = description });
+        }
+
+        return lines;
+    }
+
+    /// <summary>The income key a line is recognized in: FREIGHT_INCOME for freight, SALES_REVENUE otherwise.</summary>
+    internal static string RecognizedKeyFor(InvoiceLine line) => line.IsFreight ? KeyFreightIncome : KeySalesRevenue;
+
+    /// <summary>
     /// The amounts the AR origination posts, in the invoice's currency at 2 dp: each line's revenue
     /// rounded half away from zero, with any rounding residual on the largest line so the lines sum to the
     /// rounded subtotal; the AR total as <see cref="Invoice.BalanceDue"/> quantizes it (subtotal plus
@@ -697,7 +725,8 @@ public sealed class InvoiceArPostingService(
     /// (Raw, Component, Subassembly, FinishedGood) — the classes receipts, production and issues carry in an
     /// INVENTORY_* account. Service / free-text lines (null Part), Consumable, Tool and Service parts do not.</summary>
     private static bool LineRelievesInventory(InvoiceLine line) =>
-        line.Part is { } part
+        !line.IsFreight
+        && line.Part is { } part
         && part.InventoryClass is InventoryClass.Raw or InventoryClass.Component
             or InventoryClass.Subassembly or InventoryClass.FinishedGood
         && part.ProcurementSource != ProcurementSource.Phantom;

@@ -378,7 +378,7 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
     }
 
     /// <summary>
-    /// Customer Revenue Breakdown: Customer → size bucket, from invoiced revenue (excluding sales tax, draft and voided
+    /// Customer Revenue Breakdown: Customer → size bucket, from invoiced revenue (excluding sales tax, freight, draft and voided
     /// invoices) converted to base currency at each invoice's FX rate.
     /// </summary>
     public async Task<List<SankeyFlowItem>> GetCustomerRevenueFlowAsync(
@@ -393,7 +393,7 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
         var invoices = (await query
                 .Include(i => i.Lines)
                 .ToListAsync(ct))
-            .Select(i => new { i.CustomerId, Total = Math.Round(i.Subtotal * i.FxRate, 2, MidpointRounding.AwayFromZero) })
+            .Select(i => new { i.CustomerId, Total = Math.Round((i.Subtotal - i.FreightSubtotal) * i.FxRate, 2, MidpointRounding.AwayFromZero) })
             .ToList();
 
         var customerIds = invoices.Select(i => i.CustomerId).Distinct().ToList();

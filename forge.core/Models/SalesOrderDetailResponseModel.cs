@@ -27,4 +27,6 @@ public record SalesOrderDetailResponseModel(
     uint RowVersion = 0,
     int? CurrencyId = null,
     string? CurrencyCode = null,
-    decimal FxRate = 1m);
+    decimal FxRate = 1m,
+    string? FreightTerms = null,
+    decimal FreightSubtotal = 0m);

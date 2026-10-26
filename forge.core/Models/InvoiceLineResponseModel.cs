@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record InvoiceLineResponseModel(
@@ -9,4 +11,5 @@ public record InvoiceLineResponseModel(
     decimal UnitPrice,
     decimal LineTotal,
     int LineNumber,
-    bool Taxable = true);
+    bool Taxable = true,
+    DocumentLineType LineType = DocumentLineType.Item);

@@ -111,7 +111,7 @@ public static class JobMarginCalculator
         var billed = order.Invoices
             .Where(inv => inv.Status != InvoiceStatus.Voided && inv.Status != InvoiceStatus.Draft)
             .OrderBy(inv => inv.InvoiceDate).ThenBy(inv => inv.Id)
-            .SelectMany(inv => inv.Lines.OrderBy(l => l.LineNumber).Select(l => (Line: l, Rate: inv.FxRate)))
+            .SelectMany(inv => inv.Lines.Where(l => !l.IsFreight).OrderBy(l => l.LineNumber).Select(l => (Line: l, Rate: inv.FxRate)))
             .ToList();
 
         foreach (var (line, rate) in billed.Where(b => b.Line.SalesOrderLineId is int id && orderLineIds.Contains(id)))

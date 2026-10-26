@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record CreateQuoteRequestModel(
@@ -20,4 +22,5 @@ public record CreateQuoteLineModel(
     string Description,
     decimal Quantity,
     decimal UnitPrice,
-    string? Notes);
+    string? Notes,
+    DocumentLineType LineType = DocumentLineType.Item);

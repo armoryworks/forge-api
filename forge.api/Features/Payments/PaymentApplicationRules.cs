@@ -105,7 +105,7 @@ internal static class PaymentApplicationRules
             .ToDictionary(g => g.Key, g => g.Sum(l => l.Quantity));
 
         return so.Lines
-            .Where(l => !l.ShipsGoods)
+            .Where(l => !l.ShipsGoods && !l.IsFreight)
             .GroupBy(l => l.PartId!.Value)
             .All(g => invoicedByPart.GetValueOrDefault(g.Key) >= g.Sum(l => l.Quantity));
     }

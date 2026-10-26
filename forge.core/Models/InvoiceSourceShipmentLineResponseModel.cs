@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record InvoiceSourceShipmentLineResponseModel(
@@ -7,4 +9,5 @@ public record InvoiceSourceShipmentLineResponseModel(
     decimal Quantity,
     decimal UnitPrice,
     bool Taxable = true,
-    int? SalesOrderLineId = null);
+    int? SalesOrderLineId = null,
+    DocumentLineType LineType = DocumentLineType.Item);

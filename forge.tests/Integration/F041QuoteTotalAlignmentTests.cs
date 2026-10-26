@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,7 +69,8 @@ public class F041QuoteTotalAlignmentTests(CapabilityTestWebApplicationFactory fa
         var listItems = await client.GetFromJsonAsync<List<QuoteListItemModel>>(
             $"/api/v1/quotes?customerId={customerId}");
         var detail = await client.GetFromJsonAsync<QuoteDetailResponseModel>(
-            $"/api/v1/quotes/{quoteId}");
+            $"/api/v1/quotes/{quoteId}",
+            new JsonSerializerOptions(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } });
 
         listItems.Should().NotBeNull().And.ContainSingle();
         var listItem = listItems![0];

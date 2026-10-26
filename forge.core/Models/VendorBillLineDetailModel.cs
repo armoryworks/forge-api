@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 /// <summary>
@@ -19,4 +21,8 @@ public record VendorBillLineDetailModel(
     string AccountDeterminationKey,
     int? GlAccountId = null,
     string? GlAccountName = null,
-    string? PurchaseOrderLineLabel = null);
+    string? PurchaseOrderLineLabel = null,
+    DocumentLineType LineType = DocumentLineType.Item,
+    int? FreightForPurchaseOrderId = null,
+    string? FreightForPurchaseOrderNumber = null,
+    decimal? FreightClearedAmount = null);

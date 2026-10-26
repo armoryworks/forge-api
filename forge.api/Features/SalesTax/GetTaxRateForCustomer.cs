@@ -14,10 +14,19 @@ public record GetTaxRateForCustomerQuery(int CustomerId) : IRequest<SalesTaxRate
 public class GetTaxRateForCustomerHandler(AppDbContext db, IClock clock)
     : IRequestHandler<GetTaxRateForCustomerQuery, SalesTaxRateResponseModel?>
 {
-    public async Task<SalesTaxRateResponseModel?> Handle(
+    public Task<SalesTaxRateResponseModel?> Handle(
         GetTaxRateForCustomerQuery request, CancellationToken cancellationToken)
+        => ResolveAsync(db, request.CustomerId, clock.UtcNow, cancellationToken);
+
+    /// <summary>
+    /// The sales-tax rate that applies to <paramref name="customerId"/> on <paramref name="now"/>: the customer's
+    /// own tax code, else the rate for the default address's state, else the install default; null for a
+    /// customer outside the company's country or when nothing is configured.
+    /// </summary>
+    internal static async Task<SalesTaxRateResponseModel?> ResolveAsync(
+        AppDbContext db, int customerId, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var now = clock.UtcNow;
+        var request = new GetTaxRateForCustomerQuery(customerId);
 
         var customer = await db.Customers.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == request.CustomerId, cancellationToken);
@@ -44,7 +53,7 @@ public class GetTaxRateForCustomerHandler(AppDbContext db, IClock clock)
             .Select(a => new { a.State, a.Country })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (!await IsDomesticAsync(address?.Country, cancellationToken))
+        if (!await IsDomesticAsync(db, address?.Country, cancellationToken))
             return null;
 
         if (!string.IsNullOrWhiteSpace(address?.State))
@@ -61,7 +70,7 @@ public class GetTaxRateForCustomerHandler(AppDbContext db, IClock clock)
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    private async Task<bool> IsDomesticAsync(string? customerCountry, CancellationToken ct)
+    private static async Task<bool> IsDomesticAsync(AppDbContext db, string? customerCountry, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(customerCountry))
             return true;
@@ -88,5 +97,5 @@ public class GetTaxRateForCustomerHandler(AppDbContext db, IClock clock)
     private static IQueryable<SalesTaxRateResponseModel> Project(IQueryable<SalesTaxRate> rates)
         => rates.Select(r => new SalesTaxRateResponseModel(
             r.Id, r.Name, r.Code, r.StateCode, r.Rate, r.EffectiveFrom, r.EffectiveTo,
-            r.IsDefault, r.IsActive, r.Description, r.ExemptFlag, r.GlPostingAccount));
+            r.IsDefault, r.IsActive, r.Description, r.ExemptFlag, r.GlPostingAccount, r.FreightTaxable));
 }

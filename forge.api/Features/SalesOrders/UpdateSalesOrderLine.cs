@@ -1,6 +1,8 @@
 using FluentValidation;
 using MediatR;
 
+using Forge.Api.Features.Freight;
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -40,6 +42,8 @@ public class UpdateSalesOrderLineHandler(ISalesOrderRepository repo, IMediator m
         line.Quantity = request.Data.Quantity;
         line.UnitPrice = request.Data.UnitPrice;
         line.Notes = request.Data.Notes;
+        if (line.IsFreight && request.Data.Taxable is bool taxable)
+            line.TaxCode = taxable ? FreightLines.TaxableCode : InvoiceLine.NonTaxableCode;
 
         await repo.SaveChangesAsync(cancellationToken);
 

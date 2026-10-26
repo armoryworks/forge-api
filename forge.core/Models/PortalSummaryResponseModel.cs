@@ -42,7 +42,8 @@ public record PortalInvoiceListItem(
     decimal Total,
     decimal AmountPaid,
     decimal Balance,
-    string? CurrencyCode);
+    string? CurrencyCode,
+    decimal Freight = 0m);
 
 public record PortalShipmentListItem(
     int Id,

@@ -210,6 +210,9 @@ public class CreateJobsForSalesOrderLinesHandler(
 
     internal static string? SkipReason(SalesOrderLine line, HashSet<int> routedPartIds)
     {
+        if (line.IsFreight)
+            return "Freight line";
+
         if (line.PartId is not int partId || line.Part is null)
             return "No part on this line";
 

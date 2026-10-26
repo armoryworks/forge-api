@@ -75,6 +75,9 @@ public class SalesOrder : BaseAuditableEntity, IConcurrencyVersioned
     public int? BillingAddressId { get; set; }
     public SalesOrderStatus Status { get; set; } = SalesOrderStatus.Draft;
     public CreditTerms? CreditTerms { get; set; }
+
+    /// <summary>Who pays the carrier and whether freight is billed on. Null = the customer's terms, else the install default.</summary>
+    public FreightTerms? FreightTerms { get; set; }
     public DateTimeOffset? ConfirmedDate { get; set; }
     public DateTimeOffset? RequestedDeliveryDate { get; set; }
 
@@ -106,7 +109,8 @@ public class SalesOrder : BaseAuditableEntity, IConcurrencyVersioned
     public int? AddendumNumber { get; set; }
 
     public decimal Subtotal => Lines.Sum(l => l.LineTotal);
-    public decimal TaxAmount => Subtotal * TaxRate;
+    public decimal FreightSubtotal => Lines.Where(l => l.IsFreight).Sum(l => l.LineTotal);
+    public decimal TaxAmount => (Subtotal - Lines.Where(l => l.IsFreight && l.TaxCode == InvoiceLine.NonTaxableCode).Sum(l => l.LineTotal)) * TaxRate;
     public decimal Total => Subtotal + TaxAmount;
 
     /// <summary>

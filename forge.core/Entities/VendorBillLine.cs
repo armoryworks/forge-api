@@ -1,4 +1,5 @@
 using Forge.Core.Entities.Accounting;
+using Forge.Core.Enums;
 
 namespace Forge.Core.Entities;
 
@@ -26,6 +27,22 @@ public class VendorBillLine : BaseEntity
     public int LineNumber { get; set; }
 
     /// <summary>
+    /// Item (default) or Freight. A freight line has no part and no PO line; it debits Freight Clearing for
+    /// <see cref="FreightForPurchaseOrderId"/> up to that PO's open accrual and Freight-In beyond it, or its own
+    /// key / account when it names no PO.
+    /// </summary>
+    public DocumentLineType LineType { get; set; } = DocumentLineType.Item;
+
+    /// <summary>The purchase order whose receipt freight accrual this freight line clears. Any vendor may bill it.</summary>
+    public int? FreightForPurchaseOrderId { get; set; }
+
+    /// <summary>
+    /// The functional amount this freight line cleared from Freight Clearing when the bill posted; null until
+    /// it posts, and on lines that clear nothing. The next freight bill for the same PO clears only what is left.
+    /// </summary>
+    public decimal? FreightClearedAmount { get; set; }
+
+    /// <summary>
     /// Optional job tag carried onto the GL debit line for job costing (mirrors
     /// <see cref="Expense.JobId"/> — set when the bill line originates from a job-costed
     /// expense or any other job-attributable purchase). Standalone-bill posting only;
@@ -48,9 +65,12 @@ public class VendorBillLine : BaseEntity
 
     public decimal LineTotal => Quantity * UnitPrice;
 
+    public bool IsFreight => LineType == DocumentLineType.Freight;
+
     public VendorBill VendorBill { get; set; } = null!;
     public Part? Part { get; set; }
     public PurchaseOrderLine? PurchaseOrderLine { get; set; }
+    public PurchaseOrder? FreightForPurchaseOrder { get; set; }
     public Job? Job { get; set; }
     public GlAccount? GlAccount { get; set; }
 }

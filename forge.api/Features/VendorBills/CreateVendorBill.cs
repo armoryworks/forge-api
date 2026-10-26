@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Freight;
 using Forge.Api.Features.PurchaseOrders;
 using Forge.Api.Services;
 using Forge.Api.Services.Fx;
@@ -53,7 +54,19 @@ public class CreateVendorBillValidator : AbstractValidator<CreateVendorBillComma
             .When(x => x.Lines is { Count: > 0 });
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
-            line.RuleFor(l => l.Description).NotEmpty();
+            line.RuleFor(l => l.LineType).IsInEnum();
+            line.RuleFor(l => l.Description).NotEmpty().When(l => l.LineType != DocumentLineType.Freight);
+            line.RuleFor(l => l.PartId).Null()
+                .When(l => l.LineType == DocumentLineType.Freight)
+                .WithMessage("A freight line can't name a part.")
+                .WithErrorCode(FreightLines.PartCode);
+            line.RuleFor(l => l.PurchaseOrderLineId).Null()
+                .When(l => l.LineType == DocumentLineType.Freight)
+                .WithMessage("A freight line can't name a purchase-order line.")
+                .WithErrorCode(FreightLines.PoLineCode);
+            line.RuleFor(l => l.FreightForPurchaseOrderId).Null()
+                .When(l => l.LineType != DocumentLineType.Freight)
+                .WithMessage("Only a freight line can clear a purchase order's freight.");
             line.RuleFor(l => l.Quantity).GreaterThan(0m).UnitScale();
             line.RuleFor(l => l.UnitPrice).GreaterThanOrEqualTo(0).UnitScale();
         });
@@ -63,6 +76,7 @@ public class CreateVendorBillValidator : AbstractValidator<CreateVendorBillComma
             RuleForEach(x => x.Lines).ChildRules(line =>
                 line.RuleFor(l => l.PurchaseOrderLineId)
                     .NotNull()
+                    .When(l => l.LineType != DocumentLineType.Freight)
                     .WithMessage("Each line on a PO-linked bill must reference a purchase-order line (3-way match).")));
         When(x => x.PurchaseOrderId is null, () =>
             RuleForEach(x => x.Lines).ChildRules(line =>
@@ -74,6 +88,11 @@ public class CreateVendorBillValidator : AbstractValidator<CreateVendorBillComma
                 line.RuleFor(l => l.GlAccountId)
                     .Null()
                     .WithMessage("A PO-linked bill line clears goods received not invoiced and cannot name a GL account.")));
+        RuleForEach(x => x.Lines).ChildRules(line =>
+            line.RuleFor(l => l.GlAccountId)
+                .Null()
+                .When(l => l.LineType == DocumentLineType.Freight && l.FreightForPurchaseOrderId is not null)
+                .WithMessage("Freight for a purchase order clears its freight accrual and cannot name a GL account."));
     }
 }
 
@@ -84,6 +103,7 @@ public class CreateVendorBillHandler(
     : IRequestHandler<CreateVendorBillCommand, VendorBillListItemModel>
 {
     private const string GrniKey = "GRNI";
+    private const string FreightInKey = "FREIGHT_IN";
 
     public async Task<VendorBillListItemModel> Handle(CreateVendorBillCommand request, CancellationToken cancellationToken)
     {
@@ -102,6 +122,19 @@ public class CreateVendorBillHandler(
 
         await BillableGlAccounts.EnsureBillableAsync(
             db, request.Lines.Where(l => l.GlAccountId is not null).Select(l => l.GlAccountId!.Value), cancellationToken);
+
+        var freightPoIds = request.Lines
+            .Where(l => l.LineType == DocumentLineType.Freight && l.FreightForPurchaseOrderId is not null)
+            .Select(l => l.FreightForPurchaseOrderId!.Value)
+            .Distinct()
+            .ToList();
+        if (freightPoIds.Count > 0)
+        {
+            var found = await db.PurchaseOrders.AsNoTracking().CountAsync(p => freightPoIds.Contains(p.Id), cancellationToken);
+            if (found != freightPoIds.Count)
+                throw FreightLines.Failure("Lines", FreightLines.PurchaseOrderNotFoundCode,
+                    "A freight line names a purchase order that does not exist.");
+        }
 
         var billNumber = await repo.GenerateNextBillNumberAsync(cancellationToken);
 
@@ -139,6 +172,25 @@ public class CreateVendorBillHandler(
         var lineNumber = 1;
         foreach (var line in request.Lines)
         {
+            if (line.LineType == DocumentLineType.Freight)
+            {
+                var freightPoId = line.FreightForPurchaseOrderId ?? request.PurchaseOrderId;
+                bill.Lines.Add(new VendorBillLine
+                {
+                    Description = string.IsNullOrWhiteSpace(line.Description) ? FreightLines.DefaultDescription : line.Description,
+                    Quantity = line.Quantity,
+                    UnitPrice = line.UnitPrice,
+                    LineNumber = lineNumber++,
+                    LineType = DocumentLineType.Freight,
+                    FreightForPurchaseOrderId = freightPoId,
+                    AccountDeterminationKey = freightPoId is null && !string.IsNullOrWhiteSpace(line.AccountDeterminationKey)
+                        ? line.AccountDeterminationKey!
+                        : FreightInKey,
+                    GlAccountId = freightPoId is null ? line.GlAccountId : null,
+                });
+                continue;
+            }
+
             bill.Lines.Add(new VendorBillLine
             {
                 PartId = line.PartId,

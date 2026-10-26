@@ -64,7 +64,8 @@ public class GetCustomerByIdHandler(ICustomerRepository repo, AppDbContext? db =
             DefaultCreditTerms: customer.DefaultCreditTerms?.ToString(),
             ExemptionExpiryDate: customer.ExemptionExpiryDate,
             CurrencyId: customer.CurrencyId,
-            CurrencyLocked: db is not null && await PartyCurrency.CustomerHasPostedDocumentsAsync(db, customer.Id, cancellationToken));
+            CurrencyLocked: db is not null && await PartyCurrency.CustomerHasPostedDocumentsAsync(db, customer.Id, cancellationToken),
+            FreightTerms: customer.FreightTerms);
     }
 
     private static AddressOutput? PickAddress(Customer customer, AddressType type)

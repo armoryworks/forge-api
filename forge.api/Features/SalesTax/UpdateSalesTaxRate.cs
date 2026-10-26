@@ -45,12 +45,14 @@ public class UpdateSalesTaxRateHandler(AppDbContext db) : IRequestHandler<Update
         // payload shape works for both create and edit.
         rate.ExemptFlag = request.Data.ExemptFlag;
         rate.GlPostingAccount = request.Data.GlPostingAccount?.Trim();
+        if (request.Data.FreightTaxable is bool freightTaxable)
+            rate.FreightTaxable = freightTaxable;
 
         await db.SaveChangesAsync(cancellationToken);
 
         return new SalesTaxRateResponseModel(
             rate.Id, rate.Name, rate.Code, rate.StateCode, rate.Rate,
             rate.EffectiveFrom, rate.EffectiveTo, rate.IsDefault, rate.IsActive,
-            rate.Description, rate.ExemptFlag, rate.GlPostingAccount);
+            rate.Description, rate.ExemptFlag, rate.GlPostingAccount, rate.FreightTaxable);
     }
 }

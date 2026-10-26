@@ -374,8 +374,8 @@ public class ReportRepository(AppDbContext db) : IReportRepository
                 .GroupBy(i => i.Customer.Name)
                 .Select(g => new RevenueReportItem(
                     g.Key, g.Key, g.Count(),
-                    g.Sum(i => i.Subtotal), g.Sum(i => i.TaxAmount),
-                    g.Sum(i => i.Total), g.Sum(i => i.AmountPaid)))
+                    g.Sum(i => i.Subtotal - i.FreightSubtotal), g.Sum(i => i.TaxAmount),
+                    g.Sum(i => i.Total), g.Sum(i => i.AmountPaid), g.Sum(i => i.FreightSubtotal)))
                 .OrderByDescending(r => r.Total)
                 .ToList();
         }
@@ -386,8 +386,8 @@ public class ReportRepository(AppDbContext db) : IReportRepository
             .Select(g => new RevenueReportItem(
                 new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMM yyyy"),
                 null, g.Count(),
-                g.Sum(i => i.Subtotal), g.Sum(i => i.TaxAmount),
-                g.Sum(i => i.Total), g.Sum(i => i.AmountPaid)))
+                g.Sum(i => i.Subtotal - i.FreightSubtotal), g.Sum(i => i.TaxAmount),
+                g.Sum(i => i.Total), g.Sum(i => i.AmountPaid), g.Sum(i => i.FreightSubtotal)))
             .OrderBy(r => r.Period)
             .ToList();
     }
@@ -408,9 +408,14 @@ public class ReportRepository(AppDbContext db) : IReportRepository
             .ToListAsync(ct);
 
         var totalRevenue = invoices.Sum(i => i.FxRate == 1m
-            ? i.Subtotal
-            : Math.Round(i.Subtotal * i.FxRate, 2, MidpointRounding.AwayFromZero));
+            ? i.Subtotal - i.FreightSubtotal
+            : Math.Round((i.Subtotal - i.FreightSubtotal) * i.FxRate, 2, MidpointRounding.AwayFromZero));
         result.Add(new SimplePnlReportItem("Sales Revenue (invoice basis)", "Revenue", totalRevenue));
+        var totalFreight = invoices.Sum(i => i.FxRate == 1m
+            ? i.FreightSubtotal
+            : Math.Round(i.FreightSubtotal * i.FxRate, 2, MidpointRounding.AwayFromZero));
+        if (totalFreight != 0m)
+            result.Add(new SimplePnlReportItem("Freight Income (invoice basis)", "Revenue", totalFreight));
 
         // Expenses by category
         var rawExpenses = await db.Expenses

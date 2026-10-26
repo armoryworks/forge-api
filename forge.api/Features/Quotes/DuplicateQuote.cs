@@ -94,6 +94,7 @@ public class DuplicateQuoteHandler(
                 UnitPrice = line.UnitPrice,
                 LineNumber = lineNumber++,
                 Notes = line.Notes,
+                LineType = line.LineType,
             });
         }
 

@@ -28,4 +28,6 @@ public record InvoiceDetailResponseModel(
     uint RowVersion = 0,
     string? CurrencyCode = null,
     int? CurrencyId = null,
-    decimal FxRate = 1m);
+    decimal FxRate = 1m,
+    decimal FreightSubtotal = 0m,
+    int? SalesTaxRateId = null);

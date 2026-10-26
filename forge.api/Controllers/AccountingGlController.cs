@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.Accounting.Determination;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Models.Accounting;
 
@@ -106,6 +107,19 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     [HttpPut("accounts/{id:int}")]
     public async Task<ActionResult<GlAccountAdminModel>> UpdateAccount(int id, [FromBody] UpdateGlAccountCommand command, CancellationToken ct)
         => Ok(await mediator.Send(command with { Id = id }, ct));
+
+    /// <summary>The book's account-determination map: which GL account each posting key resolves to.</summary>
+    [HttpGet("gl/determination-rules")]
+    public async Task<ActionResult<IReadOnlyList<DeterminationRuleModel>>> GetDeterminationRules(
+        [FromQuery] int? bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new GetDeterminationRulesQuery(bookId), ct));
+
+    /// <summary>Re-points a configurable determination key (e.g. Freight Income) at another account. Future postings only.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    [HttpPut("gl/determination-rules/{key}")]
+    public async Task<ActionResult<DeterminationRuleModel>> UpdateDeterminationRule(
+        string key, [FromBody] UpdateDeterminationRuleRequestModel request, CancellationToken ct)
+        => Ok(await mediator.Send(new UpdateDeterminationRuleCommand(key, request.GlAccountId), ct));
 
     /// <summary>
     /// Read-only GL register (ACCOUNTING_SUITE_PLAN §5A): the time-ordered journal for a book with

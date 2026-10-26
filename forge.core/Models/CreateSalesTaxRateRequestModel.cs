@@ -18,4 +18,5 @@ public record CreateSalesTaxRateRequestModel(
     // is optional and populated by the accounting-sync integration when one
     // is configured.
     bool ExemptFlag = false,
-    string? GlPostingAccount = null);
+    string? GlPostingAccount = null,
+    bool? FreightTaxable = null);

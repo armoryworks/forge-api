@@ -45,6 +45,7 @@ public class GetPortalInvoicesHandler(AppDbContext db, IAccountingService accoun
             Total: Math.Round(i.Total, 2, MidpointRounding.AwayFromZero),
             AmountPaid: i.AmountPaid,
             Balance: i.Status == InvoiceStatus.Voided ? 0m : i.BalanceDue,
-            CurrencyCode: i.Currency?.Code)).ToList(), totalCount);
+            CurrencyCode: i.Currency?.Code,
+            Freight: i.FreightSubtotal)).ToList(), totalCount);
     }
 }

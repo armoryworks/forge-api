@@ -8,6 +8,7 @@ using Forge.Api.Services;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
+using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
@@ -49,6 +50,13 @@ public interface IVendorBillApPostingService
     /// posted for the bill (e.g. it was approved while the capability was off).
     /// </summary>
     Task ReverseVendorBillApprovedAsync(int vendorBillId, int reversedByUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// For a purchase order being closed or short-closed: releases the receipt freight accrual no freight bill
+    /// has cleared (Dr FREIGHT_CLEARING / Cr FREIGHT_IN), so the variance lands in freight-in. A no-op while
+    /// CAP-ACCT-FULLGL is off or when nothing is left. Idempotent per PO.
+    /// </summary>
+    Task PostPurchaseOrderFreightCloseAsync(int purchaseOrderId, DateOnly closeDate, int closedByUserId, CancellationToken ct = default);
 }
 
 /// <inheritdoc />
@@ -68,6 +76,8 @@ public sealed class VendorBillApPostingService(
     private const string KeyGrni = "GRNI";
     private const string KeyPpv = "PURCHASE_PRICE_VARIANCE";
     private const string GrniRateDifferenceSourceType = "VendorBillFx";
+    private const string KeyFreightClearing = "FREIGHT_CLEARING";
+    private const string KeyFreightIn = "FREIGHT_IN";
 
     public async Task PostVendorBillApprovedAsync(
         int vendorBillId, int approvedByUserId, CancellationToken ct = default)
@@ -149,6 +159,41 @@ public sealed class VendorBillApPostingService(
                 fxEntry.Id, fxEntry.EntryDate, $"Vendor bill {vendorBillId} voided", reversedByUserId, ct);
     }
 
+    public async Task PostPurchaseOrderFreightCloseAsync(
+        int purchaseOrderId, DateOnly closeDate, int closedByUserId, CancellationToken ct = default)
+    {
+        if (!capabilities.IsEnabled(FullGlCapability))
+            return;
+
+        var book = await db.Books.AsNoTracking()
+            .Where(b => b.IsActive)
+            .OrderBy(b => b.Id)
+            .FirstOrDefaultAsync(ct);
+        if (book is null)
+            return;
+
+        var residual = await OpenFreightAccrualAsync(book.Id, purchaseOrderId, null, ct);
+        if (residual <= 0m)
+            return;
+
+        await postingEngine.PostAsSystemAsync(new PostingRequest
+        {
+            BookId = book.Id,
+            EntryDate = closeDate,
+            Source = JournalSource.AP,
+            SourceType = PurchaseOrderFreightCloseSourceType,
+            SourceId = purchaseOrderId,
+            CurrencyId = book.FunctionalCurrencyId,
+            Memo = $"PO {purchaseOrderId} closed: freight accrued at receipt and never billed",
+            IdempotencyKey = $"{JournalSource.AP}:PurchaseOrder:{purchaseOrderId}:FREIGHT_CLOSE",
+            Lines =
+            [
+                new PostingLine { AccountKey = KeyFreightClearing, Debit = residual, Description = $"Freight clearing released — PO {purchaseOrderId}" },
+                new PostingLine { AccountKey = KeyFreightIn, Credit = residual, Description = $"Freight accrual over billed freight — PO {purchaseOrderId}" },
+            ],
+        }, closedByUserId, ct);
+    }
+
     private async Task PostCoreAsync(int vendorBillId, int approvedByUserId, CancellationToken ct)
     {
         var bill = await db.Set<VendorBill>()
@@ -187,16 +232,25 @@ public sealed class VendorBillApPostingService(
 
         var lines = new List<PostingLine>(bill.Lines.Count + 3);
         var tax = Money.Round(bill.TaxAmount);
+        var itemLines = bill.Lines.Where(l => !l.IsFreight).ToList();
+        var freightLines = bill.Lines.Where(l => l.IsFreight).OrderBy(l => l.LineNumber).ToList();
+        var freightTotal = freightLines.Sum(l => Money.Round(l.LineTotal));
 
         // Debit side splits on whether the bill is matched to a purchase order (3-way match, STAGE D):
         //   • Standalone bill → Dr each line's resolved expense/asset account for the line total.
         //   • PO-matched bill → Dr GRNI at the PO price (clearing the accrual booked at receipt) and route
         //     the bill-vs-PO price difference to PPV. This is the third leg of the 3-way match (PO ↔ receipt
         //     ↔ bill); the receipt already debited inventory & credited GRNI (STAGE C).
-        if (bill.PurchaseOrderId is not null)
-            BuildPoMatchedDebits(bill, lines, total - tax - bill.Subtotal);
-        else
-            BuildStandaloneDebits(bill, lines, total - tax);
+        if (itemLines.Count > 0)
+        {
+            if (bill.PurchaseOrderId is not null)
+                BuildPoMatchedDebits(bill, itemLines, lines, total - tax - freightTotal - itemLines.Sum(l => l.LineTotal));
+            else
+                BuildStandaloneDebits(itemLines, lines, total - tax - freightTotal);
+        }
+
+        if (freightLines.Count > 0)
+            await BuildFreightDebitsAsync(bill, book.Id, freightLines, lines, itemLines.Count == 0 ? total - tax - freightTotal : 0m, ct);
 
         // Dr purchase tax (expensed) when the vendor charged tax.
         if (tax > 0m)
@@ -364,9 +418,9 @@ public sealed class VendorBillApPostingService(
     /// <paramref name="linesTotal"/> (the rounded bill total less the rounded tax) and the Σ of the rounded lines
     /// go on the largest line, as the AR posting does, so the debits equal the AP credit exactly.
     /// </summary>
-    private static void BuildStandaloneDebits(VendorBill bill, List<PostingLine> lines, decimal linesTotal)
+    private static void BuildStandaloneDebits(IReadOnlyList<VendorBillLine> billLines, List<PostingLine> lines, decimal linesTotal)
     {
-        var ordered = bill.Lines.OrderBy(l => l.LineNumber).ToList();
+        var ordered = billLines.OrderBy(l => l.LineNumber).ToList();
         var amounts = ordered.Select(l => Money.Round(l.LineTotal)).ToArray();
         var residual = linesTotal - amounts.Sum();
         if (residual != 0m && amounts.Length > 0)
@@ -409,13 +463,14 @@ public sealed class VendorBillApPostingService(
     /// <c>ApproveVendorBill</c> guards the same condition before the transaction and advances
     /// <c>BilledQuantity</c> after this read, so a second bill against the same receipt can't double-clear.</para>
     /// </summary>
-    private static void BuildPoMatchedDebits(VendorBill bill, List<PostingLine> lines, decimal roundingDifference)
+    private static void BuildPoMatchedDebits(
+        VendorBill bill, IReadOnlyList<VendorBillLine> billLines, List<PostingLine> lines, decimal roundingDifference)
     {
         // Cumulative over-bill guard FIRST — a PO line may clear only the GRNI it has received-but-not-yet-
         // billed, and several bill lines can hit the SAME PO line, so the check must sum per PO line (not
         // per bill line). This mirrors ApproveVendorBill's operational guard so the result is correct even if
         // PostAsync is invoked directly. Skip zero/negative-quantity (degenerate) lines.
-        foreach (var g in bill.Lines
+        foreach (var g in billLines
                      .Where(l => l.Quantity > 0m && l.PurchaseOrderLineId is not null)
                      .GroupBy(l => l.PurchaseOrderLineId!.Value))
         {
@@ -433,7 +488,7 @@ public sealed class VendorBillApPostingService(
         }
 
         var netPpv = roundingDifference;
-        foreach (var l in bill.Lines.OrderBy(l => l.LineNumber))
+        foreach (var l in billLines.OrderBy(l => l.LineNumber))
         {
             // Skip only truly degenerate (zero/negative-quantity) lines. A *zero-priced* line with a
             // positive quantity must still be processed: it clears the GRNI accrued for those received goods
@@ -485,6 +540,118 @@ public sealed class VendorBillApPostingService(
             });
         }
     }
+
+    /// <summary>
+    /// Freight lines. A line for a purchase order debits FREIGHT_CLEARING up to that PO's open freight
+    /// accrual (<see cref="OpenFreightAccrualAsync"/>, less what earlier lines of this bill cleared) and
+    /// FREIGHT_IN for any excess; a bill below the accrual leaves the rest for later freight bills. The amount
+    /// cleared is kept on the line (<see cref="VendorBillLine.FreightClearedAmount"/>, functional) so the next
+    /// bill clears only what is left. A line with no PO debits its own account or key (FREIGHT_IN by default,
+    /// FREIGHT_OUT for an outbound carrier bill). <paramref name="roundingDifference"/> (cents between the
+    /// rounded bill and its rounded lines when the bill has only freight) goes on the last debit.
+    /// </summary>
+    private async Task BuildFreightDebitsAsync(
+        VendorBill bill, int bookId, IReadOnlyList<VendorBillLine> freightLines, List<PostingLine> lines,
+        decimal roundingDifference, CancellationToken ct)
+    {
+        var clearedHere = new Dictionary<int, decimal>();
+        var first = lines.Count;
+        foreach (var l in freightLines)
+        {
+            var amount = Money.Round(l.LineTotal);
+            l.FreightClearedAmount = null;
+            if (amount <= 0m)
+                continue;
+
+            if (l.FreightForPurchaseOrderId is not int poId)
+            {
+                lines.Add(new PostingLine
+                {
+                    AccountKey = l.GlAccountId is null ? l.AccountDeterminationKey : null,
+                    GlAccountId = l.GlAccountId,
+                    JobId = l.JobId,
+                    Debit = amount,
+                    Description = $"Freight — bill {bill.BillNumber} line {l.LineNumber}: {l.Description}",
+                });
+                continue;
+            }
+
+            var open = await OpenFreightAccrualAsync(bookId, poId, bill.Id, ct) - clearedHere.GetValueOrDefault(poId);
+            var clearTxn = open <= 0m ? 0m
+                : Math.Min(amount, Money.Round(bill.FxRate == 1m ? open : open / bill.FxRate));
+            if (clearTxn > 0m)
+            {
+                var clearedFunctional = FxMath.ToFunctional(clearTxn, bill.FxRate);
+                l.FreightClearedAmount = clearedFunctional;
+                clearedHere[poId] = clearedHere.GetValueOrDefault(poId) + clearedFunctional;
+                lines.Add(new PostingLine
+                {
+                    AccountKey = KeyFreightClearing,
+                    Debit = clearTxn,
+                    Description = $"Freight clearing — bill {bill.BillNumber} line {l.LineNumber} (PO {poId})",
+                });
+            }
+
+            if (amount - clearTxn > 0m)
+                lines.Add(new PostingLine
+                {
+                    AccountKey = KeyFreightIn,
+                    Debit = amount - clearTxn,
+                    Description = $"Freight-in — bill {bill.BillNumber} line {l.LineNumber}: {l.Description}",
+                });
+        }
+
+        if (roundingDifference != 0m && lines.Count > first)
+        {
+            var last = lines[^1];
+            lines[^1] = new PostingLine
+            {
+                AccountKey = last.AccountKey,
+                GlAccountId = last.GlAccountId,
+                JobId = last.JobId,
+                Debit = last.Debit + roundingDifference,
+                Description = last.Description,
+            };
+        }
+    }
+
+    /// <summary>
+    /// The freight a PO's receipts accrued in FREIGHT_CLEARING and nothing has cleared yet, in the functional
+    /// currency: the credits of its posted receipt entries, less what freight lines on other bills that are not
+    /// void cleared, less what closing the PO released (<see cref="PurchaseOrderFreightCloseSourceType"/>).
+    /// </summary>
+    public async Task<decimal> OpenFreightAccrualAsync(int bookId, int purchaseOrderId, int? excludingBillId, CancellationToken ct)
+    {
+        var clearingAccounts = await db.AccountDeterminationRules.AsNoTracking()
+            .Where(r => r.BookId == bookId && r.Key == KeyFreightClearing)
+            .Select(r => r.GlAccountId)
+            .ToListAsync(ct);
+        if (clearingAccounts.Count == 0)
+            return 0m;
+
+        var accrued = await db.Set<JournalLine>().AsNoTracking()
+            .Where(l => l.BookId == bookId && clearingAccounts.Contains(l.GlAccountId) && l.Credit > 0m
+                && l.JournalEntry.Status == JournalEntryStatus.Posted
+                && l.JournalEntry.SourceType == "Receipt" && l.JournalEntry.SourceId == purchaseOrderId)
+            .SumAsync(l => (decimal?)l.FunctionalAmount, ct) ?? 0m;
+
+        var released = await db.Set<JournalLine>().AsNoTracking()
+            .Where(l => l.BookId == bookId && clearingAccounts.Contains(l.GlAccountId) && l.Debit > 0m
+                && l.JournalEntry.Status == JournalEntryStatus.Posted
+                && l.JournalEntry.SourceType == PurchaseOrderFreightCloseSourceType && l.JournalEntry.SourceId == purchaseOrderId)
+            .SumAsync(l => (decimal?)l.FunctionalAmount, ct) ?? 0m;
+
+        var cleared = await db.Set<VendorBillLine>().AsNoTracking()
+            .Where(l => l.FreightForPurchaseOrderId == purchaseOrderId && l.FreightClearedAmount != null
+                && l.VendorBill.Status != VendorBillStatus.Void && l.VendorBill.Status != VendorBillStatus.Draft
+                && (excludingBillId == null || l.VendorBillId != excludingBillId))
+            .SumAsync(l => (decimal?)l.FreightClearedAmount, ct) ?? 0m;
+
+        return accrued - released - cleared;
+    }
+
+    /// <summary>Source type of the entry that releases a closed PO's leftover freight accrual to FREIGHT_IN.</summary>
+    public const string PurchaseOrderFreightCloseSourceType = "PurchaseOrderFreight";
 
     private async Task TryAuditAsync(
         VendorBill bill, JournalEntry entry, decimal total, int actorUserId, CancellationToken ct)

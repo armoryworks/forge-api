@@ -11,4 +11,5 @@ public record UpdateOrderLineRequestModel(
     string? Notes,
     // UoM purchase-units effort — PO-only: which PartPurchaseUnit the line orders
     // (null = per base unit). Ignored by Quote / Sales Order line edits.
-    int? PurchaseUnitId = null);
+    int? PurchaseUnitId = null,
+    bool? Taxable = null);

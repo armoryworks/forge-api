@@ -70,7 +70,7 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
             request.CustomerId, request.QuoteId, request.ShippingAddressId,
             request.BillingAddressId, request.CreditTerms, request.RequestedDeliveryDate,
             request.CustomerPO, request.Notes, request.TaxRate, request.Lines, request.OrderNumber,
-            request.CurrencyId, request.FxRate));
+            request.CurrencyId, request.FxRate, request.FreightTerms));
         return CreatedAtAction(nameof(GetSalesOrder), new { id = result.Id }, result);
     }
 
@@ -82,7 +82,7 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
             id, request.ShippingAddressId, request.BillingAddressId,
             request.CreditTerms, request.RequestedDeliveryDate,
             request.CustomerPO, request.Notes, request.TaxRate, request.OrderNumber,
-            request.CurrencyId, request.FxRate));
+            request.CurrencyId, request.FxRate, request.FreightTerms, request.ClearFreightTerms));
         return NoContent();
     }
 

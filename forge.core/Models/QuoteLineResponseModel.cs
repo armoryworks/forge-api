@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record QuoteLineResponseModel(
@@ -11,4 +13,5 @@ public record QuoteLineResponseModel(
     int LineNumber,
     string? Notes,
     QuoteLineCostBreakdownModel? CostBreakdown = null,
-    decimal? EffectiveMargin = null);
+    decimal? EffectiveMargin = null,
+    DocumentLineType LineType = DocumentLineType.Item);

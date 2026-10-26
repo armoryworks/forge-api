@@ -37,7 +37,9 @@ public record UpdateCustomerCommand(
     string? DefaultCreditTerms = null,
     bool? ClearDefaultCreditTerms = null,
     int? CurrencyId = null,
-    bool? ClearCurrency = null) : IRequest;
+    bool? ClearCurrency = null,
+    FreightTerms? FreightTerms = null,
+    bool? ClearFreightTerms = null) : IRequest;
 
 public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
 {
@@ -70,6 +72,11 @@ public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
             .Null()
             .When(x => x.ClearDefaultCreditTerms == true)
             .WithMessage("Send either default credit terms or ClearDefaultCreditTerms, not both.");
+        RuleFor(x => x.FreightTerms).IsInEnum().When(x => x.FreightTerms is not null);
+        RuleFor(x => x.FreightTerms)
+            .Null()
+            .When(x => x.ClearFreightTerms == true)
+            .WithMessage("Send either freight terms or ClearFreightTerms, not both.");
     }
 }
 
@@ -203,6 +210,17 @@ public class UpdateCustomerHandler(
         {
             customer.DefaultCreditTerms = terms;
             changedFields.Add("defaultCreditTerms");
+        }
+
+        if (request.ClearFreightTerms == true && customer.FreightTerms is not null)
+        {
+            customer.FreightTerms = null;
+            changedFields.Add("freightTerms");
+        }
+        else if (request.FreightTerms is { } freightTerms && freightTerms != customer.FreightTerms)
+        {
+            customer.FreightTerms = freightTerms;
+            changedFields.Add("freightTerms");
         }
 
         if ((request.CurrencyId is not null || request.ClearCurrency == true)

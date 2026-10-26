@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record CustomerSummaryResponseModel(
@@ -36,4 +38,5 @@ public record CustomerSummaryResponseModel(
     string? DefaultCreditTerms = null,
     bool IsOnCreditHold = false,
     int? CurrencyId = null,
-    bool CurrencyLocked = false);
+    bool CurrencyLocked = false,
+    FreightTerms? FreightTerms = null);

@@ -37,6 +37,7 @@ public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorReposit
         var poIds = bill.Lines
             .Select(l => l.PurchaseOrderLine?.PurchaseOrderId)
             .Append(bill.PurchaseOrderId)
+            .Concat(bill.Lines.Select(l => l.FreightForPurchaseOrderId))
             .OfType<int>()
             .Distinct()
             .ToList();
@@ -56,7 +57,13 @@ public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorReposit
                     l.GlAccount is null ? null : $"{l.GlAccount.AccountNumber} {l.GlAccount.Name}",
                     l.PurchaseOrderLineId is int lineId && poRefs.Lines.TryGetValue(lineId, out var lineRef)
                         ? $"{lineRef.PoNumber} line {lineRef.Position}"
-                        : null))
+                        : null,
+                    l.LineType,
+                    l.FreightForPurchaseOrderId,
+                    l.FreightForPurchaseOrderId is int freightPoId && poRefs.PoNumbers.TryGetValue(freightPoId, out var freightPoNumber)
+                        ? freightPoNumber
+                        : null,
+                    l.FreightClearedAmount))
                 .ToList(),
             hasFailedTransmission,
             bill.ExpenseId,

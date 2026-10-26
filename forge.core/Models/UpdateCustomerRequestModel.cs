@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record UpdateCustomerRequestModel(
@@ -26,4 +28,6 @@ public record UpdateCustomerRequestModel(
     string? DefaultCreditTerms = null,
     bool? ClearDefaultCreditTerms = null,
     int? CurrencyId = null,
-    bool? ClearCurrency = null);
+    bool? ClearCurrency = null,
+    FreightTerms? FreightTerms = null,
+    bool? ClearFreightTerms = null);

@@ -14,6 +14,9 @@ public class SalesOrderLine : BaseEntity
     public decimal Quantity { get; set; }
     public decimal UnitPrice { get; set; }
     public int LineNumber { get; set; }
+
+    /// <summary>Item (default) or Freight. A freight line has no part, never ships and posts to Freight Income.</summary>
+    public DocumentLineType LineType { get; set; } = DocumentLineType.Item;
     public decimal ShippedQuantity { get; set; }
     public string? Notes { get; set; }
     public int? UomId { get; set; }
@@ -22,7 +25,9 @@ public class SalesOrderLine : BaseEntity
     public decimal RemainingQuantity => Quantity - ShippedQuantity;
     public bool IsFullyShipped => ShippedQuantity >= Quantity;
 
-    public bool ShipsGoods => Part?.InventoryClass != InventoryClass.Service;
+    public bool ShipsGoods => LineType != DocumentLineType.Freight && Part?.InventoryClass != InventoryClass.Service;
+
+    public bool IsFreight => LineType == DocumentLineType.Freight;
 
     // F-032: per-line taxability code required by QBO AST. Null = inherit order-level default.
     // Values: "TAX" (taxable), "NON" (non-taxable). Propagated from Part.TaxCode at SO creation.

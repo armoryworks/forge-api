@@ -7,4 +7,5 @@ public record RevenueReportItem(
     decimal Subtotal,
     decimal TaxAmount,
     decimal Total,
-    decimal AmountPaid);
+    decimal AmountPaid,
+    decimal Freight = 0m);

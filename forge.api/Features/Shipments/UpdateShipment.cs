@@ -1,6 +1,8 @@
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Freight;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -21,7 +23,8 @@ public record UpdateShipmentCommand(
     decimal? Height = null,
     // Optional caller-supplied shipment number — editable only before the shipment
     // has shipped, gated by shipments.allow_manual_numbers.
-    string? ShipmentNumber = null) : IRequest;
+    string? ShipmentNumber = null,
+    decimal? FreightCharge = null) : IRequest;
 
 /// <summary>
 /// Corrects/adjusts a shipment's details (ship-to address, carrier, tracking, cost, weight, notes).
@@ -95,10 +98,27 @@ public class UpdateShipmentHandler(
             changedFields.Add("trackingNumber");
         }
 
+        if (request.FreightCharge is < 0m)
+            throw new ValidationException("Freight to bill the customer can't be negative.");
+
         if (request.ShippingCost.HasValue && request.ShippingCost != shipment.ShippingCost)
         {
             shipment.ShippingCost = request.ShippingCost;
             changedFields.Add("shippingCost");
+
+            if (request.FreightCharge is null && shipment.FreightCharge is null)
+            {
+                var terms = await FreightTermsResolver.ForSalesOrderAsync(db, shipment.SalesOrderId, cancellationToken);
+                shipment.FreightCharge = FreightTermsResolver.DefaultCharge(terms, shipment.ShippingCost);
+                if (shipment.FreightCharge is not null)
+                    changedFields.Add("freightCharge");
+            }
+        }
+
+        if (request.FreightCharge is decimal freightCharge && freightCharge != shipment.FreightCharge)
+        {
+            shipment.FreightCharge = Math.Round(freightCharge, 2, MidpointRounding.AwayFromZero);
+            changedFields.Add("freightCharge");
         }
 
         if (request.Weight.HasValue && request.Weight != shipment.Weight)

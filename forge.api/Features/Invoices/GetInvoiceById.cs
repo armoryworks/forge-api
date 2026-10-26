@@ -42,7 +42,7 @@ public class GetInvoiceByIdHandler(IInvoiceRepository repo)
             invoice.Notes,
             invoice.Lines.Select(l => new InvoiceLineResponseModel(
                 l.Id, l.PartId, l.Part?.PartNumber, l.Description,
-                l.Quantity, l.UnitPrice, l.LineTotal, l.LineNumber, l.IsTaxable)).ToList(),
+                l.Quantity, l.UnitPrice, l.LineTotal, l.LineNumber, l.IsTaxable, l.LineType)).ToList(),
             invoice.PaymentApplications.Select(pa => new PaymentApplicationResponseModel(
                 pa.Id, pa.PaymentId, pa.Payment.PaymentNumber,
                 pa.InvoiceId, invoice.InvoiceNumber, pa.Amount)).ToList(),
@@ -51,6 +51,8 @@ public class GetInvoiceByIdHandler(IInvoiceRepository repo)
             invoice.Version,
             invoice.Currency?.Code,
             invoice.CurrencyId,
-            invoice.FxRate);
+            invoice.FxRate,
+            invoice.FreightSubtotal,
+            invoice.SalesTaxRateId);
     }
 }

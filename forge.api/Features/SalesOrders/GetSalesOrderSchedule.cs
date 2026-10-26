@@ -26,7 +26,7 @@ public class GetSalesOrderScheduleHandler(AppDbContext db, BackwardSchedulingSer
         var now = clock.UtcNow;
         var results = new List<ScheduleMilestoneModel>();
 
-        foreach (var line in so.Lines.OrderBy(l => l.LineNumber))
+        foreach (var line in so.Lines.Where(l => !l.IsFreight).OrderBy(l => l.LineNumber))
         {
             var schedule = await scheduler.CalculateSchedule(line.Id, cancellationToken);
 

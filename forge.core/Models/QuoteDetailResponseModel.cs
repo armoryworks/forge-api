@@ -25,4 +25,5 @@ public record QuoteDetailResponseModel(
     uint RowVersion = 0,
     int? CurrencyId = null,
     string? CurrencyCode = null,
-    decimal FxRate = 1m);
+    decimal FxRate = 1m,
+    decimal FreightSubtotal = 0m);

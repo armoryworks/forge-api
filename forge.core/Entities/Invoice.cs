@@ -31,6 +31,9 @@ public class Invoice : BaseAuditableEntity, IConcurrencyVersioned
     public DateTimeOffset DueDate { get; set; }
     public CreditTerms? CreditTerms { get; set; }
     public decimal TaxRate { get; set; }
+
+    /// <summary>The sales-tax jurisdiction <see cref="TaxRate"/> came from, when known. Decides whether freight starts taxable.</summary>
+    public int? SalesTaxRateId { get; set; }
     public string? Notes { get; set; }
 
     // Customer PO reference — copied from SalesOrder.CustomerPO when the
@@ -45,6 +48,7 @@ public class Invoice : BaseAuditableEntity, IConcurrencyVersioned
     public DateTimeOffset? LastSyncedAt { get; set; }
 
     public decimal Subtotal => Lines.Sum(l => l.LineTotal);
+    public decimal FreightSubtotal => Lines.Where(l => l.IsFreight).Sum(l => l.LineTotal);
     public decimal TaxableSubtotal => Lines.Where(l => l.IsTaxable).Sum(l => l.LineTotal);
     public decimal TaxAmount => QuantizeMoney(TaxableSubtotal * TaxRate);
     public decimal Total => Subtotal + TaxAmount;
@@ -83,6 +87,7 @@ public class Invoice : BaseAuditableEntity, IConcurrencyVersioned
     public Currency Currency { get; set; } = null!;
     public SalesOrder? SalesOrder { get; set; }
     public Shipment? Shipment { get; set; }
+    public SalesTaxRate? SalesTaxRate { get; set; }
     public ICollection<InvoiceLine> Lines { get; set; } = [];
     public ICollection<PaymentApplication> PaymentApplications { get; set; } = [];
 }

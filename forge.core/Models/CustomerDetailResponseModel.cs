@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record CustomerDetailResponseModel(
@@ -38,7 +40,8 @@ public record CustomerDetailResponseModel(
     string? DefaultCreditTerms = null,
     DateOnly? ExemptionExpiryDate = null,
     int? CurrencyId = null,
-    bool CurrencyLocked = false);
+    bool CurrencyLocked = false,
+    FreightTerms? FreightTerms = null);
 
 /// <summary>
 /// Minimal nested address shape returned alongside a customer record. Phase 3 F3.

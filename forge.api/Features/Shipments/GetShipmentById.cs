@@ -54,7 +54,9 @@ public class GetShipmentByIdHandler(IShipmentRepository repo)
                 l.Part?.PartNumber)).ToList(),
             shipment.CreatedAt,
             shipment.UpdatedAt,
-            shipment.Invoice?.InvoiceNumber);
+            shipment.Invoice?.InvoiceNumber,
+            shipment.FreightCharge,
+            (shipment.SalesOrder.FreightTerms ?? shipment.SalesOrder.Customer.FreightTerms)?.ToString());
     }
 
     private static string FirstNonBlank(params string?[] values)

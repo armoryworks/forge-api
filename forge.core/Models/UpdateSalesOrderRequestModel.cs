@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record UpdateSalesOrderRequestModel(
@@ -12,4 +14,6 @@ public record UpdateSalesOrderRequestModel(
     // and only when the sales_orders.allow_manual_numbers setting is on.
     string? OrderNumber = null,
     int? CurrencyId = null,
-    decimal? FxRate = null);
+    decimal? FxRate = null,
+    FreightTerms? FreightTerms = null,
+    bool? ClearFreightTerms = null);
