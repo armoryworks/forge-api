@@ -338,6 +338,38 @@ public class ApplyPaymentLaterTests
     }
 
     [Fact]
+    public async Task Apply_ForeignDeposit_RelievesDepositsAtThePaymentRate_WhateverTheSettlementRate()
+    {
+        using var db = await SeedBooksAsync();
+        db.Set<Currency>().Add(new Currency { Id = 2, Code = "CAD", Name = "Canadian Dollar", Symbol = "$" });
+        db.Set<GlAccount>().Add(new GlAccount { Id = 190, BookId = BookId, AccountNumber = "90000", Name = "FX Gain", AccountType = AccountType.Income, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true });
+        db.Set<AccountDeterminationRule>().Add(new AccountDeterminationRule { BookId = BookId, Key = "FX_GAIN", GlAccountId = 190 });
+        var customer = await AddCustomerAsync(db);
+        var invoice = await AddInvoiceAsync(db, customer, "INV-1", 400m, withOpenItem: true);
+        invoice.CurrencyId = 2;
+        invoice.FxRate = 0.73m;
+        var item = await db.ArOpenItems.SingleAsync();
+        item.CurrencyId = 2;
+        item.FxRate = 0.73m;
+        item.OriginalFunctionalAmount = 292m;
+        var payment = await AddPaymentAsync(db, customer, 500m);
+        payment.CurrencyId = 2;
+        payment.FxRate = 0.75m;
+        await db.SaveChangesAsync();
+        var posting = PostingService(db);
+        await posting.PostPaymentCreatedAsync(payment.Id, UserId);
+
+        await ApplyHandler(db, posting).Handle(
+            new ApplyPaymentCommand(payment.Id, [new CreatePaymentApplicationModel(invoice.Id, 400m, 0.80m)]),
+            CancellationToken.None);
+
+        (await NetAsync(db, CashId)).Should().Be(375m);
+        (await NetAsync(db, CustomerDepositsId)).Should().Be(-75m);
+        (await NetAsync(db, ArControlId)).Should().Be(-292m);
+        (await NetAsync(db, 190)).Should().Be(-8m);
+    }
+
+    [Fact]
     public async Task PostApplications_IsIdempotent()
     {
         using var db = await SeedBooksAsync();

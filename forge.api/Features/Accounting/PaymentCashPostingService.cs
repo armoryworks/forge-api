@@ -67,8 +67,9 @@ public interface IPaymentCashPostingService
         int paymentId, string reason, int reversedByUserId, CancellationToken ct = default);
 
     /// <summary>
-    /// Posts the application of previously unapplied cash to invoices (Dr CUSTOMER_DEPOSITS / Cr AR_CONTROL,
-    /// plus any realized-FX plug), one entry per application, and relieves each invoice's AR open item. A
+    /// Posts the application of previously unapplied cash to invoices (Dr CUSTOMER_DEPOSITS at the payment's
+    /// rate, the rate the deposit was booked at / Cr AR_CONTROL at the invoice's booking rate, plus any
+    /// realized-FX plug), one entry per application, and relieves each invoice's AR open item. A
     /// no-op while CAP-ACCT-FULLGL is off or when the payment's cash receipt was never posted (recorded
     /// while the capability was off). Idempotent per application.
     /// </summary>
@@ -211,7 +212,7 @@ public sealed class PaymentCashPostingService(
             var bookingRate = invoice?.FxRate ?? 1m;
 
             var arRelief = Math.Round(app.Amount * bookingRate, 2, MidpointRounding.AwayFromZero);
-            var depositRelief = Math.Round(app.Amount * app.SettlementFxRate, 2, MidpointRounding.AwayFromZero);
+            var depositRelief = FxMath.ToFunctional(app.Amount, payment.FxRate);
 
             var openItem = await db.ArOpenItems.IgnoreQueryFilters()
                 .FirstOrDefaultAsync(i => i.SourceType == "Invoice" && i.SourceId == app.InvoiceId, ct);
