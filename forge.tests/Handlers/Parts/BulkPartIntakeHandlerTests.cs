@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Moq;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Parts.BulkIntake;
 using Forge.Core.Entities;
@@ -32,7 +33,8 @@ public class BulkPartIntakeHandlerTests
             });
         _barcodes.Setup(b => b.CreateBarcodeAsync(It.IsAny<BarcodeEntityType>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Barcode());
-        _handler = new BulkPartIntakeHandler(_db, _repo.Object, _barcodes.Object, Mock.Of<IBusinessIdentifierService>());
+        _handler = new BulkPartIntakeHandler(_db, _repo.Object, _barcodes.Object, Mock.Of<IBusinessIdentifierService>(),
+            TestCaller.ClockAt(new DateTimeOffset(2026, 3, 2, 9, 0, 0, TimeSpan.Zero)));
     }
 
     private static BulkPartIntakeRow Row(string? name, string? proc = null, string? inv = null, string? ext = null, string? key = null)
@@ -176,5 +178,23 @@ public class BulkPartIntakeHandlerTests
         result.Results.Single(r => r.ExternalRowKey == "Bravo").CreatedPartNumber.Should().Be("RAW-00001");
         result.Results.Single(r => r.ExternalRowKey == "blank").CreatedPartNumber.Should().BeNull();
         _db.Parts.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Commit_writes_a_revision_A_baseline_for_each_created_part()
+    {
+        await Commit(Row("Widget"), Row("Frame", inv: "subassembly"));
+
+        var rows = await _db.PartRevisions.Include(r => r.Part).ToListAsync();
+        rows.Select(r => (r.Part.Name, r.Revision, r.IsCurrent))
+            .Should().BeEquivalentTo(new[] { ("Widget", "A", true), ("Frame", "A", true) });
+    }
+
+    [Fact]
+    public async Task Preview_writes_no_revision_rows()
+    {
+        await Preview(Row("Widget"));
+
+        (await _db.PartRevisions.CountAsync()).Should().Be(0);
     }
 }

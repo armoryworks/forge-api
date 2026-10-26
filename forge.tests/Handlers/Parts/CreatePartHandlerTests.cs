@@ -2,6 +2,7 @@ using Bogus;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.Parts;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -36,6 +37,7 @@ public class CreatePartHandlerTests
             Mock.Of<IBarcodeService>(),
             identifiers.Object,
             _db,
+            TestCaller.ClockAt(new DateTimeOffset(2026, 3, 2, 9, 0, 0, TimeSpan.Zero)),
             Mock.Of<ILogger<CreatePartHandler>>());
     }
 
@@ -288,5 +290,40 @@ public class CreatePartHandlerTests
             p.Name == "Sheath Mudkipper" &&
             p.Description == null
         ), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WritesTheCurrentRevisionABaselineRow()
+    {
+        _partRepo.Setup(r => r.GetNextPartNumberAsync(InventoryClass.Component, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("PRT-00001");
+        _partRepo.Setup(r => r.GetDetailAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildDetailResponse(name: "Baseline"));
+
+        await _handler.Handle(
+            new CreatePartCommand("Baseline", null, null, ProcurementSource.Buy, InventoryClass.Component, MaterialSpecId: null),
+            CancellationToken.None);
+
+        var row = await _db.PartRevisions.Include(r => r.Part).SingleAsync();
+        row.Part.PartNumber.Should().Be("PRT-00001");
+        row.Revision.Should().Be("A");
+        row.IsCurrent.Should().BeTrue();
+        row.EffectiveDate.Should().Be(new DateTimeOffset(2026, 3, 2, 9, 0, 0, TimeSpan.Zero));
+        row.ChangeDescription.Should().Be("Initial release");
+    }
+
+    [Fact]
+    public async Task Handle_WithRevision_BaselineRowUsesThatRevision()
+    {
+        _partRepo.Setup(r => r.GetNextPartNumberAsync(InventoryClass.Subassembly, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("ASM-00001");
+        _partRepo.Setup(r => r.GetDetailAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildDetailResponse(name: "Frame"));
+
+        await _handler.Handle(
+            new CreatePartCommand("Frame", null, " C ", ProcurementSource.Make, InventoryClass.Subassembly, MaterialSpecId: null),
+            CancellationToken.None);
+
+        (await _db.PartRevisions.SingleAsync()).Revision.Should().Be("C");
     }
 }

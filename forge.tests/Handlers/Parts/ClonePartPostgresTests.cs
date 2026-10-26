@@ -81,6 +81,7 @@ public sealed class ClonePartPostgresTests(PostgresFixture fixture)
                 Mock.Of<ISyncQueueRepository>(),
                 Mock.Of<IAccountingProviderFactory>(),
                 sender.Object,
+                TestCaller.ClockAt(new DateTimeOffset(2026, 3, 2, 9, 0, 0, TimeSpan.Zero)),
                 Mock.Of<ILogger<ClonePartHandler>>());
 
             var act = () => handler.Handle(

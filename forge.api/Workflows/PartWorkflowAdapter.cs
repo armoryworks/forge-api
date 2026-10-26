@@ -4,6 +4,7 @@ using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Parts;
 using Forge.Api.Features.VendorParts;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
@@ -23,7 +24,7 @@ namespace Forge.Api.Workflows;
 /// through this applier).
 /// </summary>
 public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemSettingRepository systemSettings,
-    IBusinessIdentifierService identifiers)
+    IBusinessIdentifierService identifiers, IClock clock)
     : IWorkflowEntityCreator, IWorkflowFieldApplier, IWorkflowEntityPromoter
 {
     public string EntityType => "Part";
@@ -140,6 +141,7 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemS
             StockUomId = stockUomId,
         };
         db.Parts.Add(part);
+        PartRevisionBaseline.Add(db, part, clock.UtcNow, "Initial release");
         // Defer SaveChanges to the orchestrating handler (single transaction).
         return await SavePartAndReturnIdAsync(part, ct);
     }
@@ -181,7 +183,11 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemS
             part.Description = string.IsNullOrEmpty(trimmed) ? null : trimmed;
         }
         if (TryReadString(fields, "revision", out var rev) && rev is not null)
+        {
+            var previousRevision = part.Revision;
             part.Revision = rev.Trim();
+            await PartRevisionBaseline.RenameCurrentAsync(db, part.Id, previousRevision, part.Revision, ct);
+        }
         if (TryReadDecimal(fields, "manualCostOverride", out var manual))
             part.ManualCostOverride = manual;
         // Pillar 1 — three-axis applies. The legacy partType field is gone;

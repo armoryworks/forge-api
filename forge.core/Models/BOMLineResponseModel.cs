@@ -15,4 +15,5 @@ public record BOMLineResponseModel(
     string? Notes,
     int? UomId,
     string? UomCode,
-    string? UomLabel);
+    string? UomLabel,
+    bool ChildHasBom = false);

@@ -2,6 +2,7 @@ using FluentAssertions;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.Parts;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -501,5 +502,36 @@ public class UpdatePartHandlerTests
 
         _db.ActivityLogs.Local.Should().ContainSingle(a => a.Action == "updated")
             .Which.Description.Should().Be("Updated 2 fields: HTS code, name");
+    }
+
+    [Fact]
+    public async Task Correcting_the_revision_field_renames_the_current_history_row()
+    {
+        var part = new Part { PartNumber = "PRT-00070", Name = "Test", Status = PartStatus.Draft, Revision = "A" };
+        _db.Parts.Add(part);
+        _db.PartRevisions.Add(new PartRevision { Part = part, Revision = "A", IsCurrent = true });
+        await _db.SaveChangesAsync();
+        SetupRepoForUpdate(part);
+
+        await _handler.Handle(new UpdatePartCommand(part.Id, EmptyUpdate() with { Revision = "B" }), CancellationToken.None);
+
+        part.Revision.Should().Be("B");
+        _db.PartRevisions.Local.Single().Revision.Should().Be("B");
+    }
+
+    [Fact]
+    public async Task Revision_correction_leaves_history_alone_when_the_new_code_already_exists()
+    {
+        var part = new Part { PartNumber = "PRT-00071", Name = "Test", Status = PartStatus.Active, Revision = "B" };
+        _db.Parts.Add(part);
+        _db.PartRevisions.Add(new PartRevision { Part = part, Revision = "A", IsCurrent = false });
+        _db.PartRevisions.Add(new PartRevision { Part = part, Revision = "B", IsCurrent = true });
+        await _db.SaveChangesAsync();
+        SetupRepoForUpdate(part);
+
+        await _handler.Handle(new UpdatePartCommand(part.Id, EmptyUpdate() with { Revision = "A" }), CancellationToken.None);
+
+        _db.PartRevisions.Local.Select(r => (r.Revision, r.IsCurrent))
+            .Should().BeEquivalentTo(new[] { ("A", false), ("B", true) });
     }
 }

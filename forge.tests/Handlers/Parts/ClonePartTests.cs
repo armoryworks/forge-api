@@ -47,6 +47,7 @@ public class ClonePartTests
             _syncQueue.Object,
             _providerFactory.Object,
             _sender.Object,
+            TestCaller.ClockAt(new DateTimeOffset(2026, 3, 2, 9, 0, 0, TimeSpan.Zero)),
             Mock.Of<ILogger<ClonePartHandler>>());
     }
 
@@ -378,5 +379,27 @@ public class ClonePartTests
             new ClonePartCommand(source.Id, Request(copyBom: false, copyRouting: false)), CancellationToken.None);
 
         (await _db.Parts.AnyAsync(p => p.Id == result.Id)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Clone_StartsItsOwnRevisionHistoryAtA()
+    {
+        var source = await SeedPartAsync("ASM-00090");
+        source.Revision = "D";
+        _db.PartRevisions.Add(new PartRevision
+        {
+            PartId = source.Id, Revision = "D", IsCurrent = true,
+            EffectiveDate = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
+        });
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new ClonePartCommand(source.Id, Request()), CancellationToken.None);
+
+        var rows = await _db.PartRevisions.Where(r => r.PartId == result.Id).ToListAsync();
+        rows.Should().ContainSingle();
+        rows[0].Revision.Should().Be("A");
+        rows[0].IsCurrent.Should().BeTrue();
+        rows[0].ChangeDescription.Should().Be("Duplicated from ASM-00090");
+        (await _db.PartRevisions.CountAsync(r => r.PartId == source.Id)).Should().Be(1);
     }
 }

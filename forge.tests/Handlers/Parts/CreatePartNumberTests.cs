@@ -48,9 +48,11 @@ public class CreatePartNumberTests
         Mock.Of<IBarcodeService>(),
         _identifiers.Object,
         _db,
+        TestCaller.ClockAt(new DateTimeOffset(2026, 3, 2, 9, 0, 0, TimeSpan.Zero)),
         Mock.Of<ILogger<CreatePartHandler>>());
 
-    private PartWorkflowAdapter Adapter() => new(_db, _repo, _settings.Object, _identifiers.Object);
+    private PartWorkflowAdapter Adapter() => new(_db, _repo, _settings.Object, _identifiers.Object,
+        TestCaller.ClockAt(new DateTimeOffset(2026, 3, 2, 9, 0, 0, TimeSpan.Zero)));
 
     private static CreatePartCommand Command(string? partNumber) =>
         new("Bracket", null, null, ProcurementSource.Buy, InventoryClass.Component, null, partNumber);
@@ -176,5 +178,32 @@ public class CreatePartNumberTests
         var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
         FailureOn(ex, "partNumber").Should().Be(DeletedPartMessage);
         part.PartNumber.Should().Be("PRT-00001");
+    }
+
+    [Fact]
+    public async Task Workflow_create_writes_the_revision_baseline_row()
+    {
+        AllowManualNumbers(false);
+        var payload = JsonDocument.Parse("""{ "name": "Bracket", "revision": "B" }""").RootElement;
+
+        var id = await Adapter().CreateDraftAsync(payload, CancellationToken.None);
+
+        var row = await _db.PartRevisions.SingleAsync();
+        row.PartId.Should().Be(id);
+        row.Revision.Should().Be("B");
+        row.IsCurrent.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Workflow_revision_patch_renames_the_baseline_row()
+    {
+        AllowManualNumbers(false);
+        var id = await Adapter().CreateDraftAsync(
+            JsonDocument.Parse("""{ "name": "Bracket" }""").RootElement, CancellationToken.None);
+
+        await Adapter().ApplyAsync(id, JsonDocument.Parse("""{ "revision": "C" }""").RootElement, CancellationToken.None);
+        await _db.SaveChangesAsync();
+
+        (await _db.PartRevisions.SingleAsync()).Revision.Should().Be("C");
     }
 }
