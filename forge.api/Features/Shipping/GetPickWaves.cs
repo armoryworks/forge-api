@@ -21,23 +21,14 @@ public class GetPickWavesHandler(AppDbContext db) : IRequestHandler<GetPickWaves
         if (request.AssignedToId.HasValue)
             query = query.Where(w => w.AssignedToId == request.AssignedToId.Value);
 
-        return await query
+        var waves = await query
             .OrderByDescending(w => w.CreatedAt)
-            .Select(w => new PickWaveResponseModel
-            {
-                Id = w.Id,
-                WaveNumber = w.WaveNumber,
-                Status = w.Status,
-                Strategy = w.Strategy,
-                AssignedToId = w.AssignedToId,
-                TotalLines = w.TotalLines,
-                PickedLines = w.PickedLines,
-                ReleasedAt = w.ReleasedAt,
-                StartedAt = w.StartedAt,
-                CompletedAt = w.CompletedAt,
-                Notes = w.Notes,
-                CreatedAt = w.CreatedAt,
-            })
+            .Take(500)
             .ToListAsync(cancellationToken);
+
+        var names = await PickLineQueries.UserNamesAsync(db, waves.Select(w => w.AssignedToId), cancellationToken);
+        return waves
+            .Select(w => PickWaveResponses.Summary(w, w.AssignedToId is int a ? names.GetValueOrDefault(a) : null))
+            .ToList();
     }
 }

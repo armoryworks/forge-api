@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Edi;
 
@@ -20,7 +21,8 @@ public class UpdateEdiTradingPartnerHandler(AppDbContext db, IMediator mediator,
 
         var model = request.Model;
         if (model.Name is not null) partner.Name = model.Name;
-        if (model.CustomerId is not null) partner.CustomerId = model.CustomerId;
+        if (model.ClearCustomer == true) partner.CustomerId = null;
+        else if (model.CustomerId is not null) partner.CustomerId = model.CustomerId;
         if (model.VendorId is not null) partner.VendorId = model.VendorId;
         if (model.QualifierId is not null) partner.QualifierId = model.QualifierId;
         if (model.QualifierValue is not null) partner.QualifierValue = model.QualifierValue;
@@ -49,6 +51,10 @@ public class UpdateEdiTradingPartnerHandler(AppDbContext db, IMediator mediator,
         if (model.RequireAcknowledgment.HasValue) partner.RequireAcknowledgment = model.RequireAcknowledgment.Value;
         if (model.IsActive.HasValue) partner.IsActive = model.IsActive.Value;
         if (model.Notes is not null) partner.Notes = model.Notes;
+
+        db.ChangeTracker.DetectChanges();
+        if (ActivityChangeSummary.Updated(ActivityChangeSummary.ChangedProperties(db.Entry(partner))) is string summary)
+            db.LogActivityAt("updated", summary, ("EdiTradingPartner", partner.Id));
 
         await db.SaveChangesAsync(cancellationToken);
 

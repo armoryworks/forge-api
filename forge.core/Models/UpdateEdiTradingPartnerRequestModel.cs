@@ -6,6 +6,9 @@ public record UpdateEdiTradingPartnerRequestModel
 {
     public string? Name { get; init; }
     public int? CustomerId { get; init; }
+
+    /// <summary>True unlinks the partner from its customer; a null <see cref="CustomerId"/> alone leaves the link unchanged.</summary>
+    public bool? ClearCustomer { get; init; }
     public int? VendorId { get; init; }
     public string? QualifierId { get; init; }
     public string? QualifierValue { get; init; }

@@ -1,3 +1,5 @@
+using System.Security.Claims;
+
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +23,14 @@ public class PickWavesController(IMediator mediator) : ControllerBase
         [FromQuery] int? assignedToId)
     {
         var result = await mediator.Send(new GetPickWavesQuery(status, assignedToId));
+        return Ok(result);
+    }
+
+    [HttpGet("my-lines")]
+    public async Task<ActionResult<List<PickLineResponseModel>>> GetMyPickLines()
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var result = await mediator.Send(new GetMyPickLinesQuery(userId));
         return Ok(result);
     }
 

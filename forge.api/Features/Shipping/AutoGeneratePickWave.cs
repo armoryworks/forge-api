@@ -5,6 +5,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Shipping;
 
@@ -14,74 +15,64 @@ public class AutoGeneratePickWaveHandler(AppDbContext db) : IRequestHandler<Auto
 {
     public async Task<PickWaveResponseModel> Handle(AutoGeneratePickWaveCommand command, CancellationToken cancellationToken)
     {
-        // Find shipment lines not already assigned to a pick wave
-        var existingPickLineShipmentIds = await db.PickLines
-            .AsNoTracking()
-            .Select(pl => pl.ShipmentLineId)
-            .ToListAsync(cancellationToken);
+        var parameters = command.Parameters;
+        var maxLines = Math.Clamp(parameters.MaxLinesPerWave, 1, 500);
 
-        var pendingShipmentLines = await db.ShipmentLines
+        var query = db.ShipmentLines
             .AsNoTracking()
-            .Include(sl => sl.Shipment)
-            .Where(sl => !existingPickLineShipmentIds.Contains(sl.Id))
-            .Where(sl => sl.Shipment.Status == ShipmentStatus.Pending)
-            .Take(command.Parameters.MaxLinesPerWave)
-            .ToListAsync(cancellationToken);
+            .Where(sl => sl.PartId != null && sl.Quantity > 0)
+            .Where(sl => sl.Shipment.Status == ShipmentStatus.Pending || sl.Shipment.Status == ShipmentStatus.Packed)
+            .Where(sl => !db.PickLines.Any(pl => pl.ShipmentLineId == sl.Id && pl.Wave.Status != PickWaveStatus.Cancelled));
 
-        if (pendingShipmentLines.Count == 0)
+        if (parameters.ShipByDateFrom is DateTimeOffset from)
+            query = query.Where(sl => sl.Shipment.SalesOrder.RequestedDeliveryDate >= from);
+        if (parameters.ShipByDateTo is DateTimeOffset to)
+            query = query.Where(sl => sl.Shipment.SalesOrder.RequestedDeliveryDate <= to);
+
+        var ordered = query
+            .OrderBy(sl => sl.Shipment.SalesOrder.RequestedDeliveryDate == null)
+            .ThenBy(sl => sl.Shipment.SalesOrder.RequestedDeliveryDate)
+            .ThenBy(sl => sl.ShipmentId)
+            .ThenBy(sl => sl.Id);
+
+        List<ShipmentLine> pendingShipmentLines;
+        if (parameters.Strategy == PickWaveStrategy.WaveByCarrier)
         {
-            throw new InvalidOperationException("No pending shipment lines available for wave generation");
+            var first = await ordered.Select(sl => new { sl.Shipment.CarrierId, sl.Shipment.Carrier }).FirstOrDefaultAsync(cancellationToken);
+            pendingShipmentLines = first is null
+                ? []
+                : await ordered
+                    .Where(sl => sl.Shipment.CarrierId == first.CarrierId && sl.Shipment.Carrier == first.Carrier)
+                    .Take(maxLines)
+                    .ToListAsync(cancellationToken);
+        }
+        else
+        {
+            pendingShipmentLines = await ordered.Take(maxLines).ToListAsync(cancellationToken);
         }
 
-        var lastWave = await db.PickWaves
-            .AsNoTracking()
-            .OrderByDescending(w => w.Id)
-            .FirstOrDefaultAsync(cancellationToken);
+        if (pendingShipmentLines.Count == 0)
+            throw new InvalidOperationException("No open shipment lines are waiting to be picked for that window.");
 
-        var nextNumber = (lastWave?.Id ?? 0) + 1;
+        var lines = await PickLinePlanner.PlanAsync(db, pendingShipmentLines, parameters.Strategy, cancellationToken);
 
         var wave = new PickWave
         {
-            WaveNumber = $"WAVE-{nextNumber:D4}",
+            WaveNumber = await PickWaveNumbers.NextAsync(db, cancellationToken),
             Status = PickWaveStatus.Draft,
-            Strategy = command.Parameters.Strategy,
-            AssignedToId = command.Parameters.AssignedToId,
-            TotalLines = pendingShipmentLines.Count,
+            Strategy = parameters.Strategy,
+            AssignedToId = parameters.AssignedToId,
+            TotalLines = lines.Count,
             PickedLines = 0,
+            Lines = lines,
         };
 
         db.PickWaves.Add(wave);
         await db.SaveChangesAsync(cancellationToken);
 
-        var sortOrder = 0;
-        foreach (var sl in pendingShipmentLines)
-        {
-            sortOrder++;
-            db.PickLines.Add(new PickLine
-            {
-                WaveId = wave.Id,
-                ShipmentLineId = sl.Id,
-                PartId = sl.PartId ?? 0,
-                FromLocationId = 1,
-                RequestedQuantity = sl.Quantity,
-                PickedQuantity = 0,
-                Status = PickLineStatus.Pending,
-                SortOrder = sortOrder,
-            });
-        }
-
+        db.LogActivityAt("created", $"Pick wave {wave.WaveNumber} generated with {lines.Count} lines", ("PickWave", wave.Id));
         await db.SaveChangesAsync(cancellationToken);
 
-        return new PickWaveResponseModel
-        {
-            Id = wave.Id,
-            WaveNumber = wave.WaveNumber,
-            Status = wave.Status,
-            Strategy = wave.Strategy,
-            AssignedToId = wave.AssignedToId,
-            TotalLines = wave.TotalLines,
-            PickedLines = 0,
-            CreatedAt = wave.CreatedAt,
-        };
+        return PickWaveResponses.Summary(wave);
     }
 }
