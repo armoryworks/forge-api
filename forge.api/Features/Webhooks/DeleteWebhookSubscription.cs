@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Webhooks;
 
@@ -17,6 +18,7 @@ public class DeleteWebhookSubscriptionHandler(AppDbContext db, IClock clock) : I
 
         subscription.IsActive = false;
         subscription.DeletedAt = clock.UtcNow;
+        db.LogActivityAt("deleted", $"Deleted webhook {subscription.Url}", ("WebhookSubscription", subscription.Id));
         await db.SaveChangesAsync(cancellationToken);
     }
 }

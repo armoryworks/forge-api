@@ -8,6 +8,7 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.CloudStorage;
 
@@ -68,6 +69,8 @@ public class CreateCloudStorageProviderHandler(
             provider.RefreshTokenEncrypted = encryption.Encrypt(model.RefreshToken);
 
         db.CloudStorageProviders.Add(provider);
+        await db.SaveChangesAsync(ct);
+        db.LogActivityAt("created", $"Added the {code} cloud storage provider ({provider.Mode})", ("CloudStorageProvider", provider.Id));
         await db.SaveChangesAsync(ct);
         return CloudStorageProviderCodes.ToModel(provider, 0);
     }

@@ -6,6 +6,7 @@ using Forge.Api.Capabilities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.CloudStorage;
 
@@ -50,6 +51,16 @@ public class UpdateCloudStorageProviderHandler(
         }
         if (!string.IsNullOrEmpty(model.RefreshToken))
             provider.RefreshTokenEncrypted = encryption.Encrypt(model.RefreshToken);
+
+        db.ChangeTracker.DetectChanges();
+        var changed = ActivityChangeSummary.ChangedProperties(db.Entry(provider));
+        if (changed.Count > 0)
+        {
+            db.LogActivityAt(
+                "updated",
+                ActivityChangeSummary.Updated(changed) ?? $"Updated the {provider.ProviderCode} cloud storage provider",
+                ("CloudStorageProvider", provider.Id));
+        }
 
         await db.SaveChangesAsync(ct);
 

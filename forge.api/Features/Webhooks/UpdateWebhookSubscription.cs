@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Webhooks;
 
@@ -68,6 +69,16 @@ public class UpdateWebhookSubscriptionHandler(
         {
             revealed = WebhookSubscriptionMapping.GenerateSecret();
             subscription.EncryptedSecret = dataProtection.CreateProtector(WebhookDeliveryService.SecretPurpose).Protect(revealed);
+        }
+
+        db.ChangeTracker.DetectChanges();
+        var changed = ActivityChangeSummary.ChangedProperties(db.Entry(subscription));
+        if (changed.Count > 0)
+        {
+            db.LogActivityAt(
+                "updated",
+                ActivityChangeSummary.Updated(changed) ?? $"Updated webhook {subscription.Url}",
+                ("WebhookSubscription", subscription.Id));
         }
 
         await db.SaveChangesAsync(cancellationToken);

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.CloudStorage;
 
@@ -20,6 +21,7 @@ public class DeleteCloudStorageProviderHandler(AppDbContext db, IClock clock) : 
 
         provider.IsActive = false;
         provider.DeletedAt = clock.UtcNow;
+        db.LogActivityAt("deleted", $"Deleted the {provider.ProviderCode} cloud storage provider", ("CloudStorageProvider", provider.Id));
         await db.SaveChangesAsync(ct);
     }
 }
