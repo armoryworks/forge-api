@@ -41,7 +41,7 @@ public class GetPpapSubmissionHandler(AppDbContext db)
         }
 
         var attachmentCounts = await db.FileAttachments
-            .Where(f => f.EntityType == "PpapElement" && s.Elements.Select(e => e.Id).Contains(f.EntityId))
+            .Where(f => (f.EntityType == "PpapElement" || f.EntityType == "ppap-elements") && s.Elements.Select(e => e.Id).Contains(f.EntityId))
             .GroupBy(f => f.EntityId)
             .ToDictionaryAsync(g => g.Key, g => g.Count(), cancellationToken);
 

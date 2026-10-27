@@ -12,4 +12,7 @@ public record DocumentRevisionResponseModel(
     int? ReviewedById,
     int? ApprovedById,
     DateTimeOffset? ApprovedAt,
-    DocumentRevisionStatus Status);
+    DocumentRevisionStatus Status,
+    string? AuthoredByName = null,
+    string? ApprovedByName = null,
+    string? FileName = null);

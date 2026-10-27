@@ -23,7 +23,7 @@ public static class FileEntityTypes
         "identity-docs", "employee-docs", "compliance-templates",
         "pay-stubs", "tax-documents",
         "sales-orders", "customers", "quotes", "purchase-orders",
-        "lots",
+        "lots", "controlled-documents", "ppap-elements",
     ];
 
     public static readonly HashSet<string> BlockedExtensions = new(StringComparer.OrdinalIgnoreCase)

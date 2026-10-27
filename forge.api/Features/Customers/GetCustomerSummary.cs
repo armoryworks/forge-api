@@ -88,6 +88,7 @@ public class GetCustomerSummaryHandler(AppDbContext db, IClock clock)
             await PartyCurrency.CustomerHasPostedDocumentsAsync(db, customer.Id, ct),
             customer.FreightTerms,
             customer.PaymentTermsId,
-            await new PaymentTermsResolver(db).ModelAsync(customer.PaymentTermsId, customer.DefaultCreditTerms, ct));
+            await new PaymentTermsResolver(db).ModelAsync(customer.PaymentTermsId, customer.DefaultCreditTerms, ct),
+            customer.RequiresCoa);
     }
 }

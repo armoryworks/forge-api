@@ -3,9 +3,7 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 
-using Forge.Api.Features.Lots;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -42,103 +40,43 @@ public class InitiateRecallHandler(AppDbContext db, IHttpContextAccessor httpCon
         var data = request.Data;
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        var rootLot = await db.LotRecords
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(l => l.Id == data.RecalledLotId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Lot {data.RecalledLotId} not found.");
-
-        // 1) Forward-trace the genealogy: the recalled lot + every produced lot downstream of it.
-        var affectedLotIds = await ForwardReachableAsync(rootLot.Id, cancellationToken);
-        affectedLotIds.Add(rootLot.Id);
-
-        var affectedLots = await db.LotRecords
-            .IgnoreQueryFilters()
-            .Where(l => affectedLotIds.Contains(l.Id))
-            .ToListAsync(cancellationToken);
-
-        var consumedByLot = await db.LotConsumptions
-            .Where(c => affectedLotIds.Contains(c.ProducedLotId))
-            .GroupBy(c => c.ProducedLotId)
-            .Select(g => new { ProducedLotId = g.Key, Qty = g.Sum(x => x.Quantity) })
-            .ToDictionaryAsync(x => x.ProducedLotId, x => x.Qty, cancellationToken);
-
-        var affectedLotNumbers = affectedLots.Select(l => l.LotNumber).ToList();
-        var affectedPartIds = affectedLots.Select(l => l.PartId).Distinct().ToList();
-        var affectedPartLots = affectedLots.Select(l => (l.PartId, l.LotNumber)).ToHashSet();
-
-        // 2) Quarantine on-hand: matching part-stock bin contents currently Stored → QcHold.
-        var binContents = (await db.BinContents
-            .Where(bc => bc.EntityType == "part"
-                      && affectedPartIds.Contains(bc.EntityId)
-                      && bc.LotNumber != null && affectedLotNumbers.Contains(bc.LotNumber)
-                      && bc.RemovedAt == null
-                      && bc.Status == BinContentStatus.Stored)
-            .ToListAsync(cancellationToken))
-            .Where(bc => affectedPartLots.Contains((bc.EntityId, bc.LotNumber!)))
-            .ToList();
-        foreach (var bc in binContents)
+        var impact = await RecallImpactTracer.TraceAsync(db, data.RecalledLotId, cancellationToken);
+        foreach (var bc in impact.QuarantineBins)
             bc.Status = BinContentStatus.QcHold;
 
-        var onHandByLot = binContents
-            .GroupBy(bc => bc.LotNumber!)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
-
-        // 3) Resolve affected shipments/customers from lot-stamped Ship movements, unioned with the affected jobs' SO-line chain (approximate).
-        var exactShipments = await LotShipmentResolver.ForLotsAsync(db, affectedLotNumbers, cancellationToken);
-        var issuedJobIds = await LotMaterialIssues.WithParentJobsAsync(
-            db, await LotMaterialIssues.JobIdsAsync(db, affectedPartLots, cancellationToken), cancellationToken);
-        var soLineIds = await AffectedSalesOrderLineIdsAsync(
-            db, affectedLots.Select(l => l.JobId).Concat(issuedJobIds.Select(id => (int?)id)), cancellationToken);
-        var approximateShipments = await LotShipmentResolver.ForSalesOrderLinesAsync(
-            db, soLineIds, affectedLotNumbers, cancellationToken);
-
-        var shipmentGroups = exactShipments.Concat(approximateShipments)
-            .GroupBy(r => new { r.ShipmentId, r.CustomerId })
-            .Select(g => new
-            {
-                g.Key.ShipmentId,
-                g.Key.CustomerId,
-                ShippedDate = g.Max(x => x.ShippedDate),
-                TrackingNumber = g.Select(x => x.TrackingNumber).FirstOrDefault(),
-                AffectedQty = g.Sum(x => x.Quantity),
-                IsApproximate = g.Any(x => x.IsApproximate),
-            })
-            .ToList();
-
-        // 4) Freeze the immutable snapshot.
         var recall = new Recall
         {
             InitiatedByUserId = userId,
-            InitiatedLotId = rootLot.Id,
+            InitiatedLotId = impact.RootLot.Id,
             Reason = data.Reason.Trim(),
             RecallDate = data.RecallDate,
             Status = RecallStatus.Active,
-            AffectedLotsCount = affectedLots.Count,
-            AffectedShipmentsCount = shipmentGroups.Count,
-            TotalQuarantinedQuantity = binContents.Sum(bc => bc.Quantity),
+            AffectedLotsCount = impact.AffectedLots.Count,
+            AffectedShipmentsCount = impact.Shipments.Count,
+            TotalQuarantinedQuantity = impact.QuarantineBins.Sum(bc => bc.Quantity),
         };
 
-        foreach (var lot in affectedLots)
+        foreach (var lot in impact.AffectedLots)
         {
-            var onHand = onHandByLot.TryGetValue(lot.LotNumber, out var oh) ? oh : 0m;
+            var onHand = impact.OnHandFor(lot);
             recall.AffectedLots.Add(new RecallAffectedLot
             {
                 LotId = lot.Id,
-                ConsumedQuantity = consumedByLot.TryGetValue(lot.Id, out var cq) ? cq : 0m,
+                ConsumedQuantity = impact.ConsumedFor(lot),
                 JobId = lot.JobId,
                 ProductionRunId = lot.ProductionRunId,
                 OnHandQuantity = onHand,
-                QuarantinedQuantity = onHand, // all matching on-hand was moved to QcHold above
+                QuarantinedQuantity = onHand,
             });
         }
 
-        foreach (var s in shipmentGroups)
+        foreach (var s in impact.Shipments)
         {
             recall.AffectedShipments.Add(new RecallAffectedShipment
             {
                 ShipmentId = s.ShipmentId,
                 CustomerId = s.CustomerId,
-                AffectedQuantity = s.AffectedQty,
+                AffectedQuantity = s.AffectedQuantity,
                 ShippedDate = s.ShippedDate,
                 TrackingNumber = s.TrackingNumber,
                 IsApproximate = s.IsApproximate,
@@ -149,40 +87,5 @@ public class InitiateRecallHandler(AppDbContext db, IHttpContextAccessor httpCon
         await db.SaveChangesAsync(cancellationToken);
 
         return await RecallMapping.LoadDetailAsync(db, recall.Id, cancellationToken);
-    }
-
-    private static async Task<List<int>> AffectedSalesOrderLineIdsAsync(
-        AppDbContext db, IEnumerable<int?> jobIds, CancellationToken ct)
-    {
-        var ids = jobIds.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
-        if (ids.Count == 0)
-            return [];
-
-        return await db.Jobs
-            .IgnoreQueryFilters()
-            .Where(j => ids.Contains(j.Id) && j.SalesOrderLineId != null)
-            .Select(j => j.SalesOrderLineId!.Value)
-            .Distinct()
-            .ToListAsync(ct);
-    }
-
-    /// <summary>BFS over forward edges (ConsumedLotId == node → ProducedLotId) to collect the blast radius.</summary>
-    private async Task<HashSet<int>> ForwardReachableAsync(int start, CancellationToken ct)
-    {
-        var reachable = new HashSet<int>();
-        var frontier = new Queue<int>();
-        frontier.Enqueue(start);
-        while (frontier.Count > 0)
-        {
-            var node = frontier.Dequeue();
-            var next = await db.LotConsumptions
-                .Where(c => c.ConsumedLotId == node)
-                .Select(c => c.ProducedLotId)
-                .ToListAsync(ct);
-            foreach (var n in next)
-                if (reachable.Add(n))
-                    frontier.Enqueue(n);
-        }
-        return reachable;
     }
 }

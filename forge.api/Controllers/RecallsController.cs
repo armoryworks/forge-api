@@ -30,6 +30,15 @@ public class RecallsController(IMediator mediator) : ControllerBase
         return Created($"/api/v1/recalls/{result.Id}", result);
     }
 
+    [HttpPost("preview")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<ActionResult<RecallImpactPreviewResponseModel>> Preview(
+        [FromBody] PreviewRecallRequestModel request)
+    {
+        var result = await mediator.Send(new PreviewRecallQuery(request));
+        return Ok(result);
+    }
+
     [HttpGet]
     public async Task<ActionResult<List<RecallResponseModel>>> List([FromQuery] RecallStatus? status)
     {

@@ -755,6 +755,7 @@ try
     builder.Services.AddScoped<Forge.Api.Jobs.SequenceClockJob>();
     builder.Services.AddScoped<ICreditManagementService, CreditManagementService>();
     builder.Services.AddScoped<InventoryReliefService>();  // BE-1 / F-030
+    builder.Services.AddScoped<Forge.Api.Features.Quality.Coa.CertificateOfAnalysisIssuer>();
     builder.Services.AddScoped<CustomerPriceResolver>();   // AUDIT-19-S1 — price-list → line pricing
     builder.Services.AddScoped<TaxOverrideGuard>();        // S1 — verified tax cert gates quote tax-rate override
     builder.Services.AddScoped<IVendorScorecardService, VendorScorecardService>();

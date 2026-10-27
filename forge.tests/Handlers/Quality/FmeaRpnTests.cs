@@ -85,4 +85,17 @@ public class FmeaRpnTests : IDisposable
         (await new GetHighRpnItemsHandler(_db).Handle(new GetHighRpnItemsQuery(), CancellationToken.None))
             .Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task HighRpnItems_NameTheFmeaTheyBelongTo()
+    {
+        var item = await ItemAsync();
+
+        var high = await new GetHighRpnItemsHandler(_db).Handle(new GetHighRpnItemsQuery(), CancellationToken.None);
+
+        var row = high.Should().ContainSingle().Subject;
+        row.FmeaId.Should().Be(item.FmeaId);
+        row.FmeaNumber.Should().Be("FMEA-001");
+        row.FmeaName.Should().Be("Weld cell");
+    }
 }

@@ -390,6 +390,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<Recall> Recalls => Set<Recall>();
     public DbSet<RecallAffectedLot> RecallAffectedLots => Set<RecallAffectedLot>();
     public DbSet<RecallAffectedShipment> RecallAffectedShipments => Set<RecallAffectedShipment>();
+    public DbSet<CertificateOfAnalysis> CertificatesOfAnalysis => Set<CertificateOfAnalysis>();
+    public DbSet<CoaResult> CoaResults => Set<CoaResult>();
 
     // Part SDS documents (regulated-parts-safety C-3)
     public DbSet<PartSafetyDataSheet> PartSafetyDataSheets => Set<PartSafetyDataSheet>();
@@ -501,6 +503,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<WbsElement> WbsElements => Set<WbsElement>();
     public DbSet<WbsCostEntry> WbsCostEntries => Set<WbsCostEntry>();
+    public DbSet<WbsElementJob> WbsElementJobs => Set<WbsElementJob>();
 
     // PPAP
     public DbSet<PpapSubmission> PpapSubmissions => Set<PpapSubmission>();

@@ -45,6 +45,7 @@ public sealed partial class EntityAccessCoverageTests
         ["ppapelement"] = [typeof(PpapController)],
         ["receivinginspectiontemplate"] = [typeof(ReceivingInspectionTemplatesController)],
         ["employee"] = [typeof(EmployeesController)],
+        ["controlleddocument"] = [typeof(ControlledDocumentsController)],
     };
 
     private static readonly HashSet<string> HrKeys =

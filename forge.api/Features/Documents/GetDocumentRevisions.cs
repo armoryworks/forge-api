@@ -29,6 +29,23 @@ public class GetDocumentRevisionsHandler(
             .OrderByDescending(r => r.RevisionNumber)
             .ToListAsync(cancellationToken);
 
-        return revisions.Select(DocumentRevisionMapping.ToResponse).ToList();
+        var userIds = revisions.Select(r => r.AuthoredById)
+            .Concat(revisions.Where(r => r.ApprovedById != null).Select(r => r.ApprovedById!.Value))
+            .Distinct()
+            .ToList();
+        var names = await db.Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => $"{u.LastName}, {u.FirstName}", cancellationToken);
+        var fileIds = revisions.Select(r => r.FileAttachmentId).Distinct().ToList();
+        var fileNames = await db.FileAttachments.AsNoTracking()
+            .Where(f => fileIds.Contains(f.Id))
+            .ToDictionaryAsync(f => f.Id, f => f.FileName, cancellationToken);
+
+        return revisions.Select(r => DocumentRevisionMapping.ToResponse(r) with
+        {
+            AuthoredByName = names.GetValueOrDefault(r.AuthoredById),
+            ApprovedByName = r.ApprovedById is int approver ? names.GetValueOrDefault(approver) : null,
+            FileName = fileNames.GetValueOrDefault(r.FileAttachmentId),
+        }).ToList();
     }
 }

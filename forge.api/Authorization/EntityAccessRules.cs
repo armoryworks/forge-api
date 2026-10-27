@@ -42,6 +42,7 @@ public static class EntityAccessRules
         ["ppapelement"] = AnySignedIn(),
         ["receivinginspectiontemplate"] = AnySignedIn(),
         ["compliancetemplate"] = new(null, Set("Admin"), EntityOwnership.None),
+        ["controlleddocument"] = new(null, Set("Admin,Manager,Engineer,ComplianceOfficer"), EntityOwnership.None),
         ["expense"] = Owned(HrRoles, EntityOwnership.Expense),
         ["employee"] = Owned("Admin,Manager", EntityOwnership.Employee),
         ["paystub"] = Owned(HrRoles, EntityOwnership.User),

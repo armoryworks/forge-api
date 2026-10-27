@@ -53,6 +53,7 @@ public static partial class CustomerMapper
     [MapperIgnoreSource(nameof(Customer.IsItarControlled))]
     [MapperIgnoreSource(nameof(Customer.IsReferenceOk))]
     [MapperIgnoreSource(nameof(Customer.ReferenceNotes))]
+    [MapperIgnoreSource(nameof(Customer.RequiresCoa))]
     [MapperIgnoreSource(nameof(Customer.Version))]
     [MapperIgnoreSource(nameof(BaseAuditableEntity.CreatedAt))]
     [MapperIgnoreSource(nameof(BaseAuditableEntity.UpdatedAt))]

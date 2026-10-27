@@ -27,4 +27,7 @@ public record FmeaItemResponseModel
     public int? RevisedRpn { get; init; }
     public int? CapaId { get; init; }
     public string? CapaCorrNum { get; init; }
+    public int? FmeaId { get; init; }
+    public string? FmeaNumber { get; init; }
+    public string? FmeaName { get; init; }
 }

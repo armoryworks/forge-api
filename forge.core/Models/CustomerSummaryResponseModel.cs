@@ -41,4 +41,5 @@ public record CustomerSummaryResponseModel(
     bool CurrencyLocked = false,
     FreightTerms? FreightTerms = null,
     int? PaymentTermsId = null,
-    PaymentTermsModel? PaymentTerms = null);
+    PaymentTermsModel? PaymentTerms = null,
+    bool RequiresCoa = false);

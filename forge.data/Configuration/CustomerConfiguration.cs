@@ -18,6 +18,7 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(e => e.IsFdaRegulated).HasDefaultValueSql("false").ValueGeneratedNever();
         builder.Property(e => e.IsItarControlled).HasDefaultValueSql("false").ValueGeneratedNever();
         builder.Property(e => e.IsReferenceOk).HasDefaultValueSql("false").ValueGeneratedNever();
+        builder.Property(e => e.RequiresCoa).HasDefaultValueSql("false").ValueGeneratedNever();
         builder.Ignore(e => e.IsDeleted);
         // Phase 3 H2 / WU-12: IActiveAware contract member — pure compute.
         builder.Ignore(e => e.IsActiveForNewTransactions);

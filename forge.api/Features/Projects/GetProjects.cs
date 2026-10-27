@@ -37,7 +37,7 @@ public class GetProjectsHandler(AppDbContext db) : IRequestHandler<GetProjectsQu
                 Name = p.Name,
                 Description = p.Description,
                 CustomerId = p.CustomerId,
-                CustomerName = p.Customer != null ? p.Customer.CompanyName : null,
+                CustomerName = p.Customer != null ? p.Customer.CompanyName ?? p.Customer.Name : null,
                 SalesOrderId = p.SalesOrderId,
                 BudgetTotal = p.BudgetTotal,
                 ActualTotal = p.ActualTotal,

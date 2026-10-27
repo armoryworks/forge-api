@@ -362,9 +362,10 @@ public class CapabilityMutationTests
     }
 
     [Fact]
-    public async Task Toggle_Enable_Of_A_Capability_Not_Built_Yet_Returns_409()
+    public async Task Certificate_Of_Analysis_Is_Refused_While_Lot_Tracking_Is_Off()
     {
         var client = AuthenticatedClient();
+        await SetCapabilityAsync(client, "CAP-INV-LOTS", false);
 
         var response = await client.PutAsJsonAsync(
             "/api/v1/capabilities/CAP-QC-COA/enabled", new { enabled = true });
@@ -372,40 +373,34 @@ public class CapabilityMutationTests
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var err = doc.RootElement.GetProperty("errors")[0];
-        Assert.Equal("capability-not-available", err.GetProperty("code").GetString());
+        Assert.Equal("capability-missing-dependencies", err.GetProperty("code").GetString());
         Assert.Equal("CAP-QC-COA", err.GetProperty("capability").GetString());
+        Assert.Contains("CAP-INV-LOTS", err.GetProperty("missing").EnumerateArray().Select(e => e.GetString()));
 
         var entry = await GetEntry(client, "CAP-QC-COA");
         Assert.False(entry.Enabled);
-        Assert.False(entry.IsAvailable);
-        Assert.True((await GetEntry(client, "CAP-EXT-CHAT")).IsAvailable);
+        Assert.True(entry.IsAvailable);
     }
 
     [Fact]
-    public async Task Bulk_Toggle_Enable_Of_A_Capability_Not_Built_Yet_Is_A_Violation()
+    public async Task Certificate_Of_Analysis_Can_Be_Enabled_When_Lots_And_Shipping_Are_On()
     {
         var client = AuthenticatedClient();
-        var body = new
+        await SetCapabilityAsync(client, "CAP-INV-LOTS", true);
+        try
         {
-            items = new[]
-            {
-                new { id = "CAP-EXT-CHAT", enabled = true },
-                new { id = "CAP-QC-COA", enabled = true },
-            },
-        };
+            var response = await client.PutAsJsonAsync(
+                "/api/v1/capabilities/CAP-QC-COA/enabled", new { enabled = true });
 
-        var response = await client.PostAsJsonAsync("/api/v1/capabilities/bulk-toggle", body);
-
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        var violations = doc.RootElement.GetProperty("errors")[0].GetProperty("violations").EnumerateArray().ToList();
-        Assert.Contains(violations, v => v.GetProperty("code").GetString() == "capability-not-available"
-            && v.GetProperty("capability").GetString() == "CAP-QC-COA");
-        Assert.False((await GetEntry(client, "CAP-EXT-CHAT")).Enabled);
-        Assert.False((await GetEntry(client, "CAP-QC-COA")).Enabled);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.True((await GetEntry(client, "CAP-QC-COA")).Enabled);
+        }
+        finally
+        {
+            await SetCapabilityAsync(client, "CAP-QC-COA", false);
+            await SetCapabilityAsync(client, "CAP-INV-LOTS", false);
+        }
     }
-
-    // ─── Audit content ──────────────────────────────────────────────────────
 
     [Fact]
     public async Task Toggle_Audit_Row_Captures_Before_And_After_State()

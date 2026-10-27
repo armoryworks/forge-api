@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.DomainEvents;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -25,7 +26,8 @@ public class ShipShipmentHandler(
     IHttpContextAccessor? httpContext = null,
     // Optional / null-default so the mock-based handler tests stay constructible; the DI path supplies
     // it. Backs the scan-to-ship gate (carrier lookup) and the shipped activity-log row.
-    AppDbContext? db = null)
+    AppDbContext? db = null,
+    IPublisher? publisher = null)
     : IRequestHandler<ShipShipmentCommand>
 {
     public async Task Handle(ShipShipmentCommand request, CancellationToken cancellationToken)
@@ -116,6 +118,10 @@ public class ShipShipmentHandler(
 
         if (tx is not null)
             await tx.CommitAsync(cancellationToken);
+
+        if (publisher is not null)
+            await publisher.Publish(
+                new ShipmentShippedEvent(shipment.Id, shipment.SalesOrderId, userId), cancellationToken);
     }
 
     private static async Task<string> ComputeScanCodeAsync(

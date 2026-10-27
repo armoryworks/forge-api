@@ -20,9 +20,11 @@ public class ControlledDocumentsController(IMediator mediator) : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<ControlledDocumentResponseModel>>> GetDocuments(
         [FromQuery] string? category,
-        [FromQuery] ControlledDocumentStatus? status)
+        [FromQuery] ControlledDocumentStatus? status,
+        [FromQuery] int? partId,
+        [FromQuery] int? operationId)
     {
-        var result = await mediator.Send(new GetControlledDocumentsQuery(category, status));
+        var result = await mediator.Send(new GetControlledDocumentsQuery(category, status, partId, operationId));
         return Ok(result);
     }
 
@@ -34,9 +36,20 @@ public class ControlledDocumentsController(IMediator mediator) : ControllerBase
             request.Title,
             request.Description,
             request.Category,
-            request.ReviewIntervalDays));
+            request.ReviewIntervalDays,
+            request.PartId,
+            request.OperationId));
 
         return CreatedAtAction(nameof(GetDocuments), new { }, result);
+    }
+
+    [HttpGet("work-instructions")]
+    public async Task<ActionResult<List<WorkInstructionResponseModel>>> GetWorkInstructions(
+        [FromQuery] int? operationId,
+        [FromQuery] int? partId)
+    {
+        var result = await mediator.Send(new GetCurrentWorkInstructionsQuery(operationId, partId));
+        return Ok(result);
     }
 
     [HttpPost("{documentId:int}/obsolete")]

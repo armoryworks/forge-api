@@ -31,4 +31,5 @@ public record UpdateCustomerRequestModel(
     bool? ClearCurrency = null,
     FreightTerms? FreightTerms = null,
     bool? ClearFreightTerms = null,
-    int? PaymentTermsId = null);
+    int? PaymentTermsId = null,
+    bool? RequiresCoa = null);
