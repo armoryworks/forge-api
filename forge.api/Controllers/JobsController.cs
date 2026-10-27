@@ -208,7 +208,7 @@ public class JobsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<ProductionRunResponseModel>> CreateProductionRun(
         int id, CreateProductionRunRequestModel request)
     {
-        var command = new CreateProductionRunCommand(id, request.PartId, request.TargetQuantity, request.OperatorId, request.Notes, request.WorkCenterId);
+        var command = new CreateProductionRunCommand(id, request.PartId, request.TargetQuantity, request.OperatorId, request.Notes, request.WorkCenterId, request.ToolingAssetId);
         var result = await mediator.Send(command);
         return CreatedAtAction(nameof(GetProductionRuns), new { id }, result);
     }
@@ -220,7 +220,7 @@ public class JobsController(IMediator mediator) : ControllerBase
     {
         var command = new UpdateProductionRunCommand(
             id, runId, request.CompletedQuantity, request.ScrapQuantity,
-            request.Status, request.Notes, request.SetupTimeMinutes, request.RunTimeMinutes);
+            request.Status, request.Notes, request.SetupTimeMinutes, request.RunTimeMinutes, request.ToolingAssetId);
         var result = await mediator.Send(command);
         return Ok(result);
     }

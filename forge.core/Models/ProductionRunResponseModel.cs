@@ -22,4 +22,12 @@ public record ProductionRunResponseModel(
     decimal YieldPercentage,
     // Finished-goods receipt (receive-to-stock): null/0 until the run's good output is stocked.
     int ReceivedQuantity,
-    DateTimeOffset? ReceivedToStockAt);
+    DateTimeOffset? ReceivedToStockAt,
+    int? WorkCenterId = null,
+    string? WorkCenterName = null,
+    int? ToolingAssetId = null,
+    string? ToolingAssetName = null,
+    int? ToolingCavityCount = null,
+    int ShotsApplied = 0,
+    bool RunTimeManual = false,
+    long? ReceiptJournalEntryNumber = null);

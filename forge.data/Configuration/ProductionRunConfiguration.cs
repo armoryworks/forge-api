@@ -41,5 +41,14 @@ public class ProductionRunConfiguration : IEntityTypeConfiguration<ProductionRun
             .WithMany()
             .HasForeignKey(pr => pr.WorkCenterId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Property(e => e.ShotsApplied).HasDefaultValueSql("0").ValueGeneratedNever();
+        builder.Property(e => e.RunTimeManual).HasDefaultValueSql("false").ValueGeneratedNever();
+        builder.HasIndex(pr => pr.ToolingAssetId);
+
+        builder.HasOne(pr => pr.ToolingAsset)
+            .WithMany()
+            .HasForeignKey(pr => pr.ToolingAssetId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

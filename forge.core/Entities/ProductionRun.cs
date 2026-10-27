@@ -26,10 +26,14 @@ public class ProductionRun : BaseAuditableEntity
     public decimal? RunTimeMinutes { get; set; }
     public decimal? IdealCycleTimeSeconds { get; set; }
     public decimal? ActualCycleTimeSeconds { get; set; }
+    public int? ToolingAssetId { get; set; }
+    public int ShotsApplied { get; set; }
+    public bool RunTimeManual { get; set; }
 
     public Job Job { get; set; } = null!;
     public Part Part { get; set; } = null!;
     public WorkCenter? WorkCenter { get; set; }
+    public Asset? ToolingAsset { get; set; }
 
     /// <summary>
     /// First-pass yield % = good units / total units processed = Completed / (Completed + Scrap).

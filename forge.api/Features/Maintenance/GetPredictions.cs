@@ -19,6 +19,7 @@ public class GetPredictionsHandler(AppDbContext db)
         var query = db.MaintenancePredictions
             .AsNoTracking()
             .Include(p => p.WorkCenter)
+            .Include(p => p.Asset)
             .AsQueryable();
 
         if (request.WorkCenterId.HasValue)
@@ -64,6 +65,9 @@ public class GetPredictionsHandler(AppDbContext db)
             ResolutionNotes = p.ResolutionNotes,
             WasAccurate = p.WasAccurate,
             InputFeaturesJson = p.InputFeaturesJson,
+            AssetId = p.AssetId,
+            AssetName = p.Asset != null ? p.Asset.Name : null,
+            RuleKey = p.RuleKey,
         }).ToList();
     }
 }

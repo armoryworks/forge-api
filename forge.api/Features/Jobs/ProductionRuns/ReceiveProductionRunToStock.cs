@@ -212,39 +212,6 @@ public class ReceiveProductionRunToStockHandler(
             && l.IsActive
             && l.LocationType == LocationType.Bin, ct);
 
-    private async Task<ProductionRunResponseModel> BuildResponseAsync(ProductionRun run, CancellationToken ct)
-    {
-        string? operatorName = null;
-        if (run.OperatorId.HasValue)
-        {
-            var user = await db.Users.FindAsync([run.OperatorId.Value], ct);
-            if (user is not null)
-                operatorName = $"{user.FirstName} {user.LastName}".Trim();
-        }
-
-        var yieldPct = ProductionRun.YieldPercent(run.CompletedQuantity, run.ScrapQuantity);
-
-        return new ProductionRunResponseModel(
-            run.Id,
-            run.JobId,
-            run.Job.JobNumber,
-            run.PartId,
-            run.Part.PartNumber,
-            run.Part.Description ?? run.Part.Name,
-            run.OperatorId,
-            operatorName,
-            run.RunNumber,
-            run.TargetQuantity,
-            run.CompletedQuantity,
-            run.ScrapQuantity,
-            run.Status.ToString(),
-            run.StartedAt,
-            run.CompletedAt,
-            run.Notes,
-            run.SetupTimeMinutes,
-            run.RunTimeMinutes,
-            yieldPct,
-            run.ReceivedQuantity,
-            run.ReceivedToStockAt);
-    }
+    private Task<ProductionRunResponseModel> BuildResponseAsync(ProductionRun run, CancellationToken ct) =>
+        ProductionRunResponses.BuildAsync(db, run, ct);
 }

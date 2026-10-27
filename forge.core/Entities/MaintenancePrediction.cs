@@ -20,8 +20,12 @@ public class MaintenancePrediction : BaseEntity
     public int? PreventiveMaintenanceJobId { get; set; }
     public string? ResolutionNotes { get; set; }
     public bool WasAccurate { get; set; }
+    public int? AssetId { get; set; }
+    public string? RuleKey { get; set; }
+    public DateTimeOffset? ResolvedAt { get; set; }
 
     // Navigation (FK-only for ApplicationUser)
     public WorkCenter WorkCenter { get; set; } = null!;
     public Job? PreventiveMaintenanceJob { get; set; }
+    public Asset? Asset { get; set; }
 }

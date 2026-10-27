@@ -1,7 +1,9 @@
 using FluentValidation;
 using MediatR;
 using Forge.Core.Models;
+using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Assets;
 
@@ -16,14 +18,23 @@ public class UpdateMachineHoursValidator : AbstractValidator<UpdateMachineHoursC
     }
 }
 
-public class UpdateMachineHoursHandler(AppDbContext db) : IRequestHandler<UpdateMachineHoursCommand, AssetResponseModel>
+public class UpdateMachineHoursHandler(AppDbContext db, IClock clock) : IRequestHandler<UpdateMachineHoursCommand, AssetResponseModel>
 {
     public async Task<AssetResponseModel> Handle(UpdateMachineHoursCommand request, CancellationToken cancellationToken)
     {
         var asset = await db.Assets.FindAsync([request.AssetId], cancellationToken)
             ?? throw new KeyNotFoundException($"Asset {request.AssetId} not found.");
 
+        if (request.Data.CurrentHours < asset.CurrentHours)
+            throw new InvalidOperationException(
+                $"The meter reading {request.Data.CurrentHours:0.##} h is below the last recorded reading of {asset.CurrentHours:0.##} h.");
+
+        var readingAt = request.Data.ReadingAt ?? clock.UtcNow;
+        var previous = asset.CurrentHours;
         asset.CurrentHours = request.Data.CurrentHours;
+        db.LogActivityAt("hours-recorded",
+            $"Meter reading {request.Data.CurrentHours:0.##} h recorded for {readingAt:yyyy-MM-dd} (was {previous:0.##} h)",
+            ("Asset", asset.Id));
         await db.SaveChangesAsync(cancellationToken);
 
         return new AssetResponseModel(

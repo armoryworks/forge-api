@@ -983,7 +983,7 @@ try
         builder.Services.AddSingleton<IBackToBackService, MockBackToBackService>();
         builder.Services.AddSingleton<IProjectAccountingService, MockProjectAccountingService>();
         builder.Services.AddSingleton<ICopqService, MockCopqService>();
-        builder.Services.AddSingleton<IPredictiveMaintenanceService, MockPredictiveMaintenanceService>();
+        builder.Services.AddScoped<IPredictiveMaintenanceService, Forge.Api.Services.PredictiveMaintenance.RuleBasedPredictiveMaintenanceService>();
         Log.Information("MockIntegrations=true — using in-memory storage and mock services");
     }
     else
@@ -1094,9 +1094,8 @@ try
         builder.Services.AddSingleton<IDropShipService, Forge.Api.Services.Unavailable.UnavailableDropShipService>();
         builder.Services.AddSingleton<IBackToBackService, Forge.Api.Services.Unavailable.UnavailableBackToBackService>();
         builder.Services.AddSingleton<IProjectAccountingService, MockProjectAccountingService>();
-        // COPQ and Predictive Maintenance — mock for now until real engines built
         builder.Services.AddSingleton<ICopqService, MockCopqService>();
-        builder.Services.AddSingleton<IPredictiveMaintenanceService, MockPredictiveMaintenanceService>();
+        builder.Services.AddScoped<IPredictiveMaintenanceService, Forge.Api.Services.PredictiveMaintenance.RuleBasedPredictiveMaintenanceService>();
     }
 
     // Phase 1m.4 / Phase 3 — per-integration resolution. Applied AFTER the global
@@ -1385,6 +1384,7 @@ try
     builder.Services.AddScoped<RecurringExpenseJob>();
     builder.Services.AddScoped<DocumentIndexJob>();
     builder.Services.AddScoped<OverdueMaintenanceJob>();
+    builder.Services.AddScoped<PredictiveMaintenanceJob>();
     builder.Services.AddScoped<ComplianceFormSyncJob>();
     builder.Services.AddScoped<ReorderAnalysisJob>();
     builder.Services.AddScoped<StaleWorkflowRunCleanupJob>();
@@ -1767,6 +1767,7 @@ try
                 ["ScheduledTaskJob"]               = (typeof(ScheduledTaskJob),               "RunDueTasksAsync"),
                 ["DailyDigestJob"]                 = (typeof(DailyDigestJob),                 "SendDailyDigestAsync"),
                 ["OverdueMaintenanceJob"]          = (typeof(OverdueMaintenanceJob),          "CheckOverdueMaintenanceAsync"),
+                ["PredictiveMaintenanceJob"]       = (typeof(PredictiveMaintenanceJob),       "RunPredictionsAsync"),
                 ["DatabaseBackupJob"]              = (typeof(DatabaseBackupJob),              "RunBackupAsync"),
                 ["IntegrationOutboxDispatcherJob"] = (typeof(IntegrationOutboxDispatcherJob), "DispatchPendingAsync"),
                 ["CustomerSyncJob"]                = (typeof(CustomerSyncJob),                "SyncCustomersAsync"),
@@ -1994,6 +1995,10 @@ try
         "check-overdue-maintenance",
         job => job.CheckOverdueMaintenanceAsync(CancellationToken.None),
         Cron.Daily(2)); // 2 AM UTC daily
+    RecurringJob.AddOrUpdate<PredictiveMaintenanceJob>(
+        "run-predictive-maintenance",
+        job => job.RunPredictionsAsync(CancellationToken.None),
+        Cron.Daily(2, 30));
     RecurringJob.AddOrUpdate<DatabaseBackupJob>(
         "database-backup",
         job => job.RunBackupAsync(CancellationToken.None),

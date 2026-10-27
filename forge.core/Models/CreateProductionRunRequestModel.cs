@@ -5,4 +5,5 @@ public record CreateProductionRunRequestModel(
     int TargetQuantity,
     int? OperatorId,
     string? Notes,
-    int? WorkCenterId = null);
+    int? WorkCenterId = null,
+    int? ToolingAssetId = null);

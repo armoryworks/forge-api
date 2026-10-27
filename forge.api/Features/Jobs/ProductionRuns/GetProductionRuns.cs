@@ -12,45 +12,13 @@ public class GetProductionRunsHandler(AppDbContext db) : IRequestHandler<GetProd
     public async Task<List<ProductionRunResponseModel>> Handle(GetProductionRunsQuery request, CancellationToken cancellationToken)
     {
         var runs = await db.ProductionRuns
+            .AsNoTracking()
             .Where(pr => pr.JobId == request.JobId)
             .Include(pr => pr.Job)
             .Include(pr => pr.Part)
+            .OrderBy(pr => pr.Id)
             .ToListAsync(cancellationToken);
 
-        var operatorIds = runs
-            .Where(r => r.OperatorId.HasValue)
-            .Select(r => r.OperatorId!.Value)
-            .Distinct()
-            .ToList();
-
-        var operators = operatorIds.Count > 0
-            ? await db.Users
-                .Where(u => operatorIds.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, u => $"{u.FirstName} {u.LastName}".Trim(), cancellationToken)
-            : new Dictionary<int, string>();
-
-        return runs.Select(pr => new ProductionRunResponseModel(
-            pr.Id,
-            pr.JobId,
-            pr.Job.JobNumber,
-            pr.PartId,
-            pr.Part.PartNumber,
-            pr.Part.Description ?? pr.Part.Name,
-            pr.OperatorId,
-            pr.OperatorId.HasValue && operators.TryGetValue(pr.OperatorId.Value, out var name) ? name : null,
-            pr.RunNumber,
-            pr.TargetQuantity,
-            pr.CompletedQuantity,
-            pr.ScrapQuantity,
-            pr.Status.ToString(),
-            pr.StartedAt,
-            pr.CompletedAt,
-            pr.Notes,
-            pr.SetupTimeMinutes,
-            pr.RunTimeMinutes,
-            Forge.Core.Entities.ProductionRun.YieldPercent(pr.CompletedQuantity, pr.ScrapQuantity),
-            pr.ReceivedQuantity,
-            pr.ReceivedToStockAt
-        )).ToList();
+        return await ProductionRunResponses.BuildManyAsync(db, runs, cancellationToken);
     }
 }

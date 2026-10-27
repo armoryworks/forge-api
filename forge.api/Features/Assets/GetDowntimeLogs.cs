@@ -34,7 +34,9 @@ public class GetDowntimeLogsHandler(AppDbContext db) : IRequestHandler<GetDownti
                 d.EndedAt.HasValue
                     ? (decimal)(d.EndedAt.Value - d.StartedAt).TotalHours
                     : (decimal)(DateTimeOffset.UtcNow - d.StartedAt).TotalHours,
-                d.CreatedAt))
+                d.CreatedAt,
+                d.WorkCenterId,
+                d.Category))
             .ToListAsync(cancellationToken);
     }
 }

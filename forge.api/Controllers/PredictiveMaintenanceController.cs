@@ -75,6 +75,14 @@ public class PredictiveMaintenanceController(IMediator mediator) : ControllerBas
         return Ok(result);
     }
 
+    [HttpPost("run")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<ActionResult<object>> TriggerRunAll()
+    {
+        var workCenters = await mediator.Send(new TriggerAllPredictionRunsCommand());
+        return Ok(new { workCenters });
+    }
+
     [HttpPost("run/{workCenterId:int}")]
     [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> TriggerRun(int workCenterId)
