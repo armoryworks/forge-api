@@ -12,4 +12,6 @@ public record WebhookSubscriptionResponseModel(
     bool AutoDisableOnFailure,
     string? Description,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    string? HeadersJson = null,
+    string? Secret = null);

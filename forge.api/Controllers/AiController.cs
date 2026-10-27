@@ -15,7 +15,7 @@ namespace Forge.Api.Controllers;
 [Route("api/v1/ai")]
 [Authorize]
 [RequiresCapability("CAP-EXT-AI-ASSISTANT")]
-public class AiController(IMediator mediator) : ControllerBase
+public class AiController(IMediator mediator, AiSseStreamWriter sseWriter) : ControllerBase
 {
     private static readonly string[] RolePriority = ["Admin", "Manager", "OfficeManager", "PM", "Engineer", "ProductionWorker"];
 
@@ -69,21 +69,7 @@ public class AiController(IMediator mediator) : ControllerBase
     {
         var command = new AiHelpChatStreamCommand(body.Question, body.History, GetHighestPrivilegeRole());
         var tokenStream = await mediator.Send(command, ct);
-
-        Response.Headers["Content-Type"] = "text/event-stream";
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["X-Accel-Buffering"] = "no";
-
-        await foreach (var token in tokenStream.WithCancellation(ct))
-        {
-            // Escape newlines in token so each SSE message stays on one data: line
-            var escaped = token.Replace("\n", "\\n").Replace("\r", "\\r");
-            await Response.WriteAsync($"data: {escaped}\n\n", ct);
-            await Response.Body.FlushAsync(ct);
-        }
-
-        await Response.WriteAsync("data: [DONE]\n\n", ct);
-        await Response.Body.FlushAsync(ct);
+        await sseWriter.WriteAsync(Response, tokenStream, ct);
     }
 
     [HttpPost("search")]
@@ -100,7 +86,16 @@ public class AiController(IMediator mediator) : ControllerBase
         return Ok(new { chunksIndexed = chunkCount });
     }
 
+    [HttpGet("index/status")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<AiIndexStatusResponseModel>> GetIndexStatus(CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetAiIndexStatusQuery(), ct);
+        return Ok(result);
+    }
+
     [HttpPost("bulk-index")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> BulkIndex([FromBody] BulkIndexDocumentsCommand command, CancellationToken ct)
     {
         var totalChunks = await mediator.Send(command, ct);

@@ -5,6 +5,7 @@ namespace Forge.Api.Features.Webhooks;
 public static class WebhookEventTypes
 {
     public const string Wildcard = "*";
+    public const string Ping = "webhook.ping";
     public const string InvoiceCreated = "invoice.created";
     public const string JobCreated = "job.created";
     public const string JobStageChanged = "job.stage_changed";

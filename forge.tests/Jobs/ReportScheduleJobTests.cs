@@ -81,6 +81,31 @@ public class ReportScheduleJobTests
     }
 
     [Fact]
+    public async Task A_due_schedule_enqueues_one_email_with_the_attachment_and_the_dispatcher_sends_it()
+    {
+        var schedule = AddSchedule(Now.AddMinutes(-1));
+        schedule.RecipientEmailsJson = """["lena@example.test"]""";
+        _db.SaveChanges();
+        var email = new Mock<IEmailService>();
+        var sent = new List<EmailMessage>();
+        email.Setup(e => e.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
+            .Callback((EmailMessage m, CancellationToken _) => sent.Add(m))
+            .Returns(Task.CompletedTask);
+
+        await Job().RunDueAsync(CancellationToken.None);
+        _db.IntegrationOutboxEntries.Should().ContainSingle(e => e.Provider == IntegrationProvider.Email && e.EntityType == "ReportSchedule");
+
+        await new IntegrationOutboxDispatcherJob(
+            _db, email.Object, _clock.Object, NullLogger<IntegrationOutboxDispatcherJob>.Instance,
+            Mock.Of<Forge.Api.Features.Webhooks.IWebhookDeliveryService>(), []).DispatchPendingAsync(CancellationToken.None);
+
+        var message = sent.Should().ContainSingle().Subject;
+        message.To.Should().Be("lena@example.test");
+        message.Attachments.Should().ContainSingle(a => a.FileName == "Weekly jobs.csv" && a.Content.SequenceEqual(new byte[] { 1, 2, 3 }));
+        _db.IntegrationOutboxEntries.Single().Status.Should().Be(OutboxStatus.Sent);
+    }
+
+    [Fact]
     public async Task A_schedule_that_is_not_due_sends_nothing()
     {
         AddSchedule(Now.AddDays(2));

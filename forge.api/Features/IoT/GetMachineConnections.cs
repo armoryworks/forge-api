@@ -27,6 +27,14 @@ public class GetMachineConnectionsHandler(AppDbContext db)
             .OrderBy(c => c.Name)
             .ToListAsync(cancellationToken);
 
+        var tagIds = connections.SelectMany(c => c.Tags).Select(t => t.Id).ToList();
+        var lastByTag = await db.MachineDataPoints
+            .AsNoTracking()
+            .Where(p => tagIds.Contains(p.TagId))
+            .GroupBy(p => p.TagId)
+            .Select(g => new { TagId = g.Key, Last = g.Max(p => p.Timestamp) })
+            .ToDictionaryAsync(x => x.TagId, x => x.Last, cancellationToken);
+
         return connections.Select(c => new MachineConnectionResponseModel
         {
             Id = c.Id,
@@ -42,6 +50,11 @@ public class GetMachineConnectionsHandler(AppDbContext db)
             PollIntervalMs = c.PollIntervalMs,
             IsActive = c.IsActive,
             TagCount = c.Tags.Count(t => t.IsActive),
+            CredentialsConfigured = !string.IsNullOrEmpty(c.EncryptedCredentials),
+            LastDataPointAt = c.Tags
+                .Where(t => lastByTag.ContainsKey(t.Id))
+                .Select(t => (DateTimeOffset?)lastByTag[t.Id])
+                .Max(),
             Tags = c.Tags.Select(t => new MachineTagResponseModel
             {
                 Id = t.Id,

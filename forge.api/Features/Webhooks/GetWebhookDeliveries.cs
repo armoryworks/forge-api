@@ -22,15 +22,6 @@ public class GetWebhookDeliveriesHandler(AppDbContext db) : IRequestHandler<GetW
             .Take(200)
             .ToListAsync(cancellationToken);
 
-        return deliveries.Select(d => new WebhookDeliveryResponseModel(
-            d.Id,
-            d.SubscriptionId,
-            d.EventType,
-            d.StatusCode,
-            d.DurationMs,
-            d.AttemptedAt,
-            d.AttemptNumber,
-            d.IsSuccess,
-            d.ErrorMessage)).ToList();
+        return deliveries.Select(d => WebhookSubscriptionMapping.ToModel(d)).ToList();
     }
 }

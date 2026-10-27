@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 
 using Forge.Core.Entities;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -17,10 +18,14 @@ public class CreateMachineConnectionValidator : AbstractValidator<CreateMachineC
         RuleFor(x => x.Model.OpcUaEndpoint).NotEmpty().MaximumLength(500);
         RuleFor(x => x.Model.WorkCenterId).GreaterThan(0);
         RuleFor(x => x.Model.PollIntervalMs).GreaterThanOrEqualTo(100);
+        RuleFor(x => x.Model.Credentials).MaximumLength(1000);
+        RuleForEach(x => x.Model.Tags).ChildRules(MachineTagRules.Apply);
+        RuleFor(x => x.Model.Tags)
+            .Must(MachineTagRules.HaveUniqueNodeIds).WithMessage("Each tag must map a different OPC node id.");
     }
 }
 
-public class CreateMachineConnectionHandler(AppDbContext db, IMediator mediator)
+public class CreateMachineConnectionHandler(AppDbContext db, IMediator mediator, ITokenEncryptionService encryption)
     : IRequestHandler<CreateMachineConnectionCommand, MachineConnectionResponseModel>
 {
     public async Task<MachineConnectionResponseModel> Handle(
@@ -34,7 +39,7 @@ public class CreateMachineConnectionHandler(AppDbContext db, IMediator mediator)
             OpcUaEndpoint = model.OpcUaEndpoint,
             SecurityPolicy = model.SecurityPolicy,
             AuthType = model.AuthType,
-            EncryptedCredentials = model.Credentials,
+            EncryptedCredentials = string.IsNullOrEmpty(model.Credentials) ? null : encryption.Encrypt(model.Credentials),
             PollIntervalMs = model.PollIntervalMs,
         };
 
