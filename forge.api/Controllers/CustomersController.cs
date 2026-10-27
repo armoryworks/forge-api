@@ -139,7 +139,8 @@ public class CustomersController(IMediator mediator) : ControllerBase
     {
         var changesCommercialTerms = request.IsTaxExempt.HasValue || request.TaxExemptionId is not null
             || request.CreditLimit.HasValue || request.ClearCreditLimit == true
-            || request.DefaultCreditTerms is not null || request.ClearDefaultCreditTerms == true;
+            || request.DefaultCreditTerms is not null || request.ClearDefaultCreditTerms == true
+            || request.DefaultTaxCodeId.HasValue || request.ClearDefaultTaxCode == true;
         if (changesCommercialTerms && !CommercialTermsRoles.Any(User.IsInRole))
             return Forbid();
 
@@ -163,7 +164,9 @@ public class CustomersController(IMediator mediator) : ControllerBase
             ClearCurrency: request.ClearCurrency,
             FreightTerms: request.FreightTerms,
             ClearFreightTerms: request.ClearFreightTerms,
-            PaymentTermsId: request.PaymentTermsId));
+            PaymentTermsId: request.PaymentTermsId,
+            DefaultTaxCodeId: request.DefaultTaxCodeId,
+            ClearDefaultTaxCode: request.ClearDefaultTaxCode));
         return NoContent();
     }
 

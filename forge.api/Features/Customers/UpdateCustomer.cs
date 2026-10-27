@@ -41,7 +41,9 @@ public record UpdateCustomerCommand(
     bool? ClearCurrency = null,
     FreightTerms? FreightTerms = null,
     bool? ClearFreightTerms = null,
-    int? PaymentTermsId = null) : IRequest;
+    int? PaymentTermsId = null,
+    int? DefaultTaxCodeId = null,
+    bool? ClearDefaultTaxCode = null) : IRequest;
 
 public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
 {
@@ -74,6 +76,11 @@ public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
             .Null()
             .When(x => x.ClearDefaultCreditTerms == true)
             .WithMessage("Send either default credit terms or ClearDefaultCreditTerms, not both.");
+        RuleFor(x => x.DefaultTaxCodeId).GreaterThan(0).When(x => x.DefaultTaxCodeId.HasValue);
+        RuleFor(x => x.DefaultTaxCodeId)
+            .Null()
+            .When(x => x.ClearDefaultTaxCode == true)
+            .WithMessage("Send either a default tax code or ClearDefaultTaxCode, not both.");
         RuleFor(x => x.FreightTerms).IsInEnum().When(x => x.FreightTerms is not null);
         RuleFor(x => x.FreightTerms)
             .Null()
@@ -190,6 +197,19 @@ public class UpdateCustomerHandler(
         var touchesTaxExemption = request.IsTaxExempt.HasValue || request.TaxExemptionId is not null;
         if (touchesTaxExemption && customer.IsTaxExempt && string.IsNullOrWhiteSpace(customer.TaxExemptionId))
             throw new InvalidOperationException("Tax-exempt customers require an exemption ID on file.");
+
+        if (request.ClearDefaultTaxCode == true && customer.DefaultTaxCodeId is not null)
+        {
+            customer.DefaultTaxCodeId = null;
+            changedFields.Add("defaultTaxCode");
+        }
+        else if (request.DefaultTaxCodeId is int taxCodeId && taxCodeId != customer.DefaultTaxCodeId)
+        {
+            if (!await db.SalesTaxRates.AnyAsync(r => r.Id == taxCodeId && r.IsActive, cancellationToken))
+                throw new InvalidOperationException("That tax code does not exist or is no longer active.");
+            customer.DefaultTaxCodeId = taxCodeId;
+            changedFields.Add("defaultTaxCode");
+        }
 
         if (request.ClearCreditLimit == true && customer.CreditLimit is not null)
         {
