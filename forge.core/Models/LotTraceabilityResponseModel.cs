@@ -22,4 +22,5 @@ public record LotTraceabilityResponseModel(
     List<LotTraceShipmentModel> ShippedTo,
     List<LotTraceReceiptModel> ReceivedFrom,
     List<LotTraceNcrModel> NonConformances,
-    LotTraceJobModel? ProducingJob);
+    LotTraceJobModel? ProducingJob,
+    string? Notes = null);

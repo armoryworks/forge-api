@@ -24,11 +24,13 @@ public class CreateInterPlantTransferHandler(AppDbContext db, IClock clock) : IR
 
         if (request.FromPlantId == request.ToPlantId)
             throw new InvalidOperationException("Source and destination plants must be different");
+        if (request.Lines.Count == 0)
+            throw new InvalidOperationException("Add at least one part to the transfer.");
 
-        var fromPlant = await db.Plants.FindAsync(new object[] { request.FromPlantId }, cancellationToken)
+        _ = await db.Plants.FindAsync(new object[] { request.FromPlantId }, cancellationToken)
             ?? throw new KeyNotFoundException($"Source plant {request.FromPlantId} not found");
 
-        var toPlant = await db.Plants.FindAsync(new object[] { request.ToPlantId }, cancellationToken)
+        _ = await db.Plants.FindAsync(new object[] { request.ToPlantId }, cancellationToken)
             ?? throw new KeyNotFoundException($"Destination plant {request.ToPlantId} not found");
 
         var shopToday = ClockStateRules.LocalToday(await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), clock.UtcNow);
@@ -74,19 +76,8 @@ public class CreateInterPlantTransferHandler(AppDbContext db, IClock clock) : IR
             }
         }
 
-        // Reload with nav properties
-        await db.Entry(transfer).Reference(t => t.FromPlant).LoadAsync(cancellationToken);
-        await db.Entry(transfer).Reference(t => t.ToPlant).LoadAsync(cancellationToken);
-
-        return new InterPlantTransferResponseModel(
-            transfer.Id, transfer.TransferNumber,
-            transfer.FromPlantId, fromPlant.Name,
-            transfer.ToPlantId, toPlant.Name,
-            transfer.Status, transfer.ShippedAt, transfer.ReceivedAt,
-            transfer.TrackingNumber, transfer.Notes,
-            transfer.Lines.Count,
-            transfer.Lines.Select(l => new InterPlantTransferLineResponseModel(
-                l.Id, l.PartId, "", "", l.Quantity, l.ReceivedQuantity, l.LotNumber)).ToList(),
-            transfer.CreatedAt, transfer.UpdatedAt);
+        var created = await InterPlantTransferResponses.LoadAsync(
+            db, db.InterPlantTransfers.Where(t => t.Id == transfer.Id), cancellationToken);
+        return created[0];
     }
 }

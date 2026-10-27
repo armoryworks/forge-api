@@ -5,4 +5,5 @@ public record ReceivePurchaseOrderRequestModel(
     decimal QuantityReceived,
     int? LocationId,
     string? LotNumber,
-    string? Notes);
+    string? Notes,
+    DateTimeOffset? ExpirationDate = null);

@@ -22,6 +22,12 @@ public class GetKanbanCardHandler(AppDbContext db) : IRequestHandler<GetKanbanCa
             .FirstOrDefaultAsync(c => c.Id == query.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Kanban card {query.Id} not found");
 
+        var userIds = card.TriggerLogs.Where(t => t.TriggeredByUserId != null).Select(t => t.TriggeredByUserId!.Value).Distinct().ToList();
+        var userNames = await db.Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new { u.Id, Name = u.LastName + ", " + u.FirstName })
+            .ToDictionaryAsync(u => u.Id, u => u.Name.Trim(',', ' '), cancellationToken);
+
         return new KanbanCardDetailResponseModel
         {
             Card = new KanbanCardResponseModel
@@ -39,7 +45,9 @@ public class GetKanbanCardHandler(AppDbContext db) : IRequestHandler<GetKanbanCa
                 NumberOfBins = card.NumberOfBins,
                 Status = card.Status.ToString(),
                 SupplySource = card.SupplySource.ToString(),
+                SupplyVendorId = card.SupplyVendorId,
                 SupplyVendorName = card.SupplyVendor?.CompanyName,
+                SupplyWorkCenterId = card.SupplyWorkCenterId,
                 LeadTimeDays = card.LeadTimeDays,
                 LastTriggeredAt = card.LastTriggeredAt,
                 LastReplenishedAt = card.LastReplenishedAt,
@@ -58,7 +66,7 @@ public class GetKanbanCardHandler(AppDbContext db) : IRequestHandler<GetKanbanCa
                 FulfilledQuantity = t.FulfilledQuantity,
                 OrderId = t.OrderId,
                 OrderType = t.OrderType,
-                TriggeredByName = null,
+                TriggeredByName = t.TriggeredByUserId is int userId ? userNames.GetValueOrDefault(userId) : null,
             }).ToList(),
         };
     }

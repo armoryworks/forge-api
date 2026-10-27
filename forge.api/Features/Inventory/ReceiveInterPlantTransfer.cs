@@ -42,6 +42,14 @@ public class ReceiveInterPlantTransferHandler(
             throw new InvalidOperationException(blockedReason);
 
         var receivedLinesByPart = command.Lines.ToDictionary(l => l.PartId, l => l.ReceivedQuantity);
+        var receivingBinsByPart = command.Lines
+            .Where(l => l.ToLocationId is not null)
+            .ToDictionary(l => l.PartId, l => l.ToLocationId!.Value);
+        foreach (var binId in receivingBinsByPart.Values.Distinct())
+        {
+            if (!await db.StorageLocations.AnyAsync(l => l.Id == binId, cancellationToken))
+                throw new KeyNotFoundException($"Bin {binId} not found");
+        }
         foreach (var line in transfer.Lines)
         {
             if (receivedLinesByPart.TryGetValue(line.PartId, out var qty) && (qty < 0 || qty > line.Quantity))
@@ -66,6 +74,8 @@ public class ReceiveInterPlantTransferHandler(
         {
             var received = receivedLinesByPart.TryGetValue(line.PartId, out var qty) ? qty : line.Quantity;
             line.ReceivedQuantity = received;
+            if (receivingBinsByPart.TryGetValue(line.PartId, out var receivingBinId))
+                line.ToLocationId = receivingBinId;
 
             var shippedLots = shippedMovements
                 .Where(m => m.EntityId == line.PartId && m.FromLocationId == line.FromLocationId)

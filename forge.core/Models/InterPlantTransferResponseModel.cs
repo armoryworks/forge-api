@@ -26,4 +26,8 @@ public record InterPlantTransferLineResponseModel(
     string PartDescription,
     decimal Quantity,
     decimal? ReceivedQuantity,
-    string? LotNumber);
+    string? LotNumber,
+    int? FromLocationId = null,
+    string? FromLocationPath = null,
+    int? ToLocationId = null,
+    string? ToLocationPath = null);

@@ -314,8 +314,9 @@ public class ReceiveItemsHandler(
 
         if (db is not null)
         {
-            foreach (var (_, line, _, baseQty, lot) in newRecords)
-                await ReceiptLotRecords.EnsureAsync(db, barcodes, capabilities, line, lot, baseQty, cancellationToken);
+            foreach (var (req, line, _, baseQty, lot) in newRecords)
+                await ReceiptLotRecords.EnsureAsync(
+                    db, barcodes, capabilities, line, lot, baseQty, req.ExpirationDate, clock.UtcNow, cancellationToken);
         }
 
         // Inline inventory / GRNI posting (Phase-2 STAGE C). Runs AFTER the operational SaveChanges so the

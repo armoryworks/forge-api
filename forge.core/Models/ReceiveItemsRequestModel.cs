@@ -19,4 +19,5 @@ public record ReceiveLineModel(
     int? StorageLocationId,
     string? Notes,
     decimal? ManualFreight = null,
-    string? LotNumber = null);
+    string? LotNumber = null,
+    DateTimeOffset? ExpirationDate = null);

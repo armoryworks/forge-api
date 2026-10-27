@@ -23,6 +23,13 @@ public class InterPlantTransfersController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("plants")]
+    public async Task<ActionResult<List<InterPlantTransferPlantResponseModel>>> GetPlants()
+    {
+        var result = await mediator.Send(new GetInterPlantTransferPlantsQuery());
+        return Ok(result);
+    }
+
     [HttpPost]
     [Authorize(Roles = "Admin,Manager,OfficeManager,Engineer")]
     public async Task<ActionResult<InterPlantTransferResponseModel>> CreateTransfer([FromBody] CreateInterPlantTransferRequestModel request)
@@ -44,6 +51,14 @@ public class InterPlantTransfersController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> ReceiveTransfer(int id, [FromBody] List<ReceiveTransferLineRequestModel> lines)
     {
         await mediator.Send(new ReceiveInterPlantTransferCommand(id, lines));
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/cancel")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager,Engineer")]
+    public async Task<IActionResult> CancelTransfer(int id)
+    {
+        await mediator.Send(new CancelInterPlantTransferCommand(id));
         return NoContent();
     }
 }
