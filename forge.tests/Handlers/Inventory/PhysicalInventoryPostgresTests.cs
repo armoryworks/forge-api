@@ -27,6 +27,10 @@ public sealed class PhysicalInventoryPostgresTests(PostgresFixture fixture) : IA
     {
         await using var db = fixture.CreateContext();
         await ResetAsync(db);
+        await db.Database.ExecuteSqlRawAsync(@"
+INSERT INTO currencies (id, code, name, symbol, decimal_places, is_base_currency, is_active, sort_order)
+VALUES (1, 'USD', 'US Dollar', '$', 2, true, true, 0) ON CONFLICT DO NOTHING;
+SELECT setval(pg_get_serial_sequence('currencies', 'id'), (SELECT max(id) FROM currencies));");
     }
 
     private sealed record Seeded(int PartId, int OtherPartId, int ParentId, int ChildId, int OutsideId, int ChildBinId, int OutsideBinId);
