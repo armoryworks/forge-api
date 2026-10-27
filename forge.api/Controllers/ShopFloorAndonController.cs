@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Andon;
 using Forge.Core.Models;
@@ -16,6 +17,13 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-MFG-SHOPFLOOR")]
 public class ShopFloorAndonController(IMediator mediator) : ControllerBase
 {
+    [AllowAnonymous]
+    [KioskTerminalAuth]
+    [HttpGet("alerts")]
+    [RequiresCapability("CAP-EXT-ANDON")]
+    public async Task<ActionResult<List<AndonAlertResponseModel>>> GetOpenAlerts(CancellationToken ct)
+        => Ok(await mediator.Send(new GetAndonAlertsQuery(null, null, OpenOnly: true), ct));
+
     [HttpPost]
     [RequiresCapability("CAP-EXT-ANDON")]
     public async Task<ActionResult<RaiseKioskAndonResponseModel>> RaiseAndon(

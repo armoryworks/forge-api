@@ -25,6 +25,10 @@ public class SpcController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("jobs/{jobId:int}/characteristics")]
+    public async Task<ActionResult<List<SpcCharacteristicResponseModel>>> GetJobCharacteristics(int jobId)
+        => Ok(await mediator.Send(new GetJobSpcCharacteristicsQuery(jobId)));
+
     [HttpPost("characteristics")]
     [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<SpcCharacteristicResponseModel>> CreateCharacteristic(

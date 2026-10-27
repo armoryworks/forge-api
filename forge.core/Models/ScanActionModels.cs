@@ -25,7 +25,7 @@ public record ScanReceiveRequestModel(
 
 public record ScanShipRequestModel(int PartId, int ShipmentLineId, decimal Quantity);
 
-public record ScanIssueRequestModel(int PartId, int JobId, decimal Quantity, int FromLocationId);
+public record ScanIssueRequestModel(int PartId, int JobId, decimal Quantity, int FromLocationId, int? BinContentId = null);
 
 public record ScanReversalRequestModel(int ScanActionLogId, string Pin);
 
