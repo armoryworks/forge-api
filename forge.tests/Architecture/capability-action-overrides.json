@@ -13,6 +13,10 @@
       "capability": "CAP-O2C-RETAIL"
     },
     {
+      "prefix": "customer-returns/channel/orders",
+      "capability": "CAP-O2C-RETAIL"
+    },
+    {
       "prefix": "customers/portal-access",
       "capability": "CAP-EXT-CUSTOMER-PORTAL"
     },
