@@ -42,12 +42,19 @@ public class GetSimplePnlReportHandler(
             ct: cancellationToken);
 
         return pnl.Income
-            .Select(l => new SimplePnlReportItem(Label(l), "Revenue", l.Amount, SimplePnlReportItem.LedgerBasis))
+            .Select(l => new SimplePnlReportItem(Label(l), IncomeType(l), l.Amount, SimplePnlReportItem.LedgerBasis))
             .Concat(pnl.Expense
                 .OrderByDescending(l => l.Amount)
                 .Select(l => new SimplePnlReportItem(Label(l), "Expense", l.Amount, SimplePnlReportItem.LedgerBasis)))
             .ToList();
     }
+
+    /// <summary>
+    /// Operating revenue is the 4xxxx income range of the standard chart (sales, freight income, returns,
+    /// discounts); other income accounts (foreign exchange gains, gains on disposal) are other income, kept out of revenue.
+    /// </summary>
+    private static string IncomeType(ProfitAndLossLine line) =>
+        line.AccountNumber.TrimStart().StartsWith('4') ? "Revenue" : SimplePnlReportItem.OtherIncomeType;
 
     private static string Label(ProfitAndLossLine line) =>
         $"{line.AccountNumber} {line.AccountName}";

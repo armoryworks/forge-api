@@ -84,6 +84,38 @@ public class JobCostCloseCandidatesTests
     }
 
     [Fact]
+    public async Task ZeroWipJob_WithReceiptVariance_IsListed_untilItsCostIsClosed()
+    {
+        await using var db = SeededDb();
+        const int varianceAccountId = 6;
+        db.GlAccounts.Add(new GlAccount { Id = varianceAccountId, BookId = 1, AccountNumber = "58000", Name = "Production Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true });
+        db.Set<AccountDeterminationRule>().Add(new AccountDeterminationRule { Id = 2, BookId = 1, Key = "PRODUCTION_VARIANCE", GlAccountId = varianceAccountId });
+        db.ProductionRuns.Add(new ProductionRun { Id = 70, JobId = 14, PartId = 1, RunNumber = "RUN-70" });
+        db.SaveChanges();
+        Post(db, 14, 40m, 0m);
+        Post(db, 14, 0m, 40m);
+        var entryId = _nextEntryId++;
+        db.JournalEntries.Add(new JournalEntry
+        {
+            Id = entryId, BookId = 1, EntryNumber = entryId, EntryDate = new DateOnly(2026, 9, 2),
+            FiscalPeriodId = 1, FiscalYearId = 1, Source = JournalSource.Inventory, SourceType = "ProductionRun", SourceId = 70,
+            Status = JournalEntryStatus.Posted, CurrencyId = 1,
+            Lines = [new JournalLine { BookId = 1, LineNumber = 1, GlAccountId = varianceAccountId, Debit = 0m, Credit = 12.5m, CurrencyId = 1 }],
+        });
+        db.SaveChanges();
+
+        var result = await new GetJobCostCloseCandidatesHandler(db).Handle(new GetJobCostCloseCandidatesQuery(), default);
+
+        var row = result.Should().ContainSingle(r => r.JobNumber == "J-0014").Which;
+        row.WipBalance.Should().Be(0m);
+        row.ReceiptVariance.Should().Be(12.5m);
+
+        Post(db, 14, 0m, 0m, "Inventory:Job:14:PRODVARIANCE");
+        (await new GetJobCostCloseCandidatesHandler(db).Handle(new GetJobCostCloseCandidatesQuery(), default))
+            .Should().NotContain(r => r.JobNumber == "J-0014");
+    }
+
+    [Fact]
     public async Task ReturnsNothing_withoutAWipAccountRule()
     {
         await using var db = TestDbContextFactory.Create();

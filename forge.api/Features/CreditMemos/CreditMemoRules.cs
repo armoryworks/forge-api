@@ -12,6 +12,7 @@ using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
+using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
 
@@ -21,6 +22,7 @@ namespace Forge.Api.Features.CreditMemos;
 internal static class CreditMemoRules
 {
     public const string CreditExceedsInvoiceLineCode = "credit-exceeds-invoice-line";
+    public const string CreditMemoLineOverInvoicedCode = "credit-memo-line-over-invoiced";
     public const string CreditMemoAppliedCode = "credit-memo-applied";
     public const string InvoiceHasCreditsCode = "invoice-has-credits";
     public const string CreditMemoNotDraftCode = "credit-memo-not-draft";
@@ -95,7 +97,8 @@ internal static class CreditMemoRules
 
     /// <summary>
     /// Replaces the memo's lines with <paramref name="requested"/>, numbered from 1. A line naming an invoice line
-    /// must belong to the memo's invoice; it takes that line's part, description and taxability when left blank.
+    /// must belong to the memo's invoice, can't be priced above that line's invoiced unit price, and takes that
+    /// line's part, description and taxability when left blank.
     /// </summary>
     public static async Task SetLinesAsync(
         AppDbContext db, CreditMemo memo, IReadOnlyList<CreditMemoLineRequestModel> requested, CancellationToken ct)
@@ -117,6 +120,19 @@ internal static class CreditMemoRules
             if (line.LineType == DocumentLineType.Deposit)
                 throw Failure($"Lines[{i}].InvoiceLineId", CreditedDepositLineCode,
                     "A deposit line can't be credited. Credit the deposit invoice instead.");
+        }
+
+        for (var i = 0; i < requested.Count; i++)
+        {
+            if (requested[i].InvoiceLineId is not int lineId || !IsInvoiceCredit(requested[i].LineType))
+                continue;
+            var line = invoiceLines[lineId];
+            if (requested[i].UnitPrice > line.UnitPrice)
+            {
+                var money = await MoneyFormat.ForCurrencyIdAsync(db, memo.CurrencyId, ct);
+                throw Failure($"Lines[{i}].UnitPrice", CreditMemoLineOverInvoicedCode,
+                    $"Invoice line {line.LineNumber} ({line.Description}) was invoiced at {money.Format(line.UnitPrice)}; a credit for it can't be priced higher.");
+            }
         }
 
         memo.Lines.Clear();
@@ -141,6 +157,50 @@ internal static class CreditMemoRules
         }
     }
 
+    private static bool IsInvoiceCredit(CreditMemoLineType type)
+        => type is CreditMemoLineType.Item or CreditMemoLineType.Freight;
+
+    /// <summary>
+    /// Refuses a memo whose linked lines, together with every other issued memo (voided memos excluded), credit more
+    /// of an invoice line's extended amount than was invoiced (<c>credit-memo-line-over-invoiced</c>).
+    /// </summary>
+    public static async Task EnsureWithinInvoicedAmountAsync(AppDbContext db, CreditMemo memo, CancellationToken ct)
+    {
+        var credited = memo.Lines
+            .Where(l => l.InvoiceLineId != null && IsInvoiceCredit(l.LineType))
+            .GroupBy(l => l.InvoiceLineId!.Value)
+            .ToDictionary(g => g.Key, g => g.Sum(l => l.LineTotal));
+        if (credited.Count == 0)
+            return;
+
+        var ids = credited.Keys.ToList();
+        var invoiced = await db.InvoiceLines.AsNoTracking()
+            .Where(l => ids.Contains(l.Id))
+            .Select(l => new { l.Id, l.LineNumber, l.Description, l.Quantity, l.UnitPrice })
+            .ToListAsync(ct);
+        var others = await db.CreditMemoLines.AsNoTracking()
+            .Where(l => l.InvoiceLineId != null && ids.Contains(l.InvoiceLineId.Value)
+                && l.CreditMemoId != memo.Id
+                && (l.LineType == CreditMemoLineType.Item || l.LineType == CreditMemoLineType.Freight)
+                && l.CreditMemo.Status != CreditMemoStatus.Draft && l.CreditMemo.Status != CreditMemoStatus.Voided)
+            .Select(l => new { InvoiceLineId = l.InvoiceLineId!.Value, l.Quantity, l.UnitPrice })
+            .ToListAsync(ct);
+        var alreadyCredited = others
+            .GroupBy(l => l.InvoiceLineId)
+            .ToDictionary(g => g.Key, g => g.Sum(l => Money.Round(l.Quantity * l.UnitPrice)));
+
+        foreach (var line in invoiced)
+        {
+            var extended = Money.Round(line.Quantity * line.UnitPrice);
+            var before = alreadyCredited.GetValueOrDefault(line.Id);
+            if (before + credited[line.Id] <= extended)
+                continue;
+            var money = await MoneyFormat.ForCurrencyIdAsync(db, memo.CurrencyId, ct);
+            throw Failure("Lines", CreditMemoLineOverInvoicedCode,
+                $"Invoice line {line.LineNumber} ({line.Description}) was invoiced for {money.Format(extended)}; {money.Format(before)} is already credited, so at most {money.Format(Math.Max(0m, extended - before))} more can be.");
+        }
+    }
+
     public static string DefaultDescription(CreditMemoLineType type) => type switch
     {
         CreditMemoLineType.Freight => "Freight",
@@ -151,7 +211,8 @@ internal static class CreditMemoRules
 
     /// <summary>
     /// Refuses a memo whose lines, together with every other issued memo, credit more of an invoice line than was
-    /// invoiced (<c>credit-exceeds-invoice-line</c>), and a memo that credits nothing (<c>credit-memo-total</c>).
+    /// invoiced (quantity: <c>credit-exceeds-invoice-line</c>; extended amount: <c>credit-memo-line-over-invoiced</c>),
+    /// and a memo that credits nothing (<c>credit-memo-total</c>).
     /// </summary>
     public static async Task EnsureIssuableAsync(AppDbContext db, CreditMemo memo, CancellationToken ct)
     {
@@ -190,6 +251,8 @@ internal static class CreditMemoRules
                     string.Create(CultureInfo.InvariantCulture,
                         $"Invoice line {line.LineNumber} ({line.Description}) was invoiced for {line.Quantity:0.####}; {before:0.####} is already credited, so at most {Math.Max(0m, line.Quantity - before):0.####} more can be."));
         }
+
+        await EnsureWithinInvoicedAmountAsync(db, memo, ct);
     }
 
     /// <summary>

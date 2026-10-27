@@ -10,14 +10,17 @@ namespace Forge.Api.Features.Accounting;
 /// fees, Dr SALES_TAX_PAYABLE for tax the marketplace withheld and remits, Dr SALES_RETURNS for refunds, the
 /// MARKETPLACE_RESERVE account for reserve movements, and Cr CUSTOMER_DEPOSITS for proceeds with no open
 /// invoice to settle (order not yet invoiced or never imported). An accepted variance lands on
-/// MARKETPLACE_FEES. A no-op while CAP-ACCT-FULLGL is off.
+/// MARKETPLACE_FEES. A batch in another currency converts at the rate on file for its deposit date: the payout
+/// payment applies to the orders' invoices in that currency at their booked rates and realizes the FX gain or
+/// loss like any customer payment, and the settlement's own journal posts in the functional currency at the
+/// deposit-date rate. A no-op while CAP-ACCT-FULLGL is off.
 /// </summary>
 public interface IChannelSettlementPostingService
 {
     /// <summary>
     /// Posts the settlement's journal. Idempotent by settlement id: a second call returns without posting
-    /// or relieving anything again. Skipped (with a warning) when the batch is not in the book's functional
-    /// currency.
+    /// or relieving anything again. Skipped (with a warning) when the batch's currency is not on file or has no
+    /// rate to the functional currency for the deposit date.
     /// </summary>
     /// <param name="settlementId">The reconciled or accepted settlement.</param>
     /// <param name="actingUserId">Server-trusted actor (recorded as PostedBy).</param>

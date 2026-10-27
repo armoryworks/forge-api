@@ -114,6 +114,7 @@ public class UpdateExpenseStatusHandler(
             ? await ResolveDirectApprovalStatusAsync(expense, request.Data.Status, userId, cancellationToken)
             : request.Data.Status;
 
+        var wasApproved = expense.Status is ExpenseStatus.Approved or ExpenseStatus.SelfApproved;
         expense.Status = status;
         expense.ApprovedBy = userId;
         expense.ApprovalNotes = request.Data.ApprovalNotes?.Trim();
@@ -148,11 +149,15 @@ public class UpdateExpenseStatusHandler(
             if (promotedBill is null && apPosting is not null)
                 await apPosting.PostExpenseApprovedAsync(expense.Id, userId, cancellationToken);
         }
-        else if (billPromotion is not null)
+        else
         {
             // Leaving approved status (rejected / revision / re-opened): void the promoted bill and
             // reverse its posting. Throws — blocking the transition — if payments are applied.
-            await billPromotion.DemoteExpenseBillAsync(expense.Id, userId, cancellationToken);
+            if (billPromotion is not null)
+                await billPromotion.DemoteExpenseBillAsync(expense.Id, userId, cancellationToken);
+
+            if (wasApproved && apPosting is not null)
+                await apPosting.ReverseExpenseApprovedAsync(expense.Id, userId, cancellationToken);
         }
 
         if (tx is not null)

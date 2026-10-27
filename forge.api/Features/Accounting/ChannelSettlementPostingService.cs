@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Payments;
+using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums;
@@ -98,12 +99,32 @@ public sealed class ChannelSettlementPostingService(
         if (await db.Payments.IgnoreQueryFilters().AnyAsync(p => p.Notes == payoutNotes, ct))
             return;
 
-        if (!string.Equals(settlement.CurrencyCode, book.FunctionalCurrency.Code, StringComparison.OrdinalIgnoreCase))
+        var entryDateTime = settlement.DepositedAt ?? settlement.PeriodEnd;
+        var currencies = new DocumentCurrencyResolver(db);
+        var settlementCurrencyId = string.Equals(settlement.CurrencyCode, book.FunctionalCurrency.Code, StringComparison.OrdinalIgnoreCase)
+            ? book.FunctionalCurrencyId
+            : await currencies.CurrencyIdForCodeAsync(settlement.CurrencyCode, ct);
+        if (settlementCurrencyId is not int currencyId)
         {
             Log.Warning(
-                "Settlement posting skipped: settlement {External} is in {Currency}, the book's functional currency is {Functional}.",
-                settlement.ExternalSettlementId, settlement.CurrencyCode, book.FunctionalCurrency.Code);
+                "Settlement posting skipped: settlement {External} is in {Currency}, which is not a currency on file.",
+                settlement.ExternalSettlementId, settlement.CurrencyCode);
             return;
+        }
+
+        var rate = 1m;
+        if (currencyId != book.FunctionalCurrencyId)
+        {
+            var quote = await currencies.TryGetRateAsync(
+                currencyId, book.FunctionalCurrencyId, DateOnly.FromDateTime(entryDateTime.UtcDateTime), ct);
+            if (quote is null)
+            {
+                Log.Warning(
+                    "Settlement posting skipped: no {Currency} to {Functional} rate on file for settlement {External} ({Date}).",
+                    settlement.CurrencyCode, book.FunctionalCurrency.Code, settlement.ExternalSettlementId, entryDateTime);
+                return;
+            }
+            rate = quote.Rate;
         }
 
         var net = new Dictionary<string, decimal>(StringComparer.Ordinal);
@@ -146,14 +167,19 @@ public sealed class ChannelSettlementPostingService(
             ? await db.Database.BeginTransactionAsync(ct)
             : null;
 
-        var entryDateTime = settlement.DepositedAt ?? settlement.PeriodEnd;
-        var applied = await PayInvoicesAsync(book, settlement, payoutNotes, entryDateTime, proceedsByOrder, actingUserId, ct);
+        var applied = await PayInvoicesAsync(
+            book, settlement, currencyId, rate, payoutNotes, entryDateTime, proceedsByOrder, actingUserId, ct);
         Add(KeyCash, -applied);
         Add(KeyCustomerDeposits, -(proceedsByOrder.Values.Sum() + unappliedProceeds - applied));
 
+        var functional = net
+            .Where(kv => kv.Key != KeyCash)
+            .ToDictionary(kv => kv.Key, kv => FxMath.ToFunctional(kv.Value, rate), StringComparer.Ordinal);
+        functional[KeyCash] = -functional.Values.Sum();
+
         var label = $"settlement {settlement.ExternalSettlementId}";
         var lines = new List<PostingLine>();
-        foreach (var (accountKey, amount) in net.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+        foreach (var (accountKey, amount) in functional.OrderBy(kv => kv.Key, StringComparer.Ordinal))
         {
             if (amount == 0m)
                 continue;
@@ -189,6 +215,8 @@ public sealed class ChannelSettlementPostingService(
     private async Task<decimal> PayInvoicesAsync(
         Book book,
         ChannelSettlement settlement,
+        int currencyId,
+        decimal rate,
         string payoutNotes,
         DateTimeOffset paymentDate,
         Dictionary<int, decimal> proceedsByOrder,
@@ -205,7 +233,7 @@ public sealed class ChannelSettlementPostingService(
             .Include(i => i.CreditApplications)
             .Where(i => i.SalesOrderId != null && orderIds.Contains(i.SalesOrderId.Value)
                 && (i.Status == InvoiceStatus.Sent || i.Status == InvoiceStatus.PartiallyPaid || i.Status == InvoiceStatus.Overdue)
-                && i.CurrencyId == book.FunctionalCurrencyId && i.FxRate == 1m)
+                && i.CurrencyId == currencyId)
             .OrderBy(i => i.InvoiceDate).ThenBy(i => i.Id)
             .ToListAsync(ct);
 
@@ -227,8 +255,8 @@ public sealed class ChannelSettlementPostingService(
                     payment = new Payment
                     {
                         CustomerId = invoice.CustomerId,
-                        CurrencyId = book.FunctionalCurrencyId,
-                        FxRate = 1m,
+                        CurrencyId = currencyId,
+                        FxRate = rate,
                         Method = PaymentMethod.BankTransfer,
                         PaymentDate = paymentDate,
                         ReferenceNumber = settlement.ExternalSettlementId.Length > 50

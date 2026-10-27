@@ -35,9 +35,9 @@ public class CreditMemoReadsController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new GetCreditMemoByIdQuery(id), ct));
 
     [HttpGet("{id:int}/pdf")]
-    public async Task<IActionResult> GetCreditMemoPdf(int id, CancellationToken ct)
+    public async Task<IActionResult> GetCreditMemoPdf(int id, [FromQuery] string? language, CancellationToken ct)
     {
-        var pdf = await mediator.Send(new GenerateCreditMemoPdfQuery(id), ct);
+        var pdf = await mediator.Send(new GenerateCreditMemoPdfQuery(id, language), ct);
         return File(pdf, "application/pdf", $"credit-memo-{id}.pdf");
     }
 }

@@ -32,4 +32,12 @@ public sealed record SalesTaxLiabilityReport
 
     /// <summary>Grand total invoice count across all jurisdictions.</summary>
     public int TotalInvoiceCount { get; init; }
+
+    /// <summary>
+    /// Tax on marketplace-facilitator invoices in the window (functional currency), left out of
+    /// <see cref="TotalLiability"/>. With the built-in GL on it is what those invoices posted to Sales Tax Payable,
+    /// so <see cref="TotalLiability"/> plus this ties to the invoice and credit memo postings to that account; the
+    /// marketplace's settlement takes it back out of the account when it withholds the tax.
+    /// </summary>
+    public decimal MarketplaceCollectedTax { get; init; }
 }
