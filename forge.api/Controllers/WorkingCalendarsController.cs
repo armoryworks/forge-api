@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.WorkingCalendars;
 using Forge.Core.Models;
@@ -19,7 +20,7 @@ namespace Forge.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/working-calendars")]
-[Authorize(Roles = "Admin,Manager")]
+[Authorize(Roles = PlanningRoles.Plan)]
 [RequiresCapability("CAP-MD-CALENDARS")]
 public class WorkingCalendarsController(IMediator mediator) : ControllerBase
 {

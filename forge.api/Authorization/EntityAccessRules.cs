@@ -11,11 +11,13 @@ public static class EntityAccessRules
 {
     public const string HrRoles = "Admin,Manager,OfficeManager";
 
-    private const string JobRoles = "Admin,Manager,PM,Engineer,ProductionWorker,OfficeManager,Procurement";
-    private const string PartRoles = "Admin,Manager,Engineer,ProductionWorker,PM,OfficeManager,Procurement";
+    private const string JobRoles = "Admin,Manager,PM,Engineer,ProductionWorker,OfficeManager,Procurement," + PlanningRoles.Planner;
+    private const string PartRoles = "Admin,Manager,Engineer,ProductionWorker,PM,OfficeManager,Procurement," + PlanningRoles.Planner;
     private const string SalesRoles = "Admin,Manager,OfficeManager,PM";
+    private const string SalesOrderRoles = SalesRoles + "," + PlanningRoles.Planner;
     private const string FinanceRoles = "Admin,Manager,OfficeManager";
     private const string PurchasingRoles = "Admin,Manager,OfficeManager,Procurement";
+    private const string PurchaseOrderRoles = PurchasingRoles + "," + PlanningRoles.Planner;
 
     private static readonly Dictionary<string, EntityAccessRule> Rules = new()
     {
@@ -25,14 +27,14 @@ public static class EntityAccessRules
         ["asset"] = Allow("Admin,Manager,Engineer"),
         ["lead"] = Allow("Admin,Manager,PM,LeadIntake"),
         ["customer"] = Allow("Admin,Manager,OfficeManager,PM,Engineer"),
-        ["salesorder"] = Allow(SalesRoles),
+        ["salesorder"] = Allow(SalesOrderRoles),
         ["quote"] = Allow(SalesRoles),
         ["invoice"] = Allow(FinanceRoles),
         ["shipment"] = Allow(FinanceRoles),
         ["payment"] = Allow(FinanceRoles),
         ["customerreturn"] = Allow(FinanceRoles),
         ["creditmemo"] = Allow("Admin,Manager,OfficeManager,Controller"),
-        ["purchaseorder"] = Allow(PurchasingRoles),
+        ["purchaseorder"] = Allow(PurchaseOrderRoles),
         ["vendor"] = Allow(PurchasingRoles),
         ["vendorbill"] = Allow("Admin,Manager,OfficeManager,Procurement,Controller"),
         ["vendorpayment"] = Allow("Admin,Manager,OfficeManager,Controller"),

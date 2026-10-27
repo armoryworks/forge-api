@@ -2,9 +2,12 @@ using System.Security.Claims;
 
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Approvals;
 
@@ -19,11 +22,21 @@ public class SubmitForApprovalValidator : AbstractValidator<SubmitForApprovalCom
     }
 }
 
-public class SubmitForApprovalHandler(IApprovalService approvalService, IPublisher publisher)
+public class SubmitForApprovalHandler(IApprovalService approvalService, IPublisher publisher, AppDbContext db)
     : IRequestHandler<SubmitForApprovalCommand, ApprovalRequestResponseModel?>
 {
     public async Task<ApprovalRequestResponseModel?> Handle(SubmitForApprovalCommand request, CancellationToken ct)
     {
+        var inProgressId = await db.ApprovalRequests
+            .AsNoTracking()
+            .Where(r => r.EntityType == request.Data.EntityType
+                && r.EntityId == request.Data.EntityId
+                && (r.Status == ApprovalRequestStatus.Pending || r.Status == ApprovalRequestStatus.Escalated))
+            .Select(r => (int?)r.Id)
+            .FirstOrDefaultAsync(ct);
+        if (inProgressId is int existingId)
+            throw new ApprovalAlreadyPendingException(request.Data.EntityType, request.Data.EntityId, existingId);
+
         var result = await approvalService.SubmitAndPublishAsync(
             publisher, request.Data.EntityType, request.Data.EntityId,
             request.RequestedById, request.Data.Amount,

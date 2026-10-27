@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Inventory;
 using Forge.Core.Enums;
@@ -13,7 +14,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/inventory")]
-[Authorize(Roles = "Admin,Manager,OfficeManager,Engineer,ProductionWorker")]
+[Authorize(Roles = InventoryRoles.Read)]
 [RequiresCapability("CAP-INV-CORE")]
 public class InventoryController(IMediator mediator) : ControllerBase
 {
@@ -37,6 +38,7 @@ public class InventoryController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("locations")]
+    [Authorize(Roles = InventoryRoles.Edit)]
     public async Task<ActionResult<StorageLocationResponseModel>> CreateLocation([FromBody] CreateStorageLocationRequestModel request)
     {
         var result = await mediator.Send(new CreateStorageLocationCommand(request));
@@ -44,6 +46,7 @@ public class InventoryController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("locations/{id:int}")]
+    [Authorize(Roles = InventoryRoles.Edit)]
     public async Task<ActionResult<StorageLocationResponseModel>> UpdateLocation(
         int id, [FromBody] UpdateStorageLocationRequestModel request)
     {
@@ -59,6 +62,7 @@ public class InventoryController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("bin-contents")]
+    [Authorize(Roles = InventoryRoles.Edit)]
     public async Task<ActionResult<BinContentResponseModel>> PlaceBinContent([FromBody] PlaceBinContentRequestModel request)
     {
         var result = await mediator.Send(new PlaceBinContentCommand(request));
@@ -84,6 +88,7 @@ public class InventoryController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("locations/{id:int}")]
+    [Authorize(Roles = InventoryRoles.Edit)]
     public async Task<IActionResult> DeleteLocation(int id)
     {
         await mediator.Send(new DeleteStorageLocationCommand(id));
@@ -91,6 +96,7 @@ public class InventoryController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("bin-contents/{id:int}")]
+    [Authorize(Roles = InventoryRoles.Edit)]
     public async Task<IActionResult> RemoveBinContent(int id)
     {
         await mediator.Send(new RemoveBinContentCommand(id));
@@ -107,6 +113,7 @@ public class InventoryController(IMediator mediator) : ControllerBase
     // ── Receiving ──
 
     [HttpPost("receive")]
+    [Authorize(Roles = InventoryRoles.Edit)]
     public async Task<ActionResult<ReceivingRecordResponseModel>> ReceiveGoods(
         [FromBody] ReceivePurchaseOrderRequestModel request)
     {
@@ -127,6 +134,7 @@ public class InventoryController(IMediator mediator) : ControllerBase
     // ── Stock Operations ──
 
     [HttpPost("transfer")]
+    [Authorize(Roles = InventoryRoles.Edit)]
     [RequiresCapability("CAP-INV-MULTILOC")]
     public async Task<IActionResult> TransferStock([FromBody] TransferStockRequestModel request)
     {
@@ -159,6 +167,7 @@ public class InventoryController(IMediator mediator) : ControllerBase
     // CAP-INV-CORE gate and the full inventory role set, so a clerk on the floor
     // can record receipts directly. Additive: bumps the bin or opens a new one.
     [HttpPost("receive-stock")]
+    [Authorize(Roles = InventoryRoles.Edit)]
     public async Task<IActionResult> ReceiveStock([FromBody] ReceiveStockRequestModel request)
     {
         await mediator.Send(new ReceiveStockCommand(request));
@@ -168,6 +177,7 @@ public class InventoryController(IMediator mediator) : ControllerBase
     // Consume stock without a shipment or job issue (manual stock-out). Same
     // CAP-INV-CORE gate; can never drop on-hand below reserved (S-RI1).
     [HttpPost("use-stock")]
+    [Authorize(Roles = InventoryRoles.Edit)]
     public async Task<IActionResult> UseStock([FromBody] UseStockRequestModel request)
     {
         await mediator.Send(new UseStockCommand(request));
@@ -187,6 +197,7 @@ public class InventoryController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("cycle-counts")]
+    [Authorize(Roles = InventoryRoles.Edit)]
     [RequiresCapability("CAP-INV-CYCLECOUNT")]
     public async Task<ActionResult<CycleCountResponseModel>> CreateCycleCount(
         [FromBody] CreateCycleCountRequestModel request)
@@ -217,6 +228,7 @@ public class InventoryController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("reservations")]
+    [Authorize(Roles = InventoryRoles.Edit)]
     [RequiresCapability("CAP-INV-RESERVE")]
     public async Task<ActionResult<ReservationResponseModel>> CreateReservation(
         [FromBody] CreateReservationRequestModel request)
@@ -226,6 +238,7 @@ public class InventoryController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("reservations/{id:int}")]
+    [Authorize(Roles = InventoryRoles.Edit)]
     [RequiresCapability("CAP-INV-RESERVE")]
     public async Task<IActionResult> ReleaseReservation(int id)
     {
@@ -244,6 +257,7 @@ public class InventoryController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("inspect/{receivingRecordId:int}")]
+    [Authorize(Roles = InventoryRoles.Edit)]
     [RequiresCapability("CAP-QC-INSPECTION")]
     public async Task<IActionResult> RecordInspectionResult(int receivingRecordId, [FromBody] InspectionResultRequestModel data)
     {

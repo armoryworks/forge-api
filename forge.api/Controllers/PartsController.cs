@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Activity;
 using Forge.Api.Features.Parts;
@@ -13,7 +14,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/parts")]
-[Authorize(Roles = "Admin,Manager,Engineer,ProductionWorker,PM,OfficeManager")]
+[Authorize(Roles = PartRoles.Read)]
 [RequiresCapability("CAP-MD-PARTS")]
 public class PartsController(IMediator mediator) : ControllerBase
 {
@@ -42,6 +43,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<ActionResult<PartDetailResponseModel>> CreatePart([FromBody] CreatePartRequestModel request)
     {
         var result = await mediator.Send(new CreatePartCommand(
@@ -53,6 +55,7 @@ public class PartsController(IMediator mediator) : ControllerBase
 
     /// <summary>Duplicates a part as a new Draft part, optionally with its BOM, routing and vendor sources.</summary>
     [HttpPost("{id:int}/clone")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<ActionResult<PartDetailResponseModel>> ClonePart(int id, [FromBody] ClonePartRequestModel request, CancellationToken ct)
     {
         var result = await mediator.Send(new ClonePartCommand(id, request), ct);
@@ -60,6 +63,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id:int}")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<ActionResult<PartDetailResponseModel>> UpdatePart(int id, [FromBody] UpdatePartRequestModel request)
     {
         var result = await mediator.Send(new UpdatePartCommand(id, request));
@@ -86,6 +90,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/bom")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<ActionResult<PartDetailResponseModel>> CreateBOMLine(int id, [FromBody] CreateBOMLineRequestModel request)
     {
         var result = await mediator.Send(new CreateBOMLineCommand(id, request));
@@ -93,6 +98,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id:int}/bom/{bomLineId:int}")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<ActionResult<PartDetailResponseModel>> UpdateBOMLine(int id, int bomLineId, [FromBody] UpdateBOMLineRequestModel request)
     {
         var result = await mediator.Send(new UpdateBOMLineCommand(id, bomLineId, request));
@@ -100,6 +106,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}/bom/{bomLineId:int}")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<ActionResult<PartDetailResponseModel>> DeleteBOMLine(int id, int bomLineId)
     {
         var result = await mediator.Send(new DeleteBOMLineCommand(id, bomLineId));
@@ -136,6 +143,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     /// updated detail, failure → 409 with the missing-validators envelope.
     /// </summary>
     [HttpPost("{id:int}/promote-status")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<ActionResult<PartDetailResponseModel>> PromoteStatus(
         int id, [FromBody] PromoteEntityStatusRequestModel body, CancellationToken ct)
     {
@@ -151,6 +159,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/revisions")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<ActionResult<PartRevisionResponseModel>> CreatePartRevision(int id, [FromBody] CreatePartRevisionRequestModel request)
     {
         var result = await mediator.Send(new CreatePartRevisionCommand(
@@ -204,6 +213,7 @@ public class PartsController(IMediator mediator) : ControllerBase
 
     /// <summary>Recalculate + freeze the part's standard cost (rollup → current CostCalculation snapshot).</summary>
     [HttpPost("{id:int}/recalculate-standard-cost")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<ActionResult<RecalculatedStandardCostModel>> RecalculateStandardCost(int id, CancellationToken ct)
         => Ok(await mediator.Send(new RecalculatePartStandardCostCommand(id), ct));
 
@@ -228,6 +238,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/operations/{operationId:int}/activity")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<IActionResult> AddOperationComment(int id, int operationId, [FromBody] AddOperationCommentRequestModel request)
     {
         await mediator.Send(new AddOperationCommentCommand(id, operationId, request.Comment));
@@ -235,6 +246,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/link-accounting-item")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<IActionResult> LinkAccountingItem(int id, [FromBody] LinkAccountingItemRequestModel request)
     {
         await mediator.Send(new LinkPartToAccountingItemCommand(id, request.ExternalId, request.ExternalRef));
@@ -242,6 +254,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}/link-accounting-item")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<IActionResult> UnlinkAccountingItem(int id)
     {
         await mediator.Send(new UnlinkPartFromAccountingItemCommand(id));
@@ -265,6 +278,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     // ── Pricing ───────────────────────────────────────────────────────────────
 
     [HttpGet("{id:int}/prices")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<ActionResult<List<PartPriceResponseModel>>> GetPrices(int id)
     {
         var result = await mediator.Send(new GetPartPricesQuery(id));
@@ -272,6 +286,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/prices")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<ActionResult<PartPriceResponseModel>> AddPrice(
         int id, [FromBody] AddPartPriceRequestModel model)
     {
@@ -280,6 +295,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}/prices/{priceId:int}")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<IActionResult> DeletePrice(int id, int priceId)
     {
         await mediator.Send(new DeletePartPriceCommand(id, priceId));
@@ -296,6 +312,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/alternates")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<ActionResult<PartAlternateResponseModel>> CreateAlternate(
         int id, [FromBody] CreatePartAlternateRequestModel request)
     {
@@ -304,6 +321,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id:int}/alternates/{alternateId:int}")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<ActionResult<PartAlternateResponseModel>> UpdateAlternate(
         int id, int alternateId, [FromBody] UpdatePartAlternateRequestModel request)
     {
@@ -312,6 +330,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}/alternates/{alternateId:int}")]
+    [Authorize(Roles = PartRoles.Edit)]
     public async Task<IActionResult> DeleteAlternate(int id, int alternateId)
     {
         await mediator.Send(new DeletePartAlternateCommand(id, alternateId));
@@ -335,6 +354,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     // surface a tab that would always be empty + confuse the user.
 
     [HttpGet("{id:int}/purchase-history")]
+    [Authorize(Roles = PartRoles.Edit)]
     [RequiresCapability("CAP-P2P-PO")]
     public async Task<ActionResult<List<PartPurchaseHistoryItemResponseModel>>> GetPurchaseHistory(
         int id, [FromQuery] string? search = null)
@@ -347,6 +367,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     // CAP-P2P-PO since landed cost is a PO-derived view; no PO history =
     // an empty result anyway, but this keeps the route family consistent.
     [HttpGet("{id:int}/landed-cost")]
+    [Authorize(Roles = PartRoles.Edit)]
     [RequiresCapability("CAP-P2P-PO")]
     public async Task<ActionResult<PartLandedCostResponseModel>> GetLandedCost(
         int id, [FromQuery] int maxReceipts = 3)

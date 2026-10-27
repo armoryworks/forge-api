@@ -304,6 +304,23 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
 
             await context.Response.WriteAsJsonAsync(problem);
         }
+        catch (Features.Approvals.ApprovalAlreadyPendingException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Approval already pending",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = Features.Approvals.ApprovalAlreadyPendingException.Code;
+            problem.Extensions["approvalRequestId"] = ex.RequestId;
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
         catch (Services.Fx.CurrencyLockedException ex)
         {
             context.Response.StatusCode = StatusCodes.Status409Conflict;

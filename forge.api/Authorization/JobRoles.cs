@@ -9,7 +9,7 @@ namespace Forge.Api.Authorization;
 /// </summary>
 public static class JobRoles
 {
-    public const string Read = "Admin,Manager,PM,Engineer,ProductionWorker,OfficeManager";
+    public const string Read = "Admin,Manager,PM,Engineer,ProductionWorker,OfficeManager," + PlanningRoles.Planner;
 
     public const string BoardRead = Read + ",Procurement";
 }

@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record UpdateVendorRequestModel(
@@ -23,4 +25,6 @@ public record UpdateVendorRequestModel(
     string? Fax = null,
     int? CurrencyId = null,
     bool? ClearCurrency = null,
-    int? PaymentTermsId = null);
+    int? PaymentTermsId = null,
+    AutoPoMode? AutoPoMode = null,
+    bool? ClearAutoPoMode = null);

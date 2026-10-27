@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.PlanningCycles;
 using Forge.Core.Models;
@@ -9,14 +10,14 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/planning-cycles")]
-[Authorize(Roles = "Admin,Manager,PM,Engineer,ProductionWorker")]
+[Authorize(Roles = "Admin,Manager,PM,Engineer,ProductionWorker," + PlanningRoles.Planner)]
 [RequiresCapability("CAP-PLAN-MRP")]
 public class PlanningCyclesController(IMediator mediator) : ControllerBase
 {
     // Reads stay open to the broader controller-level role set (workers view the cycle);
     // P-F6: every mutation requires Admin/Manager/PM (a worker must not create/activate/
     // complete cycles or commit/reorder/remove entries).
-    private const string MutateRoles = "Admin,Manager,PM";
+    private const string MutateRoles = "Admin,Manager,PM," + PlanningRoles.Planner;
 
     [HttpGet]
     public async Task<ActionResult<List<PlanningCycleListItemModel>>> GetPlanningCycles()
