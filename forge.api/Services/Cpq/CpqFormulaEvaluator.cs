@@ -27,8 +27,14 @@ public static class CpqFormulaEvaluator
         foreach (var (name, value) in variables)
             lookup[name] = value;
 
-        var parser = new Parser(expression, lookup);
-        return parser.ParseAll();
+        try
+        {
+            return new Parser(expression, lookup).ParseAll();
+        }
+        catch (OverflowException)
+        {
+            throw new CpqFormulaException("The pricing formula's result is too large.");
+        }
     }
 
     /// <summary>The identifier a configurator option is reachable by without brackets: every character that

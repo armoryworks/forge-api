@@ -248,6 +248,53 @@ END $$;");
     }
 
     [Fact]
+    public async Task An_invoice_skips_cogs_only_for_the_quantity_a_vendor_drop_shipped()
+    {
+        await using var db = fixture.CreateContext();
+        await ResetAsync(db);
+        var seed = await SeedOrderAsync(db);
+        var mediator = Mediator(db);
+        var service = DropShip(db, mediator);
+        var po = await service.CreateDropShipPurchaseOrderAsync(
+            seed.LineId, new CreateDropShipRequestModel { VendorId = seed.VendorId, Quantity = 3m, UnitCost = 12m }, CancellationToken.None);
+        await SubmitAsync(db, po.Id);
+        await service.ConfirmDropShipDeliveryAsync((await db.PurchaseOrderLines.SingleAsync()).Id, 3m, null, CancellationToken.None);
+
+        var whole = InvoiceFor(seed, "INV-1", 5m);
+        db.Invoices.Add(whole);
+        await db.SaveChangesAsync();
+        (await InvoiceArPostingService.DropShippedQuantitiesAsync(db, whole, CancellationToken.None))
+            .Should().BeEquivalentTo(new Dictionary<int, decimal> { [1] = 3m }, "the other 2 left our dock and relieve stock");
+
+        whole.Status = InvoiceStatus.Voided;
+        var first = InvoiceFor(seed, "INV-2", 3m);
+        first.Status = InvoiceStatus.Sent;
+        db.Invoices.Add(first);
+        await db.SaveChangesAsync();
+        var second = InvoiceFor(seed, "INV-3", 2m);
+        db.Invoices.Add(second);
+        await db.SaveChangesAsync();
+
+        (await InvoiceArPostingService.DropShippedQuantitiesAsync(db, first, CancellationToken.None))[1].Should().Be(3m);
+        (await InvoiceArPostingService.DropShippedQuantitiesAsync(db, second, CancellationToken.None))
+            .Should().BeEmpty("the earlier invoice already took the drop-shipped quantity");
+    }
+
+    private static Invoice InvoiceFor(Seed seed, string number, decimal quantity)
+    {
+        var invoice = new Invoice
+        {
+            InvoiceNumber = number, CustomerId = seed.CustomerId, CurrencyId = UsdId, SalesOrderId = seed.OrderId,
+            InvoiceDate = Clock.UtcNow, DueDate = Clock.UtcNow.AddDays(30),
+        };
+        invoice.Lines.Add(new InvoiceLine
+        {
+            LineNumber = 1, PartId = seed.PartId, Description = "Widget", Quantity = quantity, UnitPrice = 40m, SalesOrderLineId = seed.LineId,
+        });
+        return invoice;
+    }
+
+    [Fact]
     public async Task A_drop_ship_po_cannot_be_received_into_stock()
     {
         await using var db = fixture.CreateContext();

@@ -160,5 +160,7 @@ public sealed class CpqEngineTests
             .Should().Throw<CpqFormulaException>().WithMessage("*divides by zero*");
         FluentActions.Invoking(() => CpqFormulaEvaluator.Evaluate("system(1)", empty))
             .Should().Throw<CpqFormulaException>().WithMessage("*not a pricing formula function*");
+        FluentActions.Invoking(() => CpqFormulaEvaluator.Evaluate("79228162514264337593543950335 * 2", empty))
+            .Should().Throw<CpqFormulaException>().WithMessage("*too large*");
     }
 }
