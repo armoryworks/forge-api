@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Quality.Coa;
 
@@ -22,6 +23,11 @@ public class VoidCertificateOfAnalysisHandler(AppDbContext db)
             throw new InvalidOperationException($"Certificate {certificate.CertificateNumber} is already voided.");
 
         certificate.Status = CertificateOfAnalysisStatus.Voided;
+        var description = $"Certificate of analysis {certificate.CertificateNumber} voided";
+        if (certificate.ShipmentId is int shipmentId)
+            db.LogActivityAt("coa-voided", description, ("Lot", certificate.LotRecordId), ("Shipment", shipmentId));
+        else
+            db.LogActivityAt("coa-voided", description, ("Lot", certificate.LotRecordId));
         await db.SaveChangesAsync(cancellationToken);
 
         var list = await CertificateOfAnalysisMapping.ListAsync(

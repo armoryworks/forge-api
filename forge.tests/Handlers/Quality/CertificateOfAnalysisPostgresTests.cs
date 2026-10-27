@@ -229,6 +229,26 @@ public sealed class CertificateOfAnalysisPostgresTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task A_lot_whose_ship_movement_was_reversed_is_not_certified_for_the_shipment()
+    {
+        await using var db = fixture.CreateContext();
+        var seed = await SeedAsync(db);
+        var shipMovement = await db.BinMovements.SingleAsync(m => m.ShipmentLineId == seed.Shipment.Lines.First().Id);
+        db.BinMovements.Add(new BinMovement
+        {
+            EntityType = "part", EntityId = seed.Part.Id, Quantity = 40m, LotNumber = seed.Lot.LotNumber,
+            Reason = BinMovementReason.Reversal, ReversedMovementId = shipMovement.Id, MovedBy = seed.UserId,
+            MovedAt = DateTimeOffset.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        var result = await Issuer(db).AttachToShipmentAsync(seed.Shipment.Id, null, null, seed.UserId, default);
+
+        result.Attached.Should().BeEmpty();
+        result.Warnings.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task An_out_of_spec_lot_is_not_attached_and_comes_back_as_a_warning()
     {
         await using var db = fixture.CreateContext();

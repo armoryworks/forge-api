@@ -33,6 +33,7 @@ public class CertificateOfAnalysisIssuer(
     public const string NoResultsCode = "coa-no-results";
     private const string NumberPrefix = "COA-";
     private const string LotFilesEntityType = "lots";
+    private const string ShipmentLineEntityType = "ShipmentLine";
 
     public async Task<CertificateOfAnalysis> IssueAsync(
         int lotId, int? customerId, int? shipmentId, string? language, string? notes, int? userId, CancellationToken ct)
@@ -137,6 +138,12 @@ public class CertificateOfAnalysisIssuer(
             certificate.Results.Add(result);
 
         db.CertificatesOfAnalysis.Add(certificate);
+        var issued = $"Certificate of analysis {certificate.CertificateNumber} issued for lot {lot.LotNumber}"
+            + (certificate.Conforms ? string.Empty : " (does not conform)");
+        if (shipmentId is int attachedTo)
+            db.LogActivityAt("coa-issued", issued, ("Lot", lot.Id), ("Shipment", attachedTo));
+        else
+            db.LogActivityAt("coa-issued", issued, ("Lot", lot.Id));
         await db.SaveChangesAsync(ct);
 
         await db.Entry(certificate).Reference(c => c.LotRecord).LoadAsync(ct);
@@ -198,12 +205,27 @@ public class CertificateOfAnalysisIssuer(
 
     private async Task<List<LotRecord>> ShippedLotsAsync(int shipmentId, CancellationToken ct)
     {
-        var shipped = await db.BinMovements.AsNoTracking()
+        var movements = await db.BinMovements.AsNoTracking()
             .Where(m => m.Reason == BinMovementReason.Ship && m.LotNumber != null
+                && (m.ShipmentLineId != null || m.EntityType == ShipmentLineEntityType)
                 && db.ShipmentLines.Any(sl => sl.ShipmentId == shipmentId && sl.Id == (m.ShipmentLineId ?? m.EntityId)))
-            .Select(m => new { m.LotNumber, LineId = m.ShipmentLineId ?? m.EntityId })
-            .Distinct()
+            .Select(m => new { m.Id, m.LotNumber, LineId = m.ShipmentLineId ?? m.EntityId, m.Quantity })
             .ToListAsync(ct);
+        if (movements.Count == 0)
+            return [];
+
+        var movementIds = movements.Select(m => m.Id).ToList();
+        var reversed = (await db.BinMovements.AsNoTracking()
+                .Where(m => m.ReversedMovementId != null && movementIds.Contains(m.ReversedMovementId.Value))
+                .Select(m => new { OriginalId = m.ReversedMovementId!.Value, m.Quantity })
+                .ToListAsync(ct))
+            .GroupBy(r => r.OriginalId)
+            .ToDictionary(g => g.Key, g => g.Sum(r => Math.Abs(r.Quantity)));
+        var shipped = movements
+            .GroupBy(m => new { m.LotNumber, m.LineId })
+            .Where(g => g.Sum(m => Math.Abs(m.Quantity) - reversed.GetValueOrDefault(m.Id)) > 0)
+            .Select(g => g.Key)
+            .ToList();
         if (shipped.Count == 0)
             return [];
 

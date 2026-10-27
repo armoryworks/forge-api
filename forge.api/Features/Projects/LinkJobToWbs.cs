@@ -8,6 +8,7 @@ using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Projects;
 
@@ -18,7 +19,7 @@ public class LinkJobToWbsHandler(AppDbContext db, IClock clock, IHttpContextAcce
 {
     public async Task Handle(LinkJobToWbsCommand command, CancellationToken cancellationToken)
     {
-        _ = await db.WbsElements
+        var element = await db.WbsElements
             .AsNoTracking()
             .FirstOrDefaultAsync(e => e.Id == command.ElementId && e.ProjectId == command.ProjectId, cancellationToken)
             ?? throw new KeyNotFoundException($"WBS element {command.ElementId} not found in project {command.ProjectId}");
@@ -36,6 +37,7 @@ public class LinkJobToWbsHandler(AppDbContext db, IClock clock, IHttpContextAcce
             LinkedById = int.TryParse(httpContext.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : null,
             CreatedAt = clock.UtcNow,
         });
+        db.LogActivityAt("project-linked", $"Linked to project WBS element {element.Code} {element.Name}", ("Job", command.Request.JobId));
         await db.SaveChangesAsync(cancellationToken);
     }
 }
