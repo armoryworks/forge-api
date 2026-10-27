@@ -137,6 +137,7 @@ public class LeaveBalanceAdjustmentTests
         validator.Validate(Make(LeaveAdjustmentType.Opening, -1m, null)).IsValid.Should().BeFalse();
         validator.Validate(Make(LeaveAdjustmentType.Opening, 0m, null)).IsValid.Should().BeTrue();
         validator.Validate(Make(LeaveAdjustmentType.Adjustment, -2m, "Correction")).IsValid.Should().BeTrue();
+        validator.Validate(Make(LeaveAdjustmentType.Adjustment, 0.001m, "Rounds to nothing")).IsValid.Should().BeFalse();
     }
 
     [Fact]

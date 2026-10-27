@@ -20,7 +20,7 @@ public class AdjustLeaveBalanceValidator : AbstractValidator<AdjustLeaveBalanceC
         RuleFor(x => x.Request.PolicyId).GreaterThan(0);
         RuleFor(x => x.Request.Type).IsInEnum();
         RuleFor(x => x.Request.EffectiveDate).NotEmpty();
-        RuleFor(x => x.Request.Hours).InclusiveBetween(-9999m, 9999m);
+        RuleFor(x => x.Request.Hours).InclusiveBetween(-9999m, 9999m).PrecisionScale(10, 2, true);
         RuleFor(x => x.Request.Hours).GreaterThanOrEqualTo(0)
             .When(x => x.Request.Type == LeaveAdjustmentType.Opening)
             .WithMessage("An opening balance cannot be negative.");
