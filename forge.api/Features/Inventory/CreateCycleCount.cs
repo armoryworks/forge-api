@@ -49,7 +49,7 @@ public class CreateCycleCountHandler(
         };
 
         // Auto-populate lines from current bin contents
-        foreach (var content in binContents)
+        foreach (var content in binContents.Where(c => c.OwnerVendorId == null))
         {
             cycleCount.Lines.Add(new CycleCountLine
             {

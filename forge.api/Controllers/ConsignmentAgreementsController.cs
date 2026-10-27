@@ -1,3 +1,5 @@
+using System.Security.Claims;
+
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,6 +17,8 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-MD-CONTRACTS-CONSIGNMENT")]
 public class ConsignmentAgreementsController(IMediator mediator) : ControllerBase
 {
+    private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
     [HttpGet]
     public async Task<ActionResult<List<ConsignmentAgreementResponseModel>>> GetAgreements(
         [FromQuery] int? vendorId,
@@ -50,21 +54,28 @@ public class ConsignmentAgreementsController(IMediator mediator) : ControllerBas
     [HttpPost("{id:int}/consume")]
     public async Task<ActionResult<ConsignmentTransactionResponseModel>> RecordConsumption(int id, [FromBody] RecordConsignmentTransactionRequestModel request)
     {
-        var result = await mediator.Send(new RecordConsignmentConsumptionCommand(id, request));
+        var result = await mediator.Send(new RecordConsignmentConsumptionCommand(id, request, UserId));
         return Ok(result);
     }
 
     [HttpPost("{id:int}/receive")]
     public async Task<ActionResult<ConsignmentTransactionResponseModel>> RecordReceipt(int id, [FromBody] RecordConsignmentTransactionRequestModel request)
     {
-        var result = await mediator.Send(new RecordConsignmentReceiptCommand(id, request));
+        var result = await mediator.Send(new RecordConsignmentReceiptCommand(id, request, UserId));
         return Ok(result);
     }
 
     [HttpPost("{id:int}/reconcile")]
     public async Task<ActionResult<ConsignmentReconciliationResponseModel>> Reconcile(int id, [FromBody] ReconcileConsignmentRequestModel request)
     {
-        var result = await mediator.Send(new ReconcileConsignmentCommand(id, request));
+        var result = await mediator.Send(new ReconcileConsignmentCommand(id, request, UserId));
+        return Ok(result);
+    }
+
+    [HttpGet("{id:int}/transactions")]
+    public async Task<ActionResult<IReadOnlyList<ConsignmentTransactionResponseModel>>> GetTransactions(int id)
+    {
+        var result = await mediator.Send(new GetConsignmentTransactionsQuery(id));
         return Ok(result);
     }
 

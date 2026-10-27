@@ -1,48 +1,63 @@
+using FluentValidation;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
-using Forge.Core.Entities;
+using Forge.Api.Features.Jobs;
 using Forge.Core.Enums;
-using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Inventory;
 
-public record RecordConsignmentConsumptionCommand(int AgreementId, RecordConsignmentTransactionRequestModel Request) : IRequest<ConsignmentTransactionResponseModel>;
+public record RecordConsignmentConsumptionCommand(int AgreementId, RecordConsignmentTransactionRequestModel Request, int UserId = 0) : IRequest<ConsignmentTransactionResponseModel>;
 
-public class RecordConsignmentConsumptionHandler(AppDbContext db, IClock clock) : IRequestHandler<RecordConsignmentConsumptionCommand, ConsignmentTransactionResponseModel>
+public class RecordConsignmentConsumptionValidator : AbstractValidator<RecordConsignmentConsumptionCommand>
+{
+    public RecordConsignmentConsumptionValidator()
+    {
+        RuleFor(x => x.Request.Quantity).GreaterThan(0m);
+        RuleFor(x => x.Request.Notes).MaximumLength(2000);
+    }
+}
+
+public class RecordConsignmentConsumptionHandler(AppDbContext db, IConsignmentStockService consignment, IMediator mediator)
+    : IRequestHandler<RecordConsignmentConsumptionCommand, ConsignmentTransactionResponseModel>
 {
     public async Task<ConsignmentTransactionResponseModel> Handle(RecordConsignmentConsumptionCommand command, CancellationToken cancellationToken)
     {
-        var agreement = await db.ConsignmentAgreements
-            .FirstOrDefaultAsync(a => a.Id == command.AgreementId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Consignment agreement {command.AgreementId} not found");
+        var request = command.Request;
+        await using var tx = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
 
-        var transaction = new ConsignmentTransaction
+        var (transaction, owned) = await consignment.TakeOwnershipAsync(
+            command.AgreementId, request.Quantity, request.BinContentId, request.StorageLocationId, request.JobId,
+            request.Notes, command.UserId, cancellationToken);
+
+        if (request.JobId is int jobId)
         {
-            AgreementId = agreement.Id,
-            Type = ConsignmentTransactionType.Consumption,
-            Quantity = command.Request.Quantity,
-            UnitPrice = agreement.AgreedUnitPrice,
-            ExtendedAmount = command.Request.Quantity * agreement.AgreedUnitPrice,
-            Notes = command.Request.Notes,
-            CreatedAt = clock.UtcNow,
-        };
+            var taken = request.Quantity;
+            foreach (var row in owned.DistinctBy(r => r.Id))
+            {
+                if (taken <= 0m)
+                    break;
+                var issue = Math.Min(taken, row.Quantity - row.ReservedQuantity);
+                if (issue <= 0m)
+                    continue;
+                await mediator.Send(new CreateMaterialIssueCommand(
+                    jobId, row.EntityId, null, issue, row.Id, row.LocationId, row.LotNumber, MaterialIssueType.Issue,
+                    request.Notes ?? $"Consigned stock (CA-{command.AgreementId})", command.UserId), cancellationToken);
+                taken -= issue;
+            }
+        }
 
-        db.ConsignmentTransactions.Add(transaction);
-        await db.SaveChangesAsync(cancellationToken);
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
-        return new ConsignmentTransactionResponseModel
+        var models = await consignment.GetTransactionsAsync(command.AgreementId, cancellationToken);
+        var model = models.First(m => m.Id == transaction.Id);
+        var created = models.Where(m => m.Type == ConsignmentTransactionType.Consumption && m.Id >= transaction.Id).ToList();
+        return model with
         {
-            Id = transaction.Id,
-            AgreementId = transaction.AgreementId,
-            Type = transaction.Type,
-            Quantity = transaction.Quantity,
-            UnitPrice = transaction.UnitPrice,
-            ExtendedAmount = transaction.ExtendedAmount,
-            Notes = transaction.Notes,
-            CreatedAt = transaction.CreatedAt,
+            Quantity = created.Sum(m => m.Quantity),
+            ExtendedAmount = created.Sum(m => m.ExtendedAmount),
         };
     }
 }

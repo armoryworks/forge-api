@@ -186,7 +186,7 @@ public class ExplodeJobBomHandler(
 
                     // Auto-reserve available stock across bins (oldest first)
                     var bins = await db.BinContents
-                        .Where(b => b.EntityType == "part"
+                        .Where(b => b.EntityType == "part" && b.OwnerVendorId == null
                             && b.EntityId == childPart.Id
                             && b.RemovedAt == null
                             && (b.Quantity - b.ReservedQuantity) > 0)

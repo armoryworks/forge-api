@@ -6,6 +6,7 @@ public record AtpResult
     public string PartNumber { get; init; } = string.Empty;
     public decimal RequestedQuantity { get; init; }
     public decimal OnHand { get; init; }
+    public decimal ConsignedOnHand { get; init; }
     public decimal AllocatedToOrders { get; init; }
     public decimal ScheduledReceipts { get; init; }
     public decimal AvailableToPromise { get; init; }

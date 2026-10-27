@@ -174,7 +174,7 @@ public class AutoPurchaseOrderJob(
 
         var stockByPart = await db.BinContents
             .AsNoTracking()
-            .Where(bc => bc.EntityType == "part"
+            .Where(bc => bc.EntityType == "part" && bc.OwnerVendorId == null
                 && childPartIds.Contains(bc.EntityId)
                 && bc.RemovedAt == null)
             .GroupBy(bc => bc.EntityId)

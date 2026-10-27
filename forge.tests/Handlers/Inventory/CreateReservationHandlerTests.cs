@@ -253,4 +253,29 @@ public class CreateReservationHandlerTests
         result.JobTitle.Should().Be("Assembly Job");
         result.JobNumber.Should().Be("JOB-0099");
     }
+
+    [Fact]
+    public async Task Handle_ConsignedStock_IsRefused()
+    {
+        var binContent = new BinContent
+        {
+            LocationId = 1,
+            EntityType = "part",
+            EntityId = 1,
+            Quantity = 10,
+            PlacedBy = 1,
+            PlacedAt = DateTime.UtcNow,
+            OwnerVendorId = 4,
+            ConsignmentAgreementId = 2,
+        };
+        _inventoryRepo.Setup(r => r.FindBinContentWithLocationAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(binContent);
+
+        var act = () => _handler.Handle(
+            new CreateReservationCommand(new CreateReservationRequestModel(1, 1, null, null, 5, null)), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*belongs to the vendor*");
+        binContent.ReservedQuantity.Should().Be(0m);
+        _inventoryRepo.Verify(r => r.AddReservationAsync(It.IsAny<Reservation>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

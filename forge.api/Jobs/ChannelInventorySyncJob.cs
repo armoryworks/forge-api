@@ -84,7 +84,7 @@ public class ChannelInventorySyncJob(
             // offering it is the oversell this job exists to prevent.
             var onHandByPart = await db.BinContents
                 .AsNoTracking()
-                .Where(bc => bc.EntityType == "part"
+                .Where(bc => bc.EntityType == "part" && bc.OwnerVendorId == null
                     && partIds.Contains(bc.EntityId)
                     && bc.RemovedAt == null)
                 .GroupBy(bc => bc.EntityId)

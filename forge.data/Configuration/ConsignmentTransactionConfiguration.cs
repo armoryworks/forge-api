@@ -22,6 +22,36 @@ public class ConsignmentTransactionConfiguration : IEntityTypeConfiguration<Cons
             .HasForeignKey(e => e.PurchaseOrderId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne(e => e.VendorBill)
+            .WithMany()
+            .HasForeignKey(e => e.VendorBillId)
+            .HasConstraintName("fk_consignment_transactions_vendor_bill")
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne<BinMovement>()
+            .WithMany()
+            .HasForeignKey(e => e.BinMovementId)
+            .HasConstraintName("fk_consignment_transactions_bin_movement")
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne<StorageLocation>()
+            .WithMany()
+            .HasForeignKey(e => e.StorageLocationId)
+            .HasConstraintName("fk_consignment_transactions_storage_location")
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne<Job>()
+            .WithMany()
+            .HasForeignKey(e => e.JobId)
+            .HasConstraintName("fk_consignment_transactions_job")
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne<Forge.Core.Entities.Accounting.JournalEntry>()
+            .WithMany()
+            .HasForeignKey(e => e.JournalEntryId)
+            .HasConstraintName("fk_consignment_transactions_journal_entry")
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne(e => e.Invoice)
             .WithMany()
             .HasForeignKey(e => e.InvoiceId)

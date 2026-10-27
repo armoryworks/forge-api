@@ -5,7 +5,9 @@ public record ConsignmentStockSummaryResponseModel
     public int TotalAgreements { get; init; }
     public int ActiveAgreements { get; init; }
     public decimal TotalConsignedValue { get; init; }
+    public decimal TotalUnbilledValue { get; init; }
     public IReadOnlyList<ConsignmentStockByOwnerResponseModel> ByOwner { get; init; } = [];
+    public IReadOnlyList<ConsignmentAgreementStockResponseModel> Agreements { get; init; } = [];
 }
 
 public record ConsignmentStockByOwnerResponseModel

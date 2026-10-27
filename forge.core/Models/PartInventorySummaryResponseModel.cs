@@ -4,4 +4,5 @@ public record PartInventorySummaryResponseModel(
     decimal TotalQuantity,
     decimal ReservedQuantity,
     decimal AvailableQuantity,
-    List<PartBinLocationResponseModel> BinLocations);
+    List<PartBinLocationResponseModel> BinLocations,
+    decimal ConsignedQuantity = 0m);

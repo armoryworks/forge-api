@@ -24,6 +24,18 @@ public class BinContentConfiguration : IEntityTypeConfiguration<BinContent>
             .HasForeignKey(e => e.JobId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne(e => e.OwnerVendor)
+            .WithMany()
+            .HasForeignKey(e => e.OwnerVendorId)
+            .HasConstraintName("fk_bin_contents_owner_vendor")
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(e => e.ConsignmentAgreement)
+            .WithMany()
+            .HasForeignKey(e => e.ConsignmentAgreementId)
+            .HasConstraintName("fk_bin_contents_consignment_agreement")
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(e => new { e.LocationId, e.EntityType, e.EntityId });
     }
 }

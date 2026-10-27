@@ -140,6 +140,7 @@ public static partial class SeedData
             // ── Liabilities (2xxxx) ─────────────────────────────────────────
             ("20000", "Accounts Payable",            AccountType.Liability, NormalBalance.Credit, true,  ControlAccountType.AP,        "AP_CONTROL"),
             ("21000", "Goods Received Not Invoiced", AccountType.Liability, NormalBalance.Credit, false, null,                         "GRNI"),
+            ("21100", "Consignment Liability",       AccountType.Liability, NormalBalance.Credit, false, null,                         "CONSIGNMENT_LIABILITY"),
             ("21500", "Employee Reimbursements Payable", AccountType.Liability, NormalBalance.Credit, false, null,                     "EMPLOYEE_REIMBURSEMENT_PAYABLE"),
             ("22000", "Freight Clearing",            AccountType.Liability, NormalBalance.Credit, false, null,                         "FREIGHT_CLEARING"),
             ("23000", "Sales Tax Payable",           AccountType.Liability, NormalBalance.Credit, false, null,                         "SALES_TAX_PAYABLE"),
@@ -621,6 +622,7 @@ public static partial class SeedData
         ("PURCHASE_DISCOUNTS", "50500", "Purchase Discounts", AccountType.Expense, NormalBalance.Credit),
         ("BAD_DEBT_EXPENSE", "69500", "Bad Debt Expense", AccountType.Expense, NormalBalance.Debit),
         ("VENDOR_RETURN_CLEARING", "12600", "Vendor Returns Clearing", AccountType.Asset, NormalBalance.Debit),
+        ("CONSIGNMENT_LIABILITY", "21100", "Consignment Liability", AccountType.Liability, NormalBalance.Credit),
     ];
 
     internal static async Task EnsureDeterminationAccountsAsync(AppDbContext db)

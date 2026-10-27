@@ -119,7 +119,7 @@ public class InventoryReliefService(AppDbContext db, ILogger<InventoryReliefServ
     {
         // FIFO: oldest placed bins first; only Stored, not yet removed
         var bins = await db.BinContents
-            .Where(bc => bc.EntityType == "part"   // canonical BinContent entity type (matches receipt stock-in)
+            .Where(bc => bc.EntityType == "part" && bc.OwnerVendorId == null   // canonical BinContent entity type (matches receipt stock-in)
                       && bc.EntityId == partId
                       && bc.Status == BinContentStatus.Stored
                       && bc.RemovedAt == null
@@ -150,7 +150,7 @@ public class InventoryReliefService(AppDbContext db, ILogger<InventoryReliefServ
         if (totalAvailable < remaining)
         {
             var held = await db.BinContents
-                .Where(bc => bc.EntityType == "part"
+                .Where(bc => bc.EntityType == "part" && bc.OwnerVendorId == null
                           && bc.EntityId == partId
                           && bc.Status == BinContentStatus.QcHold
                           && bc.RemovedAt == null

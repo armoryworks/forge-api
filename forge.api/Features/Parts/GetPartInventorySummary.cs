@@ -24,6 +24,7 @@ public class GetPartInventorySummaryHandler(AppDbContext db)
         var binContents = await db.BinContents
             .AsNoTracking()
             .Include(bc => bc.Location)
+            .Include(bc => bc.OwnerVendor)
             .Where(bc => bc.EntityType == "part" && bc.EntityId == request.PartId && bc.RemovedAt == null)
             .ToListAsync(ct);
 
@@ -36,8 +37,9 @@ public class GetPartInventorySummaryHandler(AppDbContext db)
 
         // D2b: on-hand alone is misleading — reserved stock isn't sellable/issuable.
         // Surface the reserved + available (on-hand − reserved) split, per-bin and in total.
-        var totalQuantity = binContents.Sum(bc => bc.Quantity);
-        var totalReserved = binContents.Sum(bc => bc.ReservedQuantity);
+        var owned = binContents.Where(bc => bc.OwnerVendorId == null).ToList();
+        var totalQuantity = owned.Sum(bc => bc.Quantity);
+        var totalReserved = owned.Sum(bc => bc.ReservedQuantity);
         var totalAvailable = totalQuantity - totalReserved;
 
         var binLocations = binContents
@@ -49,10 +51,14 @@ public class GetPartInventorySummaryHandler(AppDbContext db)
                 bc.Quantity - bc.ReservedQuantity,
                 bc.LotNumber,
                 bc.Status,
-                bc.LocationId))
+                bc.LocationId,
+                bc.OwnerVendorId,
+                bc.OwnerVendor?.CompanyName))
             .ToList();
 
-        return new PartInventorySummaryResponseModel(totalQuantity, totalReserved, totalAvailable, binLocations);
+        return new PartInventorySummaryResponseModel(
+            totalQuantity, totalReserved, totalAvailable, binLocations,
+            binContents.Where(bc => bc.OwnerVendorId != null).Sum(bc => bc.Quantity));
     }
 
     private static string BuildPath(StorageLocation loc, Dictionary<int, StorageLocation> byId)

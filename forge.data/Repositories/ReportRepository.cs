@@ -687,7 +687,7 @@ public class ReportRepository(AppDbContext db) : IReportRepository
             .ToListAsync(ct);
 
         var rawBinContents = await db.BinContents
-            .Where(b => b.EntityType == "part" && b.Status == Forge.Core.Enums.BinContentStatus.Stored)
+            .Where(b => b.EntityType == "part" && b.OwnerVendorId == null && b.Status == Forge.Core.Enums.BinContentStatus.Stored)
             .Select(b => new { b.EntityId, b.Quantity })
             .ToListAsync(ct);
 

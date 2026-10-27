@@ -19,7 +19,13 @@ public class AtpService(AppDbContext db, IClock clock) : IAtpService
         // On-hand: sum of all bin contents for this part
         var onHand = await db.BinContents
             .AsNoTracking()
-            .Where(bc => bc.EntityType == "part" && bc.EntityId == partId && bc.Status == BinContentStatus.Stored)
+            .Where(bc => bc.EntityType == "part" && bc.OwnerVendorId == null && bc.EntityId == partId && bc.Status == BinContentStatus.Stored)
+            .SumAsync(bc => bc.Quantity, ct);
+
+        var consignedOnHand = await db.BinContents
+            .AsNoTracking()
+            .Where(bc => bc.EntityType == "part" && bc.OwnerVendorId != null && bc.EntityId == partId
+                && bc.Status == BinContentStatus.Stored && bc.RemovedAt == null)
             .SumAsync(bc => bc.Quantity, ct);
 
         // Allocated to orders: sum of unfulfilled SO line quantities
@@ -62,6 +68,7 @@ public class AtpService(AppDbContext db, IClock clock) : IAtpService
             PartNumber = part.PartNumber,
             RequestedQuantity = quantity,
             OnHand = onHand,
+            ConsignedOnHand = consignedOnHand,
             AllocatedToOrders = allocatedToOrders,
             ScheduledReceipts = scheduledReceipts,
             AvailableToPromise = atp,
@@ -96,7 +103,7 @@ public class AtpService(AppDbContext db, IClock clock) : IAtpService
         // Current on-hand
         var onHand = await db.BinContents
             .AsNoTracking()
-            .Where(bc => bc.EntityType == "part" && bc.EntityId == partId && bc.Status == BinContentStatus.Stored)
+            .Where(bc => bc.EntityType == "part" && bc.OwnerVendorId == null && bc.EntityId == partId && bc.Status == BinContentStatus.Stored)
             .SumAsync(bc => bc.Quantity, ct);
 
         // Scheduled supply by date (PO expected delivery)

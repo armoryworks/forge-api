@@ -25,7 +25,7 @@ public class GetOnHandHandler(AppDbContext db) : IRequestHandler<GetOnHandQuery,
 
         var contents = await db.BinContents.AsNoTracking()
             .Where(b => b.LocationId == request.LocationId
-                && b.EntityType == "part" && b.EntityId == request.PartId
+                && b.EntityType == "part" && b.OwnerVendorId == null && b.EntityId == request.PartId
                 && b.RemovedAt == null && b.Quantity > 0)
             .Select(b => new { b.LotNumber, b.Quantity })
             .ToListAsync(ct);

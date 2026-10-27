@@ -114,7 +114,7 @@ public class ReorderAnalysisJob(
 
             // Current stock per part (for this chunk)
             var stockByPart = await db.BinContents
-                .Where(bc => bc.EntityType == "part"
+                .Where(bc => bc.EntityType == "part" && bc.OwnerVendorId == null
                     && partIds.Contains(bc.EntityId)
                     && bc.RemovedAt == null
                     && bc.Status != BinContentStatus.QcHold)

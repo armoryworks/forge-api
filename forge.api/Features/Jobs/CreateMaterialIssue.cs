@@ -42,7 +42,8 @@ public class CreateMaterialIssueHandler(
     // Phase-2 STAGE E — optional / null-default so the handler stays constructible without an accounting
     // context (isolated unit tests). Production DI supplies it; with CAP-ACCT-FULLGL off it no-ops.
     IMaterialIssuePostingService? posting = null,
-    IClock? clock = null)
+    IClock? clock = null,
+    IConsignmentStockService? consignment = null)
     : IRequestHandler<CreateMaterialIssueCommand, MaterialIssueResponseModel>
 {
     public async Task<MaterialIssueResponseModel> Handle(
@@ -66,6 +67,15 @@ public class CreateMaterialIssueHandler(
             .FirstOrDefaultAsync(cancellationToken);
 
         var now = clock?.UtcNow ?? DateTimeOffset.UtcNow;
+
+        // One transaction: the issue + bin decrement AND the inline WIP / inventory posting commit (or roll
+        // back) together — the locked inline model. The engine's SaveChanges joins this transaction; a posting
+        // failure (FULLGL on) unwinds the issue too. On Npgsql this is a real transaction; the in-memory test
+        // provider treats it as an ignored no-op. tx is opened only when posting is wired.
+        await using var tx = posting is not null && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         var draws = request.StockDrawnByCaller
             ? [new StockDraw(request.LotNumber, request.Quantity, request.BinContentId, null)]
             : request.BinContentId is int binContentId
@@ -90,14 +100,6 @@ public class CreateMaterialIssueHandler(
         }).ToList();
 
         db.MaterialIssues.AddRange(issues);
-
-        // One transaction: the issue + bin decrement AND the inline WIP / inventory posting commit (or roll
-        // back) together — the locked inline model. The engine's SaveChanges joins this transaction; a posting
-        // failure (FULLGL on) unwinds the issue too. On Npgsql this is a real transaction; the in-memory test
-        // provider treats it as an ignored no-op. tx is opened only when posting is wired.
-        await using var tx = posting is not null && db.Database.CurrentTransaction is null
-            ? await db.Database.BeginTransactionAsync(cancellationToken)
-            : null;
 
         await db.SaveChangesAsync(cancellationToken);
 
@@ -142,8 +144,15 @@ public class CreateMaterialIssueHandler(
             ?? throw new KeyNotFoundException($"BinContent {binContentId} not found");
         if (bin.EntityType != "part" || bin.EntityId != request.PartId)
             throw new InvalidOperationException($"BinContent {binContentId} does not hold part {request.PartId}.");
-        if (request.IssueType == MaterialIssueType.Return && bin.RemovedAt is not null)
+        if (request.IssueType == MaterialIssueType.Return && (bin.RemovedAt is not null || bin.OwnerVendorId is not null))
             return [await RestoreAsync(request, bin.LocationId, bin.LotNumber ?? request.LotNumber, now, ct)];
+        if (bin.OwnerVendorId is not null)
+        {
+            if (consignment is null)
+                throw new InvalidOperationException("That bin holds vendor-owned consigned stock; consume it on the consignment agreement first.");
+            bin = await consignment.TakeOwnershipOfRowAsync(
+                bin, request.Quantity, request.JobId, $"Issued to job {request.JobId}", request.IssuedById, ct);
+        }
 
         if (request.IssueType == MaterialIssueType.Issue && bin.Status == BinContentStatus.QcHold)
             throw await LotQualityHold.RefusalAsync(db, request.PartId, bin.LotNumber, ct);
