@@ -8,6 +8,7 @@ public class ProductConfiguration : BaseAuditableEntity
     public string ConfigurationCode { get; set; } = string.Empty;
     public string SelectionsJson { get; set; } = "{}";
     public decimal ComputedPrice { get; set; }
+    public decimal Quantity { get; set; } = 1m;
     public string? GeneratedBomJson { get; set; }
     public string? GeneratedRoutingJson { get; set; }
     public int? QuoteId { get; set; }

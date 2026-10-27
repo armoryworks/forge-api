@@ -28,4 +28,8 @@ public record PurchaseOrderLineResponseModel(
     bool LotTracked = false,
     string? UnitSymbol = null,
     int? QuantityDecimalPlaces = null,
-    int? ShelfLifeDays = null);
+    int? ShelfLifeDays = null,
+    int? SalesOrderLineId = null,
+    int? SalesOrderId = null,
+    string? SalesOrderNumber = null,
+    int? SalesOrderLineNumber = null);

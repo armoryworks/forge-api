@@ -50,7 +50,9 @@ namespace Forge.Api.Features.Accounting;
 /// and Component, INVENTORY_SUBASSEMBLY, INVENTORY_FG), posted as a separate journal entry (idempotency
 /// purpose <c>:COGS</c>). Lines with no part, a non-stocked part (Consumable, Tool, Service, phantom) or no
 /// resolvable cost are skipped. When the invoice precedes delivery
-/// (deferred revenue), COGS waits for the same delivery trigger as the revenue reclass.</para>
+/// (deferred revenue), COGS waits for the same delivery trigger as the revenue reclass. Quantity drop-shipped by a
+/// vendor carries its cost already: the confirmed delivery posted Dr COGS at the PO cost, so only the rest of the
+/// line relieves inventory here.</para>
 /// </summary>
 public interface IInvoiceArPostingService
 {
@@ -303,9 +305,13 @@ public sealed class InvoiceArPostingService(
         if (valuation is null)
             return;
 
+        var dropShipped = await DropShippedQuantitiesAsync(db, invoice, ct);
         foreach (var line in invoice.Lines.OrderBy(l => l.LineNumber))
         {
             if (!LineRelievesInventory(line))
+                continue;
+            var stockQuantity = line.Quantity - dropShipped.GetValueOrDefault(line.LineNumber);
+            if (stockQuantity <= 0m)
                 continue;
 
             var prefix = $"COGS — invoice {invoice.InvoiceNumber} line {line.LineNumber}:";
@@ -320,8 +326,52 @@ public sealed class InvoiceArPostingService(
             if (!hasStoreRow)
                 continue;
 
-            await valuation.ApplyReceiptAsync(book.Id, line.PartId!.Value, line.Quantity, lineCogs, ct);
+            await valuation.ApplyReceiptAsync(book.Id, line.PartId!.Value, stockQuantity, lineCogs, ct);
         }
+    }
+
+    /// <summary>
+    /// The quantity of each invoice line (by line number) a vendor drop-shipped rather than our dock: its cost
+    /// went to COGS when the delivery was confirmed, so it relieves no inventory here. Delivered drop-ship
+    /// quantity on a sales order line is matched to its invoices in invoice order, so a line split between a
+    /// drop-ship and a stock shipment relieves stock for the rest.
+    /// </summary>
+    internal static async Task<Dictionary<int, decimal>> DropShippedQuantitiesAsync(AppDbContext db, Invoice invoice, CancellationToken ct)
+    {
+        var orderLineIds = invoice.Lines.Where(l => l.SalesOrderLineId is not null).Select(l => l.SalesOrderLineId!.Value).Distinct().ToList();
+        if (orderLineIds.Count == 0)
+            return [];
+
+        var delivered = await db.ShipmentLines.AsNoTracking()
+            .Where(s => s.SalesOrderLineId != null && orderLineIds.Contains(s.SalesOrderLineId.Value)
+                && s.Shipment.FulfilmentType == FulfilmentType.DropShip
+                && s.Shipment.Status != ShipmentStatus.Cancelled)
+            .GroupBy(s => s.SalesOrderLineId!.Value)
+            .Select(g => new { g.Key, Quantity = g.Sum(s => s.Quantity) })
+            .ToDictionaryAsync(g => g.Key, g => g.Quantity, ct);
+        if (delivered.Count == 0)
+            return [];
+
+        var deliveredLineIds = delivered.Keys.ToList();
+        var earlier = await db.InvoiceLines.AsNoTracking()
+            .Where(l => l.SalesOrderLineId != null && deliveredLineIds.Contains(l.SalesOrderLineId.Value)
+                && l.InvoiceId < invoice.Id
+                && l.Invoice.Status != InvoiceStatus.Draft && l.Invoice.Status != InvoiceStatus.Voided)
+            .GroupBy(l => l.SalesOrderLineId!.Value)
+            .Select(g => new { g.Key, Quantity = g.Sum(l => l.Quantity) })
+            .ToDictionaryAsync(g => g.Key, g => g.Quantity, ct);
+
+        var remaining = delivered.ToDictionary(d => d.Key, d => Math.Max(0m, d.Value - earlier.GetValueOrDefault(d.Key)));
+        var result = new Dictionary<int, decimal>();
+        foreach (var line in invoice.Lines.OrderBy(l => l.LineNumber))
+        {
+            if (line.SalesOrderLineId is not int soLineId || !remaining.TryGetValue(soLineId, out var left) || left <= 0m || line.Quantity <= 0m)
+                continue;
+            var covered = Math.Min(line.Quantity, left);
+            remaining[soLineId] = left - covered;
+            result[line.LineNumber] = result.GetValueOrDefault(line.LineNumber) + covered;
+        }
+        return result;
     }
 
     private async Task<bool> IsHardClosedAsync(int bookId, DateOnly date, CancellationToken ct)
@@ -621,10 +671,14 @@ public sealed class InvoiceArPostingService(
         var lines = new List<PostingLine>();
         decimal totalCogs = 0m;
         var reliefByKey = new Dictionary<string, decimal>();
+        var dropShipped = await DropShippedQuantitiesAsync(db, invoice, ct);
 
         foreach (var line in invoice.Lines.OrderBy(l => l.LineNumber))
         {
             if (!LineRelievesInventory(line))
+                continue;
+            var stockQuantity = line.Quantity - dropShipped.GetValueOrDefault(line.LineNumber);
+            if (stockQuantity <= 0m)
                 continue;
 
             // Costing. Standard (resolver wired): relieve finished goods at STANDARD; still decrement the
@@ -634,7 +688,7 @@ public sealed class InvoiceArPostingService(
             decimal lineCogs;
             if (standardCost is not null)
             {
-                lineCogs = Math.Round((await standardCost.ResolveAsync(line.PartId!.Value, ct)).Total * line.Quantity, 2, MidpointRounding.AwayFromZero);
+                lineCogs = Math.Round((await standardCost.ResolveAsync(line.PartId!.Value, ct)).Total * stockQuantity, 2, MidpointRounding.AwayFromZero);
                 if (lineCogs <= 0m)
                 {
                     Log.Information(
@@ -644,7 +698,7 @@ public sealed class InvoiceArPostingService(
                 }
                 if (valuation is not null
                     && await db.InventoryValuations.AnyAsync(v => v.BookId == book.Id && v.PartId == line.PartId, ct))
-                    await valuation.ApplyIssueAsync(book.Id, line.PartId!.Value, line.Quantity, ct);
+                    await valuation.ApplyIssueAsync(book.Id, line.PartId!.Value, stockQuantity, ct);
             }
             else
             {
@@ -652,7 +706,7 @@ public sealed class InvoiceArPostingService(
                     && await db.InventoryValuations.AnyAsync(v => v.BookId == book.Id && v.PartId == line.PartId, ct);
                 if (hasStoreRow)
                 {
-                    lineCogs = await valuation!.ApplyIssueAsync(book.Id, line.PartId!.Value, line.Quantity, ct);
+                    lineCogs = await valuation!.ApplyIssueAsync(book.Id, line.PartId!.Value, stockQuantity, ct);
                 }
                 else
                 {
@@ -666,7 +720,7 @@ public sealed class InvoiceArPostingService(
                             invoice.Id, line.LineNumber, line.Part!.PartNumber);
                         continue;
                     }
-                    lineCogs = cost * line.Quantity;
+                    lineCogs = cost * stockQuantity;
                 }
             }
 

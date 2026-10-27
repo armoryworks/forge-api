@@ -15,6 +15,7 @@ public class ValidateSelectionsHandler(ICpqService cpqService) : IRequestHandler
         var result = await cpqService.ConfigureAsync(
             query.Request.ConfiguratorId,
             query.Request.Selections,
+            query.Request.Quantity ?? 1m,
             cancellationToken);
 
         return new CpqValidationResponseModel(result.IsValid, result.ValidationErrors.ToList());

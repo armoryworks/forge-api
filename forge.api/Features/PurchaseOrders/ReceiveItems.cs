@@ -9,6 +9,7 @@ using Forge.Api.Features.Accounting;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.Inventory;
 using Forge.Api.Features.Lots;
+using Forge.Api.Features.SalesOrders;
 using Forge.Api.Features.ShopFloor;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
@@ -25,7 +26,8 @@ public record ReceiveItemsCommand(
     List<ReceiveLineModel> Lines,
     decimal? ActualFreight = null,
     FreightAllocationMethod FreightAllocationMethod = FreightAllocationMethod.ByExtendedValue,
-    string? PackingSlipNumber = null) : IRequest<ReceiveItemsResult>;
+    string? PackingSlipNumber = null,
+    bool DropShipDelivery = false) : IRequest<ReceiveItemsResult>;
 
 public record ReceiveItemsResult(string ReceiptNumber, IReadOnlyList<int> MovementIds);
 
@@ -74,6 +76,13 @@ public class ReceiveItemsHandler(
 
         // F-033: source-state whitelist — Draft POs haven't been sent to vendor
         PurchaseOrderSubmission.EnsureReceivable(po);
+
+        var dropShip = po.FulfilmentType == FulfilmentType.DropShip;
+        if (dropShip && !request.DropShipDelivery)
+            throw new InvalidOperationException(
+                $"Purchase order {po.PONumber} is a drop-ship: the vendor ships straight to the customer. Confirm the delivery instead of receiving it into stock.");
+        if (!dropShip && request.DropShipDelivery)
+            throw new InvalidOperationException($"Purchase order {po.PONumber} is not a drop-ship.");
 
         var receiptFxRate = db is null
             ? po.FxRate ?? 1m
@@ -139,7 +148,9 @@ public class ReceiveItemsHandler(
                 LotNumber = lot,
                 PackingSlipNumber = packingSlip,
                 ReceiptNumber = receiptNumber,
-                InspectionStatus = ReceivingInspectionPolicy.InitialStatus(line.Part?.RequiresReceivingInspection == true, capabilities),
+                InspectionStatus = dropShip
+                    ? ReceivingInspectionStatus.NotRequired
+                    : ReceivingInspectionPolicy.InitialStatus(line.Part?.RequiresReceivingInspection == true, capabilities),
                 ActualFreight = actualFreight,
                 FreightAllocationMethod = request.FreightAllocationMethod,
                 // Filled in below once totals are known.
@@ -239,7 +250,7 @@ public class ReceiveItemsHandler(
         // this transaction; the handler commits once, so a posting failure unwinds the receipt too. On
         // Npgsql this is a real transaction; on the in-memory test provider it's an ignored no-op (and db
         // is null in the mock-based handler tests, so no transaction is opened there at all).
-        await using var tx = db is not null
+        await using var tx = db is not null && db.Database.CurrentTransaction is null
             ? await db.Database.BeginTransactionAsync(cancellationToken)
             : null;
 
@@ -255,7 +266,7 @@ public class ReceiveItemsHandler(
         // active BinContent for (part, location, lot) so lots never blend, then record a Receive movement.
         // Not gated by CAP-ACCT-FULLGL — this is operational inventory, independent of the GL posting below.
         var movementIds = new List<int>();
-        if (inventory is not null)
+        if (inventory is not null && !dropShip)
         {
             int? fallbackBinId = null;
             foreach (var (req, line, rec, baseQty, lot) in newRecords)
@@ -283,7 +294,7 @@ public class ReceiveItemsHandler(
                 }
                 else
                 {
-                    await inventory.AddBinContentAsync(new BinContent
+                    existing = new BinContent
                     {
                         LocationId = locationId,
                         EntityType = "part",
@@ -293,8 +304,12 @@ public class ReceiveItemsHandler(
                         Status = stockStatus,
                         PlacedBy = userId,
                         PlacedAt = clock.UtcNow,
-                    }, cancellationToken);
+                    };
+                    await inventory.AddBinContentAsync(existing, cancellationToken);
                 }
+
+                if (db is not null && po.FulfilmentType == FulfilmentType.BackToBack && line.SalesOrderLineId is int reserveForLineId)
+                    await BackToBackReservations.ReserveAsync(db, reserveForLineId, stockPartId, existing, baseQty, cancellationToken);
 
                 var movement = new BinMovement
                 {
@@ -312,7 +327,7 @@ public class ReceiveItemsHandler(
             }
         }
 
-        if (db is not null)
+        if (db is not null && !dropShip)
         {
             foreach (var (req, line, _, baseQty, lot) in newRecords)
                 await ReceiptLotRecords.EnsureAsync(

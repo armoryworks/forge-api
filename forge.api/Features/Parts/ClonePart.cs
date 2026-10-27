@@ -21,8 +21,11 @@ namespace Forge.Api.Features.Parts;
 /// Inventory, revision history, prices, accounting links, attachments, alternates, piece rates and
 /// SPC characteristics are never copied; the new part starts its own history at revision A. On a
 /// connected accounting install the new part is queued for item creation, as a newly created part is.
+/// <paramref name="SystemPartNumber"/> is a number the system derived itself (a configured part); it skips the
+/// manual-numbers setting but must still be free.
 /// </summary>
-public record ClonePartCommand(int SourcePartId, ClonePartRequestModel Data) : IRequest<PartDetailResponseModel>;
+public record ClonePartCommand(int SourcePartId, ClonePartRequestModel Data, string? SystemPartNumber = null)
+    : IRequest<PartDetailResponseModel>;
 
 public class ClonePartCommandValidator : AbstractValidator<ClonePartCommand>
 {
@@ -55,7 +58,14 @@ public class ClonePartHandler(
             .FirstOrDefaultAsync(p => p.Id == request.SourcePartId, cancellationToken)
             ?? throw new KeyNotFoundException($"Part {request.SourcePartId} not found");
 
-        var partNumber = await ResolvePartNumberAsync(data.PartNumber, source.InventoryClass, cancellationToken);
+        string partNumber;
+        if (!string.IsNullOrWhiteSpace(request.SystemPartNumber))
+        {
+            partNumber = request.SystemPartNumber.Trim();
+            await PartNumberCheck.EnsureAvailableAsync(repo, partNumber, null, cancellationToken);
+        }
+        else
+            partNumber = await ResolvePartNumberAsync(data.PartNumber, source.InventoryClass, cancellationToken);
 
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
 

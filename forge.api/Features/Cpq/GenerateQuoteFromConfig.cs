@@ -20,6 +20,13 @@ public class GenerateQuoteFromConfigHandler(AppDbContext db, ICpqService cpqServ
         if (config.QuoteId.HasValue)
             throw new InvalidOperationException("Configuration already has a linked quote");
 
+        if (command.Request.CreatePart && !config.PartId.HasValue)
+        {
+            var part = await cpqService.GeneratePartFromConfigurationAsync(command.ConfigurationId, cancellationToken);
+            config.PartId = part.Id;
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         var quote = await cpqService.GenerateQuoteFromConfigurationAsync(
             command.ConfigurationId, command.Request.CustomerId, cancellationToken);
 

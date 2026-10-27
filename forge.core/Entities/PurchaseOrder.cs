@@ -85,6 +85,12 @@ public class PurchaseOrder : BaseAuditableEntity, IConcurrencyVersioned
     /// <summary>Payment terms the PO's bills start from. Null = the vendor's terms.</summary>
     public int? PaymentTermsId { get; set; }
 
+    /// <summary>Standard, drop-ship (vendor ships to the customer) or back-to-back (bought for one sales order line).</summary>
+    public FulfilmentType FulfilmentType { get; set; } = FulfilmentType.Standard;
+
+    /// <summary>The customer address a drop-ship PO tells the vendor to ship to. Null on every other PO.</summary>
+    public int? DropShipAddressId { get; set; }
+
     /// <summary>
     /// Locked FX rate (quote currency → tenant functional currency)
     /// captured at PO confirmation (Draft → Confirmed transition). Used
@@ -106,6 +112,7 @@ public class PurchaseOrder : BaseAuditableEntity, IConcurrencyVersioned
     public VendorContact? VendorContact { get; set; }
     public VendorAddress? VendorAddress { get; set; }
     public CompanyLocation? ShipToLocation { get; set; }
+    public CustomerAddress? DropShipAddress { get; set; }
     public ICollection<PurchaseOrderLine> Lines { get; set; } = [];
     public ICollection<PurchaseOrderRelease> Releases { get; set; } = [];
 }

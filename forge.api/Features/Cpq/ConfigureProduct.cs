@@ -13,6 +13,7 @@ public class ConfigureProductHandler(ICpqService cpqService) : IRequestHandler<C
         return await cpqService.ConfigureAsync(
             command.Request.ConfiguratorId,
             command.Request.Selections,
+            command.Request.Quantity ?? 1m,
             cancellationToken);
     }
 }

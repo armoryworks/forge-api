@@ -14,7 +14,7 @@ public sealed class UnavailableBackToBackService : IBackToBackService
 {
     public const string Message = "Back-to-back orders are not available in this version of Forge.";
 
-    public Task<PurchaseOrder> CreateBackToBackOrderAsync(int salesOrderLineId, int vendorId, CancellationToken ct) =>
+    public Task<PurchaseOrder> CreateBackToBackOrderAsync(int salesOrderLineId, CreateBackToBackRequestModel request, CancellationToken ct) =>
         throw new FeatureNotAvailableException(Message);
 
     public Task LinkReceiptToSalesOrderAsync(int purchaseOrderLineId, int receivingRecordId, CancellationToken ct) =>

@@ -12,6 +12,7 @@ public class ProductConfigurationConfiguration : IEntityTypeConfiguration<Produc
 
         builder.Property(e => e.ConfigurationCode).HasMaxLength(50).IsRequired();
         builder.Property(e => e.ComputedPrice).HasPrecision(18, 4);
+        builder.Property(e => e.Quantity).HasPrecision(18, 4);
 
         builder.HasIndex(e => e.ConfiguratorId);
         builder.HasIndex(e => e.ConfigurationCode).IsUnique();

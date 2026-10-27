@@ -19,7 +19,7 @@ public class CreateDropShipOrderHandler(AppDbContext db, IDropShipService dropSh
             .FirstOrDefaultAsync(l => l.Id == command.SalesOrderLineId && l.SalesOrderId == command.SalesOrderId, cancellationToken)
             ?? throw new KeyNotFoundException($"Sales order line {command.SalesOrderLineId} not found");
 
-        var po = await dropShipService.CreateDropShipPurchaseOrderAsync(command.SalesOrderLineId, command.Request.VendorId, cancellationToken);
+        var po = await dropShipService.CreateDropShipPurchaseOrderAsync(command.SalesOrderLineId, command.Request, cancellationToken);
 
         return po.Id;
     }

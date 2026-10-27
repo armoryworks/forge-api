@@ -10,7 +10,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1")]
-[Authorize(Roles = "Admin,Manager,OfficeManager,Engineer")]
+[Authorize(Roles = "Admin,Manager,OfficeManager,Engineer,Procurement")]
 [RequiresCapability("CAP-P2P-BACKTOBACK")]
 public class BackToBacksController(IMediator mediator) : ControllerBase
 {

@@ -13,4 +13,7 @@ public record BackToBackStatusResponseModel
     public string? PurchaseOrderNumber { get; init; }
     public string Status { get; init; } = string.Empty;
     public decimal ReceivedQuantity { get; init; }
+    public decimal ReservedQuantity { get; init; }
+    public int? PurchaseOrderLineId { get; init; }
+    public DateTimeOffset? ExpectedDeliveryDate { get; init; }
 }

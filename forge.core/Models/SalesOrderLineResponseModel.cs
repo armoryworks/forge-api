@@ -20,4 +20,5 @@ public record SalesOrderLineResponseModel(
     bool NeedsJob,
     bool ShipsGoods = true,
     DocumentLineType LineType = DocumentLineType.Item,
-    bool Taxable = true);
+    bool Taxable = true,
+    List<SalesOrderLinePurchaseModel>? Purchases = null);

@@ -15,4 +15,5 @@ public record ProductConfigurationResponseModel(
     int? PartId,
     ConfigurationStatus Status,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    decimal Quantity = 1m);

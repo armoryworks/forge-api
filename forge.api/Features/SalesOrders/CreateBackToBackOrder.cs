@@ -18,7 +18,7 @@ public class CreateBackToBackOrderHandler(AppDbContext db, IBackToBackService ba
             .FirstOrDefaultAsync(l => l.Id == command.SalesOrderLineId && l.SalesOrderId == command.SalesOrderId, cancellationToken)
             ?? throw new KeyNotFoundException($"Sales order line {command.SalesOrderLineId} not found");
 
-        var po = await backToBackService.CreateBackToBackOrderAsync(command.SalesOrderLineId, command.Request.VendorId, cancellationToken);
+        var po = await backToBackService.CreateBackToBackOrderAsync(command.SalesOrderLineId, command.Request, cancellationToken);
 
         return po.Id;
     }

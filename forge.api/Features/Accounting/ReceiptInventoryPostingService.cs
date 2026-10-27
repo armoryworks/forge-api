@@ -28,6 +28,9 @@ namespace Forge.Api.Features.Accounting;
 ///         resolver is wired (else landed actual: PO price × qty + freight).</item>
 ///   <item><b>Cr GRNI</b> (Goods Received Not Invoiced) for the base (PO price × qty) — the accrued
 ///         vendor liability until the bill arrives and the 3-way match clears it (STAGE D).</item>
+///   <item><b>Dr COGS</b> instead of inventory for a drop-ship PO (the vendor delivered straight to the customer,
+///         so the goods never enter stock): landed actual, no variance, nothing fed to the valuation store. The
+///         invoice then skips the line's COGS relief.</item>
 ///   <item><b>Cr FREIGHT_CLEARING</b> for the allocated freight — cleared when the freight bill lands.</item>
 ///   <item><b>Dr|Cr PURCHASE_PRICE_VARIANCE</b> = standard inventory value − landed actual (the material
 ///         price variance): favorable credit when standard exceeds landed, unfavorable debit otherwise.</item>
@@ -78,6 +81,7 @@ public sealed class ReceiptInventoryPostingService(
     private const string KeyGrni = "GRNI";
     private const string KeyFreightClearing = "FREIGHT_CLEARING";
     private const string KeyPurchasePriceVariance = "PURCHASE_PRICE_VARIANCE";
+    private const string KeyCogs = "COGS";
     // Consumables / tools are not stocked-for-production inventory (per the InventoryClass doc comments:
     // issued to overhead / durable, not a BOM input) — expensed at receipt. A future INVENTORY_SUPPLIES
     // key could perpetual-stock consumables; high-value tools could capitalize as an Asset (no
@@ -105,6 +109,7 @@ public sealed class ReceiptInventoryPostingService(
         var records = await db.Set<ReceivingRecord>()
             .Include(r => r.PurchaseOrderLine).ThenInclude(l => l.Part)
             .Include(r => r.PurchaseOrderLine).ThenInclude(l => l.PurchaseUnit)
+            .Include(r => r.PurchaseOrderLine).ThenInclude(l => l.PurchaseOrder)
             // Scope by PO id too (a single receive is for one PO) so a ReceiptNumber collision across POs
             // can never pull a foreign PO's lines into this journal.
             .Where(r => r.ReceiptNumber == receiptNumber && r.PurchaseOrderLine.PurchaseOrderId == purchaseOrderId)
@@ -147,7 +152,8 @@ public sealed class ReceiptInventoryPostingService(
             // Standard-cost carrying: a stocked part capitalizes at STANDARD (× qty); the std−landed difference
             // is the material price variance posted below. No resolver wired, or no resolvable standard, falls
             // back to landed actual (no variance) — backward compatible with actual-cost carrying.
-            var stocked = IsStocked(line.Part);
+            var dropShip = line.PurchaseOrder.FulfilmentType == FulfilmentType.DropShip;
+            var stocked = !dropShip && IsStocked(line.Part);
             var stdUnit = stocked && standardCost is not null && line.PartId is int stdPartId
                 ? (await standardCost.ResolveAsync(stdPartId, ct)).Total
                 : 0m;
@@ -160,7 +166,7 @@ public sealed class ReceiptInventoryPostingService(
 
             lines.Add(new PostingLine
             {
-                AccountKey = DebitKeyFor(line.Part),
+                AccountKey = dropShip ? KeyCogs : DebitKeyFor(line.Part),
                 Debit = inventoryAmount,
                 Description = $"Receipt {receiptNumber} — {(line.Part?.PartNumber ?? (line.PartId is int dp ? $"part {dp}" : line.Description))} x{rec.QuantityReceived}",
             });

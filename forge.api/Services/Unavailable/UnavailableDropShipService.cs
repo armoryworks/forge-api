@@ -14,7 +14,7 @@ public sealed class UnavailableDropShipService : IDropShipService
 {
     public const string Message = "Drop-ship orders are not available in this version of Forge.";
 
-    public Task<PurchaseOrder> CreateDropShipPurchaseOrderAsync(int salesOrderLineId, int vendorId, CancellationToken ct) =>
+    public Task<PurchaseOrder> CreateDropShipPurchaseOrderAsync(int salesOrderLineId, CreateDropShipRequestModel request, CancellationToken ct) =>
         throw new FeatureNotAvailableException(Message);
 
     public Task ConfirmDropShipDeliveryAsync(int purchaseOrderLineId, decimal deliveredQuantity, string? trackingNumber, CancellationToken ct) =>

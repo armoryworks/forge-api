@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Cpq;
 
@@ -18,6 +19,10 @@ public class UpdateConfiguratorHandler(AppDbContext db) : IRequestHandler<Update
             ?? throw new KeyNotFoundException($"Configurator {command.Id} not found");
 
         var request = command.Request;
+        if (request.BasePartId != configurator.BasePartId
+            && !await db.Parts.AnyAsync(p => p.Id == request.BasePartId, cancellationToken))
+            throw new KeyNotFoundException($"Part {request.BasePartId} not found");
+
         configurator.Name = request.Name;
         configurator.Description = request.Description;
         configurator.BasePartId = request.BasePartId;
@@ -50,6 +55,10 @@ public class UpdateConfiguratorHandler(AppDbContext db) : IRequestHandler<Update
             }
         }
 
+        db.LogActivityAt(
+            "updated",
+            $"Updated configurator {configurator.Name} ({configurator.Options.Count} option(s), {(configurator.IsActive ? "active" : "inactive")})",
+            ("ProductConfigurator", configurator.Id));
         await db.SaveChangesAsync(cancellationToken);
     }
 }

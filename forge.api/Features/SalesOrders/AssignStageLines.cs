@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -44,6 +45,9 @@ public class AssignStageLinesHandler(AppDbContext db, IClock clock)
             .Include(s => s.Lines)
             .FirstOrDefaultAsync(s => s.Id == request.StageId, cancellationToken)
             ?? throw new KeyNotFoundException($"Sales order stage {request.StageId} not found");
+
+        if (stage.Status is SalesOrderStageStatus.Shipped or SalesOrderStageStatus.Closed)
+            throw new InvalidOperationException($"Stage '{stage.Name}' has shipped; its lines can no longer change.");
 
         var orderLines = await db.SalesOrderLines
             .AsNoTracking()
