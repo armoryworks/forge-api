@@ -37,4 +37,6 @@ public record EmployeeDetailResponseModel(
     int ComplianceCompletedItems,
     int ComplianceTotalItems,
     bool HasLogin = true,
-    IReadOnlyList<EmployeeComplianceCheckModel>? ComplianceChecklist = null);
+    IReadOnlyList<EmployeeComplianceCheckModel>? ComplianceChecklist = null,
+    int? EmployeeProfileId = null,
+    EmployeeTerminationStatusModel? Termination = null);

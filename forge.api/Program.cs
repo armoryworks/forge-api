@@ -354,6 +354,7 @@ try
     builder.Services.AddScoped<ITimerStopService, TimerStopService>();
     builder.Services.AddScoped<ILaborAllocationService, LaborAllocationService>();
     builder.Services.AddScoped<UserDeactivation>();
+    builder.Services.AddScoped<Forge.Api.Features.Employees.EmployeeTermination>();
     builder.Services.AddScoped<IJobOperationService, JobOperationService>();
     builder.Services.AddScoped<IStepGateService, StepGateService>();
     builder.Services.AddScoped<IBackflushService, BackflushService>();
@@ -1780,6 +1781,7 @@ try
                 ["DocumentIndexJob"]               = (typeof(DocumentIndexJob),               "IndexRecentlyUpdatedAsync"),
                 ["ComplianceFormSyncJob"]          = (typeof(ComplianceFormSyncJob),          "SyncFederalFormsAsync"),
                 ["CheckI9OverdueJob"]              = (typeof(CheckI9OverdueJob),              "CheckOverdueSection2Async"),
+                ["ApplyScheduledTerminationsJob"]  = (typeof(ApplyScheduledTerminationsJob),  "ApplyDueAsync"),
                 ["CheckI9ReverificationJob"]       = (typeof(CheckI9ReverificationJob),       "CheckReverificationDueAsync"),
                 ["CheckMismatchedClockEventsJob"]  = (typeof(CheckMismatchedClockEventsJob),  "CheckMismatchedEventsAsync"),
                 ["StaleTimerAlertJob"]             = (typeof(StaleTimerAlertJob),             "CheckStaleTimersAsync"),
@@ -2070,6 +2072,10 @@ try
         "check-i9-section2-overdue",
         job => job.CheckOverdueSection2Async(CancellationToken.None),
         Cron.Daily(9)); // 9 AM UTC daily
+    RecurringJob.AddOrUpdate<ApplyScheduledTerminationsJob>(
+        "apply-scheduled-terminations",
+        job => job.ApplyDueAsync(CancellationToken.None),
+        Cron.Hourly(5));
     RecurringJob.AddOrUpdate<CheckI9ReverificationJob>(
         "check-i9-reverification",
         job => job.CheckReverificationDueAsync(CancellationToken.None),

@@ -327,6 +327,20 @@ public static partial class SeedData
             Log.Information("Seeded deliverable type reference data (6 entries)");
         }
 
+        if (!await db.ReferenceData.AnyAsync(r => r.GroupCode == Forge.Api.Features.Employees.TerminationReasons.GroupCode))
+        {
+            db.ReferenceData.AddRange(Forge.Api.Features.Employees.TerminationReasons.Seeded.Select((r, i) => new ReferenceData
+            {
+                IsSeedData = true,
+                GroupCode = Forge.Api.Features.Employees.TerminationReasons.GroupCode,
+                Code = r.Code,
+                Label = r.Label,
+                SortOrder = i + 1,
+            }));
+            await db.SaveChangesAsync();
+            Log.Information("Seeded termination reason reference data ({Count} entries)", Forge.Api.Features.Employees.TerminationReasons.Seeded.Count);
+        }
+
         if (!await db.ReferenceData.IgnoreQueryFilters().AnyAsync(r => r.GroupCode == "mobile_note_presets"))
         {
             db.ReferenceData.AddRange(

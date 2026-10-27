@@ -9,4 +9,12 @@ public record ReviewCycleResponseModel(
     DateOnly EndDate,
     ReviewCycleStatus Status,
     string? Description,
-    int ReviewCount);
+    int ReviewCount,
+    int RatingScaleMax = 5,
+    IReadOnlyList<string>? Competencies = null,
+    string? ScopeType = null,
+    string? ScopeDepartment = null,
+    IReadOnlyList<int>? ScopeUserIds = null,
+    DateTimeOffset? LaunchedAt = null,
+    DateTimeOffset? ClosedAt = null,
+    ReviewCycleProgressModel? Progress = null);

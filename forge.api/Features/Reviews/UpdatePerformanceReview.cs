@@ -6,9 +6,9 @@ using Forge.Api.Authorization;
 using Forge.Api.Middleware;
 
 using Forge.Core.Enums;
-using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Reviews;
 
@@ -22,7 +22,7 @@ public record UpdatePerformanceReviewCommand(
     string? ImprovementComments,
     string? EmployeeSelfAssessment) : IRequest<PerformanceReviewResponseModel>;
 
-public class UpdatePerformanceReviewHandler(AppDbContext db, IClock clock, IHttpContextAccessor http) : IRequestHandler<UpdatePerformanceReviewCommand, PerformanceReviewResponseModel>
+public class UpdatePerformanceReviewHandler(AppDbContext db, IHttpContextAccessor http) : IRequestHandler<UpdatePerformanceReviewCommand, PerformanceReviewResponseModel>
 {
     public async Task<PerformanceReviewResponseModel> Handle(UpdatePerformanceReviewCommand request, CancellationToken cancellationToken)
     {
@@ -32,8 +32,10 @@ public class UpdatePerformanceReviewHandler(AppDbContext db, IClock clock, IHttp
             ?? throw new KeyNotFoundException($"Performance review {request.Id} not found");
 
         EnsureCallerMayWrite(review.EmployeeId, review.ReviewerId, request);
+        EnsureStageOpen(review.Status, request);
+        if (request.OverallRating is decimal rating && (rating < 1 || rating > review.Cycle.RatingScaleMax))
+            throw new InvalidOperationException($"The overall rating runs from 1 to {review.Cycle.RatingScaleMax}.");
 
-        if (request.Status.HasValue) review.Status = request.Status.Value;
         if (request.OverallRating.HasValue) review.OverallRating = request.OverallRating.Value;
         if (request.GoalsJson != null) review.GoalsJson = request.GoalsJson;
         if (request.CompetenciesJson != null) review.CompetenciesJson = request.CompetenciesJson;
@@ -41,25 +43,29 @@ public class UpdatePerformanceReviewHandler(AppDbContext db, IClock clock, IHttp
         if (request.ImprovementComments != null) review.ImprovementComments = request.ImprovementComments;
         if (request.EmployeeSelfAssessment != null) review.EmployeeSelfAssessment = request.EmployeeSelfAssessment;
 
-        if (request.Status == ReviewStatus.Completed && review.CompletedAt == null)
-            review.CompletedAt = clock.UtcNow;
-
+        db.LogActivityAt("draft-saved", "Draft saved", ("PerformanceReview", review.Id));
         await db.SaveChangesAsync(cancellationToken);
 
-        var empName = await db.Users.Where(u => u.Id == review.EmployeeId)
-            .Select(u => u.LastName + ", " + u.FirstName).FirstAsync(cancellationToken);
-        var revName = await db.Users.Where(u => u.Id == review.ReviewerId)
-            .Select(u => u.LastName + ", " + u.FirstName).FirstAsync(cancellationToken);
+        var user = http.HttpContext?.User;
+        return (await ReviewProjection.ToModelsAsync(
+            db, [review], CallerAccess.UserId(user), user?.IsInRole("Admin") == true, cancellationToken))[0];
+    }
 
-        return new PerformanceReviewResponseModel(
-            review.Id, review.CycleId, review.Cycle.Name,
-            review.EmployeeId, empName,
-            review.ReviewerId, revName,
-            review.Status, review.OverallRating,
-            review.GoalsJson, review.CompetenciesJson,
-            review.StrengthsComments, review.ImprovementComments,
-            review.EmployeeSelfAssessment,
-            review.CompletedAt, review.AcknowledgedAt);
+    private static void EnsureStageOpen(ReviewStatus status, UpdatePerformanceReviewCommand request)
+    {
+        if (request.Status.HasValue)
+            throw new InvalidOperationException("A review moves through its stages with the submit, acknowledge and close actions, not by setting its status.");
+
+        if (request.EmployeeSelfAssessment != null && ReviewProjection.Rank(status) != 0)
+            throw new InvalidOperationException("The self-review has been submitted and can no longer be edited.");
+
+        var writesReviewerFields = request.OverallRating.HasValue
+            || request.GoalsJson != null
+            || request.CompetenciesJson != null
+            || request.StrengthsComments != null
+            || request.ImprovementComments != null;
+        if (writesReviewerFields && ReviewProjection.Rank(status) > 1)
+            throw new InvalidOperationException("The manager review has been submitted and can no longer be edited.");
     }
 
     private void EnsureCallerMayWrite(int employeeId, int reviewerId, UpdatePerformanceReviewCommand request)

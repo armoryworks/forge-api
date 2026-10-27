@@ -184,7 +184,36 @@ public class TrainingController(IMediator mediator) : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> EnrollUser([FromBody] EnrollUserRequestModel model, CancellationToken ct = default)
     {
-        await mediator.Send(new EnrollUserCommand(model.UserId, model.PathId, GetUserId()), ct);
+        await mediator.Send(new EnrollUserCommand(model.UserId, model.PathId, GetUserId(), model.DueDate), ct);
+        return NoContent();
+    }
+
+    [HttpGet("paths/{id:int}/enrollments")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<ActionResult<List<TrainingPathEnrollmentResponseModel>>> GetPathEnrollments(int id, CancellationToken ct = default)
+        => Ok(await mediator.Send(new GetPathEnrollmentsQuery(id), ct));
+
+    /// <summary>Enrol users and everyone holding the given roles into a path, with an optional due date.</summary>
+    [HttpPost("paths/{id:int}/enrollments")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<EnrollInPathResponseModel>> EnrollInPath(
+        int id, [FromBody] EnrollInPathRequestModel model, CancellationToken ct = default)
+        => Ok(await mediator.Send(new EnrollInPathCommand(id, model, GetUserId()), ct));
+
+    [HttpPatch("enrollments/{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdateEnrollment(
+        int id, [FromBody] UpdateTrainingEnrollmentRequestModel model, CancellationToken ct = default)
+    {
+        await mediator.Send(new UpdateTrainingEnrollmentCommand(id, model.DueDate), ct);
+        return NoContent();
+    }
+
+    [HttpDelete("enrollments/{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> RemoveEnrollment(int id, CancellationToken ct = default)
+    {
+        await mediator.Send(new RemoveTrainingEnrollmentCommand(id), ct);
         return NoContent();
     }
 

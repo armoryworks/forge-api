@@ -155,7 +155,9 @@ public class GetEmployeeDetailHandler(AppDbContext db, UserManager<ApplicationUs
             profile?.EmergencyContactRelationship,
             checklist.Count(c => c.Completed),
             checklist.Count,
-            ComplianceChecklist: checklist);
+            ComplianceChecklist: checklist,
+            EmployeeProfileId: profile?.Id,
+            Termination: EmployeeTerminationProjection.From(profile));
     }
 
     private static EmployeeDetailResponseModel ProjectUserlessProfile(Core.Entities.EmployeeProfile profile)
@@ -174,7 +176,7 @@ public class GetEmployeeDetailHandler(AppDbContext db, UserManager<ApplicationUs
             "(none)",
             null,
             null,
-            true,
+            profile.TerminationAppliedAt == null,
             profile.JobTitle,
             profile.Department,
             profile.StartDate,
@@ -196,6 +198,8 @@ public class GetEmployeeDetailHandler(AppDbContext db, UserManager<ApplicationUs
             checklist.Count(c => c.Completed),
             checklist.Count,
             HasLogin: false,
-            ComplianceChecklist: checklist);
+            ComplianceChecklist: checklist,
+            EmployeeProfileId: profile.Id,
+            Termination: EmployeeTerminationProjection.From(profile));
     }
 }

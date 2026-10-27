@@ -131,6 +131,49 @@ public class EmployeesController(IMediator mediator) : ControllerBase
         return ok ? NoContent() : NotFound();
     }
 
+    /// <summary>
+    /// Record a termination (CAP-HR-TERMINATION). Today or earlier applies it at once; a later
+    /// date is applied by the hourly termination job. Admin and Manager (own team) may terminate.
+    /// </summary>
+    [HttpPost("{id:int}/terminate")]
+    [RequiresCapability("CAP-HR-TERMINATION")]
+    public async Task<ActionResult<EmployeeTerminationResponseModel>> Terminate(
+        int id, [FromQuery] string? kind, [FromBody] TerminateEmployeeRequestModel request, CancellationToken ct)
+    {
+        var result = await mediator.Send(
+            new TerminateEmployeeCommand(id, kind, request, CallerUserId, User.IsInRole("Admin")), ct);
+        return Ok(result);
+    }
+
+    /// <summary>Reverse a termination, or cancel a scheduled one (CAP-HR-TERMINATION).</summary>
+    [HttpPost("{id:int}/rehire")]
+    [RequiresCapability("CAP-HR-TERMINATION")]
+    public async Task<IActionResult> Rehire(
+        int id, [FromQuery] string? kind, [FromBody] RehireEmployeeRequestModel request, CancellationToken ct)
+    {
+        await mediator.Send(new RehireEmployeeCommand(id, kind, request, CallerUserId, User.IsInRole("Admin")), ct);
+        return NoContent();
+    }
+
+    /// <summary>Final-pay figures: hours since the last locked pay period and the paid-leave payout.</summary>
+    [HttpGet("{id:int}/final-pay-summary")]
+    [RequiresCapability("CAP-HR-TERMINATION")]
+    public async Task<ActionResult<FinalPaySummaryResponseModel>> GetFinalPaySummary(
+        int id, [FromQuery] string? kind, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetFinalPaySummaryQuery(id, kind, CallerUserId, User.IsInRole("Admin")), ct);
+        return Ok(result);
+    }
+
+    /// <summary>Mark the final paycheck issued; paid-out leave balances go to zero.</summary>
+    [HttpPost("{id:int}/final-pay-processed")]
+    [RequiresCapability("CAP-HR-TERMINATION")]
+    public async Task<IActionResult> MarkFinalPayProcessed(int id, [FromQuery] string? kind, CancellationToken ct)
+    {
+        await mediator.Send(new MarkFinalPayProcessedCommand(id, kind, CallerUserId, User.IsInRole("Admin")), ct);
+        return NoContent();
+    }
+
     [HttpGet("{id:int}/stats")]
     public async Task<ActionResult<EmployeeStatsResponseModel>> GetEmployeeStats(int id, CancellationToken ct)
     {

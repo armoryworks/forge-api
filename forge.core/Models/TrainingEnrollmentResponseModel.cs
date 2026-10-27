@@ -8,5 +8,6 @@ public record TrainingEnrollmentResponseModel(
     int TotalModules,
     int CompletedModules,
     DateTimeOffset? EnrolledAt,
-    DateTimeOffset? CompletedAt
+    DateTimeOffset? CompletedAt,
+    DateOnly? DueDate = null
 );

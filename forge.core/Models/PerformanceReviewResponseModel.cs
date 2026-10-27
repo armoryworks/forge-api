@@ -18,4 +18,10 @@ public record PerformanceReviewResponseModel(
     string? ImprovementComments,
     string? EmployeeSelfAssessment,
     DateTimeOffset? CompletedAt,
-    DateTimeOffset? AcknowledgedAt);
+    DateTimeOffset? AcknowledgedAt,
+    string? SelfRatingsJson = null,
+    DateTimeOffset? SelfSubmittedAt = null,
+    DateTimeOffset? ManagerSubmittedAt = null,
+    string? AcknowledgementComments = null,
+    int RatingScaleMax = 5,
+    IReadOnlyList<string>? CycleCompetencies = null);

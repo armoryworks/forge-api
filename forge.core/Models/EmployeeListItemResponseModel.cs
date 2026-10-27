@@ -16,4 +16,6 @@ public record EmployeeListItemResponseModel(
     string? Department,
     DateTimeOffset? StartDate,
     DateTimeOffset CreatedAt,
-    bool HasLogin = true);
+    bool HasLogin = true,
+    DateOnly? TerminationDate = null,
+    bool IsTerminated = false);

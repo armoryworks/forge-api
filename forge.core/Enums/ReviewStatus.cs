@@ -7,4 +7,8 @@ public enum ReviewStatus
     ManagerReview,
     Discussion,
     Completed,
+    SelfSubmitted,
+    ManagerSubmitted,
+    Acknowledged,
+    Closed,
 }

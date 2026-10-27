@@ -16,6 +16,10 @@ public class PerformanceReview : BaseAuditableEntity
     public string? EmployeeSelfAssessment { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public DateTimeOffset? AcknowledgedAt { get; set; }
+    public string? SelfRatingsJson { get; set; }
+    public DateTimeOffset? SelfSubmittedAt { get; set; }
+    public DateTimeOffset? ManagerSubmittedAt { get; set; }
+    public string? AcknowledgementComments { get; set; }
 
     public ReviewCycle Cycle { get; set; } = null!;
 }
