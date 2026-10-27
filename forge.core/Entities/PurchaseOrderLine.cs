@@ -50,6 +50,9 @@ public class PurchaseOrderLine : BaseEntity
     // (vendor-tier) unit price on this line. Null when not overridden.
     public string? ManualOverrideReason { get; set; }
 
+    /// <summary>The sales order line a drop-ship or back-to-back PO line buys for. Null on stock purchases.</summary>
+    public int? SalesOrderLineId { get; set; }
+
     // Phase 3 / WU-14 — RemainingQuantity excludes cancelled-short-close so
     // a short-closed line reports 0 remaining, not the unreceived portion.
     public decimal RemainingQuantity => OrderedQuantity - ReceivedQuantity - CancelledShortCloseQuantity;
@@ -63,6 +66,7 @@ public class PurchaseOrderLine : BaseEntity
     public MrpPlannedOrder? MrpPlannedOrder { get; set; }
     public UnitOfMeasure? Uom { get; set; }
     public PartPurchaseUnit? PurchaseUnit { get; set; }
+    public SalesOrderLine? SalesOrderLine { get; set; }
     public ICollection<ReceivingRecord> ReceivingRecords { get; set; } = [];
     public ICollection<PurchaseOrderRelease> Releases { get; set; } = [];
 }

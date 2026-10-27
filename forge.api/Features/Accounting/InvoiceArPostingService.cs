@@ -50,7 +50,8 @@ namespace Forge.Api.Features.Accounting;
 /// and Component, INVENTORY_SUBASSEMBLY, INVENTORY_FG), posted as a separate journal entry (idempotency
 /// purpose <c>:COGS</c>). Lines with no part, a non-stocked part (Consumable, Tool, Service, phantom) or no
 /// resolvable cost are skipped. When the invoice precedes delivery
-/// (deferred revenue), COGS waits for the same delivery trigger as the revenue reclass.</para>
+/// (deferred revenue), COGS waits for the same delivery trigger as the revenue reclass. A line drop-shipped by a
+/// vendor carries its cost already: the confirmed delivery posted Dr COGS at the PO cost, so it relieves nothing here.</para>
 /// </summary>
 public interface IInvoiceArPostingService
 {
@@ -621,10 +622,21 @@ public sealed class InvoiceArPostingService(
         var lines = new List<PostingLine>();
         decimal totalCogs = 0m;
         var reliefByKey = new Dictionary<string, decimal>();
+        var orderLineIds = invoice.Lines.Where(l => l.SalesOrderLineId is not null).Select(l => l.SalesOrderLineId!.Value).ToList();
+        var dropShipped = orderLineIds.Count == 0
+            ? []
+            : (await db.PurchaseOrderLines.AsNoTracking()
+                .Where(l => l.SalesOrderLineId != null && orderLineIds.Contains(l.SalesOrderLineId.Value)
+                    && l.PurchaseOrder.FulfilmentType == FulfilmentType.DropShip)
+                .Select(l => l.SalesOrderLineId!.Value)
+                .ToListAsync(ct))
+                .ToHashSet();
 
         foreach (var line in invoice.Lines.OrderBy(l => l.LineNumber))
         {
             if (!LineRelievesInventory(line))
+                continue;
+            if (line.SalesOrderLineId is int soLineId && dropShipped.Contains(soLineId))
                 continue;
 
             // Costing. Standard (resolver wired): relieve finished goods at STANDARD; still decrement the

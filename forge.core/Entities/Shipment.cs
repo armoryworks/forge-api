@@ -58,6 +58,12 @@ public class Shipment : BaseAuditableEntity, IConcurrencyVersioned
     public string? PickupConfirmationNumber { get; set; }
     public DateTimeOffset? PickupScheduledDate { get; set; }
 
+    /// <summary>
+    /// Standard for goods we ship from stock; DropShip for a vendor's delivery straight to the customer, which
+    /// records the shipped quantity without any stock movement.
+    /// </summary>
+    public FulfilmentType FulfilmentType { get; set; } = FulfilmentType.Standard;
+
     public SalesOrder SalesOrder { get; set; } = null!;
     public Carrier? AssignedCarrier { get; set; }
     public CustomerAddress? ShippingAddress { get; set; }

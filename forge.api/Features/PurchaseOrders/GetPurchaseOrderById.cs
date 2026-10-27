@@ -80,6 +80,17 @@ public class GetPurchaseOrderByIdHandler(
             ? await db.CompanyLocations.AsNoTracking().FirstOrDefaultAsync(l => l.Id == shipToId, cancellationToken)
             : null;
 
+        var soLineIds = po.Lines.Where(l => l.SalesOrderLineId is not null).Select(l => l.SalesOrderLineId!.Value).Distinct().ToList();
+        var soLines = soLineIds.Count == 0
+            ? []
+            : await db.SalesOrderLines.AsNoTracking()
+                .Where(l => soLineIds.Contains(l.Id))
+                .Select(l => new { l.Id, l.SalesOrderId, l.SalesOrder.OrderNumber, l.LineNumber })
+                .ToDictionaryAsync(l => l.Id, cancellationToken);
+        var dropShipAddress = po.DropShipAddressId is int dropShipAddressId
+            ? await db.CustomerAddresses.AsNoTracking().FirstOrDefaultAsync(a => a.Id == dropShipAddressId, cancellationToken)
+            : null;
+
         return new PurchaseOrderDetailResponseModel(
             po.Id,
             po.PONumber,
@@ -123,7 +134,11 @@ public class GetPurchaseOrderByIdHandler(
                     : null,
                 ReceiptLotRecords.TracksLot(l.Part, capabilities),
                 UnitOf(l) is { } unit ? unit.Symbol ?? unit.Code : null,
-                UnitOf(l)?.DecimalPlaces)).ToList(),
+                UnitOf(l)?.DecimalPlaces,
+                l.SalesOrderLineId,
+                l.SalesOrderLineId is int soLineId && soLines.TryGetValue(soLineId, out var soLine) ? soLine.SalesOrderId : null,
+                l.SalesOrderLineId is int numberLineId && soLines.TryGetValue(numberLineId, out var numberLine) ? numberLine.OrderNumber : null,
+                l.SalesOrderLineId is int seqLineId && soLines.TryGetValue(seqLineId, out var seqLine) ? seqLine.LineNumber : null)).ToList(),
             po.CreatedAt,
             po.UpdatedAt,
             po.ShortCloseReason,
@@ -158,7 +173,13 @@ public class GetPurchaseOrderByIdHandler(
                 ? await db.Currencies.AsNoTracking().Where(c => c.Id == currencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken) ?? po.QuoteCurrency
                 : po.QuoteCurrency,
             PaymentTermsId: po.PaymentTermsId,
-            PaymentTerms: await new PaymentTermsResolver(db).ModelAsync(po.PaymentTermsId ?? po.Vendor?.PaymentTermsId, null, cancellationToken));
+            PaymentTerms: await new PaymentTermsResolver(db).ModelAsync(po.PaymentTermsId ?? po.Vendor?.PaymentTermsId, null, cancellationToken),
+            FulfilmentType: po.FulfilmentType.ToString(),
+            DropShipAddressId: dropShipAddress?.Id,
+            DropShipAddressText: dropShipAddress is null
+                ? null
+                : PurchaseOrderParties.OneLine(dropShipAddress.Line1, dropShipAddress.Line2, dropShipAddress.City,
+                    dropShipAddress.State, dropShipAddress.PostalCode, dropShipAddress.Country));
     }
 
     private async Task<Dictionary<int, string>> ResolveReceivableBinPathsAsync(

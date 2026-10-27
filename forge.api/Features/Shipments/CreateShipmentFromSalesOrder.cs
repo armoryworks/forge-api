@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -11,7 +12,8 @@ namespace Forge.Api.Features.Shipments;
 /// production-complete and not yet fully shipped, pre-filled with its remaining quantity, then delegates
 /// to <see cref="CreateShipmentCommand"/> (which validates the confirmed order and the quantity still open
 /// to ship, and stamps the scan code). A line is shippable when it has no production jobs, or all
-/// of its jobs have reached a ship/complete stage — so un-produced lines are left behind, not shipped.
+/// of its jobs have reached a ship/complete stage — so un-produced lines are left behind, not shipped. Quantity a
+/// vendor still has to drop-ship is left off too: it never leaves our dock.
 /// </summary>
 public record CreateShipmentFromSalesOrderCommand(int SalesOrderId) : IRequest<ShipmentListItemModel>;
 
@@ -34,10 +36,20 @@ public class CreateShipmentFromSalesOrderHandler(AppDbContext db, IMediator medi
             .FirstOrDefaultAsync(o => o.Id == request.SalesOrderId, cancellationToken)
             ?? throw new KeyNotFoundException($"Sales order {request.SalesOrderId} not found");
 
+        var lineIds = order.Lines.Select(l => l.Id).ToList();
+        var dropShipOutstanding = (await db.PurchaseOrderLines.AsNoTracking()
+                .Where(l => l.SalesOrderLineId != null && lineIds.Contains(l.SalesOrderLineId.Value)
+                    && l.PurchaseOrder.FulfilmentType == FulfilmentType.DropShip
+                    && l.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled)
+                .Select(l => new { LineId = l.SalesOrderLineId!.Value, Open = l.OrderedQuantity - l.ReceivedQuantity - l.CancelledShortCloseQuantity })
+                .ToListAsync(cancellationToken))
+            .GroupBy(l => l.LineId)
+            .ToDictionary(g => g.Key, g => g.Sum(l => Math.Max(0m, l.Open)));
+
         var lines = new List<CreateShipmentLineModel>();
         foreach (var line in order.Lines)
         {
-            var open = SalesOrderShipping.OpenToShip(order, line);
+            var open = SalesOrderShipping.OpenToShip(order, line) - dropShipOutstanding.GetValueOrDefault(line.Id);
             if (open <= 0 || !line.ShipsGoods) continue;
 
             // Ship a line only once its production is done: no jobs, or every job at a ship/complete stage.

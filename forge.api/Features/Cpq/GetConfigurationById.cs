@@ -23,6 +23,6 @@ public class GetConfigurationByIdHandler(AppDbContext db) : IRequestHandler<GetC
             config.ComputedPrice, config.GeneratedBomJson,
             config.GeneratedRoutingJson, config.QuoteId,
             config.PartId, config.Status,
-            config.CreatedAt, config.UpdatedAt);
+            config.CreatedAt, config.UpdatedAt, config.Quantity);
     }
 }

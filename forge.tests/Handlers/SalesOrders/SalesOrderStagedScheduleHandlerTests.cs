@@ -406,6 +406,28 @@ public class SalesOrderStagedScheduleHandlerTests
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*ready to ship*");
     }
 
+    [Fact]
+    public async Task A_shipped_stage_can_be_neither_deleted_nor_reassigned()
+    {
+        using var db = TestDbContextFactory.Create();
+        var order = await SeedOrderAsync(db, 5m);
+        var stage = new SalesOrderStage
+        {
+            SalesOrderId = order.Id, Sequence = 1, Name = "S", Status = SalesOrderStageStatus.Shipped,
+        };
+        db.SalesOrderStages.Add(stage);
+        await db.SaveChangesAsync();
+
+        var delete = () => new DeleteSalesOrderStageHandler(db, FixedClock())
+            .Handle(new DeleteSalesOrderStageCommand(stage.Id), CancellationToken.None);
+        var assign = () => new AssignStageLinesHandler(db, FixedClock())
+            .Handle(new AssignStageLinesCommand(stage.Id, [new StageLineAllocationModel(order.Lines.First().Id, 1m)]), CancellationToken.None);
+
+        await delete.Should().ThrowAsync<InvalidOperationException>().WithMessage("*has shipped*");
+        await assign.Should().ThrowAsync<InvalidOperationException>().WithMessage("*has shipped*");
+        (await db.SalesOrderStages.SingleAsync()).DeletedAt.Should().BeNull();
+    }
+
     private static async Task<(SalesOrderStage A, SalesOrderStage B)> SeedTwoStagesAsync(AppDbContext db, int orderId)
     {
         var a = new SalesOrderStage { SalesOrderId = orderId, Sequence = 1, Name = "A" };

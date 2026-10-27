@@ -62,6 +62,30 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
 
         var subtotal = so.Lines.Sum(l => l.Quantity * l.UnitPrice);
 
+        var lineIds = so.Lines.Select(l => l.Id).ToList();
+        var purchases = (await db.PurchaseOrderLines.AsNoTracking()
+                .Where(l => l.SalesOrderLineId != null && lineIds.Contains(l.SalesOrderLineId.Value))
+                .OrderBy(l => l.PurchaseOrderId)
+                .Select(l => new
+                {
+                    LineId = l.SalesOrderLineId!.Value,
+                    l.PurchaseOrderId,
+                    l.PurchaseOrder.PONumber,
+                    l.Id,
+                    l.PurchaseOrder.FulfilmentType,
+                    l.PurchaseOrder.Status,
+                    l.PurchaseOrder.Vendor.CompanyName,
+                    l.OrderedQuantity,
+                    l.ReceivedQuantity,
+                    l.CancelledShortCloseQuantity,
+                    l.PurchaseOrder.ExpectedDeliveryDate,
+                })
+                .ToListAsync(cancellationToken))
+            .ToLookup(p => p.LineId, p => new SalesOrderLinePurchaseModel(
+                p.PurchaseOrderId, p.PONumber, p.Id, p.FulfilmentType.ToString(), p.Status.ToString(), p.CompanyName,
+                p.OrderedQuantity, p.ReceivedQuantity, p.OrderedQuantity - p.ReceivedQuantity - p.CancelledShortCloseQuantity,
+                p.ExpectedDeliveryDate));
+
         return new SalesOrderDetailResponseModel(
             so.Id,
             so.OrderNumber,
@@ -107,7 +131,8 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
                 CreateJobsForSalesOrderLinesHandler.SkipReason(l, routedPartIds) is null,
                 l.ShipsGoods,
                 l.LineType,
-                l.TaxCode != InvoiceLine.NonTaxableCode
+                l.TaxCode != InvoiceLine.NonTaxableCode,
+                purchases[l.Id].ToList()
             )).ToList(),
             so.Shipments.Select(s => new SalesOrderShipmentModel(
                 s.Id,

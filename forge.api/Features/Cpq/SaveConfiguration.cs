@@ -5,6 +5,7 @@ using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Cpq;
 
@@ -22,12 +23,13 @@ public class SaveConfigurationHandler(AppDbContext db, ICpqService cpqService, I
             .FirstOrDefaultAsync(c => c.Id == request.ConfiguratorId, cancellationToken)
             ?? throw new KeyNotFoundException($"Configurator {request.ConfiguratorId} not found");
 
-        var result = await cpqService.ConfigureAsync(request.ConfiguratorId, request.Selections, cancellationToken);
+        var quantity = request.Quantity ?? 1m;
+        var result = await cpqService.ConfigureAsync(request.ConfiguratorId, request.Selections, quantity, cancellationToken);
         if (!result.IsValid)
             throw new InvalidOperationException("Configuration has validation errors: " + string.Join(", ", result.ValidationErrors));
 
         var now = clock.UtcNow;
-        var code = $"CFG-{now:yyyyMMdd}-{now:HHmmss}";
+        var code = $"CFG-{now:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
 
         var configuration = new ProductConfiguration
         {
@@ -35,11 +37,16 @@ public class SaveConfigurationHandler(AppDbContext db, ICpqService cpqService, I
             ConfigurationCode = code,
             SelectionsJson = JsonSerializer.Serialize(request.Selections),
             ComputedPrice = result.ComputedPrice,
+            Quantity = result.Quantity,
             GeneratedBomJson = JsonSerializer.Serialize(result.BomPreview),
             GeneratedRoutingJson = JsonSerializer.Serialize(result.RoutingPreview),
         };
 
         db.ProductConfigurations.Add(configuration);
+        db.LogActivityAt(
+            "configuration-saved",
+            $"Saved configuration {code} at {result.ComputedPrice:0.####} x {result.Quantity:0.####}",
+            ("ProductConfigurator", configurator.Id));
         await db.SaveChangesAsync(cancellationToken);
 
         return new ProductConfigurationResponseModel(
@@ -48,6 +55,6 @@ public class SaveConfigurationHandler(AppDbContext db, ICpqService cpqService, I
             configuration.ComputedPrice, configuration.GeneratedBomJson,
             configuration.GeneratedRoutingJson, configuration.QuoteId,
             configuration.PartId, configuration.Status,
-            configuration.CreatedAt, configuration.UpdatedAt);
+            configuration.CreatedAt, configuration.UpdatedAt, configuration.Quantity);
     }
 }

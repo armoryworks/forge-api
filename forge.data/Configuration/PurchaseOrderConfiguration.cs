@@ -9,6 +9,7 @@ public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder
     public void Configure(EntityTypeBuilder<PurchaseOrder> builder)
     {
         builder.Property(e => e.OriginSource).HasConversion<string>().HasMaxLength(30);
+        builder.Property(e => e.FulfilmentType).HasConversion<string>().HasMaxLength(20);
 
         // Legacy backfill defaults — declared to match the deployed schema so the squashed
         // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
@@ -68,6 +69,12 @@ public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder
         builder.HasOne(e => e.ShipToLocation)
             .WithMany()
             .HasForeignKey(e => e.ShipToLocationId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(e => e.DropShipAddressId);
+        builder.HasOne(e => e.DropShipAddress)
+            .WithMany()
+            .HasForeignKey(e => e.DropShipAddressId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(e => e.Lines)

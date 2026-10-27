@@ -2,6 +2,7 @@ using MediatR;
 using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Cpq;
 
@@ -48,6 +49,11 @@ public class CreateConfiguratorHandler(AppDbContext db) : IRequestHandler<Create
         }
 
         db.ProductConfigurators.Add(configurator);
+        await db.SaveChangesAsync(cancellationToken);
+        db.LogActivityAt(
+            "created",
+            $"Created configurator {configurator.Name} on {part.PartNumber} with {configurator.Options.Count} option(s)",
+            ("ProductConfigurator", configurator.Id));
         await db.SaveChangesAsync(cancellationToken);
 
         return new ConfiguratorResponseModel(

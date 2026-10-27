@@ -951,7 +951,6 @@ try
         builder.Services.AddScoped<Forge.Api.Features.Edi.IEdiPartNumberMapService,
                                    Forge.Api.Features.Edi.EdiPartNumberMapService>();
         builder.Services.AddSingleton<IEdiTransportService, MockEdiTransportService>();
-        builder.Services.AddSingleton<ICpqService, MockCpqService>();
         builder.Services.AddScoped<ICurrencyService, CurrencyService>();
         builder.Services.AddSingleton<ILocalizationService, MockLocalizationService>();
         builder.Services.AddScoped<IPlantContextService, MockPlantContextService>();
@@ -973,8 +972,6 @@ try
         builder.Services.AddSingleton<IConsignmentService, MockConsignmentService>();
         builder.Services.AddSingleton<IAbcClassificationService, MockAbcClassificationService>();
         builder.Services.AddSingleton<IPickWaveService, MockPickWaveService>();
-        builder.Services.AddSingleton<IDropShipService, MockDropShipService>();
-        builder.Services.AddSingleton<IBackToBackService, MockBackToBackService>();
         builder.Services.AddSingleton<IProjectAccountingService, MockProjectAccountingService>();
         builder.Services.AddSingleton<ICopqService, MockCopqService>();
         builder.Services.AddSingleton<IPredictiveMaintenanceService, MockPredictiveMaintenanceService>();
@@ -1059,7 +1056,6 @@ try
         builder.Services.AddScoped<Forge.Api.Features.Edi.IEdiPartNumberMapService,
                                    Forge.Api.Features.Edi.EdiPartNumberMapService>();
         builder.Services.AddSingleton<IEdiTransportService, MockEdiTransportService>();
-        builder.Services.AddSingleton<ICpqService, Forge.Api.Services.Unavailable.UnavailableCpqService>();
         builder.Services.AddScoped<ICurrencyService, CurrencyService>();
         builder.Services.AddSingleton<ILocalizationService, MockLocalizationService>();
         builder.Services.AddScoped<IPlantContextService, MockPlantContextService>();
@@ -1085,13 +1081,28 @@ try
         builder.Services.AddSingleton<IConsignmentService, MockConsignmentService>();
         builder.Services.AddSingleton<IAbcClassificationService, MockAbcClassificationService>();
         builder.Services.AddSingleton<IPickWaveService, MockPickWaveService>();
-        builder.Services.AddSingleton<IDropShipService, Forge.Api.Services.Unavailable.UnavailableDropShipService>();
-        builder.Services.AddSingleton<IBackToBackService, Forge.Api.Services.Unavailable.UnavailableBackToBackService>();
         builder.Services.AddSingleton<IProjectAccountingService, MockProjectAccountingService>();
         // COPQ and Predictive Maintenance — mock for now until real engines built
         builder.Services.AddSingleton<ICopqService, MockCopqService>();
         builder.Services.AddSingleton<IPredictiveMaintenanceService, MockPredictiveMaintenanceService>();
     }
+
+    builder.Services.AddScoped<Forge.Api.Services.Cpq.BuiltInCpqService>();
+    builder.Services.AddScoped<ICpqService>(sp =>
+        sp.GetRequiredService<Forge.Api.Capabilities.ICapabilitySnapshotProvider>().IsEnabled("CAP-O2C-CPQ")
+            ? sp.GetRequiredService<Forge.Api.Services.Cpq.BuiltInCpqService>()
+            : new Forge.Api.Services.Unavailable.UnavailableCpqService());
+    builder.Services.AddScoped<Forge.Api.Services.Fulfilment.LinkedPurchaseOrders>();
+    builder.Services.AddScoped<Forge.Api.Services.Fulfilment.BuiltInDropShipService>();
+    builder.Services.AddScoped<IDropShipService>(sp =>
+        sp.GetRequiredService<Forge.Api.Capabilities.ICapabilitySnapshotProvider>().IsEnabled("CAP-P2P-DROPSHIP")
+            ? sp.GetRequiredService<Forge.Api.Services.Fulfilment.BuiltInDropShipService>()
+            : new Forge.Api.Services.Unavailable.UnavailableDropShipService());
+    builder.Services.AddScoped<Forge.Api.Services.Fulfilment.BuiltInBackToBackService>();
+    builder.Services.AddScoped<IBackToBackService>(sp =>
+        sp.GetRequiredService<Forge.Api.Capabilities.ICapabilitySnapshotProvider>().IsEnabled("CAP-P2P-BACKTOBACK")
+            ? sp.GetRequiredService<Forge.Api.Services.Fulfilment.BuiltInBackToBackService>()
+            : new Forge.Api.Services.Unavailable.UnavailableBackToBackService());
 
     // Phase 1m.4 / Phase 3 — per-integration resolution. Applied AFTER the global
     // if/else block, so the resolved mode (explicit Mock/Real/Disabled, or Auto =

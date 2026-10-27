@@ -14,4 +14,6 @@ public record DropShipStatusResponseModel
     public string? PurchaseOrderNumber { get; init; }
     public string Status { get; init; } = string.Empty;
     public string? TrackingNumber { get; init; }
+    public int? PurchaseOrderLineId { get; init; }
+    public DateTimeOffset? ExpectedDeliveryDate { get; init; }
 }

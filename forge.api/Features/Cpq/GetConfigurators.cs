@@ -14,6 +14,7 @@ public class GetConfiguratorsHandler(AppDbContext db) : IRequestHandler<GetConfi
         var query = db.ProductConfigurators
             .AsNoTracking()
             .Include(c => c.BasePart)
+            .Include(c => c.Options)
             .AsQueryable();
 
         if (request.IsActive.HasValue)

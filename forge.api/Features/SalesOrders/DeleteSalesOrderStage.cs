@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
@@ -34,6 +35,9 @@ public class DeleteSalesOrderStageHandler(AppDbContext db, IClock clock)
             .Include(s => s.Lots)
             .FirstOrDefaultAsync(s => s.Id == request.StageId, cancellationToken)
             ?? throw new KeyNotFoundException($"Sales order stage {request.StageId} not found");
+
+        if (stage.Status is SalesOrderStageStatus.Shipped or SalesOrderStageStatus.Closed)
+            throw new InvalidOperationException($"Stage '{stage.Name}' has shipped and cannot be deleted.");
 
         var now = clock.UtcNow;
 

@@ -2,4 +2,5 @@ namespace Forge.Core.Models;
 
 public record SaveConfigurationRequestModel(
     int ConfiguratorId,
-    Dictionary<string, string> Selections);
+    Dictionary<string, string> Selections,
+    decimal? Quantity = null);

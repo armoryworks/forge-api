@@ -59,4 +59,7 @@ public record PurchaseOrderDetailResponseModel(
     int? CurrencyId = null,
     string? CurrencyCode = null,
     int? PaymentTermsId = null,
-    PaymentTermsModel? PaymentTerms = null);
+    PaymentTermsModel? PaymentTerms = null,
+    string FulfilmentType = "Standard",
+    int? DropShipAddressId = null,
+    string? DropShipAddressText = null);
