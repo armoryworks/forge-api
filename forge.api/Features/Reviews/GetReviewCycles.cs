@@ -12,12 +12,17 @@ public class GetReviewCyclesHandler(AppDbContext db) : IRequestHandler<GetReview
 {
     public async Task<List<ReviewCycleResponseModel>> Handle(GetReviewCyclesQuery request, CancellationToken cancellationToken)
     {
-        return await db.ReviewCycles.AsNoTracking()
+        var cycles = await db.ReviewCycles.AsNoTracking()
             .Where(c => c.DeletedAt == null)
             .OrderByDescending(c => c.StartDate)
-            .Select(c => new ReviewCycleResponseModel(
-                c.Id, c.Name, c.StartDate, c.EndDate,
-                c.Status, c.Description, c.Reviews.Count))
             .ToListAsync(cancellationToken);
+        var ids = cycles.Select(c => c.Id).ToList();
+        var statuses = (await db.PerformanceReviews.AsNoTracking()
+                .Where(r => ids.Contains(r.CycleId))
+                .Select(r => new { r.CycleId, r.Status })
+                .ToListAsync(cancellationToken))
+            .ToLookup(r => r.CycleId, r => r.Status);
+
+        return cycles.Select(c => ReviewProjection.ToCycleModel(c, statuses[c.Id].ToList())).ToList();
     }
 }

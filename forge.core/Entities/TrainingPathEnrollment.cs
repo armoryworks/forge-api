@@ -7,6 +7,7 @@ public class TrainingPathEnrollment : BaseAuditableEntity
     public DateTimeOffset? CompletedAt { get; set; }
     public bool IsAutoAssigned { get; set; } = false;
     public int? AssignedByUserId { get; set; }
+    public DateOnly? DueDate { get; set; }
 
     public TrainingPath Path { get; set; } = null!;
 }

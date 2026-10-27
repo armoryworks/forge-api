@@ -4,6 +4,7 @@ using MediatR;
 using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Reviews;
 
@@ -13,9 +14,10 @@ public class CreateReviewCycleValidator : AbstractValidator<CreateReviewCycleCom
 {
     public CreateReviewCycleValidator()
     {
-        RuleFor(x => x.Request.Name).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.Request.StartDate).NotEmpty();
-        RuleFor(x => x.Request.EndDate).GreaterThan(x => x.Request.StartDate);
+        ReviewCycleRules.Apply(this,
+            x => x.Request.Name, x => x.Request.StartDate, x => x.Request.EndDate,
+            x => x.Request.RatingScaleMax, x => x.Request.Competencies,
+            x => x.Request.ScopeType, x => x.Request.ScopeDepartment, x => x.Request.ScopeUserIds);
     }
 }
 
@@ -23,19 +25,25 @@ public class CreateReviewCycleHandler(AppDbContext db) : IRequestHandler<CreateR
 {
     public async Task<ReviewCycleResponseModel> Handle(CreateReviewCycleCommand request, CancellationToken cancellationToken)
     {
+        var r = request.Request;
         var cycle = new ReviewCycle
         {
-            Name = request.Request.Name.Trim(),
-            StartDate = request.Request.StartDate,
-            EndDate = request.Request.EndDate,
-            Description = request.Request.Description?.Trim(),
+            Name = r.Name.Trim(),
+            StartDate = r.StartDate,
+            EndDate = r.EndDate,
+            Description = r.Description?.Trim(),
+            RatingScaleMax = r.RatingScaleMax ?? 5,
+            CompetenciesJson = ReviewJson.Write(ReviewCycleRules.CleanCompetencies(r.Competencies)),
+            ScopeType = r.ScopeType ?? ReviewScopeTypes.All,
+            ScopeDepartment = r.ScopeType == ReviewScopeTypes.Department ? r.ScopeDepartment?.Trim() : null,
+            ScopeUserIdsJson = r.ScopeType == ReviewScopeTypes.List ? ReviewJson.Write(r.ScopeUserIds?.Distinct().ToList()) : null,
         };
 
         db.ReviewCycles.Add(cycle);
         await db.SaveChangesAsync(cancellationToken);
+        db.LogActivityAt("created", $"Review cycle {cycle.Name} created", ("ReviewCycle", cycle.Id));
+        await db.SaveChangesAsync(cancellationToken);
 
-        return new ReviewCycleResponseModel(
-            cycle.Id, cycle.Name, cycle.StartDate, cycle.EndDate,
-            cycle.Status, cycle.Description, 0);
+        return ReviewProjection.ToCycleModel(cycle, []);
     }
 }

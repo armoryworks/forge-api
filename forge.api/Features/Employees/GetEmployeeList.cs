@@ -57,6 +57,11 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
         if (qry.TeamId.HasValue)
             users = users.Where(u => u.TeamId == qry.TeamId.Value);
 
+        if (qry.Terminated == true)
+            users = users.Where(u => db.EmployeeProfiles.Any(p => p.UserId == u.Id && p.TerminationAppliedAt != null));
+        else if (qry.Terminated == false)
+            users = users.Where(u => !db.EmployeeProfiles.Any(p => p.UserId == u.Id && p.TerminationAppliedAt != null));
+
         foreach (var term in SearchTerms(qry.Q))
         {
             users = users.Where(u =>
@@ -153,12 +158,19 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
     private async Task<List<Core.Entities.EmployeeProfile>> UserlessProfilesAsync(
         EmployeeListQuery qry, bool restrictedToTeam, CancellationToken cancellationToken)
     {
-        if (restrictedToTeam || qry.IsActive == false || qry.TeamId.HasValue || !string.IsNullOrWhiteSpace(qry.Role))
+        if (restrictedToTeam || qry.TeamId.HasValue || !string.IsNullOrWhiteSpace(qry.Role))
             return [];
 
         var profiles = db.EmployeeProfiles
             .AsNoTracking()
             .Where(p => p.UserId == null && p.DeletedAt == null);
+
+        if (qry.Terminated == false && qry.IsActive == false)
+            return [];
+        if (qry.Terminated == true || qry.IsActive == false)
+            profiles = profiles.Where(p => p.TerminationAppliedAt != null);
+        else if (qry.Terminated == false || qry.IsActive == true)
+            profiles = profiles.Where(p => p.TerminationAppliedAt == null);
 
         foreach (var term in SearchTerms(qry.Q))
         {
@@ -202,7 +214,7 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
             .Select(u => new MergedRow(u.Id, u.FirstName, u.LastName, u.Email ?? string.Empty, u.IsActive,
                 u.CreatedAt, u.UpdatedAt, u, null))
             .Concat(userless.Select(p => new MergedRow(p.Id, p.FirstName ?? string.Empty, p.LastName ?? string.Empty,
-                p.WorkEmail ?? string.Empty, true, p.CreatedAt, p.UpdatedAt, null, p)))
+                p.WorkEmail ?? string.Empty, p.TerminationAppliedAt == null, p.CreatedAt, p.UpdatedAt, null, p)))
             .ToList();
 
         var text = StringComparer.CurrentCultureIgnoreCase;
@@ -262,12 +274,14 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
             string.Empty,
             null,
             null,
-            true,
+            profile.TerminationAppliedAt == null,
             profile.JobTitle,
             profile.Department,
             profile.StartDate,
             profile.CreatedAt,
-            HasLogin: false);
+            HasLogin: false,
+            TerminationDate: profile.TerminationDate,
+            IsTerminated: profile.TerminationAppliedAt != null);
 
     private async Task<List<EmployeeListItemResponseModel>> ProjectUsersAsync(
         List<ApplicationUser> usersList, CancellationToken cancellationToken)
@@ -317,7 +331,9 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
                 profile?.JobTitle,
                 profile?.Department,
                 profile?.StartDate,
-                user.CreatedAt));
+                user.CreatedAt,
+                TerminationDate: profile?.TerminationDate,
+                IsTerminated: profile?.TerminationAppliedAt != null));
         }
 
         return items;

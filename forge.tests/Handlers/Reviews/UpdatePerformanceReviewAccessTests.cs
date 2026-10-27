@@ -29,7 +29,7 @@ public class UpdatePerformanceReviewAccessTests
 
     private Task Patch(int reviewId, int caller, string[] roles, ReviewStatus? status = null, decimal? rating = null,
         string? strengths = null, string? selfAssessment = null)
-        => new UpdatePerformanceReviewHandler(_h.Db, _h.Clock.Object, TestCaller.As(caller, roles)).Handle(
+        => new UpdatePerformanceReviewHandler(_h.Db, TestCaller.As(caller, roles)).Handle(
             new UpdatePerformanceReviewCommand(reviewId, status, rating, null, null, strengths, null, selfAssessment),
             CancellationToken.None);
 
@@ -41,7 +41,7 @@ public class UpdatePerformanceReviewAccessTests
     {
         var (ben, lena, _, review) = await SeedAsync();
 
-        await Patch(review.Id, lena, ["Manager"], ReviewStatus.ManagerReview, 4m, "Owns the 5-axis cell");
+        await Patch(review.Id, lena, ["Manager"], rating: 4m, strengths: "Owns the 5-axis cell");
         await Patch(review.Id, ben, ["ProductionWorker"], selfAssessment: "Cut OP20 setup to 32 min.");
 
         var saved = await ReloadAsync(review.Id);

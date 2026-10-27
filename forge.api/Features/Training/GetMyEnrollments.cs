@@ -48,7 +48,8 @@ public class GetMyEnrollmentsHandler(AppDbContext db)
                 totalModules,
                 completedModules,
                 e.CreatedAt,
-                e.CompletedAt
+                e.CompletedAt,
+                e.DueDate
             );
         }).ToList();
     }

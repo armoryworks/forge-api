@@ -22,4 +22,7 @@ public record EmployeeListQuery : PagedQuery
 
     /// <summary>Filter by EmployeeProfile.Department.</summary>
     public string? Department { get; init; }
+
+    /// <summary>Termination filter. <c>true</c> = terminated only, <c>false</c> = not terminated, <c>null</c> = both.</summary>
+    public bool? Terminated { get; init; }
 }

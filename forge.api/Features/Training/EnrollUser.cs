@@ -6,7 +6,7 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Training;
 
-public record EnrollUserCommand(int UserId, int PathId, int AssignedByUserId) : IRequest;
+public record EnrollUserCommand(int UserId, int PathId, int AssignedByUserId, DateOnly? DueDate = null) : IRequest;
 
 public class EnrollUserHandler(AppDbContext db) : IRequestHandler<EnrollUserCommand>
 {
@@ -27,6 +27,7 @@ public class EnrollUserHandler(AppDbContext db) : IRequestHandler<EnrollUserComm
             PathId = request.PathId,
             IsAutoAssigned = false,
             AssignedByUserId = request.AssignedByUserId,
+            DueDate = request.DueDate,
         });
 
         await db.SaveChangesAsync(ct);

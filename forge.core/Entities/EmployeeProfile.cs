@@ -101,5 +101,13 @@ public class EmployeeProfile : BaseAuditableEntity, IConcurrencyVersioned
     public string? I9ForeignPassportProtected { get; set; }
     public string? I9ForeignPassportCountry { get; set; }
     public DateTimeOffset? I9WorkAuthExpiry { get; set; }
-}
 
+    public DateOnly? TerminationDate { get; set; }
+    public string? TerminationReasonCode { get; set; }
+    public string? TerminationNotes { get; set; }
+    public bool? RehireEligible { get; set; }
+    public bool? FinalPayRequired { get; set; }
+    public DateTimeOffset? FinalPayProcessedAt { get; set; }
+    public int? TerminatedByUserId { get; set; }
+    public DateTimeOffset? TerminationAppliedAt { get; set; }
+}
