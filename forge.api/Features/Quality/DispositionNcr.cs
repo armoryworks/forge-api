@@ -5,7 +5,9 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.VendorReturns;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -36,7 +38,8 @@ public class DispositionNcrHandler(
     AppDbContext db,
     IClock clock,
     IHttpContextAccessor httpContextAccessor,
-    INcrScrapPostingService? scrapPosting = null)
+    INcrScrapPostingService? scrapPosting = null,
+    ICapabilitySnapshotProvider? capabilities = null)
     : IRequestHandler<DispositionNcrCommand>
 {
     public async Task Handle(DispositionNcrCommand command, CancellationToken cancellationToken)
@@ -67,6 +70,19 @@ public class DispositionNcrHandler(
 
         if (command.Request.Code is NcrDispositionCode.UseAsIs or NcrDispositionCode.Rework)
             await LotQualityHold.ReleaseAsync(db, ncr, cancellationToken);
+
+        if (command.Request.Code == NcrDispositionCode.ReturnToVendor && (capabilities?.IsEnabled("CAP-P2P-PO") ?? true))
+        {
+            await using var rtvTx = db.Database.CurrentTransaction is null
+                ? await db.Database.BeginTransactionAsync(cancellationToken)
+                : null;
+            await db.SaveChangesAsync(cancellationToken);
+            await VendorReturnFactory.OpenForNcrAsync(db, ncr, userId, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+            if (rtvTx is not null)
+                await rtvTx.CommitAsync(cancellationToken);
+            return;
+        }
 
         if (command.Request.Code != NcrDispositionCode.Scrap)
         {

@@ -32,4 +32,5 @@ public record VendorBillListItemModel(
     DateTimeOffset? DiscountDueDate = null,
     DateTimeOffset? DiscountDeadline = null,
     decimal DiscountsTaken = 0m,
-    decimal DiscountAvailable = 0m);
+    decimal DiscountAvailable = 0m,
+    decimal CreditsApplied = 0m);

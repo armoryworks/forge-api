@@ -33,6 +33,7 @@ public class GetVendorPaymentSuggestionsHandler(AppDbContext db)
         var query = db.VendorBills.AsNoTracking()
             .Include(b => b.Lines)
             .Include(b => b.PaymentApplications)
+            .Include(b => b.CreditApplications)
             .Where(b => b.Status == VendorBillStatus.Approved || b.Status == VendorBillStatus.PartiallyPaid);
         if (request.VendorId is int vendorId)
             query = query.Where(b => b.VendorId == vendorId);
@@ -46,6 +47,14 @@ public class GetVendorPaymentSuggestionsHandler(AppDbContext db)
             .ToDictionaryAsync(v => v.Id, v => v.CompanyName, cancellationToken);
         var currencyCodes = await db.Currencies.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Code, cancellationToken);
         var terms = await new PaymentTermsResolver(db).ModelsAsync(bills.Select(b => b.PaymentTermsId), cancellationToken);
+        var openCredits = (await db.VendorCreditMemos.AsNoTracking()
+                .Include(m => m.Lines)
+                .Include(m => m.Applications)
+                .Where(m => vendorIds.Contains(m.VendorId)
+                    && (m.Status == VendorCreditMemoStatus.Open || m.Status == VendorCreditMemoStatus.PartiallyApplied))
+                .ToListAsync(cancellationToken))
+            .GroupBy(m => (m.VendorId, m.CurrencyId))
+            .ToDictionary(g => g.Key, g => g.Sum(m => m.OpenAmount));
 
         var suggestions = new List<VendorPaymentSuggestionModel>();
         foreach (var bill in bills)
@@ -66,7 +75,8 @@ public class GetVendorPaymentSuggestionsHandler(AppDbContext db)
                 bill.VendorInvoiceNumber, bill.CurrencyId, currencyCodes.GetValueOrDefault(bill.CurrencyId),
                 bill.BillDate, bill.DueDate, balance, balance - discount, discount, deadline,
                 deadline is { } d ? (d.ToOffset(request.PayDate.Offset).Date - request.PayDate.Date).Days : null,
-                bill.PaymentTermsId is int termsId ? terms.GetValueOrDefault(termsId)?.Name : null));
+                bill.PaymentTermsId is int termsId ? terms.GetValueOrDefault(termsId)?.Name : null,
+                openCredits.GetValueOrDefault((bill.VendorId, bill.CurrencyId))));
         }
 
         return suggestions

@@ -141,6 +141,7 @@ public sealed class ApAgingService(AppDbContext db, IClock clock, Forge.Core.Set
         var bills = await db.VendorBills.AsNoTracking()
             .Include(b => b.Lines)
             .Include(b => b.PaymentApplications)
+            .Include(b => b.CreditApplications)
             .Where(b => billIds.Contains(b.Id) && b.DiscountPercent > 0m && b.DiscountDueDate != null)
             .ToListAsync(ct);
         var asOfDate = new DateTimeOffset(asOf.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);

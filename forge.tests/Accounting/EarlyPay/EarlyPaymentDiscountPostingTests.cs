@@ -436,7 +436,7 @@ public class EarlyPaymentDiscountPostingTests
             .ReturnsAsync(new VendorPaymentListItemModel(1, "VP-1", bill.VendorId, "Steel Supply", "Check", 4900m, 4900m, 0m,
                 InvoiceDate.AddDays(8), null, InvoiceDate));
 
-        var result = await new CreateVendorPaymentsFromSuggestionsHandler(db, sender.Object).Handle(
+        var result = await new CreateVendorPaymentsFromSuggestionsHandler(db, sender.Object, new FixedClock(InvoiceDate.AddDays(8))).Handle(
             new CreateVendorPaymentsFromSuggestionsCommand(new CreateVendorPaymentsFromSuggestionsRequestModel(
                 InvoiceDate.AddDays(8), "Check", "RUN-1", null, [new VendorPaymentSuggestionSelectionModel(bill.Id, 4900m, 100m)])),
             CancellationToken.None);
@@ -519,7 +519,7 @@ public class EarlyPaymentDiscountPostingTests
         await db.SaveChangesAsync();
         var sender = new Mock<ISender>();
 
-        var act = () => new CreateVendorPaymentsFromSuggestionsHandler(db, sender.Object).Handle(
+        var act = () => new CreateVendorPaymentsFromSuggestionsHandler(db, sender.Object, new FixedClock(InvoiceDate.AddDays(8))).Handle(
             new CreateVendorPaymentsFromSuggestionsCommand(new CreateVendorPaymentsFromSuggestionsRequestModel(
                 InvoiceDate.AddDays(8), "Check", "RUN-2", null,
                 [

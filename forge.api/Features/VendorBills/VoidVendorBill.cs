@@ -52,6 +52,10 @@ public class VoidVendorBillHandler(
             throw new InvalidOperationException(
                 "Cannot void a bill with payments applied; void the payment(s) first.");
 
+        if (db is not null && await db.VendorCreditMemoApplications.AnyAsync(a => a.VendorBillId == bill.Id && a.ReversedAt == null, cancellationToken))
+            throw new InvalidOperationException(
+                $"Cannot void bill {bill.BillNumber}: vendor credits are applied to it. Unapply them first.");
+
         if (bill.Provider == ConversionOpenItems.Provider)
             throw new InvalidOperationException(
                 $"Bill {bill.BillNumber} carries an opening balance brought over at conversion, so voiding it "

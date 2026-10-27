@@ -21,6 +21,7 @@ public class EntityActivityController(IMediator mediator, IEntityAccessResolver 
         "Job", "Part", "Asset", "Lead", "Customer", "Expense",
         "SalesOrder", "Invoice", "Quote", "Shipment", "Payment",
         "PurchaseOrder", "Vendor", "CustomerReturn", "CreditMemo", "Lot",
+        "VendorCreditMemo", "VendorReturn", "PaymentRun",
         "VendorBill", "VendorPayment", "QcInspection", "NonConformance",
     };
 

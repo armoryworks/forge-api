@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.PaymentTerms;
+using Forge.Api.Features.VendorCredits;
 using Forge.Api.Jobs;
 using Forge.Api.Services;
 using Forge.Api.Services.Fx;
@@ -36,7 +37,9 @@ public record CreateVendorPaymentCommand(
     string? Notes,
     List<CreateVendorPaymentApplicationModel>? Applications,
     int? CurrencyId = null,
-    decimal? FxRate = null) : IRequest<VendorPaymentListItemModel>;
+    decimal? FxRate = null,
+    List<CreateVendorPaymentCreditModel>? Credits = null,
+    int? PaymentRunId = null) : IRequest<VendorPaymentListItemModel>;
 
 public class CreateVendorPaymentValidator : AbstractValidator<CreateVendorPaymentCommand>
 {
@@ -63,12 +66,23 @@ public class CreateVendorPaymentValidator : AbstractValidator<CreateVendorPaymen
             RuleForEach(x => x.Applications).ChildRules(app =>
             {
                 app.RuleFor(a => a.VendorBillId).GreaterThan(0);
-                app.RuleFor(a => a.Amount).GreaterThan(0).MoneyScale();
+                app.RuleFor(a => a.Amount).GreaterThanOrEqualTo(0).MoneyScale();
                 // Settlement FX rate must be positive (a 0 or negative rate would zero/invert the functional
                 // cash amount, breaking the realized-FX plug). Default 1 satisfies this for single-currency.
                 app.RuleFor(a => a.SettlementFxRate).GreaterThan(0m).When(a => a.SettlementFxRate.HasValue);
                 app.RuleFor(a => a.DiscountAmount).GreaterThanOrEqualTo(0m).MoneyScale().When(a => a.DiscountAmount.HasValue);
             });
+            RuleFor(x => x)
+                .Must(x => x.Applications!.All(a => a.Amount > 0m
+                    || (x.Credits ?? []).Any(c => c.VendorBillId == a.VendorBillId)))
+                .WithName("Applications")
+                .WithMessage("Each application must pay more than zero, unless a vendor credit settles the rest of that bill.");
+        });
+        RuleForEach(x => x.Credits).ChildRules(credit =>
+        {
+            credit.RuleFor(c => c.VendorCreditMemoId).GreaterThan(0);
+            credit.RuleFor(c => c.VendorBillId).GreaterThan(0);
+            credit.RuleFor(c => c.Amount).GreaterThan(0m).MoneyScale();
         });
     }
 }
@@ -90,7 +104,8 @@ public class CreateVendorPaymentHandler(
     Forge.Api.Capabilities.ICapabilitySnapshotProvider? capabilities = null,
     // banking.wire.manual-attestation: wires wait for a second user's attestation instead of the
     // mock channel. Optional/null (isolated unit tests) = setting off.
-    Forge.Core.Settings.ISettingsService? settings = null)
+    Forge.Core.Settings.ISettingsService? settings = null,
+    IVendorCreditMemoPostingService? creditPosting = null)
     : IRequestHandler<CreateVendorPaymentCommand, VendorPaymentListItemModel>
 {
     public async Task<VendorPaymentListItemModel> Handle(CreateVendorPaymentCommand request, CancellationToken cancellationToken)
@@ -125,7 +140,23 @@ public class CreateVendorPaymentHandler(
             PaymentDate = request.PaymentDate,
             ReferenceNumber = request.ReferenceNumber,
             Notes = request.Notes,
+            PaymentRunId = request.PaymentRunId,
         };
+
+        var creditApplications = new List<VendorCreditMemoApplication>();
+        foreach (var credit in request.Credits ?? [])
+        {
+            var memo = await VendorCreditMemoRules.LoadMemoAsync(db, credit.VendorCreditMemoId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Vendor credit memo {credit.VendorCreditMemoId} not found");
+            if (memo.VendorId != request.VendorId)
+                throw new InvalidOperationException($"Vendor memo {memo.MemoNumber} belongs to a different vendor");
+            var creditBill = await billRepo.FindWithDetailsAsync(credit.VendorBillId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Vendor bill {credit.VendorBillId} not found");
+            var application = await VendorCreditMemoRules.ApplyAsync(
+                db, memo, creditBill, credit.Amount, request.PaymentDate, cancellationToken, paymentRunId: request.PaymentRunId);
+            payment.CreditApplications.Add(application);
+            creditApplications.Add(application);
+        }
 
         decimal appliedTotal = 0;
         var billCurrencyIds = new List<int>();
@@ -213,6 +244,7 @@ public class CreateVendorPaymentHandler(
                 var b = (VendorBill)entry.Entity;
                 await db.Entry(b).Collection(x => x.Lines).LoadAsync(cancellationToken);
                 await db.Entry(b).Collection(x => x.PaymentApplications).LoadAsync(cancellationToken);
+                await db.Entry(b).Collection(x => x.CreditApplications).LoadAsync(cancellationToken);
 
                 var freshBalance = b.BalanceDue;
 
@@ -244,16 +276,22 @@ public class CreateVendorPaymentHandler(
             await cashPosting.PostVendorPaymentCreatedAsync(payment.Id, createdByUserId, cancellationToken);
         }
 
+        if (creditPosting is not null)
+            foreach (var application in creditApplications)
+                await creditPosting.PostApplicationAsync(application.Id, db.CurrentUserId ?? 0, cancellationToken);
+
         // Activity (transactional entity → log on the payment), inside the same transaction. Without this,
         // non-electronic payments (Check/Cash) left no trail at all — only electronic ones got the
         // transmission-queued row below.
         var money = await MoneyFormat.ForCurrencyIdsAsync(db, billCurrencyIds, cancellationToken);
         var discountTotal = payment.Applications.Sum(a => a.DiscountAmount);
+        var creditTotal = creditApplications.Sum(a => a.Amount);
         db.LogActivityAt(
             "created",
             $"Payment {payment.PaymentNumber} recorded — {money.Format(payment.Amount)} via {method}"
             + (appliedTotal > 0 ? $", {money.Format(appliedTotal)} applied" : string.Empty)
-            + (discountTotal > 0 ? $", {money.Format(discountTotal)} early-payment discount taken" : string.Empty),
+            + (discountTotal > 0 ? $", {money.Format(discountTotal)} early-payment discount taken" : string.Empty)
+            + (creditTotal > 0 ? $", {money.Format(creditTotal)} of vendor credits deducted" : string.Empty),
             ("VendorPayment", payment.Id));
         await db.SaveChangesAsync(cancellationToken);
 

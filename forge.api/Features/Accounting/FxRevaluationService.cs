@@ -140,7 +140,7 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
                 && i.Status != OpenItemStatus.Voided)
             .Select(i => new OpenItemRow(
                 i.SourceType, i.SourceId, i.Status, i.FxRate,
-                i.OriginalTxnAmount, i.OriginalFunctionalAmount, i.AppliedTxnAmount, i.AppliedFunctionalAmount))
+                i.OriginalTxnAmount, i.OriginalFunctionalAmount, i.AppliedTxnAmount, i.AppliedFunctionalAmount, i.Sign))
             .ToListAsync(ct);
 
         var memoItems = receivableItems.Where(i => i.SourceType == CreditMemoPostingService.OpenItemSourceType).ToList();
@@ -148,7 +148,12 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
         var invoices = OpenAsOf(otherReceivables, "Invoice", await InvoiceApplicationsAsync(bookId, otherReceivables, asOfEnd, ct), asOf);
         var credits = OpenAsOf(memoItems, CreditMemoPostingService.OpenItemSourceType, await CreditMemoSettlementsAsync(memoItems, asOfEnd, ct), asOf);
         var receivables = (Foreign: invoices.Foreign + credits.Foreign, Functional: invoices.Functional + credits.Functional);
-        var payables = OpenAsOf(payableItems, "VendorBill", await BillApplicationsAsync(payableItems, ct), asOf);
+        var vendorMemoItems = payableItems.Where(i => i.SourceType == VendorCreditMemoPostingService.OpenItemSourceType).ToList();
+        var otherPayables = payableItems.Where(i => i.SourceType != VendorCreditMemoPostingService.OpenItemSourceType).ToList();
+        var bills = OpenAsOf(otherPayables, "VendorBill", await BillApplicationsAsync(otherPayables, asOfEnd, ct), asOf);
+        var vendorCredits = OpenAsOf(vendorMemoItems, VendorCreditMemoPostingService.OpenItemSourceType,
+            await VendorCreditMemoSettlementsAsync(vendorMemoItems, asOfEnd, ct), asOf);
+        var payables = (Foreign: bills.Foreign + vendorCredits.Foreign, Functional: bills.Functional + vendorCredits.Functional);
 
         return (
             cash.Sum(r => r.Foreign) + receivables.Foreign - payables.Foreign,
@@ -250,8 +255,12 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
             .ToList();
     }
 
+    /// <summary>
+    /// What settled each bill: its payment applications with the early-payment discount each took (the payable they
+    /// relieved, mirroring the AR side), and the vendor credit memo applications live at the as-of date.
+    /// </summary>
     private async Task<List<(int DocumentId, decimal Amount, DateOnly EffectiveDate)>> BillApplicationsAsync(
-        List<OpenItemRow> items, CancellationToken ct)
+        List<OpenItemRow> items, DateTimeOffset asOfEnd, CancellationToken ct)
     {
         var billIds = items.Where(i => i.SourceType == "VendorBill").Select(i => i.SourceId).ToList();
         if (billIds.Count == 0)
@@ -259,11 +268,34 @@ public sealed class FxRevaluationService(AppDbContext db, IPostingEngine posting
 
         var applications = await db.Set<VendorPaymentApplication>().AsNoTracking()
             .Where(a => billIds.Contains(a.VendorBillId))
-            .Select(a => new { a.VendorBillId, a.Amount, a.VendorPayment.PaymentDate })
+            .Select(a => new { a.VendorBillId, Amount = a.Amount + a.DiscountAmount, a.VendorPayment.PaymentDate })
+            .ToListAsync(ct);
+        var credits = await db.VendorCreditMemoApplications.AsNoTracking()
+            .Where(a => billIds.Contains(a.VendorBillId) && (a.ReversedAt == null || a.ReversedAt > asOfEnd))
+            .Select(a => new { a.VendorBillId, a.Amount, a.AppliedAt })
             .ToListAsync(ct);
 
         return applications
             .Select(a => (a.VendorBillId, a.Amount, DateOnly.FromDateTime(a.PaymentDate.UtcDateTime)))
+            .Concat(credits.Select(c => (c.VendorBillId, c.Amount, DateOnly.FromDateTime(c.AppliedAt.UtcDateTime))))
+            .ToList();
+    }
+
+    /// <summary>What used up each vendor credit memo: its applications to bills, each counted from its own date until unapplied.</summary>
+    private async Task<List<(int DocumentId, decimal Amount, DateOnly EffectiveDate)>> VendorCreditMemoSettlementsAsync(
+        List<OpenItemRow> items, DateTimeOffset asOfEnd, CancellationToken ct)
+    {
+        var memoIds = items.Select(i => i.SourceId).ToList();
+        if (memoIds.Count == 0)
+            return [];
+
+        var applications = await db.VendorCreditMemoApplications.AsNoTracking()
+            .Where(a => memoIds.Contains(a.VendorCreditMemoId) && (a.ReversedAt == null || a.ReversedAt > asOfEnd))
+            .Select(a => new { a.VendorCreditMemoId, a.Amount, a.AppliedAt })
+            .ToListAsync(ct);
+
+        return applications
+            .Select(a => (a.VendorCreditMemoId, a.Amount, DateOnly.FromDateTime(a.AppliedAt.UtcDateTime)))
             .ToList();
     }
 
