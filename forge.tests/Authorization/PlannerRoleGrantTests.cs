@@ -106,6 +106,9 @@ public sealed class PlannerRoleGrantTests
     [InlineData("POST", "api/v1/shifts")]
     [InlineData("POST", "api/v1/working-calendars/{id:int}/holidays")]
     [InlineData("POST", "api/v1/work-centers")]
+    [InlineData("POST", "api/v1/jobs/{id:int}/material-issues")]
+    [InlineData("POST", "api/v1/jobs/{id:int}/material-issues/{issueId:int}/return")]
+    [InlineData("POST", "api/v1/jobs/{id:int}/production-runs/{runId:int}/receive-to-stock")]
     public void Planner_is_refused(string verb, string template)
     {
         Actions(verb, template).Should().OnlyContain(a => !Admits(a, Planner), $"{verb} {template}");
@@ -153,6 +156,20 @@ public sealed class PlannerRoleGrantTests
     {
         Actions("POST", "api/v1/purchase-orders").Should().OnlyContain(a => Admits(a, role));
         Actions("POST", "api/v1/purchase-orders/{id:int}/receive").Should().OnlyContain(a => Admits(a, role));
+    }
+
+    [Theory]
+    [InlineData("Admin")]
+    [InlineData("Manager")]
+    [InlineData("PM")]
+    [InlineData("Engineer")]
+    [InlineData("ProductionWorker")]
+    [InlineData("OfficeManager")]
+    public void Keeping_the_planner_off_job_stock_moves_keeps_every_existing_job_role(string role)
+    {
+        Actions("POST", "api/v1/jobs/{id:int}/material-issues").Should().OnlyContain(a => Admits(a, role));
+        Actions("POST", "api/v1/jobs/{id:int}/material-issues/{issueId:int}/return").Should().OnlyContain(a => Admits(a, role));
+        Actions("POST", "api/v1/jobs/{id:int}/production-runs/{runId:int}/receive-to-stock").Should().OnlyContain(a => Admits(a, role));
     }
 
     [Fact]

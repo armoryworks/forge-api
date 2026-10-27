@@ -234,6 +234,7 @@ public class JobsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/production-runs/{runId:int}/receive-to-stock")]
+    [Authorize(Roles = JobRoles.StockMove)]
     [RequiresCapability("CAP-MFG-COMPLETE")]
     public async Task<ActionResult<ProductionRunResponseModel>> ReceiveProductionRunToStock(
         int id, int runId, [FromQuery] int? locationId = null)
@@ -379,6 +380,7 @@ public class JobsController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new GetJobMaterialIssuesQuery(id, page, pageSize), ct));
 
     [HttpPost("{id:int}/material-issues")]
+    [Authorize(Roles = JobRoles.StockMove)]
     [RequiresCapability("CAP-MFG-MATL-ISSUE")]
     public async Task<ActionResult<MaterialIssueResponseModel>> CreateMaterialIssue(
         int id, [FromBody] MaterialIssueRequest req, CancellationToken ct)
@@ -398,6 +400,7 @@ public class JobsController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new GetJobIssuableMaterialsQuery(id), ct));
 
     [HttpPost("{id:int}/material-issues/{issueId:int}/return")]
+    [Authorize(Roles = JobRoles.StockMove)]
     [RequiresCapability("CAP-MFG-MATL-ISSUE")]
     public async Task<ActionResult<MaterialIssueResponseModel>> ReturnMaterialIssue(
         int id, int issueId, CancellationToken ct)
