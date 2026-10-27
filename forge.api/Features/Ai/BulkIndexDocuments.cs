@@ -27,7 +27,7 @@ public class BulkIndexDocumentsHandler(
     IMediator mediator,
     ILogger<BulkIndexDocumentsHandler> logger) : IRequestHandler<BulkIndexDocumentsCommand, int>
 {
-    private static readonly string[] SupportedEntityTypes = ["Job", "Part", "FileAttachment", "Customer", "Asset", "Documentation"];
+    internal static readonly string[] SupportedEntityTypes = ["Job", "Part", "FileAttachment", "Customer", "Asset", "Documentation"];
 
     public async Task<int> Handle(BulkIndexDocumentsCommand request, CancellationToken ct)
     {

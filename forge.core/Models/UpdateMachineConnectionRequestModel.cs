@@ -2,6 +2,7 @@ namespace Forge.Core.Models;
 
 public record UpdateMachineConnectionRequestModel
 {
+    public int? WorkCenterId { get; init; }
     public string Name { get; init; } = string.Empty;
     public string OpcUaEndpoint { get; init; } = string.Empty;
     public string? SecurityPolicy { get; init; }

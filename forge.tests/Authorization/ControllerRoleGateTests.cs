@@ -31,7 +31,7 @@ public sealed class ControllerRoleGateTests
         let template = http.Template is null ? prefix : prefix is null ? http.Template : $"{prefix}/{http.Template}"
         select (action, template ?? string.Empty);
 
-    private static HashSet<string> EffectiveRoles(string verb, string template)
+    internal static HashSet<string> EffectiveRoles(string verb, string template)
     {
         var matches = Endpoints(verb).Where(e => e.Template == template).ToList();
         matches.Should().ContainSingle($"{verb} {template} must resolve to exactly one action");

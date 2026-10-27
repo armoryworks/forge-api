@@ -17,5 +17,7 @@ public record MachineConnectionResponseModel
     public int PollIntervalMs { get; init; }
     public bool IsActive { get; init; }
     public int TagCount { get; init; }
+    public bool CredentialsConfigured { get; init; }
+    public DateTimeOffset? LastDataPointAt { get; init; }
     public List<MachineTagResponseModel> Tags { get; init; } = [];
 }

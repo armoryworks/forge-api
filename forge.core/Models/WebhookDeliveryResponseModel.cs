@@ -9,4 +9,5 @@ public record WebhookDeliveryResponseModel(
     DateTimeOffset AttemptedAt,
     int AttemptNumber,
     bool IsSuccess,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    string? ResponseBody = null);

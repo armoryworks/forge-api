@@ -16,18 +16,6 @@ public class GetWebhookSubscriptionsHandler(AppDbContext db) : IRequestHandler<G
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        return subscriptions.Select(s => new WebhookSubscriptionResponseModel(
-            s.Id,
-            s.Url,
-            s.EventTypesJson,
-            s.IsActive,
-            s.FailureCount,
-            s.MaxRetries,
-            s.LastDeliveredAt,
-            s.LastFailedAt,
-            s.AutoDisableOnFailure,
-            s.Description,
-            s.CreatedAt,
-            s.UpdatedAt)).ToList();
+        return subscriptions.Select(s => WebhookSubscriptionMapping.ToModel(s)).ToList();
     }
 }

@@ -1175,6 +1175,9 @@ try
     builder.Services.AddScoped<Forge.Api.Features.Reports.ReportScheduleSender>();
     builder.Services.AddScoped<Forge.Api.Features.Webhooks.IWebhookEventPublisher, Forge.Api.Features.Webhooks.WebhookEventPublisher>();
     builder.Services.AddScoped<Forge.Api.Features.Webhooks.IWebhookDeliveryService, Forge.Api.Features.Webhooks.WebhookDeliveryService>();
+    builder.Services.AddScoped<Forge.Api.Features.Webhooks.WebhookManualDelivery>();
+    builder.Services.AddScoped<Forge.Api.Features.Ai.AiSseStreamWriter>();
+    builder.Services.AddScoped<Forge.Api.Features.ComplianceForms.DocuSealWebhookSecretSource>();
     builder.Services.AddHttpClient(Forge.Api.Features.Webhooks.WebhookDeliveryService.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(15))
         .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
         {

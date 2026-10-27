@@ -4,7 +4,6 @@ using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.ComplianceForms;
@@ -20,7 +19,7 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-QC-COMPLIANCE-FORMS")]
 public class ComplianceFormsController(
     IMediator mediator,
-    IOptions<DocuSealOptions> docuSealOptions,
+    DocuSealWebhookSecretSource webhookSecrets,
     IClock clock,
     ILogger<ComplianceFormsController> logger) : ControllerBase
 {
@@ -239,7 +238,7 @@ public class ComplianceFormsController(
         using var reader = new StreamReader(Request.Body);
         var body = await reader.ReadToEndAsync(ct);
 
-        var secret = docuSealOptions.Value.WebhookSecret;
+        var secret = await webhookSecrets.GetAsync(ct);
         if (string.IsNullOrWhiteSpace(secret))
         {
             logger.LogError("DocuSeal webhook received but WebhookSecret is not configured — rejecting");

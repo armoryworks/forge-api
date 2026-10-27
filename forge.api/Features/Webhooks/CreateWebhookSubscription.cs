@@ -10,7 +10,7 @@ namespace Forge.Api.Features.Webhooks;
 public record CreateWebhookSubscriptionCommand(
     string Url,
     string EventTypesJson,
-    string Secret,
+    string? Secret,
     string? Description,
     string? HeadersJson,
     int MaxRetries,
@@ -36,13 +36,14 @@ public class CreateWebhookSubscriptionCommandValidator : AbstractValidator<Creat
             .WithMessage("HeadersJson must be a JSON object of header names to string values.");
 
         RuleFor(x => x.Secret)
-            .NotEmpty().WithMessage("Secret is required.");
+            .MaximumLength(200).WithMessage("Secret must not exceed 200 characters.")
+            .When(x => !string.IsNullOrEmpty(x.Secret));
 
         RuleFor(x => x.MaxRetries)
             .InclusiveBetween(0, 20).WithMessage("MaxRetries must be between 0 and 20.");
     }
 
-    private static bool BeAHeaderObject(string headersJson)
+    internal static bool BeAHeaderObject(string headersJson)
     {
         try
         {
@@ -64,7 +65,8 @@ public class CreateWebhookSubscriptionHandler(
     public async Task<WebhookSubscriptionResponseModel> Handle(CreateWebhookSubscriptionCommand request, CancellationToken cancellationToken)
     {
         var protector = dataProtection.CreateProtector(PurposeName);
-        var encryptedSecret = protector.Protect(request.Secret);
+        var secret = string.IsNullOrEmpty(request.Secret) ? WebhookSubscriptionMapping.GenerateSecret() : request.Secret;
+        var encryptedSecret = protector.Protect(secret);
 
         var subscription = new WebhookSubscription
         {
@@ -81,18 +83,6 @@ public class CreateWebhookSubscriptionHandler(
         db.WebhookSubscriptions.Add(subscription);
         await db.SaveChangesAsync(cancellationToken);
 
-        return new WebhookSubscriptionResponseModel(
-            subscription.Id,
-            subscription.Url,
-            subscription.EventTypesJson,
-            subscription.IsActive,
-            subscription.FailureCount,
-            subscription.MaxRetries,
-            subscription.LastDeliveredAt,
-            subscription.LastFailedAt,
-            subscription.AutoDisableOnFailure,
-            subscription.Description,
-            subscription.CreatedAt,
-            subscription.UpdatedAt);
+        return WebhookSubscriptionMapping.ToModel(subscription, secret);
     }
 }
