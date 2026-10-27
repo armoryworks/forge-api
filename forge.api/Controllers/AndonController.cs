@@ -25,9 +25,10 @@ public class AndonController(IMediator mediator) : ControllerBase
     [HttpGet("alerts")]
     public async Task<ActionResult<List<AndonAlertResponseModel>>> GetAlerts(
         [FromQuery] int? workCenterId,
-        [FromQuery] AndonAlertStatus? status)
+        [FromQuery] AndonAlertStatus? status,
+        [FromQuery] bool openOnly = false)
     {
-        var result = await mediator.Send(new GetAndonAlertsQuery(workCenterId, status));
+        var result = await mediator.Send(new GetAndonAlertsQuery(workCenterId, status, openOnly));
         return Ok(result);
     }
 

@@ -32,6 +32,11 @@ public class ScannerController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("issue-sources/{partId:int}")]
+    [Authorize(Roles = StockRoles)]
+    public async Task<ActionResult<List<ScanIssueSourceModel>>> GetIssueSources(int partId)
+        => Ok(await mediator.Send(new GetScanIssueSourcesQuery(partId)));
+
     [HttpPost("move")]
     [Authorize(Roles = StockRoles)]
     public async Task<ActionResult<int>> Move([FromBody] ScanMoveRequestModel request)

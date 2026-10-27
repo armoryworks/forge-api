@@ -9,7 +9,7 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Andon;
 
-public record GetAndonAlertsQuery(int? WorkCenterId, AndonAlertStatus? Status) : IRequest<List<AndonAlertResponseModel>>;
+public record GetAndonAlertsQuery(int? WorkCenterId, AndonAlertStatus? Status, bool OpenOnly = false) : IRequest<List<AndonAlertResponseModel>>;
 
 public class GetAndonAlertsHandler(AppDbContext db, UserManager<ApplicationUser> userManager)
     : IRequestHandler<GetAndonAlertsQuery, List<AndonAlertResponseModel>>
@@ -28,6 +28,9 @@ public class GetAndonAlertsHandler(AppDbContext db, UserManager<ApplicationUser>
 
         if (request.Status.HasValue)
             query = query.Where(a => a.Status == request.Status.Value);
+
+        if (request.OpenOnly)
+            query = query.Where(a => a.Status != AndonAlertStatus.Resolved);
 
         var alerts = await query
             .OrderByDescending(a => a.RequestedAt)

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Inventory;
 using Forge.Api.Features.Jobs;
+using Forge.Api.Features.Quality;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -67,9 +68,11 @@ public class ExecuteScanIssueHandler(
         }
 
         // Validate source has sufficient stock
-        var sourceRows = await ScanBinStock.IssuableRowsAsync(
-            db, data.PartId, data.FromLocationId, data.Quantity,
-            await LotExpiry.ShopTodayAsync(db, now, cancellationToken), cancellationToken);
+        var sourceRows = data.BinContentId is int binContentId
+            ? await ChosenRowAsync(data, binContentId, part.PartNumber, now, cancellationToken)
+            : await ScanBinStock.IssuableRowsAsync(
+                db, data.PartId, data.FromLocationId, data.Quantity,
+                await LotExpiry.ShopTodayAsync(db, now, cancellationToken), cancellationToken);
         if (!sourceRows.Any(r => r.Quantity > 0))
             throw new KeyNotFoundException(
                 $"No stock found for part {part.PartNumber} at source location");
@@ -126,5 +129,22 @@ public class ExecuteScanIssueHandler(
 
         await tx.CommitAsync(cancellationToken);
         return scanLog.Id;
+    }
+
+    private async Task<List<BinContent>> ChosenRowAsync(
+        ScanIssueRequestModel data, int binContentId, string partNumber, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var row = (await ScanBinStock.ActiveRowsAsync(db, data.PartId, data.FromLocationId, cancellationToken))
+            .FirstOrDefault(bc => bc.Id == binContentId)
+            ?? throw new KeyNotFoundException(
+                $"The chosen bin no longer holds part {partNumber} at the source location");
+
+        if (row.Status == BinContentStatus.QcHold)
+            throw await LotQualityHold.RefusalAsync(db, data.PartId, row.LotNumber, cancellationToken);
+
+        if (await LotExpiry.ExpiredOnAsync(db, data.PartId, row.LotNumber, now, cancellationToken) is DateOnly expiredOn)
+            throw LotExpiry.Refusal(row.LotNumber!, expiredOn);
+
+        return [row];
     }
 }
