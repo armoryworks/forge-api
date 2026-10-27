@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 
 using Forge.Api.Features.Approvals;
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Notifications;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -23,7 +24,8 @@ public class SubmitPurchaseOrderHandler(
     IHttpContextAccessor httpContext,
     IClock clock,
     AppDbContext db,
-    IPublisher publisher)
+    IPublisher publisher,
+    IAssignmentNotifier? assignmentNotifier = null)
     : IRequestHandler<SubmitPurchaseOrderCommand>
 {
     public async Task Handle(SubmitPurchaseOrderCommand request, CancellationToken cancellationToken)
@@ -77,6 +79,7 @@ public class SubmitPurchaseOrderHandler(
         {
             db.LogActivityAt("approval-requested", "Waiting for approval before it is sent to the vendor", ("PurchaseOrder", po.Id));
             await repo.SaveChangesAsync(cancellationToken);
+            await approvalService.NotifyApproversAsync(assignmentNotifier, approval, cancellationToken);
             return;
         }
 

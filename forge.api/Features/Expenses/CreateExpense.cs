@@ -3,6 +3,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Forge.Api.Features.Approvals;
+using Forge.Api.Features.Notifications;
 using Forge.Api.Middleware;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -29,7 +30,8 @@ public class CreateExpenseHandler(
     IFileRepository fileRepo,
     IApprovalService approvalService,
     IMediator mediator,
-    IHttpContextAccessor httpContext) : IRequestHandler<CreateExpenseCommand, ExpenseResponseModel>
+    IHttpContextAccessor httpContext,
+    IAssignmentNotifier? assignmentNotifier = null) : IRequestHandler<CreateExpenseCommand, ExpenseResponseModel>
 {
     public async Task<ExpenseResponseModel> Handle(CreateExpenseCommand request, CancellationToken cancellationToken)
     {
@@ -71,7 +73,7 @@ public class CreateExpenseHandler(
 
         await approvalService.SubmitAndPublishAsync(
             mediator, "Expense", expense.Id, userId, expense.Amount,
-            $"{expense.Category} — {expense.Description}", cancellationToken);
+            $"{expense.Category} — {expense.Description}", cancellationToken, assignmentNotifier);
 
         return (await repo.GetByIdAsync(expense.Id, cancellationToken))!;
     }

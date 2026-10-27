@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Notifications;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -11,7 +12,8 @@ namespace Forge.Api.Features.Approvals;
 
 public record ApproveRequestCommand(int RequestId, int DecidedById, string? Comments) : IRequest<ApprovalRequestResponseModel>;
 
-public class ApproveRequestHandler(IApprovalService approvalService, AppDbContext db, IMediator mediator)
+public class ApproveRequestHandler(
+    IApprovalService approvalService, AppDbContext db, IMediator mediator, IAssignmentNotifier? assignmentNotifier = null)
     : IRequestHandler<ApproveRequestCommand, ApprovalRequestResponseModel>
 {
     public async Task<ApprovalRequestResponseModel> Handle(ApproveRequestCommand request, CancellationToken ct)
@@ -22,6 +24,10 @@ public class ApproveRequestHandler(IApprovalService approvalService, AppDbContex
         // any ApprovalCompletedEvent handler sees the request as terminal (the guard in
         // UpdateExpenseStatus relies on this ordering: publish AFTER persist).
         await approvalService.EnsureCanActAsync(request.RequestId, request.DecidedById, ct);
+        var stepBefore = await db.ApprovalRequests.AsNoTracking()
+            .Where(r => r.Id == request.RequestId)
+            .Select(r => r.CurrentStepNumber)
+            .FirstOrDefaultAsync(ct);
         var result = await approvalService.ApproveAsync(request.RequestId, request.DecidedById, request.Comments, ct);
 
         // F-26B-05 — fire the completion event ONLY on a terminal approval (final step done),
@@ -34,6 +40,9 @@ public class ApproveRequestHandler(IApprovalService approvalService, AppDbContex
                     Approved: true, request.DecidedById, request.Comments),
                 ct);
         }
+
+        if (result.CurrentStepNumber != stepBefore)
+            await approvalService.NotifyApproversAsync(assignmentNotifier, result, ct);
 
         return await MapToResponseAsync(result.Id, ct);
     }

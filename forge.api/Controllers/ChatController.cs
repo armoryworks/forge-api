@@ -40,6 +40,15 @@ public class ChatController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(GetMessages), new { otherUserId = model.RecipientId }, result);
     }
 
+    [HttpPost("messages/{otherUserId:int}/upload")]
+    [RequestSizeLimit(ChatFileRules.MaxFileSizeBytes)]
+    public async Task<ActionResult<FileAttachmentResponseModel>> UploadDirectMessageFile(
+        int otherUserId, IFormFile file, CancellationToken ct)
+    {
+        var result = await mediator.Send(new UploadDirectMessageFileCommand(otherUserId, file), ct);
+        return Created($"/api/v1/files/{result.Id}", result);
+    }
+
     [HttpPost("messages/{otherUserId:int}/read")]
     public async Task<IActionResult> MarkRead(int otherUserId)
     {

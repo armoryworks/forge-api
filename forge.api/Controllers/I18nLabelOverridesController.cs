@@ -30,6 +30,12 @@ public class I18nLabelOverridesController(IMediator mediator) : ControllerBase
         [FromBody] UpsertI18nLabelOverrideRequestModel request, CancellationToken ct)
         => Ok(await mediator.Send(new UpsertI18nLabelOverrideCommand(request), ct));
 
+    [HttpPost("import")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<ImportI18nLabelOverridesResponseModel>> Import(
+        [FromBody] ImportI18nLabelOverridesRequestModel request, CancellationToken ct)
+        => Ok(await mediator.Send(new ImportI18nLabelOverridesCommand(request), ct));
+
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Revert(int id, CancellationToken ct)

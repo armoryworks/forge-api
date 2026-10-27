@@ -3,6 +3,7 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 
+using Forge.Api.Features.Notifications;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
@@ -19,7 +20,8 @@ public class SubmitForApprovalValidator : AbstractValidator<SubmitForApprovalCom
     }
 }
 
-public class SubmitForApprovalHandler(IApprovalService approvalService, IPublisher publisher)
+public class SubmitForApprovalHandler(
+    IApprovalService approvalService, IPublisher publisher, IAssignmentNotifier? assignmentNotifier = null)
     : IRequestHandler<SubmitForApprovalCommand, ApprovalRequestResponseModel?>
 {
     public async Task<ApprovalRequestResponseModel?> Handle(SubmitForApprovalCommand request, CancellationToken ct)
@@ -27,7 +29,7 @@ public class SubmitForApprovalHandler(IApprovalService approvalService, IPublish
         var result = await approvalService.SubmitAndPublishAsync(
             publisher, request.Data.EntityType, request.Data.EntityId,
             request.RequestedById, request.Data.Amount,
-            request.Data.EntitySummary, ct);
+            request.Data.EntitySummary, ct, assignmentNotifier);
 
         if (result == null) return null;
 

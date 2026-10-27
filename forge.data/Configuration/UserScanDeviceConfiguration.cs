@@ -17,7 +17,13 @@ public class UserScanDeviceConfiguration : IEntityTypeConfiguration<UserScanDevi
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasOne<Context.ApplicationUser>()
+            .WithMany()
+            .HasForeignKey(e => e.AssignedUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(e => e.DeviceId).IsUnique();
         builder.HasIndex(e => e.UserId);
+        builder.HasIndex(e => e.AssignedUserId);
     }
 }

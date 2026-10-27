@@ -1,7 +1,9 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Forge.Api.Hubs;
+using Forge.Api.Middleware;
 using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -21,11 +23,12 @@ public class SendMessageValidator : AbstractValidator<SendMessageCommand>
     public SendMessageValidator()
     {
         RuleFor(x => x.RecipientId).GreaterThan(0);
-        RuleFor(x => x.Content).NotEmpty().MaximumLength(4000);
+        RuleFor(x => x.Content).NotEmpty().When(x => x.FileAttachmentId is null);
+        RuleFor(x => x.Content).MaximumLength(4000);
     }
 }
 
-public class SendMessageHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
+public class SendMessageHandler(AppDbContext db, IHubContext<ChatHub> chatHub, ISender? mediator = null)
     : IRequestHandler<SendMessageCommand, ChatMessageResponseModel>
 {
     public async Task<ChatMessageResponseModel> Handle(SendMessageCommand request, CancellationToken ct)
@@ -36,11 +39,22 @@ public class SendMessageHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
         _ = await db.Users.FindAsync([request.RecipientId], ct)
             ?? throw new KeyNotFoundException($"User {request.RecipientId} not found");
 
+        FileAttachment? attachment = null;
+        if (request.FileAttachmentId is int fileId)
+        {
+            attachment = await db.FileAttachments.AsNoTracking().FirstOrDefaultAsync(f => f.Id == fileId, ct);
+            if (attachment is null
+                || attachment.EntityType != ChatFileRules.DirectMessageEntityType
+                || attachment.EntityId != request.RecipientId
+                || attachment.UploadedById != request.SenderId)
+                throw new ForbiddenException("That file was not uploaded to this conversation.");
+        }
+
         var message = new ChatMessage
         {
             SenderId = request.SenderId,
             RecipientId = request.RecipientId,
-            Content = request.Content,
+            Content = request.Content ?? string.Empty,
             FileAttachmentId = request.FileAttachmentId,
             LinkedEntityType = request.LinkedEntityType,
             LinkedEntityId = request.LinkedEntityId,
@@ -49,8 +63,7 @@ public class SendMessageHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
         db.ChatMessages.Add(message);
         await db.SaveChangesAsync(ct);
 
-        // Parse and save mentions
-        var mentions = MentionParser.ParseMentions(request.Content, message.Id);
+        var mentions = MentionParser.ParseMentions(message.Content, message.Id);
         if (mentions.Count > 0)
         {
             db.ChatMessageMentions.AddRange(mentions);
@@ -58,6 +71,7 @@ public class SendMessageHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
         }
 
         var senderName = $"{sender.LastName}, {sender.FirstName}".Trim(',', ' ');
+        await ChatMentionNotifications.NotifyAsync(db, mediator, message, mentions, senderName, ct);
         var mentionModels = mentions.Select(m =>
             new ChatMessageMentionResponseModel(m.EntityType, m.EntityId, m.DisplayText)).ToList();
 
@@ -71,9 +85,13 @@ public class SendMessageHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
             message.Content,
             false,
             message.CreatedAt,
-            Mentions: mentionModels);
+            Mentions: mentionModels,
+            FileAttachment: attachment is null
+                ? null
+                : new ChatFileAttachmentResponseModel(attachment.Id, attachment.FileName, attachment.ContentType, attachment.Size),
+            LinkedEntityType: message.LinkedEntityType,
+            LinkedEntityId: message.LinkedEntityId);
 
-        // Push to recipient via SignalR
         await chatHub.Clients.Group($"user:{request.RecipientId}")
             .SendAsync("messageReceived", new ChatMessageEvent(
                 message.Id,

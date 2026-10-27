@@ -26,7 +26,7 @@ public class ShiftsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<ShiftResponseModel>> Create([FromBody] CreateShiftRequest request)
     {
         var result = await mediator.Send(new CreateShiftCommand(
-            request.Name, request.StartTime, request.EndTime, request.BreakMinutes));
+            request.Name, request.StartTime, request.EndTime, request.BreakMinutes, request.WorkCenters));
         return CreatedAtAction(nameof(GetAll), new { id = result.Id }, result);
     }
 
@@ -35,7 +35,7 @@ public class ShiftsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new UpdateShiftCommand(
             id, request.Name, request.StartTime, request.EndTime,
-            request.BreakMinutes, request.IsActive));
+            request.BreakMinutes, request.IsActive, request.WorkCenters));
         return Ok(result);
     }
 
@@ -47,6 +47,9 @@ public class ShiftsController(IMediator mediator) : ControllerBase
     }
 }
 
-public record CreateShiftRequest(string Name, TimeOnly StartTime, TimeOnly EndTime, int BreakMinutes);
+public record CreateShiftRequest(
+    string Name, TimeOnly StartTime, TimeOnly EndTime, int BreakMinutes, List<ShiftWorkCenterModel>? WorkCenters = null);
 
-public record UpdateShiftRequest(string Name, TimeOnly StartTime, TimeOnly EndTime, int BreakMinutes, bool IsActive);
+public record UpdateShiftRequest(
+    string Name, TimeOnly StartTime, TimeOnly EndTime, int BreakMinutes, bool IsActive,
+    List<ShiftWorkCenterModel>? WorkCenters = null);

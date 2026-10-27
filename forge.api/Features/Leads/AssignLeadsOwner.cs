@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.Notifications;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
 
@@ -23,7 +24,8 @@ public class AssignLeadsOwnerValidator : AbstractValidator<AssignLeadsOwnerComma
     }
 }
 
-public class AssignLeadsOwnerHandler(AppDbContext db) : IRequestHandler<AssignLeadsOwnerCommand, int>
+public class AssignLeadsOwnerHandler(AppDbContext db, IAssignmentNotifier? assignmentNotifier = null)
+    : IRequestHandler<AssignLeadsOwnerCommand, int>
 {
     public async Task<int> Handle(AssignLeadsOwnerCommand request, CancellationToken ct)
     {
@@ -33,7 +35,7 @@ public class AssignLeadsOwnerHandler(AppDbContext db) : IRequestHandler<AssignLe
         if (leads.Count != ids.Count)
             throw new KeyNotFoundException("One or more leads were not found.");
 
-        var changed = 0;
+        var changedLeads = new List<Core.Entities.Lead>();
         foreach (var lead in leads.Where(l => l.AssignedToUserId != owner.UserId))
         {
             lead.AssignedToUserId = owner.UserId;
@@ -41,10 +43,17 @@ public class AssignLeadsOwnerHandler(AppDbContext db) : IRequestHandler<AssignLe
                 "updated",
                 owner.UserId.HasValue ? $"Updated 1 field: owner: {owner.Name}" : "Updated 1 field: owner: cleared",
                 ("Lead", lead.Id));
-            changed++;
+            changedLeads.Add(lead);
         }
 
         await db.SaveChangesAsync(ct);
-        return changed;
+
+        if (assignmentNotifier is not null && owner.UserId is int ownerId)
+        {
+            foreach (var lead in changedLeads)
+                await assignmentNotifier.LeadAssignedAsync(lead.Id, lead.DisplayName, ownerId, ct);
+        }
+
+        return changedLeads.Count;
     }
 }

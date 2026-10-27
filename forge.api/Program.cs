@@ -108,7 +108,8 @@ try
             .AddInterceptors(
                 sp.GetRequiredService<Forge.Data.Interceptors.LedgerImmutabilityInterceptor>(),
                 sp.GetRequiredService<Forge.Api.Features.Accounting.GlChangeBroadcastInterceptor>(),
-                sp.GetRequiredService<Forge.Api.Features.Notifications.NotificationChatFanOutInterceptor>())
+                sp.GetRequiredService<Forge.Api.Features.Notifications.NotificationChatFanOutInterceptor>(),
+                sp.GetRequiredService<Forge.Api.Features.Notifications.NotificationEmailInterceptor>())
             // Suppress EF Core's "pending model changes" startup validation.
             // Schema is now owned by the declarative forge-db project (applied via
             // SchemaBootstrapper), not EF migrations — and forge-db's snake_case/FK
@@ -488,6 +489,8 @@ try
     // dark accounting screens auto-refresh on any GL write.
     builder.Services.AddSingleton<Forge.Api.Features.Accounting.GlChangeBroadcastInterceptor>();
     builder.Services.AddSingleton<Forge.Api.Features.Notifications.NotificationChatFanOutInterceptor>();
+    builder.Services.AddSingleton<Forge.Api.Features.Notifications.NotificationEmailInterceptor>();
+    builder.Services.AddScoped<Forge.Api.Features.Notifications.IAssignmentNotifier, Forge.Api.Features.Notifications.AssignmentNotifier>();
     // Phase-1 STAGE A — AR / revenue / tax posting wired INLINE into the invoice
     // finalize handler (SendInvoice). Self-gates on CAP-ACCT-FULLGL: a no-op
     // while the capability is OFF (the default), so the operational invoice flow

@@ -53,6 +53,7 @@ public static class EntityAccessRules
         ["user"] = Owned(HrRoles, EntityOwnership.User),
         ["compliancesubmission"] = Owned(HrRoles, EntityOwnership.ComplianceSubmission),
         ["chat"] = Owned(string.Empty, EntityOwnership.ChatRoom),
+        ["chatdm"] = Owned(string.Empty, EntityOwnership.User),
     };
 
     /// <summary>Every normalised key with its rule.</summary>

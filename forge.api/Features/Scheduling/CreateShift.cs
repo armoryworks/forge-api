@@ -5,6 +5,7 @@ using MediatR;
 using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Scheduling;
 
@@ -12,7 +13,8 @@ public record CreateShiftCommand(
     string Name,
     TimeOnly StartTime,
     TimeOnly EndTime,
-    int BreakMinutes) : IRequest<ShiftResponseModel>;
+    int BreakMinutes,
+    List<ShiftWorkCenterModel>? WorkCenters = null) : IRequest<ShiftResponseModel>;
 
 public class CreateShiftValidator : AbstractValidator<CreateShiftCommand>
 {
@@ -23,6 +25,9 @@ public class CreateShiftValidator : AbstractValidator<CreateShiftCommand>
         RuleFor(x => x.BreakMinutes)
             .Must((x, breakMinutes) => ShiftHours.Net(x.StartTime, x.EndTime, breakMinutes) > 0)
             .WithMessage("The break must be shorter than the shift.");
+        RuleForEach(x => x.WorkCenters).SetValidator(new ShiftWorkCenterValidator());
+        RuleFor(x => x.WorkCenters).Must(ShiftWorkCenterValidator.AreDistinct)
+            .WithMessage("Each work center can be listed once.");
     }
 }
 
@@ -34,7 +39,7 @@ public class CreateShiftHandler(AppDbContext db) : IRequestHandler<CreateShiftCo
 
         var shift = new Shift
         {
-            Name = request.Name,
+            Name = request.Name.Trim(),
             StartTime = request.StartTime,
             EndTime = request.EndTime,
             BreakMinutes = request.BreakMinutes,
@@ -42,10 +47,14 @@ public class CreateShiftHandler(AppDbContext db) : IRequestHandler<CreateShiftCo
         };
 
         db.Shifts.Add(shift);
+        if (request.WorkCenters is { Count: > 0 })
+            await ShiftWorkCenters.ApplyAsync(db, shift, request.WorkCenters, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
-        return new ShiftResponseModel(
-            shift.Id, shift.Name, shift.StartTime, shift.EndTime,
-            shift.BreakMinutes, shift.NetHours, shift.IsActive);
+        db.LogActivityAt("created", $"Created shift {shift.Name}", ("Shift", shift.Id));
+        await db.SaveChangesAsync(cancellationToken);
+
+        var workCenters = await ShiftWorkCenters.LoadAsync(db, [shift.Id], cancellationToken);
+        return ShiftWorkCenters.ToResponse(shift, workCenters.GetValueOrDefault(shift.Id));
     }
 }

@@ -41,11 +41,15 @@ public record ScanLogEntryModel(
     bool IsReversed,
     DateTimeOffset CreatedAt);
 
-public record ScanDeviceRequestModel(string DeviceId, string? DeviceName);
+public record ScanDeviceRequestModel(string DeviceId, string? DeviceName, int? AssignedUserId = null);
 
 public record ScanDeviceResponseModel(
     int Id,
     string DeviceId,
     string? DeviceName,
     DateTimeOffset PairedAt,
-    bool IsActive);
+    bool IsActive,
+    int? AssignedUserId = null,
+    string? AssignedUserName = null,
+    string? PairedByName = null,
+    DateTimeOffset? LastSeenAt = null);

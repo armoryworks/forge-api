@@ -17,14 +17,6 @@ public record UploadChatFileCommand(int ChannelId, IFormFile File) : IRequest<Fi
 
 public class UploadChatFileCommandValidator : AbstractValidator<UploadChatFileCommand>
 {
-    private static readonly HashSet<string> AllowedExtensions =
-    [
-        ".pdf", ".jpg", ".jpeg", ".png", ".gif",
-        ".doc", ".docx", ".xls", ".xlsx", ".csv", ".txt",
-    ];
-
-    private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10MB
-
     public UploadChatFileCommandValidator()
     {
         RuleFor(x => x.ChannelId)
@@ -32,15 +24,10 @@ public class UploadChatFileCommandValidator : AbstractValidator<UploadChatFileCo
 
         RuleFor(x => x.File)
             .NotNull().WithMessage("File is required.")
-            .Must(f => f == null || f.Length <= MaxFileSizeBytes)
+            .Must(f => f == null || f.Length <= ChatFileRules.MaxFileSizeBytes)
                 .WithMessage("File size must not exceed 10MB.").WithErrorCode("file-too-large")
-            .Must(f =>
-            {
-                if (f == null) return true;
-                var ext = Path.GetExtension(f.FileName)?.ToLowerInvariant();
-                return ext != null && AllowedExtensions.Contains(ext);
-            })
-                .WithMessage($"Allowed file types: {string.Join(", ", AllowedExtensions)}");
+            .Must(ChatFileRules.HasAllowedExtension)
+                .WithMessage($"Allowed file types: {string.Join(", ", ChatFileRules.AllowedExtensions)}");
     }
 }
 

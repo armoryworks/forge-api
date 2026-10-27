@@ -1,7 +1,4 @@
-using System.Security.Claims;
-
 using MediatR;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Models;
@@ -11,26 +8,18 @@ namespace Forge.Api.Features.Scanner;
 
 public record GetScanDevicesQuery : IRequest<List<ScanDeviceResponseModel>>;
 
-public class GetScanDevicesHandler(
-    AppDbContext db,
-    IHttpContextAccessor httpContext)
+public class GetScanDevicesHandler(AppDbContext db)
     : IRequestHandler<GetScanDevicesQuery, List<ScanDeviceResponseModel>>
 {
     public async Task<List<ScanDeviceResponseModel>> Handle(
         GetScanDevicesQuery request, CancellationToken cancellationToken)
     {
-        var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-
-        return await db.UserScanDevices
+        var devices = await db.UserScanDevices
             .AsNoTracking()
-            .Where(d => d.UserId == userId)
-            .OrderByDescending(d => d.PairedAt)
-            .Select(d => new ScanDeviceResponseModel(
-                d.Id,
-                d.DeviceId,
-                d.DeviceName,
-                d.PairedAt,
-                d.IsActive))
+            .OrderBy(d => d.DeviceName ?? d.DeviceId)
+            .ThenBy(d => d.Id)
             .ToListAsync(cancellationToken);
+
+        return await ScanDeviceProjection.ToResponsesAsync(db, devices, cancellationToken);
     }
 }
