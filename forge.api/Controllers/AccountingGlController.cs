@@ -185,7 +185,7 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
                 request.Memo,
                 request.AllowSoftClosedOverride,
                 request.Lines,
-                request.OverrideReason)),
+                OverrideReason: request.OverrideReason)),
             ct));
 
     /// <summary>

@@ -77,7 +77,7 @@ public class BookSettingsTests
             new CreateManualJournalLineModel(CashId, null, null, null, null, null, amount, 0m, null),
             new CreateManualJournalLineModel(RevenueId, null, null, null, null, null, 0m, amount, null),
         ],
-        reason);
+        OverrideReason: reason);
 
     private static Task<ManualJournalEntryResult> PostAsync(AppDbContext db, CreateManualJournalEntryCommand command)
         => new CreateManualJournalEntryHandler(
