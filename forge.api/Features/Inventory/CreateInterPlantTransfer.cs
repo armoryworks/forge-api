@@ -26,6 +26,17 @@ public class CreateInterPlantTransferHandler(AppDbContext db, IClock clock) : IR
             throw new InvalidOperationException("Source and destination plants must be different");
         if (request.Lines.Count == 0)
             throw new InvalidOperationException("Add at least one part to the transfer.");
+        var sharedSource = request.Lines
+            .GroupBy(l => (l.PartId, l.FromLocationId))
+            .FirstOrDefault(g => g.Count() > 1
+                && (g.Any(l => string.IsNullOrWhiteSpace(l.LotNumber)) || g.Select(l => l.LotNumber).Distinct().Count() < g.Count()));
+        if (sharedSource is not null)
+        {
+            var partNumber = (await db.Parts.FindAsync(new object[] { sharedSource.Key.PartId }, cancellationToken))?.PartNumber
+                ?? $"Part {sharedSource.Key.PartId}";
+            throw new InvalidOperationException(
+                $"{partNumber} is on more than one line from the same bin. Put it on one line, or move a different lot on each line.");
+        }
 
         _ = await db.Plants.FindAsync(new object[] { request.FromPlantId }, cancellationToken)
             ?? throw new KeyNotFoundException($"Source plant {request.FromPlantId} not found");

@@ -113,6 +113,90 @@ public sealed class InventoryScreensHandlerTests : IDisposable
         (await _db.InterPlantTransferLines.SingleAsync()).ToLocationId.Should().Be(overflow.Id);
     }
 
+    private async Task<InterPlantTransfer> SeedTwoLotTransferAsync(Part part, StorageLocation source, StorageLocation destination)
+    {
+        _db.BinContents.AddRange(
+            new BinContent
+            {
+                LocationId = source.Id, EntityType = "part", EntityId = part.Id, Quantity = 30m, LotNumber = "L-1",
+                Status = BinContentStatus.Stored, PlacedAt = _clock.UtcNow.AddDays(-3),
+            },
+            new BinContent
+            {
+                LocationId = source.Id, EntityType = "part", EntityId = part.Id, Quantity = 30m, LotNumber = "L-2",
+                Status = BinContentStatus.Stored, PlacedAt = _clock.UtcNow.AddDays(-3),
+            });
+        var transfer = new InterPlantTransfer
+        {
+            TransferNumber = "IPT-20261026-00009",
+            FromPlantId = 1,
+            ToPlantId = 2,
+            Lines =
+            [
+                new InterPlantTransferLine { PartId = part.Id, Quantity = 20m, FromLocationId = source.Id, ToLocationId = destination.Id, LotNumber = "L-1" },
+                new InterPlantTransferLine { PartId = part.Id, Quantity = 10m, FromLocationId = source.Id, ToLocationId = destination.Id, LotNumber = "L-2" },
+            ],
+        };
+        _db.InterPlantTransfers.Add(transfer);
+        await _db.SaveChangesAsync();
+        await new ShipInterPlantTransferHandler(_db, _clock, UserAccessor(7))
+            .Handle(new ShipInterPlantTransferCommand(transfer.Id, new ShipTransferRequestModel(null)), CancellationToken.None);
+        return transfer;
+    }
+
+    [Fact]
+    public async Task Receive_TwoLotsOfOnePart_ByLine_PutsEachLotWhereItsLineSays()
+    {
+        var (part, source, destination, overflow) = await SeedStockAsync();
+        var transfer = await SeedTwoLotTransferAsync(part, source, destination);
+        var lines = transfer.Lines.OrderBy(l => l.Id).ToList();
+
+        await new ReceiveInterPlantTransferHandler(_db, _clock, UserAccessor(7))
+            .Handle(new ReceiveInterPlantTransferCommand(transfer.Id,
+            [
+                new ReceiveTransferLineRequestModel(part.Id, 20m, null, lines[0].Id),
+                new ReceiveTransferLineRequestModel(part.Id, 10m, overflow.Id, lines[1].Id),
+            ]), CancellationToken.None);
+
+        var placed = await _db.BinContents
+            .Where(b => b.RemovedAt == null && (b.LocationId == destination.Id || b.LocationId == overflow.Id))
+            .Select(b => new { b.LocationId, b.LotNumber, b.Quantity })
+            .ToListAsync();
+        placed.Should().BeEquivalentTo(new[]
+        {
+            new { LocationId = destination.Id, LotNumber = (string?)"L-1", Quantity = 20m },
+            new { LocationId = overflow.Id, LotNumber = (string?)"L-2", Quantity = 10m },
+        });
+        _db.BinMovements.Should().NotContain(m => m.Reason == BinMovementReason.Adjustment);
+    }
+
+    [Fact]
+    public async Task Receive_APartOnTwoLines_WithoutLineIds_IsRefused()
+    {
+        var (part, source, destination, _) = await SeedStockAsync();
+        var transfer = await SeedTwoLotTransferAsync(part, source, destination);
+
+        var act = () => new ReceiveInterPlantTransferHandler(_db, _clock, UserAccessor(7))
+            .Handle(new ReceiveInterPlantTransferCommand(transfer.Id, [new ReceiveTransferLineRequestModel(part.Id, 20m)]), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*more than one line*");
+    }
+
+    [Fact]
+    public async Task Create_APartTwiceFromOneBinWithoutDistinctLots_IsRefused()
+    {
+        var (part, source, destination, _) = await SeedStockAsync();
+        var request = new CreateInterPlantTransferRequestModel(1, 2, null,
+        [
+            new CreateInterPlantTransferLineRequestModel(part.Id, 5m, source.Id, destination.Id, null),
+            new CreateInterPlantTransferLineRequestModel(part.Id, 5m, source.Id, destination.Id, null),
+        ]);
+
+        var act = () => new CreateInterPlantTransferHandler(_db, _clock).Handle(new CreateInterPlantTransferCommand(request), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("BRK-10 is on more than one line from the same bin*");
+    }
+
     [Fact]
     public async Task TransferList_ShowsEachLinesBins()
     {
