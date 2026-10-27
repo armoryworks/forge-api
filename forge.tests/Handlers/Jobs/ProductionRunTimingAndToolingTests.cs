@@ -135,6 +135,28 @@ public class ProductionRunTimingAndToolingTests
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
+    [Fact]
+    public async Task A_run_received_to_stock_keeps_its_quantities_and_cannot_be_deleted()
+    {
+        var (job, part, _) = await SeedAsync();
+        var runId = await StartAsync(job, part, Now.AddHours(-2));
+        await Update(job, runId, 90, 10, "Completed", null, null);
+        var run = await _db.ProductionRuns.SingleAsync(r => r.Id == runId);
+        run.ReceivedToStockAt = Now;
+        run.ReceivedQuantity = 90;
+        await _db.SaveChangesAsync();
+
+        var change = () => Update(job, runId, 95, 5, "Completed", null, null);
+        await change.Should().ThrowAsync<InvalidOperationException>().WithMessage("*received to stock*");
+
+        var notes = await Update(job, runId, 90, 10, "Completed", 5m, null);
+        notes.CompletedQuantity.Should().Be(90);
+
+        var delete = () => new DeleteProductionRunHandler(_db, _clock.Object)
+            .Handle(new DeleteProductionRunCommand(job.Id, runId), CancellationToken.None);
+        await delete.Should().ThrowAsync<InvalidOperationException>().WithMessage("*received to stock*");
+    }
+
     private async Task<int> StartAsync(Job job, Part part, DateTimeOffset startedAt)
     {
         var created = await new CreateProductionRunHandler(_db, _clock.Object)

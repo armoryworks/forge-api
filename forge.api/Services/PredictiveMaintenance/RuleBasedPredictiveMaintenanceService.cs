@@ -26,7 +26,8 @@ namespace Forge.Api.Services.PredictiveMaintenance;
 /// </list>
 /// Confidence is a fixed tier per rule. A rule raises at most one open prediction per asset; an open prediction
 /// whose condition has cleared expires; a prediction marked a false positive (or with feedback that no failure
-/// happened) silences that rule for that asset for the suppression window (30 days).
+/// happened) silences that rule for that asset for the suppression window (30 days). A prediction whose scheduled
+/// maintenance job has been completed, archived or deleted is resolved, so the rule can raise again on the next cycle.
 /// </summary>
 public class RuleBasedPredictiveMaintenanceService(AppDbContext db, IClock clock) : IPredictiveMaintenanceService
 {
@@ -309,8 +310,20 @@ public class RuleBasedPredictiveMaintenanceService(AppDbContext db, IClock clock
         var assetIds = assets.Select(a => a.Id).ToList();
         var assetTypes = assets.ToDictionary(a => a.Id, a => a.AssetType);
         var history = await db.MaintenancePredictions
+            .Include(p => p.PreventiveMaintenanceJob)
             .Where(p => p.AssetId != null && assetIds.Contains(p.AssetId.Value) && p.RuleKey != null)
             .ToListAsync(ct);
+
+        foreach (var serviced in history.Where(p => p.Status == MaintenancePredictionStatus.MaintenanceScheduled
+            && (p.PreventiveMaintenanceJob is null
+                || p.PreventiveMaintenanceJob.CompletedDate != null
+                || p.PreventiveMaintenanceJob.IsArchived)))
+        {
+            serviced.Status = MaintenancePredictionStatus.Resolved;
+            serviced.ResolvedAt = serviced.PreventiveMaintenanceJob?.CompletedDate ?? now;
+            serviced.ResolutionNotes ??= "The maintenance job scheduled for this prediction is closed.";
+        }
+
         var historyIds = history.Select(p => p.Id).ToList();
         var noFailureFeedback = await db.PredictionFeedbacks.AsNoTracking()
             .Where(f => historyIds.Contains(f.PredictionId) && !f.ActualFailureOccurred)

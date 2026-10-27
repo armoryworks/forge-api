@@ -125,6 +125,36 @@ public class RuleBasedPredictiveMaintenanceServiceTests
     }
 
     [Fact]
+    public async Task A_scheduled_prediction_is_resolved_once_its_maintenance_job_is_done_so_the_rule_can_raise_again()
+    {
+        var (press, mold) = await SeedAsync(moldShots: 4900);
+        AddSchedule(mold, intervalShots: 5000);
+        await _db.SaveChangesAsync();
+        await _service.TriggerPredictionRunAsync(press.Id, CancellationToken.None);
+
+        var prediction = await _db.MaintenancePredictions.SingleAsync();
+        var job = new Job { JobNumber = "J-PM-1", Title = "Mold PM", TrackTypeId = 1, CurrentStageId = 1 };
+        _db.Jobs.Add(job);
+        await _db.SaveChangesAsync();
+        prediction.PreventiveMaintenanceJobId = job.Id;
+        prediction.Status = MaintenancePredictionStatus.MaintenanceScheduled;
+        await _db.SaveChangesAsync();
+
+        await _service.TriggerPredictionRunAsync(press.Id, CancellationToken.None);
+        (await _db.MaintenancePredictions.CountAsync()).Should().Be(1, "an open job keeps the prediction scheduled");
+
+        job.CompletedDate = Now.AddDays(-1);
+        await _db.SaveChangesAsync();
+        await _service.TriggerPredictionRunAsync(press.Id, CancellationToken.None);
+
+        var all = await _db.MaintenancePredictions.AsNoTracking().OrderBy(p => p.Id).ToListAsync();
+        all.Should().HaveCount(2);
+        all[0].Status.Should().Be(MaintenancePredictionStatus.Resolved);
+        all[0].ResolvedAt.Should().Be(Now.AddDays(-1));
+        all[1].Status.Should().Be(MaintenancePredictionStatus.Predicted, "the mold is still near its interval with no service logged");
+    }
+
+    [Fact]
     public async Task Downtime_trend_fires_when_stops_double_against_the_prior_average()
     {
         var (press, _) = await SeedAsync(moldShots: 0);

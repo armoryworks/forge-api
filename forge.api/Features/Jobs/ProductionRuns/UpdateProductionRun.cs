@@ -61,6 +61,11 @@ public class UpdateProductionRunHandler(AppDbContext db, IClock clock) : IReques
             throw new InvalidOperationException(
                 $"Completed quantity ({request.CompletedQuantity}) + scrap ({request.ScrapQuantity}) cannot exceed target quantity ({run.TargetQuantity}).");
 
+        if (run.ReceivedToStockAt is not null
+            && (request.CompletedQuantity != run.CompletedQuantity || request.ScrapQuantity != run.ScrapQuantity))
+            throw new InvalidOperationException(
+                $"Production run {run.RunNumber} has been received to stock, so its good and scrap quantities can no longer change.");
+
         var before = (run.CompletedQuantity, run.ScrapQuantity, run.Status);
 
         if (request.ToolingAssetId is int toolingAssetId)
