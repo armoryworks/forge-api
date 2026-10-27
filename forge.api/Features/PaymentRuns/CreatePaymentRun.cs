@@ -60,7 +60,8 @@ public class CreatePaymentRunHandler(AppDbContext db, PaymentRunExecutor executo
 /// discount, and cash plus discount against the balance), so a bad pick refuses the run before anything is saved. The
 /// discount of each pick is fixed when the run is recorded. With <c>ApplyVendorCredits</c> each vendor's open credit
 /// memos in the bill's currency are deducted from the picked cash, oldest first; when the credits cover a vendor's
-/// whole run no payment is made, so no discount is taken and the credits settle the full balance instead.
+/// whole run no payment is made, so no discount is taken: every pick keeps the credit that covers it, and what credit
+/// is left then goes towards each bill's full balance.
 /// </summary>
 public static class PaymentRunFactory
 {
@@ -155,14 +156,7 @@ public static class PaymentRunFactory
             if (items.Sum(i => i.Amount) - taken > 0m)
                 continue;
 
-            foreach (var item in items)
-            {
-                foreach (var credit in item.Credits)
-                    run.Credits.Remove(credit);
-                item.Credits.Clear();
-            }
-            open = memos.Where(m => m.OpenAmount > 0m).Select(m => (Memo: m, Left: m.OpenAmount)).ToList();
-            Allocate(run, items, open, i => bills[i.VendorBillId].BalanceDue);
+            Allocate(run, items, open, i => bills[i.VendorBillId].BalanceDue - i.Credits.Sum(c => c.Amount));
             foreach (var item in items)
                 item.DiscountAmount = 0m;
         }
@@ -183,9 +177,14 @@ public static class PaymentRunFactory
                 var amount = Math.Min(need, left);
                 if (amount > 0m)
                 {
-                    var credit = new PaymentRunCredit { VendorCreditMemoId = memo.Id, Amount = amount, PaymentRunItem = item };
-                    item.Credits.Add(credit);
-                    run.Credits.Add(credit);
+                    if (item.Credits.FirstOrDefault(c => c.VendorCreditMemoId == memo.Id) is { } existing)
+                        existing.Amount += amount;
+                    else
+                    {
+                        var credit = new PaymentRunCredit { VendorCreditMemoId = memo.Id, Amount = amount, PaymentRunItem = item };
+                        item.Credits.Add(credit);
+                        run.Credits.Add(credit);
+                    }
                     need -= amount;
                     taken += amount;
                     open[memoIndex] = (memo, left - amount);

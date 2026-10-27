@@ -131,6 +131,40 @@ public sealed class PaymentRunPostgresTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Credits_covering_a_vendor_spread_over_every_pick_so_no_bill_is_paid_in_cash()
+    {
+        await ctx.ResetAsync();
+        var vendor = await ctx.VendorAsync("Spread");
+        var first = await ctx.PostedBillAsync(vendor, 1m, 100m, "BILL-S1");
+        var second = await ctx.PostedBillAsync(vendor, 1m, 100m, "BILL-S2");
+        var memo = await ctx.CreateMemoAsync(new CreateVendorCreditMemoRequestModel(
+            vendor, VendorCreditMemoSourceType.Rebate, "Rebate", [new VendorCreditMemoLineRequestModel(1m, 100m)], MemoDate: March));
+        await ctx.IssueAsync(memo.Id);
+
+        PaymentRunDetailResponseModel run;
+        await using (var db = ctx.Db())
+        {
+            var mediator = ctx.Mediator(db);
+            run = await new CreatePaymentRunHandler(db, ctx.Executor(db, mediator.Object), mediator.Object).Handle(
+                new CreatePaymentRunCommand(new CreatePaymentRunRequestModel(
+                    March.AddDays(2), "Check",
+                    [new VendorPaymentSuggestionSelectionModel(first.Id, 50m), new VendorPaymentSuggestionSelectionModel(second.Id, 50m)],
+                    ApplyVendorCredits: true)),
+                CancellationToken.None);
+        }
+
+        run.Status.Should().Be("Completed");
+        run.Items.Should().OnlyContain(i => i.CreditAmount == 50m && i.CashAmount == 0m && i.VendorPaymentId == null);
+        await using (var db = ctx.Db())
+            (await db.VendorPayments.CountAsync()).Should().Be(0);
+        (await ctx.BillAsync(first.Id)).BalanceDue.Should().Be(50m);
+        (await ctx.BillAsync(second.Id)).BalanceDue.Should().Be(50m);
+        var net = await ctx.NetByAccountAsync();
+        (await ctx.SignedApOpenItemsAsync()).Should().Be(-net[ApId]);
+        (await ctx.SignedApOpenItemsAsync()).Should().Be(100m);
+    }
+
+    [Fact]
     public async Task Voiding_a_payment_that_deducted_a_credit_puts_the_credit_back()
     {
         await ctx.ResetAsync();
