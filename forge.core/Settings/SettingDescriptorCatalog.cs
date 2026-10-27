@@ -55,6 +55,7 @@ public static class SettingDescriptorCatalog
         list.AddRange(PayrollSettings.Descriptors);
         list.AddRange(NumberingSettings.Descriptors);
         list.AddRange(ShopFloorSettings.Descriptors);
+        list.AddRange(PredictiveMaintenanceSettings.Descriptors);
         return list;
     }
 }

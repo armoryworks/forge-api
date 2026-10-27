@@ -12,4 +12,6 @@ public record DowntimeLogResponseModel(
     bool IsPlanned,
     string? Notes,
     decimal DurationHours,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    int? WorkCenterId = null,
+    Forge.Core.Enums.DowntimeCategory? Category = null);

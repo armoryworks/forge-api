@@ -17,6 +17,7 @@ public class GetPredictionHandler(AppDbContext db)
         var p = await db.MaintenancePredictions
             .AsNoTracking()
             .Include(x => x.WorkCenter)
+            .Include(x => x.Asset)
             .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Prediction {request.Id} not found");
 
@@ -49,6 +50,9 @@ public class GetPredictionHandler(AppDbContext db)
             ResolutionNotes = p.ResolutionNotes,
             WasAccurate = p.WasAccurate,
             InputFeaturesJson = p.InputFeaturesJson,
+            AssetId = p.AssetId,
+            AssetName = p.Asset != null ? p.Asset.Name : null,
+            RuleKey = p.RuleKey,
         };
     }
 }

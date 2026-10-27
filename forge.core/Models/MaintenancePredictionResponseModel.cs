@@ -22,4 +22,7 @@ public record MaintenancePredictionResponseModel
     public string? ResolutionNotes { get; init; }
     public bool WasAccurate { get; init; }
     public string InputFeaturesJson { get; init; } = "{}";
+    public int? AssetId { get; init; }
+    public string? AssetName { get; init; }
+    public string? RuleKey { get; init; }
 }

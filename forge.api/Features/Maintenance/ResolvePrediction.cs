@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -9,7 +10,7 @@ namespace Forge.Api.Features.Maintenance;
 
 public record ResolvePredictionCommand(int Id, ResolvePredictionRequestModel Request) : IRequest;
 
-public class ResolvePredictionHandler(AppDbContext db)
+public class ResolvePredictionHandler(AppDbContext db, IClock clock)
     : IRequestHandler<ResolvePredictionCommand>
 {
     public async Task Handle(ResolvePredictionCommand command, CancellationToken cancellationToken)
@@ -20,6 +21,7 @@ public class ResolvePredictionHandler(AppDbContext db)
 
         prediction.Status = MaintenancePredictionStatus.Resolved;
         prediction.ResolutionNotes = command.Request.Notes;
+        prediction.ResolvedAt = clock.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
     }

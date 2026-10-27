@@ -22,6 +22,13 @@ public class MaintenancePredictionConfiguration : IEntityTypeConfiguration<Maint
         builder.HasIndex(e => e.Severity);
         builder.HasIndex(e => e.AcknowledgedByUserId);
         builder.HasIndex(e => e.PreventiveMaintenanceJobId);
+        builder.HasIndex(e => new { e.AssetId, e.RuleKey });
+        builder.Property(e => e.RuleKey).HasMaxLength(50);
+
+        builder.HasOne(e => e.Asset)
+            .WithMany()
+            .HasForeignKey(e => e.AssetId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(e => e.WorkCenter)
             .WithMany()

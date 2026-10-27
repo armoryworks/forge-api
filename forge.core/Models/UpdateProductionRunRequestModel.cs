@@ -6,4 +6,5 @@ public record UpdateProductionRunRequestModel(
     string Status,
     string? Notes,
     decimal? SetupTimeMinutes,
-    decimal? RunTimeMinutes);
+    decimal? RunTimeMinutes,
+    int? ToolingAssetId = null);

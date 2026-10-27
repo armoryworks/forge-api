@@ -114,6 +114,7 @@ public class AssetsController(IMediator mediator) : ControllerBase
     // ─── Machine Hours ───
 
     [HttpPatch("{id:int}/hours")]
+    [RequiresCapability("CAP-MAINT-PM")]
     public async Task<ActionResult<AssetResponseModel>> UpdateMachineHours(
         int id, [FromBody] UpdateMachineHoursRequestModel request)
     {

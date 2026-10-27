@@ -5,6 +5,7 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Jobs.ProductionRuns;
 
@@ -16,7 +17,8 @@ public record UpdateProductionRunCommand(
     string Status,
     string? Notes,
     decimal? SetupTimeMinutes,
-    decimal? RunTimeMinutes) : IRequest<ProductionRunResponseModel>;
+    decimal? RunTimeMinutes,
+    int? ToolingAssetId = null) : IRequest<ProductionRunResponseModel>;
 
 public class UpdateProductionRunCommandValidator : AbstractValidator<UpdateProductionRunCommand>
 {
@@ -59,11 +61,26 @@ public class UpdateProductionRunHandler(AppDbContext db, IClock clock) : IReques
             throw new InvalidOperationException(
                 $"Completed quantity ({request.CompletedQuantity}) + scrap ({request.ScrapQuantity}) cannot exceed target quantity ({run.TargetQuantity}).");
 
+        var before = (run.CompletedQuantity, run.ScrapQuantity, run.Status);
+
+        if (request.ToolingAssetId is int toolingAssetId)
+            await ProductionRunTooling.ReassignAsync(db, run, toolingAssetId, cancellationToken);
+
         run.CompletedQuantity = request.CompletedQuantity;
         run.ScrapQuantity = request.ScrapQuantity;
         run.Notes = request.Notes;
         run.SetupTimeMinutes = request.SetupTimeMinutes;
-        run.RunTimeMinutes = request.RunTimeMinutes;
+
+        if (request.RunTimeMinutes is > 0)
+        {
+            run.RunTimeMinutes = request.RunTimeMinutes;
+            run.RunTimeManual = true;
+        }
+        else if (request.RunTimeMinutes is not null || !run.RunTimeManual)
+        {
+            run.RunTimeMinutes = null;
+            run.RunTimeManual = false;
+        }
 
         if (newStatus == ProductionRunStatus.InProgress && run.StartedAt is null)
             run.StartedAt = clock.UtcNow;
@@ -71,45 +88,21 @@ public class UpdateProductionRunHandler(AppDbContext db, IClock clock) : IReques
         if (newStatus == ProductionRunStatus.Completed && run.CompletedAt is null)
             run.CompletedAt = clock.UtcNow;
 
-        if (newStatus == ProductionRunStatus.Completed && run.RunTimeMinutes is not > 0)
-            run.RunTimeMinutes = Forge.Core.Entities.ProductionRun.DerivedRunTimeMinutes(
-                run.StartedAt, run.CompletedAt, run.SetupTimeMinutes) ?? run.RunTimeMinutes;
+        if (newStatus == ProductionRunStatus.Completed && !run.RunTimeManual)
+            run.RunTimeMinutes = await ProductionRunTiming.DeriveRunTimeMinutesAsync(db, run, cancellationToken);
 
         run.Status = newStatus;
 
+        var shotsAdded = await ProductionRunTooling.ApplyShotsAsync(db, run, cancellationToken);
+
+        if (before != (run.CompletedQuantity, run.ScrapQuantity, run.Status) || shotsAdded != 0)
+            db.LogActivityAt("production-run-updated",
+                $"Production run {run.RunNumber}: {run.Status}, {run.CompletedQuantity} good, {run.ScrapQuantity} scrap"
+                    + (shotsAdded != 0 ? $", {shotsAdded:+#;-#} shots on tooling" : string.Empty),
+                ("Job", run.JobId));
+
         await db.SaveChangesAsync(cancellationToken);
 
-        string? operatorName = null;
-        if (run.OperatorId.HasValue)
-        {
-            var user = await db.Users.FindAsync([run.OperatorId.Value], cancellationToken);
-            if (user is not null)
-                operatorName = $"{user.FirstName} {user.LastName}".Trim();
-        }
-
-        var yieldPct = Forge.Core.Entities.ProductionRun.YieldPercent(run.CompletedQuantity, run.ScrapQuantity);
-
-        return new ProductionRunResponseModel(
-            run.Id,
-            run.JobId,
-            run.Job.JobNumber,
-            run.PartId,
-            run.Part.PartNumber,
-            run.Part.Description ?? run.Part.Name,
-            run.OperatorId,
-            operatorName,
-            run.RunNumber,
-            run.TargetQuantity,
-            run.CompletedQuantity,
-            run.ScrapQuantity,
-            run.Status.ToString(),
-            run.StartedAt,
-            run.CompletedAt,
-            run.Notes,
-            run.SetupTimeMinutes,
-            run.RunTimeMinutes,
-            yieldPct,
-            run.ReceivedQuantity,
-            run.ReceivedToStockAt);
+        return await ProductionRunResponses.BuildAsync(db, run, cancellationToken);
     }
 }

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -24,7 +25,7 @@ public class RecordPredictionFeedbackValidator : AbstractValidator<RecordPredict
     }
 }
 
-public class RecordPredictionFeedbackHandler(AppDbContext db, IHttpContextAccessor httpContextAccessor)
+public class RecordPredictionFeedbackHandler(AppDbContext db, IHttpContextAccessor httpContextAccessor, IClock clock)
     : IRequestHandler<RecordPredictionFeedbackCommand>
 {
     public async Task Handle(RecordPredictionFeedbackCommand command, CancellationToken cancellationToken)
@@ -53,6 +54,8 @@ public class RecordPredictionFeedbackHandler(AppDbContext db, IHttpContextAccess
         };
 
         prediction.WasAccurate = req.ActualFailureOccurred;
+        if (!req.ActualFailureOccurred)
+            prediction.ResolvedAt ??= clock.UtcNow;
 
         db.PredictionFeedbacks.Add(feedback);
         await db.SaveChangesAsync(cancellationToken);

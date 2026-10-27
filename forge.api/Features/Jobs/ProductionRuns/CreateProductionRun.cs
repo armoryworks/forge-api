@@ -6,6 +6,7 @@ using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Jobs.ProductionRuns;
 
@@ -15,7 +16,8 @@ public record CreateProductionRunCommand(
     int TargetQuantity,
     int? OperatorId,
     string? Notes,
-    int? WorkCenterId = null) : IRequest<ProductionRunResponseModel>;
+    int? WorkCenterId = null,
+    int? ToolingAssetId = null) : IRequest<ProductionRunResponseModel>;
 
 public class CreateProductionRunCommandValidator : AbstractValidator<CreateProductionRunCommand>
 {
@@ -49,52 +51,34 @@ public class CreateProductionRunHandler(AppDbContext db, IClock clock) : IReques
 
         var runNumber = $"RUN-{datePrefix}-{(todayCount + 1):D3}";
 
-        string? operatorName = null;
-        if (request.OperatorId.HasValue)
-        {
-            var user = await db.Users.FindAsync([request.OperatorId.Value], cancellationToken);
-            if (user is not null)
-                operatorName = $"{user.FirstName} {user.LastName}".Trim();
-        }
-
         var workCenterId = await ResolveWorkCenterIdAsync(request, cancellationToken);
+
+        if (request.ToolingAssetId is int requestedTool)
+            await ProductionRunTooling.RequireToolingAsync(db, requestedTool, cancellationToken);
+        var toolingAssetId = request.ToolingAssetId
+            ?? await ProductionRunTooling.DefaultToolingAsync(db, part, workCenterId, cancellationToken);
 
         var productionRun = new ProductionRun
         {
             WorkCenterId = workCenterId,
+            ToolingAssetId = toolingAssetId,
             JobId = request.JobId,
             PartId = request.PartId,
             OperatorId = request.OperatorId,
             RunNumber = runNumber,
             TargetQuantity = request.TargetQuantity,
             Notes = request.Notes,
+            Job = job,
+            Part = part,
         };
 
         db.ProductionRuns.Add(productionRun);
+        db.LogActivityAt("production-run-created",
+            $"Production run {runNumber} created for {part.PartNumber}, target {request.TargetQuantity}",
+            ("Job", job.Id));
         await db.SaveChangesAsync(cancellationToken);
 
-        return new ProductionRunResponseModel(
-            productionRun.Id,
-            productionRun.JobId,
-            job.JobNumber,
-            productionRun.PartId,
-            part.PartNumber,
-            part.Description ?? part.Name,
-            productionRun.OperatorId,
-            operatorName,
-            productionRun.RunNumber,
-            productionRun.TargetQuantity,
-            productionRun.CompletedQuantity,
-            productionRun.ScrapQuantity,
-            productionRun.Status.ToString(),
-            productionRun.StartedAt,
-            productionRun.CompletedAt,
-            productionRun.Notes,
-            productionRun.SetupTimeMinutes,
-            productionRun.RunTimeMinutes,
-            0m,
-            productionRun.ReceivedQuantity,
-            productionRun.ReceivedToStockAt);
+        return await ProductionRunResponses.BuildAsync(db, productionRun, cancellationToken);
     }
 
     private async Task<int?> ResolveWorkCenterIdAsync(CreateProductionRunCommand request, CancellationToken cancellationToken)
