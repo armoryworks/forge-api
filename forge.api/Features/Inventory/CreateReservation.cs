@@ -34,6 +34,10 @@ public class CreateReservationHandler(
         var binContent = await repo.FindBinContentWithLocationAsync(data.BinContentId, ct)
             ?? throw new KeyNotFoundException($"Bin content {data.BinContentId} not found.");
 
+        if (binContent.OwnerVendorId is not null)
+            throw new InvalidOperationException(
+                "This stock belongs to the vendor under a consignment agreement. Consume it on the agreement before reserving it.");
+
         var available = binContent.Quantity - binContent.ReservedQuantity;
         if (data.Quantity > available)
             throw new InvalidOperationException(

@@ -619,6 +619,7 @@ public static partial class SeedData
         ("SALES_DISCOUNTS", "41500", "Sales Discounts", AccountType.Income, NormalBalance.Debit),
         ("PURCHASE_DISCOUNTS", "50500", "Purchase Discounts", AccountType.Expense, NormalBalance.Credit),
         ("BAD_DEBT_EXPENSE", "69500", "Bad Debt Expense", AccountType.Expense, NormalBalance.Debit),
+        ("CONSIGNMENT_LIABILITY", "21100", "Consignment Liability", AccountType.Liability, NormalBalance.Credit),
     ];
 
     internal static async Task EnsureDeterminationAccountsAsync(AppDbContext db)
