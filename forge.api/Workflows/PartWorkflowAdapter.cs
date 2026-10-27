@@ -110,7 +110,7 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemS
             PartNumber = partNumber,
             Name = name.Trim(),
             Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(),
-            Revision = ReadStringOrDefault(initialData, "revision")?.Trim() ?? "A",
+            Revision = PartRevisionBaseline.CodeOrFirst(ReadStringOrDefault(initialData, "revision")),
             ProcurementSource = procurement,
             InventoryClass = inventoryClass,
             ItemKindId = itemKindId,
@@ -185,7 +185,7 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemS
         if (TryReadString(fields, "revision", out var rev) && rev is not null)
         {
             var previousRevision = part.Revision;
-            part.Revision = rev.Trim();
+            part.Revision = PartRevisionBaseline.CodeOrFirst(rev);
             await PartRevisionBaseline.RenameCurrentAsync(db, part.Id, previousRevision, part.Revision, ct);
         }
         if (TryReadDecimal(fields, "manualCostOverride", out var manual))

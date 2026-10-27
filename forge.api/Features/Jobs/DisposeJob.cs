@@ -9,6 +9,7 @@ using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Jobs.ProductionRuns;
 using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -36,6 +37,7 @@ public class DisposeJobCommandValidator : AbstractValidator<DisposeJobCommand>
             .When(x => x.Data.GoodQuantity.HasValue);
         RuleFor(x => x.Data.LocationId).GreaterThan(0).When(x => x.Data.LocationId.HasValue);
         RuleFor(x => x.Data.AssetGlAccountId).GreaterThan(0).When(x => x.Data.AssetGlAccountId.HasValue);
+        RuleFor(x => x.Data.ExpenseGlAccountId).GreaterThan(0).When(x => x.Data.ExpenseGlAccountId.HasValue);
     }
 }
 
@@ -69,12 +71,14 @@ public class DisposeJobHandler(
         + "Complete or dispose them before adding it to inventory.";
 
     public static bool ClosesJobCost(JobDisposition disposition) =>
-        disposition is JobDisposition.AddToInventory or JobDisposition.Scrap;
+        disposition is JobDisposition.AddToInventory or JobDisposition.Scrap
+            or JobDisposition.ShipToCustomer or JobDisposition.Other;
 
     private const int HeldNotesExcerptLength = 300;
 
     public static bool RequiresReason(JobDisposition disposition) =>
-        disposition is JobDisposition.Scrap or JobDisposition.HoldForReview or JobDisposition.EnteredInError;
+        disposition is JobDisposition.Scrap or JobDisposition.HoldForReview or JobDisposition.EnteredInError
+            or JobDisposition.Other;
 
     public async Task<JobDetailResponseModel> Handle(DisposeJobCommand request, CancellationToken cancellationToken)
     {
@@ -218,24 +222,62 @@ public class DisposeJobHandler(
         else
             await jobRepo.SaveChangesAsync(ct);
 
-        var close = await jobCostPosting.CloseDisposedJobProductionCostAsync(
-            job.Id, DateOnly.FromDateTime(clock.UtcNow.UtcDateTime), request.UserId, ct);
+        var entryDate = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
+        var disposition = request.Data.Disposition;
+        var close = disposition is JobDisposition.ShipToCustomer or JobDisposition.Other
+            ? await jobCostPosting.CloseDisposedJobProductionCostAsync(
+                job.Id, entryDate, request.UserId,
+                new DisposedJobCostTarget(
+                    disposition, job.PartId, await ShippedQuantityAsync(job, request.Data, ct), request.Data.ExpenseGlAccountId),
+                ct)
+            : await jobCostPosting.CloseDisposedJobProductionCostAsync(job.Id, entryDate, request.UserId, ct);
 
         if (close.Posted && close.ProductionVariance != 0m)
         {
             var jobLabel = TermLabels.Lower((await terminology.GetOrDefaultsAsync(ct)).Singular("job"));
+            var amount = Math.Abs(close.ProductionVariance);
             job.ActivityLogs.Add(new JobActivityLog
             {
                 UserId = request.UserId,
                 Action = ActivityAction.StatusChanged,
-                Description = $"Closed the production cost of {jobLabel} {job.JobNumber}: "
-                    + $"{Math.Abs(close.ProductionVariance):N2} of work in process swept to production variance.",
+                Description = disposition switch
+                {
+                    JobDisposition.ShipToCustomer =>
+                        $"Closed the production cost of {jobLabel} {job.JobNumber}: {amount:N2} of work in process "
+                        + "relieved to cost of goods sold.",
+                    JobDisposition.Other =>
+                        $"Closed the production cost of {jobLabel} {job.JobNumber}: {amount:N2} of work in process written off.",
+                    _ => $"Closed the production cost of {jobLabel} {job.JobNumber}: "
+                        + $"{amount:N2} of work in process swept to production variance.",
+                },
             });
             await db.SaveChangesAsync(ct);
         }
 
         if (tx is not null)
             await tx.CommitAsync(ct);
+    }
+
+    private async Task<decimal> ShippedQuantityAsync(Job job, DisposeJobRequestModel data, CancellationToken ct)
+    {
+        if (data.GoodQuantity is decimal good && good > 0m)
+            return good;
+        if (job.PartId is not int partId)
+            return 0m;
+
+        var jobPartQuantity = await db.JobParts.AsNoTracking()
+            .Where(jp => jp.JobId == job.Id && jp.PartId == partId)
+            .SumAsync(jp => (decimal?)jp.Quantity, ct) ?? 0m;
+        var salesOrderLineQuantity = job.SalesOrderLineId is int lineId
+            ? await db.SalesOrderLines.AsNoTracking()
+                .Where(l => l.Id == lineId)
+                .Select(l => (decimal?)l.Quantity)
+                .FirstOrDefaultAsync(ct)
+            : null;
+        var received = await db.ProductionRuns.AsNoTracking()
+            .Where(r => r.JobId == job.Id && r.ReceivedToStockAt != null)
+            .SumAsync(r => (decimal?)r.ReceivedQuantity, ct) ?? 0m;
+        return Math.Max(0m, OperationTimeMath.JobBuildQuantity(jobPartQuantity, salesOrderLineQuantity) - received);
     }
 
     private async Task<List<string>> OpenChildJobNumbersAsync(int jobId, CancellationToken ct) =>

@@ -12,6 +12,12 @@ namespace Forge.Api.Features.Parts;
 /// </summary>
 public static class PartRevisionBaseline
 {
+    public const string FirstRevision = "A";
+
+    /// <summary>The revision code to store for <paramref name="revision"/>: trimmed, or the first revision when blank.</summary>
+    public static string CodeOrFirst(string? revision)
+        => string.IsNullOrWhiteSpace(revision) ? FirstRevision : revision.Trim();
+
     /// <summary>
     /// Queues the current baseline row for <paramref name="part"/> at its present revision code.
     /// The caller saves it with the part.

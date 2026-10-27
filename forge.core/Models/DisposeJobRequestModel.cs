@@ -7,4 +7,5 @@ public record DisposeJobRequestModel(
     string? Notes,
     decimal? GoodQuantity = null,
     int? LocationId = null,
-    int? AssetGlAccountId = null);
+    int? AssetGlAccountId = null,
+    int? ExpenseGlAccountId = null);

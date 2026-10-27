@@ -54,6 +54,11 @@ public class DisposeJobHandlerTests
             .Setup(p => p.CloseDisposedJobProductionCostAsync(It.IsAny<int>(), It.IsAny<DateOnly>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((int jobId, DateOnly _, int _, CancellationToken _) =>
                 new JobProductionCostCloseResult(jobId, 0m, 0m, 0m, Posted: false));
+        _jobCostPosting
+            .Setup(p => p.CloseDisposedJobProductionCostAsync(
+                It.IsAny<int>(), It.IsAny<DateOnly>(), It.IsAny<int>(), It.IsAny<DisposedJobCostTarget>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int jobId, DateOnly _, int _, DisposedJobCostTarget _, CancellationToken _) =>
+                new JobProductionCostCloseResult(jobId, 0m, 0m, 0m, Posted: false));
 
         _handler = new DisposeJobHandler(
             _jobRepo.Object,
@@ -759,8 +764,9 @@ public class DisposeJobHandlerTests
     [InlineData(JobDisposition.Scrap, true)]
     [InlineData(JobDisposition.HoldForReview, false)]
     [InlineData(JobDisposition.ShipToCustomer, false)]
+    [InlineData(JobDisposition.Other, false)]
     [InlineData(JobDisposition.EnteredInError, false)]
-    public async Task Handle_ClosesTheJobCost_OnlyForInventoryAndScrap(JobDisposition disposition, bool closes)
+    public async Task Handle_RunsTheStockCloseOnlyForInventoryAndScrap(JobDisposition disposition, bool closes)
     {
         _capabilities.Setup(c => c.IsEnabled(DisposeJobHandler.StockingCapability)).Returns(false);
         var job = ArrangeJob(78, "JOB-0078");
@@ -772,6 +778,30 @@ public class DisposeJobHandlerTests
 
         _jobCostPosting.Verify(p => p.CloseDisposedJobProductionCostAsync(
             78, It.IsAny<DateOnly>(), 1, It.IsAny<CancellationToken>()), closes ? Times.Once() : Times.Never());
+    }
+
+    [Theory]
+    [InlineData(JobDisposition.ShipToCustomer, true)]
+    [InlineData(JobDisposition.Other, true)]
+    [InlineData(JobDisposition.AddToInventory, false)]
+    [InlineData(JobDisposition.Scrap, false)]
+    [InlineData(JobDisposition.HoldForReview, false)]
+    [InlineData(JobDisposition.EnteredInError, false)]
+    public async Task Handle_ClosesWipToCogsOrAWriteOff_ForShipAndOther(JobDisposition disposition, bool closes)
+    {
+        _capabilities.Setup(c => c.IsEnabled(DisposeJobHandler.StockingCapability)).Returns(false);
+        var job = ArrangeJob(79, "JOB-0079");
+        job.PartId = 790;
+
+        await _handler.Handle(
+            new DisposeJobCommand(79, new DisposeJobRequestModel(disposition, "reason", 4m, ExpenseGlAccountId: 600), 1),
+            CancellationToken.None);
+
+        _jobCostPosting.Verify(p => p.CloseDisposedJobProductionCostAsync(
+            79, It.IsAny<DateOnly>(), 1,
+            It.Is<DisposedJobCostTarget>(t => t.Disposition == disposition && t.PartId == 790 && t.ShippedQuantity == 4m
+                && t.ExpenseGlAccountId == 600),
+            It.IsAny<CancellationToken>()), closes ? Times.Once() : Times.Never());
     }
 
     [Fact]
@@ -836,9 +866,14 @@ public class DisposeJobHandlerTests
         result.Errors.Should().Contain(e => e.ErrorMessage == "A reason is required for this disposition.");
     }
 
+    [Fact]
+    public void Validator_RequiresAReasonForOther()
+        => new DisposeJobCommandValidator()
+            .Validate(new DisposeJobCommand(1, new DisposeJobRequestModel(JobDisposition.Other, null), 1))
+            .IsValid.Should().BeFalse();
+
     [Theory]
     [InlineData(JobDisposition.ShipToCustomer)]
-    [InlineData(JobDisposition.Other)]
     public void Validator_DoesNotRequireAReasonForOutcomes(JobDisposition disposition)
     {
         new DisposeJobCommandValidator()

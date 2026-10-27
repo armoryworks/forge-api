@@ -4,8 +4,10 @@ using FluentAssertions;
 
 using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
+using Forge.Core.Entities.Costing;
 using Forge.Core.Enums;
 using Forge.Data.Context;
+using Forge.Core.Models.Accounting;
 using Forge.Integrations;
 using Forge.Tests.Helpers;
 
@@ -200,5 +202,91 @@ public class StandardCostRollupServiceTests
         var e = await new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off).RollupAsync(partId);
 
         e.Overhead.Should().Be(12m); // flat 1.5 × 8 — departmental config not applied without the capability
+    }
+
+    private static readonly StubCapabilitySnapshotProvider Tier3On = new(StandardCostRollupService.Tier3Capability);
+
+    private static async Task<int> AddFrozenPeriodAsync(
+        AppDbContext db, int workCenterId, CostingPeriodStatus status = CostingPeriodStatus.Frozen, int startDaysAgo = 10, int endDaysAhead = 20)
+    {
+        var period = new CostingPeriod
+        {
+            StartDate = DateTime.UtcNow.Date.AddDays(-startDaysAgo),
+            EndDate = DateTime.UtcNow.Date.AddDays(endDaysAhead),
+            Status = status,
+            FrozenAt = status == CostingPeriodStatus.Open ? null : DateTime.UtcNow.AddDays(-startDaysAgo),
+        };
+        db.Add(period);
+        await db.SaveChangesAsync();
+        db.Add(new WorkCenterCostRate
+        {
+            WorkCenterId = workCenterId, CostingPeriodId = period.Id,
+            LaborRate = 30m, LaborOhRate = 4m, MachineRate = 10m, MachineOhVarRate = 2m, MachineOhFixedRate = 1m,
+        });
+        await db.SaveChangesAsync();
+        return period.Id;
+    }
+
+    [Fact]
+    public async Task Rollup_Tier3On_WithAFrozenPeriod_UsesThePeriodsFrozenRates()
+    {
+        using var db = TestDbContextFactory.Create();
+        var partId = await AddPartAsync(db);
+        var wcId = await AddSingleOpWorkCenterAsync(db, partId, minutes: 90, laborRate: 20m, burdenRate: 8m);
+        var periodId = await AddFrozenPeriodAsync(db, wcId);
+
+        var e = await new StandardCostRollupService(db, new SystemClock(), Tier3On).RollupAsync(partId);
+
+        e.Labor.Should().Be(45m);
+        e.Overhead.Should().Be(25.5m);
+        e.RateSource.Should().Be(StandardCostRateSource.FrozenPeriod);
+        e.CostingPeriodId.Should().Be(periodId);
+    }
+
+    [Fact]
+    public async Task Rollup_Tier3On_WithoutAFrozenPeriodCoveringToday_KeepsTheCurrentRates()
+    {
+        using var db = TestDbContextFactory.Create();
+        var partId = await AddPartAsync(db);
+        var wcId = await AddSingleOpWorkCenterAsync(db, partId, minutes: 90, laborRate: 20m, burdenRate: 8m);
+        await AddFrozenPeriodAsync(db, wcId, CostingPeriodStatus.Open);
+        await AddFrozenPeriodAsync(db, wcId, CostingPeriodStatus.Frozen, startDaysAgo: 60, endDaysAhead: -30);
+
+        var e = await new StandardCostRollupService(db, new SystemClock(), Tier3On).RollupAsync(partId);
+
+        e.Labor.Should().Be(30m);
+        e.Overhead.Should().Be(12m);
+        e.RateSource.Should().Be(StandardCostRateSource.WorkCenter);
+        e.CostingPeriodId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Rollup_Tier3Off_IgnoresAFrozenPeriod()
+    {
+        using var db = TestDbContextFactory.Create();
+        var partId = await AddPartAsync(db);
+        var wcId = await AddSingleOpWorkCenterAsync(db, partId, minutes: 90, laborRate: 20m, burdenRate: 8m);
+        await AddFrozenPeriodAsync(db, wcId);
+
+        var e = await new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off).RollupAsync(partId);
+
+        e.Labor.Should().Be(30m);
+        e.Overhead.Should().Be(12m);
+        e.RateSource.Should().Be(StandardCostRateSource.WorkCenter);
+    }
+
+    [Fact]
+    public async Task Rollup_Tier3On_AWorkCenterWithNoFrozenRow_KeepsItsCurrentRates()
+    {
+        using var db = TestDbContextFactory.Create();
+        var partId = await AddPartAsync(db);
+        var wcId = await AddSingleOpWorkCenterAsync(db, partId, minutes: 60, laborRate: 20m, burdenRate: 8m);
+        await AddFrozenPeriodAsync(db, wcId + 9999);
+
+        var e = await new StandardCostRollupService(db, new SystemClock(), Tier3On).RollupAsync(partId);
+
+        e.Labor.Should().Be(20m);
+        e.Overhead.Should().Be(8m);
+        e.RateSource.Should().Be(StandardCostRateSource.FrozenPeriod);
     }
 }

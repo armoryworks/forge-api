@@ -166,6 +166,48 @@ public class RoutingPredecessorHandlerTests
         (await _db.ActivityLogs.AnyAsync(a => a.Action == "routing-reordered")).Should().BeTrue();
     }
 
+    private async Task<string> VersionAsync(Part part)
+        => (await new GetRoutingGraphHandler(_repo).Handle(new GetRoutingGraphQuery(part.Id), CancellationToken.None)).Version;
+
+    [Fact]
+    public async Task Reorder_with_the_version_it_opened_saves_and_with_a_stale_one_is_refused_409()
+    {
+        var (part, ops) = await SeedAsync();
+        var opened = await VersionAsync(part);
+        var handler = new ReorderOperationsHandler(_repo, _db);
+
+        await handler.Handle(new ReorderOperationsCommand(part.Id,
+            new ReorderOperationsRequestModel([ops[1].Id, ops[0].Id, ops[2].Id], RoutingVersion: opened)), CancellationToken.None);
+        _db.ChangeTracker.Clear();
+
+        var stale = () => handler.Handle(new ReorderOperationsCommand(part.Id,
+            new ReorderOperationsRequestModel([ops[0].Id, ops[2].Id, ops[1].Id], RoutingVersion: opened)), CancellationToken.None);
+
+        var thrown = (await stale.Should().ThrowAsync<RoutingGraphStaleException>()).Which;
+        thrown.CurrentVersion.Should().Be(await VersionAsync(part));
+        (await _db.Operations.AsNoTracking().Where(o => o.PartId == part.Id).OrderBy(o => o.StepNumber).Select(o => o.Id).ToListAsync())
+            .Should().Equal(ops[1].Id, ops[0].Id, ops[2].Id);
+    }
+
+    [Fact]
+    public async Task A_link_edit_on_a_stale_version_is_refused_but_a_field_edit_is_not()
+    {
+        var (part, ops) = await SeedAsync();
+        var opened = await VersionAsync(part);
+        await LinkAsync(ops[2], ops[0]);
+        var handler = new UpdateOperationHandler(_repo, Mock.Of<IVendorRepository>(), _db);
+
+        var linkEdit = () => handler.Handle(Update(part, ops[2],
+            Patch(predecessors: [new(ops[1].Id)]) with { RoutingVersion = opened }), CancellationToken.None);
+        await linkEdit.Should().ThrowAsync<RoutingGraphStaleException>();
+        _db.ChangeTracker.Clear();
+
+        var renamed = await handler.Handle(Update(part, ops[2],
+            Patch() with { Title = "Pack", RoutingVersion = opened }), CancellationToken.None);
+        renamed.Title.Should().Be("Pack");
+        (await LinksAsync()).Should().Equal((ops[2].Id, ops[0].Id, PredecessorGate.Quantity));
+    }
+
     [Fact]
     public async Task Reorder_needs_every_step_once()
     {

@@ -9,6 +9,7 @@ using Forge.Api.Capabilities;
 using Forge.Api.Features.Terminology;
 using Forge.Api.Services;
 using Forge.Core.Entities.Accounting;
+using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
@@ -32,6 +33,8 @@ public sealed record JobProductionCostCloseResult(
     public decimal LaborEfficiencyVariance { get; init; }
     public decimal OverheadEfficiencyVariance { get; init; }
     public decimal ProductionVarianceResidual { get; init; }
+    public decimal CostOfGoodsSold { get; init; }
+    public int? WriteOffGlAccountId { get; init; }
 }
 
 /// <summary>
@@ -73,6 +76,17 @@ public interface IProductionVariancePostingService
     /// </summary>
     Task<JobProductionCostCloseResult> CloseDisposedJobProductionCostAsync(
         int jobId, DateOnly entryDate, int disposedByUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The disposition close for a job that never reaches stock (<see cref="DisposedJobCostTarget"/>): absorbs its
+    /// conversion cost as every close does, then relieves the whole WIP balance at actual. Shipped to the customer,
+    /// cost of goods sold takes the standard cost of the shipped quantity and the difference goes to the named
+    /// variances, as on the inventory path (with no standard, cost of goods sold takes it all); any other
+    /// disposition writes it off to the chosen expense account or production variance. Same entry keys as the
+    /// other closes, so a later close does not sweep the job again.
+    /// </summary>
+    Task<JobProductionCostCloseResult> CloseDisposedJobProductionCostAsync(
+        int jobId, DateOnly entryDate, int disposedByUserId, DisposedJobCostTarget target, CancellationToken ct = default);
 
     /// <summary>
     /// Absorbs the job's labor, overhead and subcontract cost incurred so far, less what earlier receipts and
@@ -117,25 +131,35 @@ public sealed class ProductionVariancePostingService(
     private const string KeyLaborRateVariance = "LABOR_RATE_VARIANCE";
     private const string KeyLaborEfficiencyVariance = "LABOR_EFFICIENCY_VARIANCE";
     private const string KeyOverheadEfficiencyVariance = "OVERHEAD_EFFICIENCY_VARIANCE";
+    private const string KeyCogs = "COGS";
     public const string KeyFixedAssets = "FIXED_ASSETS";
 
     private static readonly AccountType[] CapitalAccountTypes = [AccountType.Asset];
+    private static readonly AccountType[] WriteOffAccountTypes = [AccountType.Expense];
 
     public Task<JobProductionCostCloseResult> CloseJobProductionCostAsync(
         int jobId, DateOnly entryDate, int closedByUserId, CancellationToken ct = default) =>
-        CloseAsync(jobId, entryDate, closedByUserId, asSystem: false, ct);
+        CloseAsync(jobId, entryDate, closedByUserId, asSystem: false, target: null, ct);
 
     public Task<JobProductionCostCloseResult> CloseDisposedJobProductionCostAsync(
         int jobId, DateOnly entryDate, int disposedByUserId, CancellationToken ct = default) =>
-        CloseAsync(jobId, entryDate, disposedByUserId, asSystem: true, ct);
+        CloseAsync(jobId, entryDate, disposedByUserId, asSystem: true, target: null, ct);
+
+    public Task<JobProductionCostCloseResult> CloseDisposedJobProductionCostAsync(
+        int jobId, DateOnly entryDate, int disposedByUserId, DisposedJobCostTarget target, CancellationToken ct = default) =>
+        CloseAsync(jobId, entryDate, disposedByUserId, asSystem: true, target, ct);
 
     private async Task<JobProductionCostCloseResult> CloseAsync(
-        int jobId, DateOnly entryDate, int closedByUserId, bool asSystem, CancellationToken ct)
+        int jobId, DateOnly entryDate, int closedByUserId, bool asSystem, DisposedJobCostTarget? target, CancellationToken ct)
     {
         if (!capabilities.IsEnabled(FullGlCapability))
             return new JobProductionCostCloseResult(jobId, 0m, 0m, 0m, Posted: false);
 
         var book = await RequireBookAsync(ct);
+        var writeOffAccount = target is { Disposition: JobDisposition.Other, ExpenseGlAccountId: int writeOffId }
+            ? await PostableGlAccountLookup.ResolveAsync(
+                db, book.Id, writeOffId, null, "Data.ExpenseGlAccountId", WriteOffAccountTypes, ct)
+            : null;
         var jobLabel = await JobMemoLabel.ResolveAsync(db, terminology, jobId, ct);
         var (laborStd, laborRateVar, laborActual, burden, subcontract) = await AbsorbAsync(book, jobId, jobLabel, entryDate, closedByUserId, asSystem, ct);
 
@@ -161,24 +185,56 @@ public sealed class ProductionVariancePostingService(
         // efficiency) when a standard resolver is wired, with any unexplained remainder to PRODUCTION_VARIANCE;
         // else a single lumped sweep. Every branch zeroes the job's WIP (the named lines + WIP offset sum to
         // residual).
-        decimal matUsage = 0m, laborEff = 0m, ohEff = 0m, catchall = residual;
+        decimal matUsage = 0m, laborEff = 0m, ohEff = 0m, catchall = residual, cogs = 0m;
         var lines = new List<PostingLine>();
+        var postsRateVariance = standardCost is not null;
 
-        if (standardCost is not null)
+        if (target?.Disposition == JobDisposition.ShipToCustomer)
+        {
+            var standard = await ShippedStandardAsync(target, ct);
+            if (standard.Total > 0m)
+            {
+                var received = await ReceivedStandardAsync(jobId, ct);
+                var actualMaterial = Math.Round(await jobCost.GetActualMaterialCostAsync(jobId, ct), 2);
+                cogs = Math.Round(standard.Material, 2) + Math.Round(standard.Labor, 2) + Math.Round(standard.Overhead, 2);
+                matUsage = Math.Round(actualMaterial - received.Material - standard.Material, 2);
+                laborEff = Math.Round(laborStd - received.Labor - standard.Labor, 2);
+                ohEff = Math.Round(burden - received.Overhead - standard.Overhead, 2);
+                catchall = Math.Round(residual - cogs - matUsage - laborRateVar - laborEff - ohEff, 2);
+
+                AddSigned(lines, KeyCogs, null, cogs, $"Cost of goods sold at standard — {jobLabel} shipped to the customer");
+                AddSignedVariance(lines, KeyMaterialUsageVariance, matUsage, jobLabel, "material usage");
+                AddSignedVariance(lines, KeyLaborRateVariance, laborRateVar, jobLabel, "labor rate");
+                AddSignedVariance(lines, KeyLaborEfficiencyVariance, laborEff, jobLabel, "labor efficiency");
+                AddSignedVariance(lines, KeyOverheadEfficiencyVariance, ohEff, jobLabel, "overhead efficiency");
+                AddSignedVariance(lines, KeyProductionVariance, catchall, jobLabel, "production (residual)");
+                postsRateVariance = true;
+            }
+            else
+            {
+                cogs = residual;
+                catchall = 0m;
+                postsRateVariance = false;
+                AddSigned(lines, KeyCogs, null, residual, $"Cost of goods sold — {jobLabel} shipped to the customer");
+            }
+        }
+        else if (target?.Disposition == JobDisposition.Other)
+        {
+            postsRateVariance = false;
+            if (writeOffAccount is not null)
+            {
+                catchall = 0m;
+                AddSigned(lines, null, writeOffAccount.Id, residual, $"Work in process written off — {jobLabel}");
+            }
+            else
+            {
+                AddSignedVariance(lines, KeyProductionVariance, residual, jobLabel, "production (written off)");
+            }
+        }
+        else if (standardCost is not null)
         {
             // Standard cost of good output, decomposed, from the job's received production runs.
-            var runs = await db.ProductionRuns.AsNoTracking()
-                .Where(r => r.JobId == jobId && r.ReceivedToStockAt != null && r.ReceivedQuantity > 0)
-                .Select(r => new { r.PartId, r.ReceivedQuantity })
-                .ToListAsync(ct);
-            decimal stdMat = 0m, stdLab = 0m, stdOh = 0m;
-            foreach (var r in runs)
-            {
-                var e = await standardCost.ResolveAsync(r.PartId, ct);
-                stdMat += e.Material * r.ReceivedQuantity;
-                stdLab += e.Labor * r.ReceivedQuantity;
-                stdOh += e.Overhead * r.ReceivedQuantity;
-            }
+            var (stdMat, stdLab, stdOh) = await ReceivedStandardAsync(jobId, ct);
 
             var actualMaterial = Math.Round(await jobCost.GetActualMaterialCostAsync(jobId, ct), 2);
             matUsage = Math.Round(actualMaterial - stdMat, 2);   // actual material vs standard for output
@@ -213,7 +269,12 @@ public sealed class ProductionVariancePostingService(
             SourceType = "Job",
             SourceId = jobId,
             CurrencyId = book.FunctionalCurrencyId,
-            Memo = $"Production variance — {jobLabel}",
+            Memo = target?.Disposition switch
+            {
+                JobDisposition.ShipToCustomer => $"Cost of goods sold — {jobLabel} shipped to the customer",
+                JobDisposition.Other => $"Work in process written off — {jobLabel}",
+                _ => $"Production variance — {jobLabel}",
+            },
             IdempotencyKey = varKey,
             Lines = lines,
         };
@@ -227,11 +288,51 @@ public sealed class ProductionVariancePostingService(
         {
             SubcontractAbsorbed = subcontract,
             MaterialUsageVariance = matUsage,
-            LaborRateVariance = standardCost is not null ? laborRateVar : 0m,
+            LaborRateVariance = postsRateVariance ? laborRateVar : 0m,
             LaborEfficiencyVariance = laborEff,
             OverheadEfficiencyVariance = ohEff,
             ProductionVarianceResidual = catchall,
+            CostOfGoodsSold = cogs,
+            WriteOffGlAccountId = writeOffAccount?.Id,
         };
+    }
+
+    private async Task<StandardCostElements> ReceivedStandardAsync(int jobId, CancellationToken ct)
+    {
+        if (standardCost is null)
+            return StandardCostElements.Zero;
+
+        var runs = await db.ProductionRuns.AsNoTracking()
+            .Where(r => r.JobId == jobId && r.ReceivedToStockAt != null && r.ReceivedQuantity > 0)
+            .Select(r => new { r.PartId, r.ReceivedQuantity })
+            .ToListAsync(ct);
+        decimal material = 0m, labor = 0m, overhead = 0m;
+        foreach (var r in runs)
+        {
+            var e = await standardCost.ResolveAsync(r.PartId, ct);
+            material += e.Material * r.ReceivedQuantity;
+            labor += e.Labor * r.ReceivedQuantity;
+            overhead += e.Overhead * r.ReceivedQuantity;
+        }
+        return new StandardCostElements(material, labor, overhead);
+    }
+
+    private async Task<StandardCostElements> ShippedStandardAsync(DisposedJobCostTarget target, CancellationToken ct)
+    {
+        if (standardCost is null || target.PartId is not int partId || target.ShippedQuantity <= 0m)
+            return StandardCostElements.Zero;
+
+        var unit = await standardCost.ResolveAsync(partId, ct);
+        return new StandardCostElements(
+            unit.Material * target.ShippedQuantity, unit.Labor * target.ShippedQuantity, unit.Overhead * target.ShippedQuantity);
+    }
+
+    private static void AddSigned(List<PostingLine> lines, string? accountKey, int? glAccountId, decimal amount, string description)
+    {
+        if (amount > 0m)
+            lines.Add(new PostingLine { AccountKey = accountKey, GlAccountId = glAccountId, Debit = amount, Description = description });
+        else if (amount < 0m)
+            lines.Add(new PostingLine { AccountKey = accountKey, GlAccountId = glAccountId, Credit = -amount, Description = description });
     }
 
     public async Task<decimal> AbsorbConversionToDateAsync(

@@ -132,13 +132,17 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
         var routing = (job.Part?.Operations ?? []).OrderBy(o => o.StepNumber).ThenBy(o => o.Id).ToList();
         var routingIds = routing.Select(o => o.Id).ToHashSet();
         var target = Math.Min(OperationTimeMath.JobTargetQuantity(job), quantity);
-        var plannedInputs = ProductionQuantityPlan.PlannedStepInputs(target, routing.Select(o => o.ScrapFactor).ToList()).ToArray();
-        if (plannedInputs.Length > 0 && quantity > plannedInputs[0])
-            plannedInputs[0] = quantity;
-        var plannedByOperation = routing
-            .Select((op, index) => (op.Id, Planned: Math.Min(plannedInputs[index], quantity)))
-            .GroupBy(p => p.Id)
-            .ToDictionary(g => g.Key, g => g.First().Planned);
+        var routingSteps = routing.Select(o => new RoutingStep(o.Id, o.StepNumber)).ToList();
+        var routingLinks = await StepGateService.LoadLinksAsync(db, routingIds, ct);
+        var plannedInputs = ProductionQuantityPlan.PlannedStepInputs(
+            target, routingSteps, routing.GroupBy(o => o.Id).ToDictionary(g => g.Key, g => g.First().ScrapFactor), routingLinks);
+        var startSteps = RoutingPredecessors.Effective(routingSteps, routingLinks)
+            .Where(p => p.Value.Count == 0)
+            .Select(p => p.Key)
+            .ToHashSet();
+        var plannedByOperation = plannedInputs.ToDictionary(
+            p => p.Key,
+            p => startSteps.Contains(p.Key) ? quantity : Math.Min(p.Value, quantity));
 
         var rows = await db.JobOperations
             .AsNoTracking()
@@ -182,9 +186,7 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
         var progress = new Dictionary<int, StepProgress>();
         if (gating != StepGatingMode.Off && routing.Count > 0)
         {
-            predecessors = RoutingPredecessors.Effective(
-                routing.Select(o => new RoutingStep(o.Id, o.StepNumber)).ToList(),
-                await StepGateService.LoadLinksAsync(db, routingIds, ct));
+            predecessors = RoutingPredecessors.Effective(routingSteps, routingLinks);
             progress = rowsByOperation.ToDictionary(r => r.Key, r => new StepProgress(r.Value.Status, r.Value.CompletedQuantity));
         }
 

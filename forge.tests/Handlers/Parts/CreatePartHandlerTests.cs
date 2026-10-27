@@ -183,6 +183,31 @@ public class CreatePartHandlerTests
         ), It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Handle_BlankRevision_DefaultsToA(string revision)
+    {
+        _partRepo.Setup(r => r.GetNextPartNumberAsync(InventoryClass.Component, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("PRT-00002");
+        _partRepo.Setup(r => r.GetDetailAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildDetailResponse(name: "Blank revision part"));
+
+        await _handler.Handle(new CreatePartCommand(
+            "Blank revision part", null, revision, ProcurementSource.Buy, InventoryClass.Component, MaterialSpecId: null),
+            CancellationToken.None);
+
+        _partRepo.Verify(r => r.AddAsync(It.Is<Part>(p => p.Revision == "A"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(null, "A")]
+    [InlineData("", "A")]
+    [InlineData("  ", "A")]
+    [InlineData(" B2 ", "B2")]
+    public void Revision_code_is_trimmed_and_blank_means_the_first_revision(string? input, string expected)
+        => PartRevisionBaseline.CodeOrFirst(input).Should().Be(expected);
+
     [Fact]
     public async Task Handle_WithRevision_UsesProvidedRevision()
     {

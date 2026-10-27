@@ -89,7 +89,7 @@ public class UpdatePartHandler(
         if (data.Revision is not null)
         {
             var previousRevision = part.Revision;
-            part.Revision = data.Revision.Trim();
+            part.Revision = PartRevisionBaseline.CodeOrFirst(data.Revision);
             await PartRevisionBaseline.RenameCurrentAsync(db, part.Id, previousRevision, part.Revision, cancellationToken);
         }
         if (data.Status.HasValue) part.Status = data.Status.Value;

@@ -41,6 +41,10 @@
       "capability": "CAP-MD-UOM"
     },
     {
+      "prefix": "jobs/disposition-expense-accounts",
+      "capability": "CAP-ACCT-FULLGL"
+    },
+    {
       "prefix": "purchase-orders/price-variance-review",
       "capability": "CAP-EXT-AI-ASSISTANT"
     },
