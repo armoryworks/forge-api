@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.SalesOrders;
 using Forge.Core.Models;
@@ -17,7 +18,7 @@ namespace Forge.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/sales-orders")]
-[Authorize(Roles = "Admin,Manager,OfficeManager,PM")]
+[Authorize(Roles = SalesOrderRoles.Read)]
 [RequiresCapability("CAP-O2C-SO")]
 public class SalesOrdersListController(IMediator mediator) : ControllerBase
 {

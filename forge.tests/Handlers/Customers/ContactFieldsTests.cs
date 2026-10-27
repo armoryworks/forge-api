@@ -144,7 +144,7 @@ public class ContactFieldsTests
 
         await new UpdateVendorHandler(
                 new VendorRepository(db), Mock.Of<ISystemSettingRepository>(), Mock.Of<IBusinessIdentifierService>(),
-                db, Mock.Of<IClock>())
+                db, Mock.Of<IClock>(), StubCapabilitySnapshotProvider.Off)
             .Handle(
                 new UpdateVendorCommand(vendor.Id, null, null, null, "", null, null, null, null, null, null, "new", null, null, Fax: ""),
                 CancellationToken.None);
@@ -170,7 +170,7 @@ public class ContactFieldsTests
 
         await new UpdateVendorHandler(
                 new VendorRepository(db), Mock.Of<ISystemSettingRepository>(), Mock.Of<IBusinessIdentifierService>(),
-                db, Mock.Of<IClock>())
+                db, Mock.Of<IClock>(), StubCapabilitySnapshotProvider.Off)
             .Handle(
                 new UpdateVendorCommand(vendor.Id, "Acme", null, null, "555-0100", null, null, null, null, null, null, null, null, null),
                 CancellationToken.None);

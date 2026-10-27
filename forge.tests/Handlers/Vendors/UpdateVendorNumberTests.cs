@@ -23,7 +23,7 @@ public class UpdateVendorNumberTests
             .ReturnsAsync(new BusinessIdentifier());
 
         _handler = new UpdateVendorHandler(
-            _vendorRepo.Object, _settings.Object, _identifiers.Object, TestDbContextFactory.Create(), Mock.Of<IClock>());
+            _vendorRepo.Object, _settings.Object, _identifiers.Object, TestDbContextFactory.Create(), Mock.Of<IClock>(), StubCapabilitySnapshotProvider.Off);
     }
 
     private void AllowManualNumbers(bool allowed) =>

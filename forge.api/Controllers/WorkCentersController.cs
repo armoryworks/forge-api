@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Scheduling;
 using Forge.Core.Enums;
@@ -24,7 +25,7 @@ public class WorkCentersController(IMediator mediator) : ControllerBase
     // Engineer routing through a work center should not be able to remove it out from under
     // downstream operations. CAP-MD-WORKCENTERS still gates the whole controller.
     [HttpGet]
-    [Authorize(Roles = "Admin,Manager,Engineer")]
+    [Authorize(Roles = "Admin,Manager,Engineer," + PlanningRoles.Planner)]
     public async Task<ActionResult<List<WorkCenterResponseModel>>> GetAll()
     {
         var result = await mediator.Send(new GetWorkCentersQuery());

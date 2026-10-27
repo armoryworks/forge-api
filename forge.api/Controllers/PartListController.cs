@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Parts;
 using Forge.Core.Models;
@@ -14,7 +15,7 @@ namespace Forge.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/parts")]
-[Authorize(Roles = "Admin,Manager,Engineer,ProductionWorker,PM,OfficeManager,Procurement")]
+[Authorize(Roles = "Admin,Manager,Engineer,ProductionWorker,PM,OfficeManager,Procurement," + PlanningRoles.Planner)]
 [RequiresCapability("CAP-MD-PARTS")]
 public class PartListController(IMediator mediator) : ControllerBase
 {

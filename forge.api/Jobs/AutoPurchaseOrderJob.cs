@@ -1,12 +1,17 @@
 using System.Text.Json;
 
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Approvals;
 using Forge.Api.Features.AutoPo;
+using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.PurchaseOrders;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 using Forge.Api.Capabilities;
 
@@ -23,8 +28,16 @@ public class AutoPurchaseOrderJob(
     PurchaseOrderGenerator poGenerator,
     IPartSourcingResolver sourcingResolver,
     ILogger<AutoPurchaseOrderJob> logger,
-    ICapabilitySnapshotProvider capabilities)
+    ICapabilitySnapshotProvider capabilities,
+    IApprovalService approvalService,
+    IPublisher publisher)
 {
+    /// <summary>
+    /// The requester recorded on approval requests the job opens. No user raised the purchase order, so the
+    /// request names no user: it shows no requester and never meets a separation-of-duties rule.
+    /// </summary>
+    public const int SystemRequesterId = 0;
+
     private static readonly PurchaseOrderStatus[] OpenPoStatuses =
     [
         PurchaseOrderStatus.Draft,
@@ -340,21 +353,20 @@ public class AutoPurchaseOrderJob(
 
                 foreach (var batch in batches)
                 {
-                    var poStatus = mode == AutoPoMode.Automatic
-                        ? PurchaseOrderStatus.Submitted
-                        : PurchaseOrderStatus.Draft;
-
                     var allSoIds = batch.SelectMany(b => b.SoIds).Distinct().ToList();
                     var lines = batch.Select(b =>
                         (b.PartId, b.Description, b.Qty, 0m, b.NeededBy)).ToList();
 
                     var po = await poGenerator.GeneratePurchaseOrder(
-                        vendorGroup.Key, lines, poStatus,
+                        vendorGroup.Key, lines, PurchaseOrderStatus.Draft,
                         $"Auto-generated from demand analysis. Source SOs: {JsonSerializer.Serialize(allSoIds)}",
                         ct,
                         // S4b provenance — the demand source that drove this PO
                         // (generator truncates to the column length).
                         originReference: $"Demand analysis SO(s) {string.Join(", ", allSoIds)}");
+
+                    if (mode == AutoPoMode.Automatic)
+                        await SubmitAutomaticAsync(po, ct);
 
                     createdPOs.Add(po);
                 }
@@ -401,6 +413,37 @@ public class AutoPurchaseOrderJob(
 
             await db.SaveChangesAsync(ct);
             logger.LogInformation("[AutoPO] Notified {Count} user(s)", notifyUserIds.Count);
+        }
+    }
+
+    private async Task SubmitAutomaticAsync(PurchaseOrder po, CancellationToken ct)
+    {
+        ApprovalRequest? approval = null;
+        if (capabilities.IsEnabled("CAP-P2P-APPROVALS"))
+        {
+            var totalAmount = po.Lines.Sum(l => l.OrderedQuantity * l.UnitPrice);
+            approval = await approvalService.SubmitForApprovalAsync(
+                "PurchaseOrder", po.Id, SystemRequesterId, totalAmount,
+                $"PO {po.PONumber} — {po.Lines.Count} line(s), raised by auto-PO", ct);
+        }
+
+        if (approval is { Status: ApprovalRequestStatus.Pending or ApprovalRequestStatus.Escalated })
+        {
+            po.Status = PurchaseOrderStatus.PendingApproval;
+            db.LogActivityAt("approval-requested", "Raised by auto-PO; waiting for approval before it is sent to the vendor", ("PurchaseOrder", po.Id));
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("[AutoPO] PO {PoNumber} held for approval (request {RequestId})", po.PONumber, approval.Id);
+            return;
+        }
+
+        PurchaseOrderSubmission.MarkSubmitted(po, clock.UtcNow, db);
+        await db.SaveChangesAsync(ct);
+
+        if (approval?.Status == ApprovalRequestStatus.AutoApproved)
+        {
+            await publisher.Publish(
+                new ApprovalCompletedEvent("PurchaseOrder", po.Id, Approved: true, SystemRequesterId, ApprovalSubmission.AutoApprovedNote),
+                ct);
         }
     }
 

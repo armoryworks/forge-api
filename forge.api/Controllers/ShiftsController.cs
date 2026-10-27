@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Scheduling;
 using Forge.Core.Models;
@@ -11,7 +12,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/shifts")]
-[Authorize(Roles = "Admin,Manager")]
+[Authorize(Roles = PlanningRoles.Plan)]
 [RequiresCapability("CAP-HR-SHIFTS")]
 public class ShiftsController(IMediator mediator) : ControllerBase
 {
@@ -23,6 +24,7 @@ public class ShiftsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<ShiftResponseModel>> Create([FromBody] CreateShiftRequest request)
     {
         var result = await mediator.Send(new CreateShiftCommand(
@@ -31,6 +33,7 @@ public class ShiftsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<ShiftResponseModel>> Update(int id, [FromBody] UpdateShiftRequest request)
     {
         var result = await mediator.Send(new UpdateShiftCommand(
@@ -40,6 +43,7 @@ public class ShiftsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Delete(int id)
     {
         await mediator.Send(new DeleteShiftCommand(id));

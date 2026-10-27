@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Inventory;
 using Forge.Core.Models;
@@ -10,11 +11,14 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/inventory/abc")]
-[Authorize(Roles = "Admin,Manager,OfficeManager,Engineer")]
+[Authorize(Roles = "Admin,Manager,OfficeManager,Engineer," + PlanningRoles.Planner)]
 [RequiresCapability("CAP-PLAN-ABC")]
 public class AbcClassificationController(IMediator mediator) : ControllerBase
 {
+    private const string RunRoles = "Admin,Manager,OfficeManager,Engineer";
+
     [HttpPost("run")]
+    [Authorize(Roles = RunRoles)]
     public async Task<ActionResult<AbcClassificationRunResponseModel>> RunClassification([FromBody] AbcClassificationParametersModel parameters)
     {
         var result = await mediator.Send(new RunAbcClassificationCommand(parameters));
@@ -43,6 +47,7 @@ public class AbcClassificationController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("runs/{runId:int}/apply")]
+    [Authorize(Roles = RunRoles)]
     public async Task<IActionResult> ApplyRun(int runId)
     {
         await mediator.Send(new ApplyAbcClassificationCommand(runId));

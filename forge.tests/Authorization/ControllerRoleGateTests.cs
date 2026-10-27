@@ -86,8 +86,8 @@ public sealed class ControllerRoleGateTests
     {
         EffectiveRoles(verb, template).Should().BeEquivalentTo(
             ["Admin", "Manager", "OfficeManager", "Engineer", "ProductionWorker"], $"{verb} {template}");
-        typeof(Forge.Api.Controllers.InventoryController).GetCustomAttribute<AuthorizeAttribute>()!.Roles
-            .Should().Be("Admin,Manager,OfficeManager,Engineer,ProductionWorker", "the scanner mirrors the inventory controller");
+        Forge.Api.Authorization.InventoryRoles.Edit
+            .Should().Be("Admin,Manager,OfficeManager,Engineer,ProductionWorker", "the scanner mirrors the inventory controller's writers");
     }
 
     [Theory]

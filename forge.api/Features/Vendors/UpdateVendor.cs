@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Forge.Api.Capabilities;
 using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Workflows;
 using Forge.Api.Services.Fx;
@@ -32,7 +33,9 @@ public record UpdateVendorCommand(
     string? Fax = null,
     int? CurrencyId = null,
     bool? ClearCurrency = null,
-    int? PaymentTermsId = null) : IRequest;
+    int? PaymentTermsId = null,
+    AutoPoMode? AutoPoMode = null,
+    bool? ClearAutoPoMode = null) : IRequest;
 
 public class UpdateVendorValidator : AbstractValidator<UpdateVendorCommand>
 {
@@ -48,6 +51,9 @@ public class UpdateVendorValidator : AbstractValidator<UpdateVendorCommand>
             .WithMessage("Off-tier variance % must be between 0 and 100.");
         RuleFor(x => x.TaxId).MaximumLength(32).When(x => x.TaxId != null);
         RuleFor(x => x.Fax).MaximumLength(50).When(x => x.Fax != null);
+        RuleFor(x => x.AutoPoMode).IsInEnum().When(x => x.AutoPoMode.HasValue);
+        RuleFor(x => x.AutoPoMode).Null().When(x => x.ClearAutoPoMode == true)
+            .WithMessage("Send either an automatic purchasing mode or clear it, not both.");
     }
 }
 
@@ -56,9 +62,12 @@ public class UpdateVendorHandler(
     ISystemSettingRepository systemSettings,
     IBusinessIdentifierService identifiers,
     AppDbContext db,
-    IClock clock)
+    IClock clock,
+    ICapabilitySnapshotProvider capabilities)
     : IRequestHandler<UpdateVendorCommand>
 {
+    private const string AutoPoCapability = "CAP-P2P-AUTOPO";
+
     // System setting that gates caller-supplied vendor numbers (shared with CreateVendor).
     private const string AllowManualVendorNumbersKey = "vendors.allow_manual_numbers";
 
@@ -158,6 +167,17 @@ public class UpdateVendorHandler(
         {
             vendor.OffTierVariancePct = request.OffTierVariancePct;
             changedFields.Add("offTierVariancePct");
+        }
+        if (request.AutoPoMode.HasValue || request.ClearAutoPoMode == true)
+        {
+            if (!capabilities.IsEnabled(AutoPoCapability))
+                throw new CapabilityDisabledException(AutoPoCapability);
+            var autoPoMode = request.ClearAutoPoMode == true ? null : request.AutoPoMode;
+            if (autoPoMode != vendor.AutoPoMode)
+            {
+                vendor.AutoPoMode = autoPoMode;
+                changedFields.Add("autoPoMode");
+            }
         }
         if (request.Is1099.HasValue && request.Is1099.Value != vendor.Is1099)
         {

@@ -72,7 +72,8 @@ public class VendorsController(IMediator mediator) : ControllerBase
             request.OffTierVariancePct, request.IsActive,
             request.Is1099, request.TaxId,
             request.VendorNumber, request.Fax,
-            request.CurrencyId, request.ClearCurrency, request.PaymentTermsId));
+            request.CurrencyId, request.ClearCurrency, request.PaymentTermsId,
+            request.AutoPoMode, request.ClearAutoPoMode));
         return NoContent();
     }
 

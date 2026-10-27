@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Scheduling;
 using Forge.Core.Enums;
@@ -14,7 +15,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/scheduling")]
-[Authorize(Roles = "Admin,Manager")]
+[Authorize(Roles = PlanningRoles.Plan)]
 [RequiresCapability("CAP-PLAN-CAPACITY")]
 public class SchedulingController(IMediator mediator) : ControllerBase
 {

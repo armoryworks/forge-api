@@ -32,7 +32,7 @@ public class VendorFaxTests
         _vendorRepo.Setup(r => r.FindAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(vendor);
         var handler = new UpdateVendorHandler(
             _vendorRepo.Object, Mock.Of<ISystemSettingRepository>(), Mock.Of<IBusinessIdentifierService>(),
-            TestDbContextFactory.Create(), Mock.Of<IClock>());
+            TestDbContextFactory.Create(), Mock.Of<IClock>(), StubCapabilitySnapshotProvider.Off);
 
         await handler.Handle(
             new UpdateVendorCommand(1, null, null, null, null, null, null, null, null, null, null, null, null, null),

@@ -241,14 +241,14 @@ public sealed class RoleGrantTests
     public void The_job_list_keeps_every_role_that_read_it_before()
     {
         EffectiveRoles(Single("GET", "api/v1/jobs")).Should().BeEquivalentTo(
-            ["Admin", "Manager", "PM", "Engineer", "ProductionWorker", "OfficeManager", "Procurement"]);
+            ["Admin", "Manager", "PM", "Engineer", "ProductionWorker", "OfficeManager", "Procurement", "Production Planner"]);
     }
 
     [Fact]
     public void The_parts_list_keeps_every_role_that_read_it_before()
     {
         EffectiveRoles(Single("GET", "api/v1/parts")).Should().BeEquivalentTo(
-            ["Admin", "Manager", "Engineer", "ProductionWorker", "PM", "OfficeManager", "Procurement"]);
+            ["Admin", "Manager", "Engineer", "ProductionWorker", "PM", "OfficeManager", "Procurement", "Production Planner"]);
     }
 
     [Fact]
@@ -323,11 +323,11 @@ public sealed class RoleGrantTests
     }
 
     [Fact]
-    public void Working_calendars_are_readable_by_managers_and_changed_only_by_admins()
+    public void Working_calendars_are_readable_by_managers_and_planners_and_changed_only_by_admins()
     {
         foreach (var template in new[] { "api/v1/working-calendars", "api/v1/working-calendars/{id:int}" })
         {
-            EffectiveRoles(Single("GET", template)).Should().BeEquivalentTo(["Admin", "Manager"], template);
+            EffectiveRoles(Single("GET", template)).Should().BeEquivalentTo(["Admin", "Manager", "Production Planner"], template);
         }
 
         foreach (var (verb, template) in new[]

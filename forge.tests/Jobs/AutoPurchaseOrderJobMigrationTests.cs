@@ -145,7 +145,9 @@ public class AutoPurchaseOrderJobMigrationTests
             poGen,
             new PartSourcingResolver(db),
             NullLogger<AutoPurchaseOrderJob>.Instance,
-            new StubCapabilitySnapshotProvider("CAP-P2P-AUTOPO"));
+            new StubCapabilitySnapshotProvider("CAP-P2P-AUTOPO"),
+            Mock.Of<IApprovalService>(),
+            Mock.Of<MediatR.IPublisher>());
     }
 
     [Fact]

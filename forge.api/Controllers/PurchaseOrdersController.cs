@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Concurrency;
 using Forge.Api.Features.PurchaseOrders;
@@ -12,7 +13,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/purchase-orders")]
-[Authorize(Roles = "Admin,Manager,OfficeManager,Procurement")]
+[Authorize(Roles = PurchaseOrderRoles.Read)]
 [RequiresCapability("CAP-P2P-PO")]
 public class PurchaseOrdersController(IMediator mediator) : ControllerBase
 {
@@ -54,6 +55,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/email")]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     public async Task<IActionResult> SendPurchaseOrderEmail(int id, SendPurchaseOrderEmailRequestModel request, CancellationToken ct)
     {
         await mediator.Send(new SendPurchaseOrderEmailCommand(id, request.To, request.Cc, request.Message), ct);
@@ -61,6 +63,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/lines")]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     public async Task<ActionResult<PurchaseOrderDetailResponseModel>> AddPurchaseOrderLine(
         int id, AddPurchaseOrderLineRequestModel request)
     {
@@ -69,6 +72,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}/lines/{lineId:int}")]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     public async Task<ActionResult<PurchaseOrderDetailResponseModel>> DeletePurchaseOrderLine(int id, int lineId)
     {
         var result = await mediator.Send(new DeletePurchaseOrderLineCommand(id, lineId));
@@ -76,6 +80,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}/lines/{lineId:int}")]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     public async Task<ActionResult<PurchaseOrderDetailResponseModel>> UpdatePurchaseOrderLine(
         int id, int lineId, UpdateOrderLineRequestModel request)
     {
@@ -84,6 +89,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     public async Task<ActionResult<PurchaseOrderListItemModel>> CreatePurchaseOrder(CreatePurchaseOrderRequestModel request)
     {
         var result = await mediator.Send(new CreatePurchaseOrderCommand(
@@ -103,6 +109,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     [IfMatch(typeof(PurchaseOrder))]
     public async Task<IActionResult> UpdatePurchaseOrder(int id, UpdatePurchaseOrderRequestModel request)
     {
@@ -124,6 +131,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/submit")]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     public async Task<IActionResult> SubmitPurchaseOrder(int id)
     {
         await mediator.Send(new SubmitPurchaseOrderCommand(id));
@@ -131,6 +139,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/acknowledge")]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     public async Task<IActionResult> AcknowledgePurchaseOrder(int id, AcknowledgePurchaseOrderRequestModel request)
     {
         await mediator.Send(new AcknowledgePurchaseOrderCommand(id, request.ExpectedDeliveryDate));
@@ -138,6 +147,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/receive")]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     public async Task<IActionResult> ReceiveItems(int id, ReceiveItemsRequestModel request)
     {
         await mediator.Send(new ReceiveItemsCommand(
@@ -150,6 +160,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/cancel")]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     public async Task<IActionResult> CancelPurchaseOrder(int id)
     {
         await mediator.Send(new CancelPurchaseOrderCommand(id));
@@ -157,6 +168,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/close")]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     public async Task<IActionResult> ClosePurchaseOrder(int id)
     {
         await mediator.Send(new ClosePurchaseOrderCommand(id));
@@ -190,6 +202,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     [IfMatch(typeof(PurchaseOrder))]
     public async Task<IActionResult> DeletePurchaseOrder(int id)
     {
@@ -207,6 +220,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/releases")]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     public async Task<ActionResult<PurchaseOrderReleaseResponseModel>> CreateRelease(
         int id, [FromBody] CreatePurchaseOrderReleaseRequestModel request)
     {
@@ -215,6 +229,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id:int}/releases/{releaseNum:int}")]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     public async Task<IActionResult> UpdateRelease(
         int id, int releaseNum, [FromBody] UpdatePurchaseOrderReleaseRequestModel request)
     {
@@ -239,6 +254,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     // AI-assisted review of a manual unit-price override (forge#6). Also gated on
     // the AI capability; the handler degrades gracefully when the model is offline.
     [HttpPost("price-variance-review")]
+    [Authorize(Roles = PurchaseOrderRoles.Edit)]
     [RequiresCapability("CAP-EXT-AI-ASSISTANT")]
     public async Task<ActionResult<ReviewPriceOverrideResponseModel>> ReviewPriceOverride(
         [FromBody] ReviewPriceOverrideRequestModel request, CancellationToken ct)
