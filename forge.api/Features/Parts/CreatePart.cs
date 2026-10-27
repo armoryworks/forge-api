@@ -55,7 +55,7 @@ public class CreatePartHandler(
             PartNumber = partNumber,
             Name = request.Name.Trim(),
             Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
-            Revision = request.Revision?.Trim() ?? "A",
+            Revision = PartRevisionBaseline.CodeOrFirst(request.Revision),
             ProcurementSource = request.ProcurementSource,
             InventoryClass = request.InventoryClass,
             MaterialSpecId = request.MaterialSpecId,

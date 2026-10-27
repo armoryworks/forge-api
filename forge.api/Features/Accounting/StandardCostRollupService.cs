@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Core.Entities;
+using Forge.Core.Entities.Costing;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
@@ -23,6 +24,12 @@ namespace Forge.Api.Features.Accounting;
 ///         a per-work-center percentage of direct labor from the active <see cref="CostingProfile"/> in
 ///         <c>departmental</c> mode; work centers with no configured rate fall back to the flat burden rate.
 ///         Only applied when <c>CAP-COSTING-TIER2-DEPTRATES</c> is enabled.</item>
+///   <item><b>Frozen period rates (Tier 3)</b> — when <c>CAP-COSTING-TIER3-ABC</c> is enabled and a frozen costing
+///         period covers the roll date, each work center's rates come from that period's
+///         <see cref="WorkCenterCostRate"/> row instead: labor = attended hours × LaborRate; overhead = attended
+///         hours × LaborOhRate + burden-basis hours × MachineRate + full hours × (MachineOhVarRate +
+///         MachineOhFixedRate). A work center with no frozen row keeps its current rates. The result records
+///         the source in <see cref="StandardCostElements.RateSource"/>.</item>
 ///   <item><b>Material</b> = Σ BOM lines <c>Quantity × child standard cost</c>, recursive for sub-assemblies
 ///         (a child's standard is its own rollup, or its ManualCostOverride for a purchased leaf).</item>
 /// </list>
@@ -39,21 +46,53 @@ public sealed class StandardCostRollupService(
 {
     private const int MaxDepth = 32; // defensive bound on BOM depth (cycle guard already prevents true loops)
 
+    public const string Tier3Capability = "CAP-COSTING-TIER3-ABC";
+
+    private sealed record FrozenRates(int CostingPeriodId, IReadOnlyDictionary<int, WorkCenterCostRate> ByWorkCenter);
+
     public async Task<StandardCostElements> RollupAsync(int partId, CancellationToken ct = default)
     {
-        var policy = await CostingConversionPolicy.LoadAsync(
-            db, capabilities, DateOnly.FromDateTime(clock.UtcNow.UtcDateTime), ct);
-        return await RollupAsync(partId, policy, new HashSet<int>(), 0, ct);
+        var now = clock.UtcNow.UtcDateTime;
+        var policy = await CostingConversionPolicy.LoadAsync(db, capabilities, DateOnly.FromDateTime(now), ct);
+        var frozen = await LoadFrozenRatesAsync(now, ct);
+        var rolled = await RollupAsync(partId, policy, frozen, new HashSet<int>(), 0, ct);
+        return frozen is null
+            ? rolled
+            : rolled with { RateSource = StandardCostRateSource.FrozenPeriod, CostingPeriodId = frozen.CostingPeriodId };
     }
 
-    private async Task<StandardCostElements> RollupAsync(int partId, CostingConversionPolicy policy, HashSet<int> visited, int depth, CancellationToken ct)
+    private async Task<FrozenRates?> LoadFrozenRatesAsync(DateTime now, CancellationToken ct)
+    {
+        if (!capabilities.IsEnabled(Tier3Capability))
+            return null;
+
+        var today = now.Date;
+        var periodId = await db.CostingPeriods.AsNoTracking()
+            .Where(p => (p.Status == CostingPeriodStatus.Frozen || p.Status == CostingPeriodStatus.Closed)
+                && p.FrozenAt != null && p.StartDate <= now && p.EndDate >= today)
+            .OrderByDescending(p => p.StartDate).ThenByDescending(p => p.Id)
+            .Select(p => (int?)p.Id)
+            .FirstOrDefaultAsync(ct);
+        if (periodId is not int id)
+            return null;
+
+        var rates = await db.WorkCenterCostRates.AsNoTracking()
+            .Where(r => r.CostingPeriodId == id)
+            .ToListAsync(ct);
+        return new FrozenRates(id, rates
+            .GroupBy(r => r.WorkCenterId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.Id).First()));
+    }
+
+    private async Task<StandardCostElements> RollupAsync(
+        int partId, CostingConversionPolicy policy, FrozenRates? frozen, HashSet<int> visited, int depth, CancellationToken ct)
     {
         if (depth > MaxDepth || !visited.Add(partId))
             return StandardCostElements.Zero; // cycle / runaway guard
 
         try
         {
-            var (labor, overhead) = await RollupConversionAsync(partId, policy, ct);
+            var (labor, overhead) = await RollupConversionAsync(partId, policy, frozen, ct);
 
             // Material from the live part BOM (BOMLine: parent → child × qty), recursive.
             var bomLines = await db.BOMLines.AsNoTracking()
@@ -64,7 +103,7 @@ public sealed class StandardCostRollupService(
             decimal material = 0m;
             foreach (var line in bomLines)
             {
-                var child = await RollupAsync(line.ChildPartId, policy, visited, depth + 1, ct);
+                var child = await RollupAsync(line.ChildPartId, policy, frozen, visited, depth + 1, ct);
                 var childUnit = child.Total;
                 if (childUnit <= 0m)
                     // Leaf / purchased child with no rollup — fall back to its manual standard.
@@ -85,7 +124,8 @@ public sealed class StandardCostRollupService(
     }
 
     /// <summary>Labor + overhead from the part's routing (operations × time × work-center rates).</summary>
-    private async Task<(decimal Labor, decimal Overhead)> RollupConversionAsync(int partId, CostingConversionPolicy policy, CancellationToken ct)
+    private async Task<(decimal Labor, decimal Overhead)> RollupConversionAsync(
+        int partId, CostingConversionPolicy policy, FrozenRates? frozen, CancellationToken ct)
     {
         var ops = await db.Operations.AsNoTracking()
             .Where(o => o.PartId == partId && !o.IsSubcontract && o.WorkCenterId != null && o.EstimatedMs != null)
@@ -107,6 +147,16 @@ public sealed class StandardCostRollupService(
                 continue;
             var hours = op.Ms / 3_600_000m;
             var laborHours = hours * op.LaborAttendancePercent / 100m;
+            if (frozen is not null && frozen.ByWorkCenter.TryGetValue(op.WorkCenterId, out var period))
+            {
+                var burdenHours = rate.BurdenBasis == BurdenBasis.Machine ? hours : laborHours;
+                labor += laborHours * period.LaborRate;
+                overhead += laborHours * period.LaborOhRate
+                    + burdenHours * period.MachineRate
+                    + hours * (period.MachineOhVarRate + period.MachineOhFixedRate);
+                continue;
+            }
+
             var opLabor = laborHours * rate.LaborCostPerHour;
             labor += opLabor;
 

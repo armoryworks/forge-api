@@ -311,6 +311,12 @@ public class JobsController(IMediator mediator) : ControllerBase
         return Ok(await mediator.Send(new GetJobDispositionStockQuery(id)));
     }
 
+    [HttpGet("disposition-expense-accounts")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    public async Task<ActionResult<List<DispositionExpenseAccountResponseModel>>> GetDispositionExpenseAccounts(CancellationToken ct)
+        => Ok(await mediator.Send(new GetDispositionExpenseAccountsQuery(), ct));
+
     [HttpPost("{id:int}/dispose")]
     [Authorize(Roles = "Admin,Manager")] // K-F14: disposition can capitalize an Asset
     public async Task<ActionResult<JobDetailResponseModel>> DisposeJob(int id, DisposeJobRequestModel request)

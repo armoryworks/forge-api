@@ -76,4 +76,59 @@ public sealed class RoutingGraphPostgresTests(PostgresFixture fixture)
             (await read.OperationPredecessors.CountAsync(l => ids.Contains(l.OperationId))).Should().Be(4);
         }
     }
+
+    [Fact]
+    public async Task A_list_reorder_after_a_flowchart_save_is_refused_as_stale_and_changes_nothing()
+    {
+        int partId;
+        List<int> ids;
+        await using (var seed = fixture.CreateContext())
+        {
+            var part = new Part
+            {
+                PartNumber = $"RS-{Guid.NewGuid():N}"[..16],
+                Name = "Routing stale reorder",
+                ProcurementSource = ProcurementSource.Make,
+                InventoryClass = InventoryClass.Component,
+            };
+            seed.Parts.Add(part);
+            await seed.SaveChangesAsync();
+            var ops = new[] { 10, 20, 30 }
+                .Select(s => new Operation { PartId = part.Id, StepNumber = s, Title = $"Step {s}" })
+                .ToList();
+            seed.Operations.AddRange(ops);
+            await seed.SaveChangesAsync();
+            partId = part.Id;
+            ids = ops.Select(o => o.Id).ToList();
+        }
+
+        string listOpened;
+        await using (var db = fixture.CreateContext())
+        {
+            var repo = new PartRepository(db, Mock.Of<IPartPricingResolver>());
+            listOpened = (await new GetRoutingGraphHandler(repo).Handle(new GetRoutingGraphQuery(partId), CancellationToken.None)).Version;
+            await new UpdateRoutingGraphHandler(db, repo).Handle(new UpdateRoutingGraphCommand(partId,
+                new UpdateRoutingGraphRequestModel(listOpened,
+                [
+                    new(ids[0], 10, null),
+                    new(ids[1], 20, [new(ids[0])]),
+                    new(ids[2], 30, [new(ids[0])]),
+                ])), CancellationToken.None);
+        }
+
+        await using (var db = fixture.CreateContext())
+        {
+            var repo = new PartRepository(db, Mock.Of<IPartPricingResolver>());
+            var act = () => new ReorderOperationsHandler(repo, db).Handle(new ReorderOperationsCommand(partId,
+                new ReorderOperationsRequestModel([ids[2], ids[1], ids[0]], RoutingVersion: listOpened)), CancellationToken.None);
+            await act.Should().ThrowAsync<RoutingGraphStaleException>();
+        }
+
+        await using (var read = fixture.CreateContext())
+        {
+            (await read.Operations.AsNoTracking().Where(o => o.PartId == partId).OrderBy(o => o.StepNumber).Select(o => o.Id).ToListAsync())
+                .Should().Equal(ids);
+            (await read.OperationPredecessors.CountAsync(l => ids.Contains(l.OperationId))).Should().Be(2);
+        }
+    }
 }

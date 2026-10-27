@@ -500,4 +500,70 @@ public class BackflushServiceTests : IDisposable
 
         (await IssuesAsync(resin)).Sum(i => i.Quantity).Should().Be(5m);
     }
+
+    private async Task<Operation> CompletedStepAsync(int stepNumber, decimal completed, JobOperationStatus status = JobOperationStatus.Complete)
+    {
+        var step = new Operation { PartId = _parent.Id, StepNumber = stepNumber, Title = $"Op {stepNumber}" };
+        _db.Operations.Add(step);
+        await _db.SaveChangesAsync();
+        _db.JobOperations.Add(new JobOperation
+        {
+            JobId = _job.Id, OperationId = step.Id, StepNumber = stepNumber, Title = step.Title,
+            Status = status, CompletedQuantity = completed,
+        });
+        await _db.SaveChangesAsync();
+        return step;
+    }
+
+    [Fact]
+    public async Task UnjoinedParallelEnds_BackflushOnlyWhatEveryEndHasReported()
+    {
+        await SeedAsync();
+        var resin = await ComponentAsync("RS-PAR", 1m, BackflushPolicy.Auto);
+        await StockAsync(resin, _bin, 100m, null);
+        var start = await CompletedStepAsync(10, 40m);
+        var branchA = await CompletedStepAsync(20, 40m);
+        var branchB = await CompletedStepAsync(30, 25m);
+        _db.OperationPredecessors.AddRange(
+            new OperationPredecessor { OperationId = branchA.Id, PredecessorOperationId = start.Id },
+            new OperationPredecessor { OperationId = branchB.Id, PredecessorOperationId = start.Id });
+        await _db.SaveChangesAsync();
+
+        await BackflushAsync();
+
+        (await IssuesAsync(resin)).Sum(i => i.Quantity).Should().Be(25m);
+    }
+
+    [Fact]
+    public async Task AParallelEndStillRunning_HoldsTheBackflushBack()
+    {
+        await SeedAsync();
+        var resin = await ComponentAsync("RS-PAR2", 1m, BackflushPolicy.Auto);
+        await StockAsync(resin, _bin, 100m, null);
+        var start = await CompletedStepAsync(10, 40m);
+        var branchA = await CompletedStepAsync(20, 40m, JobOperationStatus.InProgress);
+        var branchB = await CompletedStepAsync(30, 40m);
+        _db.OperationPredecessors.AddRange(
+            new OperationPredecessor { OperationId = branchA.Id, PredecessorOperationId = start.Id },
+            new OperationPredecessor { OperationId = branchB.Id, PredecessorOperationId = start.Id });
+        await _db.SaveChangesAsync();
+
+        await BackflushAsync();
+
+        (await IssuesAsync(resin)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task LinearRouting_StillBackflushesFromTheLastStep()
+    {
+        await SeedAsync();
+        var resin = await ComponentAsync("RS-LIN", 1m, BackflushPolicy.Auto);
+        await StockAsync(resin, _bin, 100m, null);
+        await CompletedStepAsync(10, 50m);
+        await CompletedStepAsync(20, 35m);
+
+        await BackflushAsync();
+
+        (await IssuesAsync(resin)).Sum(i => i.Quantity).Should().Be(35m);
+    }
 }

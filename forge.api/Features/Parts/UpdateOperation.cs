@@ -4,6 +4,7 @@ using MediatR;
 using Forge.Api.Validation;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Parts;
 
@@ -29,6 +30,7 @@ public class UpdateOperationValidator : AbstractValidator<UpdateOperationCommand
             .WithMessage($"A step can follow at most {RoutingPredecessorEditor.MaxPredecessors} steps.")
             .When(x => x.Data.Predecessors is not null);
         RuleForEach(x => x.Data.Predecessors).ChildRules(p => p.RuleFor(l => l.Gate).IsInEnum());
+        RuleFor(x => x.Data.RoutingVersion).MaximumLength(64);
 
         // Phase 3 H5 / WU-13 — when toggling op TO subcontract, both fields
         // must be supplied in the same patch. (Resulting-state check in
@@ -48,7 +50,7 @@ public class UpdateOperationValidator : AbstractValidator<UpdateOperationCommand
     }
 }
 
-public class UpdateOperationHandler(IPartRepository repo, IVendorRepository vendorRepo)
+public class UpdateOperationHandler(IPartRepository repo, IVendorRepository vendorRepo, AppDbContext? db = null)
     : IRequestHandler<UpdateOperationCommand, OperationResponseModel>
 {
     public async Task<OperationResponseModel> Handle(UpdateOperationCommand request, CancellationToken cancellationToken)
@@ -60,6 +62,11 @@ public class UpdateOperationHandler(IPartRepository repo, IVendorRepository vend
             throw new KeyNotFoundException($"Operation {request.OperationId} does not belong to part {request.PartId}");
 
         var data = request.Data;
+        var editsFlow = data.Predecessors is not null || data.StepNumber.HasValue;
+
+        await using var tx = editsFlow ? await RoutingWriteGuard.BeginAsync(db, request.PartId, cancellationToken) : null;
+        if (editsFlow)
+            await RoutingWriteGuard.EnsureCurrentAsync(repo, request.PartId, data.RoutingVersion, cancellationToken);
 
         if (data.StepNumber.HasValue) operation.StepNumber = data.StepNumber.Value;
         if (data.Title is not null) operation.Title = data.Title.Trim();
@@ -120,11 +127,13 @@ public class UpdateOperationHandler(IPartRepository repo, IVendorRepository vend
             ActiveCheck.EnsureActive(vendor, "Vendor", "subcontractVendorId", operation.SubcontractVendorId.Value);
         }
 
-        if (data.Predecessors is not null || data.StepNumber.HasValue)
+        if (editsFlow)
             await RoutingPredecessorEditor.ApplyAsync(
                 repo, request.PartId, operation, data.Predecessors, data.RemoveConflictingPredecessors, cancellationToken);
 
         await repo.SaveChangesAsync(cancellationToken);
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
         var operations = await repo.GetOperationsAsync(request.PartId, cancellationToken);
         return operations.First(s => s.Id == operation.Id);

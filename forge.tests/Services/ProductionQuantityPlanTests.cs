@@ -3,6 +3,7 @@ using FluentAssertions;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Routing;
 
 namespace Forge.Tests.Services;
 
@@ -55,5 +56,54 @@ public class ProductionQuantityPlanTests
     {
         var part = new Part { IsMrpPlanned = false, MinimumOrderQuantity = 500m };
         ProductionQuantityPlan.Start(300m, null, [], part).Should().Be(300m);
+    }
+
+    [Fact]
+    public void A_linear_routing_plans_the_same_start_on_the_graph_as_in_step_order()
+    {
+        var steps = new List<RoutingStep> { new(1, 10), new(2, 20), new(3, 30) };
+        var scrap = new Dictionary<int, decimal> { [1] = 0.02m, [2] = 0m, [3] = 0.05m };
+
+        var planned = ProductionQuantityPlan.PlannedStepInputs(300m, steps, scrap, []);
+
+        planned.Should().Equal(new Dictionary<int, decimal> { [1] = 322m, [2] = 315m, [3] = 315m });
+        ProductionQuantityPlan.StartForRouting(300m, steps, scrap, [])
+            .Should().Be(ProductionQuantityPlan.StartForRouting(300m, [0.02m, 0m, 0.05m]));
+    }
+
+    [Fact]
+    public void Parallel_branches_compound_scrap_along_each_path_and_the_start_takes_the_larger_need()
+    {
+        var steps = new List<RoutingStep> { new(1, 10), new(2, 20), new(3, 30), new(4, 40) };
+        var links = new List<RoutingLink>
+        {
+            new(2, 1, PredecessorGate.Quantity),
+            new(3, 1, PredecessorGate.Quantity),
+            new(4, 2, PredecessorGate.Quantity),
+            new(4, 3, PredecessorGate.Quantity),
+        };
+        var scrap = new Dictionary<int, decimal> { [1] = 0m, [2] = 0.10m, [3] = 0.02m, [4] = 0m };
+
+        var planned = ProductionQuantityPlan.PlannedStepInputs(100m, steps, scrap, links);
+
+        planned[2].Should().Be(110m);
+        planned[3].Should().Be(102m);
+        planned[1].Should().Be(110m);
+        ProductionQuantityPlan.StartForRouting(100m, steps, scrap, links).Should().Be(110m);
+        ProductionQuantityPlan.StartForRouting(100m, [0m, 0.10m, 0.02m, 0m]).Should().Be(113m);
+    }
+
+    [Fact]
+    public void Unjoined_parallel_ends_each_need_the_full_target()
+    {
+        var steps = new List<RoutingStep> { new(1, 10), new(2, 20), new(3, 30) };
+        var links = new List<RoutingLink> { new(2, 1, PredecessorGate.Quantity), new(3, 1, PredecessorGate.Quantity) };
+        var scrap = new Dictionary<int, decimal> { [1] = 0.05m, [2] = 0.10m, [3] = 0m };
+
+        var planned = ProductionQuantityPlan.PlannedStepInputs(100m, steps, scrap, links);
+
+        planned[2].Should().Be(110m);
+        planned[3].Should().Be(100m);
+        planned[1].Should().Be(116m);
     }
 }

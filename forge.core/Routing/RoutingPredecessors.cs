@@ -46,6 +46,19 @@ public static class RoutingPredecessors
     }
 
     /// <summary>
+    /// The steps no other step follows: the ends of the routing. A linear routing has one, its last step; a
+    /// routing whose parallel branches never join has one per branch.
+    /// </summary>
+    public static IReadOnlyList<int> Terminal(IReadOnlyList<RoutingStep> steps, IReadOnlyList<RoutingLink> links)
+    {
+        var followed = Effective(steps, links).Values
+            .SelectMany(l => l)
+            .Select(l => l.PredecessorOperationId)
+            .ToHashSet();
+        return steps.Select(s => s.OperationId).Distinct().Where(id => !followed.Contains(id)).ToList();
+    }
+
+    /// <summary>
     /// The links that break the rules: self-links, links to a step outside the routing, and links whose
     /// predecessor does not have a lower step number.
     /// </summary>

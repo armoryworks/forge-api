@@ -23,7 +23,8 @@ namespace Forge.Api.Features.Parts;
 public record RecalculatePartStandardCostCommand(int PartId) : IRequest<RecalculatedStandardCostModel>;
 
 public sealed record RecalculatedStandardCostModel(
-    int PartId, decimal Material, decimal Labor, decimal Overhead, decimal Total, int CostCalculationId);
+    int PartId, decimal Material, decimal Labor, decimal Overhead, decimal Total, int CostCalculationId,
+    string RateSource = StandardCostRateSource.WorkCenter, int? CostingPeriodId = null);
 
 public class RecalculatePartStandardCostHandler(
     AppDbContext db,
@@ -66,6 +67,8 @@ public class RecalculatePartStandardCostHandler(
                 material = elements.Material,
                 labor = elements.Labor,
                 overhead = elements.Overhead,
+                rateSource = elements.RateSource,
+                costingPeriodId = elements.CostingPeriodId,
             }),
             CalculatedAt = now,
             CalculatedBy = userId,
@@ -84,7 +87,8 @@ public class RecalculatePartStandardCostHandler(
         await db.SaveChangesAsync(cancellationToken);
 
         return new RecalculatedStandardCostModel(
-            part.Id, elements.Material, elements.Labor, elements.Overhead, elements.Total, calc.Id);
+            part.Id, elements.Material, elements.Labor, elements.Overhead, elements.Total, calc.Id,
+            elements.RateSource, elements.CostingPeriodId);
     }
 
     /// <summary>Find-or-create the default flat costing profile (none is seeded by default).</summary>

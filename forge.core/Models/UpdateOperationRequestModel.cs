@@ -22,4 +22,5 @@ public record UpdateOperationRequestModel(
     decimal? LaborAttendancePercent = null,
     bool? CycleCountdown = null,
     List<OperationPredecessorRequestModel>? Predecessors = null,
-    bool RemoveConflictingPredecessors = false);
+    bool RemoveConflictingPredecessors = false,
+    string? RoutingVersion = null);

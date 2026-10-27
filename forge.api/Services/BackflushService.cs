@@ -7,6 +7,7 @@ using Forge.Api.Features.Jobs;
 using Forge.Api.Features.Scanner;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Routing;
 using Forge.Core.Interfaces;
 using Forge.Core.Settings;
 using Forge.Data.Context;
@@ -116,18 +117,21 @@ public class BackflushService(
             .Where(r => r.JobId == jobId && r.ReceivedToStockAt != null)
             .SumAsync(r => r.CompletedQuantity + r.ScrapQuantity, ct);
 
-        var lastStepId = await db.Operations.AsNoTracking()
+        var routing = await db.Operations.AsNoTracking()
             .Where(o => o.PartId == parentPartId)
-            .OrderByDescending(o => o.StepNumber)
-            .ThenByDescending(o => o.Id)
-            .Select(o => (int?)o.Id)
-            .FirstOrDefaultAsync(ct);
-        var fromLastStep = lastStepId is int stepId
-            ? await db.JobOperations.AsNoTracking()
-                .Where(r => r.JobId == jobId && r.OperationId == stepId && r.Status == JobOperationStatus.Complete)
-                .Select(r => r.CompletedQuantity + r.ScrapQuantity)
-                .FirstOrDefaultAsync(ct)
-            : 0m;
+            .Select(o => new RoutingStep(o.Id, o.StepNumber))
+            .ToListAsync(ct);
+        var terminal = RoutingPredecessors.Terminal(
+            routing, await StepGateService.LoadLinksAsync(db, routing.Select(s => s.OperationId), ct));
+        var reportedByStep = terminal.Count == 0
+            ? new Dictionary<int, decimal>()
+            : await db.JobOperations.AsNoTracking()
+                .Where(r => r.JobId == jobId && r.OperationId != null && terminal.Contains(r.OperationId.Value)
+                    && r.Status == JobOperationStatus.Complete)
+                .GroupBy(r => r.OperationId!.Value)
+                .Select(g => new { OperationId = g.Key, Reported = g.Max(r => r.CompletedQuantity + r.ScrapQuantity) })
+                .ToDictionaryAsync(r => r.OperationId, r => r.Reported, ct);
+        var fromLastStep = terminal.Count == 0 ? 0m : terminal.Min(id => reportedByStep.GetValueOrDefault(id));
 
         return Math.Max(fromRuns, fromLastStep);
     }

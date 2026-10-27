@@ -9,6 +9,12 @@ public sealed record StandardCostElements(decimal Material, decimal Labor, decim
 {
     public decimal Total => Material + Labor + Overhead;
 
+    /// <summary>Which rates the roll used, one of the <see cref="StandardCostRateSource"/> values.</summary>
+    public string RateSource { get; init; } = StandardCostRateSource.WorkCenter;
+
+    /// <summary>The costing period whose frozen rates the roll used, when <see cref="RateSource"/> is the frozen period.</summary>
+    public int? CostingPeriodId { get; init; }
+
     public static readonly StandardCostElements Zero = new(0m, 0m, 0m);
 
     /// <summary>
@@ -26,9 +32,9 @@ public sealed record StandardCostElements(decimal Material, decimal Labor, decim
             if (conversion > total)
             {
                 var labor = decimal.Round(total * (conversion == 0m ? 0m : rollup.Labor / conversion), 2);
-                return new StandardCostElements(0m, labor, total - labor);
+                return rollup with { Material = 0m, Labor = labor, Overhead = total - labor };
             }
-            return new StandardCostElements(total - conversion, rollup.Labor, rollup.Overhead);
+            return rollup with { Material = total - conversion };
         }
         return rollup;
     }
