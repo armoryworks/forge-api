@@ -21,7 +21,7 @@ public class GetFinalPaySummaryHandler(AppDbContext db, Core.Interfaces.IClock c
     public async Task<FinalPaySummaryResponseModel> Handle(GetFinalPaySummaryQuery request, CancellationToken ct)
     {
         var profile = await EmployeeTarget.ResolveAsync(
-            db, request.EmployeeId, request.Kind, request.CallerUserId, request.CallerIsAdmin, ct, refuseSelf: false);
+            db, request.EmployeeId, request.Kind, request.CallerUserId, request.CallerIsAdmin, ct, refuseSelf: false, refuseAdminTarget: false);
 
         var end = profile.TerminationDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
         var lockedThrough = await TimeLockBoundary.GetAsync(db, ct);

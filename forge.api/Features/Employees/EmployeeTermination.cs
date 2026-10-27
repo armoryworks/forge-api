@@ -20,7 +20,8 @@ namespace Forge.Api.Features.Employees;
 /// (open jobs unassigned, timers stopped, clocked out, sessions revoked), every credential
 /// the user signs in with is withdrawn (kiosk PIN and badge, scan identifiers, passkeys,
 /// user-bound API keys, enrolled devices and their refresh tokens), the team's managers are
-/// told about the unassigned jobs, and open leave requests are cancelled. Leave stops
+/// told about the unassigned jobs, and open leave requests are cancelled (approved leave after
+/// the last day goes back onto the balance so final pay counts it). Leave stops
 /// accruing because accrual only credits active users.
 /// </summary>
 public class EmployeeTermination(
@@ -154,6 +155,21 @@ public class EmployeeTermination(
                 && (r.Status == LeaveRequestStatus.Pending
                     || (r.Status == LeaveRequestStatus.Approved && r.StartDate > lastDay)))
             .ToListAsync(ct);
+        var refunds = open.Where(r => r.Status == LeaveRequestStatus.Approved)
+            .GroupBy(r => r.PolicyId)
+            .ToDictionary(g => g.Key, g => g.Sum(r => r.Hours));
+        if (refunds.Count > 0)
+        {
+            var balances = await db.LeaveBalances
+                .Where(b => b.UserId == userId && refunds.Keys.Contains(b.PolicyId))
+                .ToListAsync(ct);
+            foreach (var balance in balances)
+            {
+                balance.Balance += refunds[balance.PolicyId];
+                balance.UsedThisYear -= refunds[balance.PolicyId];
+            }
+        }
+
         foreach (var request in open)
         {
             request.Status = LeaveRequestStatus.Cancelled;

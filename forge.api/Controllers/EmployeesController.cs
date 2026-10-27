@@ -133,7 +133,7 @@ public class EmployeesController(IMediator mediator) : ControllerBase
 
     /// <summary>
     /// Record a termination (CAP-HR-TERMINATION). Today or earlier applies it at once; a later
-    /// date is applied by the daily termination job. Admin and Manager (own team) may terminate.
+    /// date is applied by the hourly termination job. Admin and Manager (own team) may terminate.
     /// </summary>
     [HttpPost("{id:int}/terminate")]
     [RequiresCapability("CAP-HR-TERMINATION")]

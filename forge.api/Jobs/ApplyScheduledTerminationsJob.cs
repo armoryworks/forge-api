@@ -8,9 +8,9 @@ using Forge.Data.Context;
 namespace Forge.Api.Jobs;
 
 /// <summary>
-/// Daily Hangfire job — applies terminations whose effective date has arrived in the shop
+/// Hourly Hangfire job — applies terminations whose effective date has arrived in the shop
 /// time zone and that have not been applied yet. A termination that cannot be applied (for
-/// example the last active Admin) is logged and retried the next day.
+/// example the last active Admin) is logged and retried on the next run.
 /// </summary>
 public class ApplyScheduledTerminationsJob(
     AppDbContext db,

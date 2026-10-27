@@ -230,6 +230,55 @@ public class TerminateEmployeeHandlerTests
     }
 
     [Fact]
+    public async Task A_manager_cannot_terminate_an_admin_on_their_team()
+    {
+        var worker = await SeedWorkerAsync();
+        var manager = await _h.AddUserAsync();
+        await AddRoleAsync(manager.Id, "Manager");
+        var otherAdmin = await _h.AddUserAsync();
+        await AddRoleAsync(otherAdmin.Id, "Admin");
+        manager.TeamId = 7;
+        otherAdmin.TeamId = 7;
+        worker.TeamId = 7;
+        await _h.Db.SaveChangesAsync();
+
+        await FluentActions.Awaiting(() => Terminate(otherAdmin.Id, Today, caller: manager.Id, admin: false))
+            .Should().ThrowAsync<ForbiddenException>();
+        otherAdmin.IsActive.Should().BeTrue();
+
+        await Terminate(worker.Id, Today, caller: manager.Id, admin: false);
+        worker.IsActive.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Approved_leave_after_the_last_day_goes_back_onto_the_balance()
+    {
+        var worker = await SeedWorkerAsync();
+        var policyId = _h.Db.LeavePolicies.Single().Id;
+        var balance = _h.Db.LeaveBalances.Single(b => b.UserId == worker.Id);
+        balance.Balance = 4m;
+        balance.UsedThisYear = 8m;
+        _h.Db.LeaveRequests.Add(new LeaveRequest
+        {
+            UserId = worker.Id, PolicyId = policyId, StartDate = Today.AddDays(5), EndDate = Today.AddDays(5),
+            Hours = 8, Status = LeaveRequestStatus.Approved,
+        });
+        _h.Db.LeaveRequests.Add(new LeaveRequest
+        {
+            UserId = worker.Id, PolicyId = policyId, StartDate = Today.AddDays(-3), EndDate = Today.AddDays(-3),
+            Hours = 8, Status = LeaveRequestStatus.Approved,
+        });
+        await _h.Db.SaveChangesAsync();
+
+        var result = await Terminate(worker.Id, Today);
+
+        result.Effects!.LeaveRequestsCancelled.Should().Be(2);
+        balance.Balance.Should().Be(12m);
+        balance.UsedThisYear.Should().Be(0m);
+        _h.Db.LeaveRequests.Single(r => r.StartDate == Today.AddDays(-3)).Status.Should().Be(LeaveRequestStatus.Approved);
+    }
+
+    [Fact]
     public async Task Final_pay_summary_values_paid_leave_and_processing_zeroes_it()
     {
         var worker = await SeedWorkerAsync();
