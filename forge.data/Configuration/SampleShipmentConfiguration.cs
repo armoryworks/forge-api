@@ -14,6 +14,7 @@ public class SampleShipmentConfiguration : IEntityTypeConfiguration<SampleShipme
         builder.Property(e => e.TrackingNumber).HasMaxLength(100);
         builder.Property(e => e.Carrier).HasMaxLength(50);
         builder.Property(e => e.Notes).HasMaxLength(2000);
+        builder.Property(e => e.ShipToAddress).HasMaxLength(1000);
         builder.Property(e => e.CostToUs).HasPrecision(18, 4);
         builder.Property(e => e.ChargedAmount).HasPrecision(18, 4);
 
@@ -21,7 +22,12 @@ public class SampleShipmentConfiguration : IEntityTypeConfiguration<SampleShipme
             .WithMany()
             .HasForeignKey(e => e.LeadId)
             .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(e => e.Customer)
+            .WithMany()
+            .HasForeignKey(e => e.CustomerId)
+            .OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(e => e.LeadId);
+        builder.HasIndex(e => e.CustomerId);
         builder.HasIndex(e => e.Status);
     }
 }

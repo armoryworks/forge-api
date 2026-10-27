@@ -2,7 +2,7 @@ namespace Forge.Core.Models;
 
 public record SampleShipmentResponseModel(
     int Id,
-    int LeadId,
+    int? LeadId,
     int? PartId,
     string? PartDescription,
     int Quantity,
@@ -15,14 +15,22 @@ public record SampleShipmentResponseModel(
     string? TrackingNumber,
     string? Carrier,
     string? Notes,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    int? CustomerId = null,
+    string? ShipToAddress = null,
+    DateTimeOffset? FollowUpDate = null);
 
 public record CreateSampleShipmentRequest(
-    int LeadId,
+    int? LeadId,
     int? PartId,
     string? PartDescription,
     int Quantity,
-    string? Notes);
+    string? Notes,
+    int? CustomerId = null,
+    string? ShipToAddress = null,
+    string? Carrier = null,
+    string? TrackingNumber = null,
+    DateTimeOffset? FollowUpDate = null);
 
 public record UpdateSampleShipmentRequest(
     int? PartId,
@@ -36,4 +44,6 @@ public record UpdateSampleShipmentRequest(
     decimal? ChargedAmount,
     string? TrackingNumber,
     string? Carrier,
-    string? Notes);
+    string? Notes,
+    string? ShipToAddress = null,
+    DateTimeOffset? FollowUpDate = null);

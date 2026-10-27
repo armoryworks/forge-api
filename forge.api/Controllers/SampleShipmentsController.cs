@@ -15,8 +15,8 @@ namespace Forge.Api.Controllers;
 public class SampleShipmentsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<List<SampleShipmentResponseModel>>> Get([FromQuery] int? leadId)
-        => Ok(await mediator.Send(new GetSampleShipmentsQuery(leadId)));
+    public async Task<ActionResult<List<SampleShipmentResponseModel>>> Get([FromQuery] int? leadId, [FromQuery] int? customerId)
+        => Ok(await mediator.Send(new GetSampleShipmentsQuery(leadId, customerId)));
 
     [HttpPost]
     public async Task<ActionResult<SampleShipmentResponseModel>> Create([FromBody] CreateSampleShipmentRequest request)

@@ -14,7 +14,10 @@ namespace Forge.Core.Entities;
 /// </summary>
 public class SampleShipment : BaseAuditableEntity
 {
-    public int LeadId { get; set; }
+    /// <summary>The prospect the sample went to. Null when the sample went to an existing customer.</summary>
+    public int? LeadId { get; set; }
+    /// <summary>The existing customer the sample went to. A sample names a lead, a customer, or both.</summary>
+    public int? CustomerId { get; set; }
     public int? PartId { get; set; }
     /// <summary>Free-text part description when no formal Part row exists yet (common pre-quote).</summary>
     public string? PartDescription { get; set; }
@@ -30,6 +33,11 @@ public class SampleShipment : BaseAuditableEntity
     public string? TrackingNumber { get; set; }
     public string? Carrier { get; set; }
     public string? Notes { get; set; }
+    /// <summary>Free-text ship-to address the sample was sent to.</summary>
+    public string? ShipToAddress { get; set; }
+    /// <summary>When sales should follow up on the sample.</summary>
+    public DateTimeOffset? FollowUpDate { get; set; }
 
-    public Lead Lead { get; set; } = null!;
+    public Lead? Lead { get; set; }
+    public Customer? Customer { get; set; }
 }

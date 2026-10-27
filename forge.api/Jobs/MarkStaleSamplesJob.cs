@@ -50,7 +50,7 @@ public class MarkStaleSamplesJob(
             db.LogActivityAt(
                 "sample-marked-stale",
                 $"Sample shipment auto-marked stale after {StaleThresholdDays} days delivered with no outcome.",
-                ("Lead", sample.LeadId));
+                Features.SampleShipments.SampleShipmentProjection.IndexingPoints(sample));
         }
 
         await db.SaveChangesAsync(ct);
