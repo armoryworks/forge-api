@@ -163,7 +163,8 @@ public class CustomersController(IMediator mediator) : ControllerBase
             ClearCurrency: request.ClearCurrency,
             FreightTerms: request.FreightTerms,
             ClearFreightTerms: request.ClearFreightTerms,
-            PaymentTermsId: request.PaymentTermsId));
+            PaymentTermsId: request.PaymentTermsId,
+            RequiresCoa: request.RequiresCoa));
         return NoContent();
     }
 

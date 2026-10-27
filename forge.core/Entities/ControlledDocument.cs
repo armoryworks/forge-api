@@ -16,6 +16,11 @@ public class ControlledDocument : BaseAuditableEntity
     public DateTimeOffset? ReleasedAt { get; set; }
     public DateTimeOffset? ReviewDueDate { get; set; }
     public int ReviewIntervalDays { get; set; } = 365;
+    public int? PartId { get; set; }
+    public int? OperationId { get; set; }
+
+    public Part? Part { get; set; }
+    public Operation? Operation { get; set; }
 
     public ICollection<DocumentRevision> Revisions { get; set; } = [];
 }

@@ -11,7 +11,9 @@ namespace Forge.Api.Features.Documents;
 
 public record GetControlledDocumentsQuery(
     string? Category,
-    ControlledDocumentStatus? Status) : IRequest<List<ControlledDocumentResponseModel>>;
+    ControlledDocumentStatus? Status,
+    int? PartId = null,
+    int? OperationId = null) : IRequest<List<ControlledDocumentResponseModel>>;
 
 public class GetControlledDocumentsHandler(
     AppDbContext db,
@@ -33,9 +35,17 @@ public class GetControlledDocumentsHandler(
         if (request.Status.HasValue)
             query = query.Where(d => d.Status == request.Status.Value);
 
+        if (request.PartId.HasValue)
+            query = query.Where(d => d.PartId == request.PartId.Value);
+
+        if (request.OperationId.HasValue)
+            query = query.Where(d => d.OperationId == request.OperationId.Value);
+
         var documents = await query
             .OrderByDescending(d => d.UpdatedAt)
             .ToListAsync(cancellationToken);
+
+        var links = await ControlledDocumentLinks.LabelsAsync(db, documents, cancellationToken);
 
         return documents.Select(d => new ControlledDocumentResponseModel(
             d.Id,
@@ -53,6 +63,10 @@ public class GetControlledDocumentsHandler(
             d.ReviewIntervalDays,
             d.Revisions.Count,
             d.CreatedAt,
-            d.UpdatedAt)).ToList();
+            d.UpdatedAt,
+            d.PartId,
+            links.GetValueOrDefault(d.Id).PartNumber,
+            d.OperationId,
+            links.GetValueOrDefault(d.Id).OperationLabel)).ToList();
     }
 }

@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using Forge.Api.Capabilities;
 using Forge.Api.Features.Shipments;
 using Forge.Api.Services;
 using Forge.Core.Entities;
@@ -51,6 +52,7 @@ public class ShipShipmentInventoryReliefTests : IDisposable
         services.AddSingleton(httpCtx.Object);
 
         services.AddLogging();
+        services.AddSingleton(Mock.Of<ICapabilitySnapshotProvider>());
 
         _sp = services.BuildServiceProvider();
     }

@@ -41,7 +41,8 @@ public record UpdateCustomerCommand(
     bool? ClearCurrency = null,
     FreightTerms? FreightTerms = null,
     bool? ClearFreightTerms = null,
-    int? PaymentTermsId = null) : IRequest;
+    int? PaymentTermsId = null,
+    bool? RequiresCoa = null) : IRequest;
 
 public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
 {
@@ -249,6 +250,11 @@ public class UpdateCustomerHandler(
         {
             customer.IsItarControlled = request.IsItarControlled.Value;
             changedFields.Add($"isItarControlled: {customer.IsItarControlled}");
+        }
+        if (request.RequiresCoa.HasValue && request.RequiresCoa.Value != customer.RequiresCoa)
+        {
+            customer.RequiresCoa = request.RequiresCoa.Value;
+            changedFields.Add($"requiresCoa: {customer.RequiresCoa}");
         }
         // Phase 1r / Batch 16 — reference-customer consent + notes.
         if (request.IsReferenceOk.HasValue && request.IsReferenceOk.Value != customer.IsReferenceOk)

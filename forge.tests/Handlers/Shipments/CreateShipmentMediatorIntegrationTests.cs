@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using Forge.Api.Capabilities;
 using Forge.Api.Features.Shipments;
 using Forge.Api.Features.Webhooks;
 using Forge.Core.Entities;
@@ -56,6 +57,7 @@ public class CreateShipmentMediatorIntegrationTests : IDisposable
         services.AddSingleton(Mock.Of<IClock>());
 
         services.AddLogging();
+        services.AddSingleton(Mock.Of<ICapabilitySnapshotProvider>());
 
         _sp = services.BuildServiceProvider();
     }

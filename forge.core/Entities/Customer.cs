@@ -124,6 +124,9 @@ public class Customer : BaseAuditableEntity, IActiveAware, IConcurrencyVersioned
     /// <summary>Free-text notes about reference use (e.g. "ok for aerospace prospects only, no defense").</summary>
     public string? ReferenceNotes { get; set; }
 
+    /// <summary>CAP-QC-COA — ship this customer's lots with a certificate of analysis (generated and attached when the shipment ships).</summary>
+    public bool RequiresCoa { get; set; }
+
     public ICollection<Contact> Contacts { get; set; } = [];
     public ICollection<Job> Jobs { get; set; } = [];
     public ICollection<CustomerAddress> Addresses { get; set; } = [];

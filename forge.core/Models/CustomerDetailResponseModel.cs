@@ -43,7 +43,8 @@ public record CustomerDetailResponseModel(
     bool CurrencyLocked = false,
     FreightTerms? FreightTerms = null,
     int? PaymentTermsId = null,
-    PaymentTermsModel? PaymentTerms = null);
+    PaymentTermsModel? PaymentTerms = null,
+    bool RequiresCoa = false);
 
 /// <summary>
 /// Minimal nested address shape returned alongside a customer record. Phase 3 F3.

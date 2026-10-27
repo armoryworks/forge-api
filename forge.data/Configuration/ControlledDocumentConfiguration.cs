@@ -18,6 +18,11 @@ public class ControlledDocumentConfiguration : IEntityTypeConfiguration<Controll
         builder.HasIndex(e => e.DocumentNumber).IsUnique();
         builder.HasIndex(e => e.OwnerId);
         builder.HasIndex(e => e.Status);
+        builder.HasIndex(e => e.PartId);
+        builder.HasIndex(e => e.OperationId);
+
+        builder.HasOne(e => e.Part).WithMany().HasForeignKey(e => e.PartId).OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne(e => e.Operation).WithMany().HasForeignKey(e => e.OperationId).OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(e => e.Revisions)
             .WithOne(r => r.Document)

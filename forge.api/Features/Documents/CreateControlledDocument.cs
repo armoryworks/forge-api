@@ -15,7 +15,9 @@ public record CreateControlledDocumentCommand(
     string Title,
     string? Description,
     string Category,
-    int ReviewIntervalDays) : IRequest<ControlledDocumentResponseModel>;
+    int ReviewIntervalDays,
+    int? PartId = null,
+    int? OperationId = null) : IRequest<ControlledDocumentResponseModel>;
 
 public class CreateControlledDocumentCommandValidator : AbstractValidator<CreateControlledDocumentCommand>
 {
@@ -48,6 +50,8 @@ public class CreateControlledDocumentHandler(
 
         var userIdInt = int.Parse(userId);
 
+        var (partId, operationId) = await ControlledDocumentLinks.ResolveAsync(db, request.PartId, request.OperationId, cancellationToken);
+
         var count = await db.ControlledDocuments.CountAsync(cancellationToken);
         var documentNumber = $"DOC-{(count + 1):D5}";
 
@@ -60,11 +64,15 @@ public class CreateControlledDocumentHandler(
             ReviewIntervalDays = request.ReviewIntervalDays,
             Status = ControlledDocumentStatus.Draft,
             OwnerId = userIdInt,
+            PartId = partId,
+            OperationId = operationId,
         };
 
         db.ControlledDocuments.Add(document);
         await db.SaveChangesAsync(cancellationToken);
 
+        var links = await ControlledDocumentLinks.LabelsAsync(db, [document], cancellationToken);
+        var (partNumber, operationLabel) = links.GetValueOrDefault(document.Id);
         return new ControlledDocumentResponseModel(
             document.Id,
             document.DocumentNumber,
@@ -81,6 +89,10 @@ public class CreateControlledDocumentHandler(
             document.ReviewIntervalDays,
             0,
             document.CreatedAt,
-            document.UpdatedAt);
+            document.UpdatedAt,
+            document.PartId,
+            partNumber,
+            document.OperationId,
+            operationLabel);
     }
 }

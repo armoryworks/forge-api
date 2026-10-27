@@ -103,6 +103,15 @@ public class QualityController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("ecos/{id:int}/impact")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
+    [RequiresCapability("CAP-MD-ECO")]
+    public async Task<ActionResult<EcoImpactResponseModel>> GetEcoImpact(int id)
+    {
+        var result = await mediator.Send(new GetEcoImpactQuery(id));
+        return Ok(result);
+    }
+
     [HttpPost("ecos")]
     [Authorize(Roles = "Admin,Manager,Engineer")]
     [RequiresCapability("CAP-MD-ECO")]

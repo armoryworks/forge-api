@@ -4,4 +4,6 @@ public record CreateControlledDocumentRequestModel(
     string Title,
     string? Description,
     string Category,
-    int ReviewIntervalDays);
+    int ReviewIntervalDays,
+    int? PartId = null,
+    int? OperationId = null);

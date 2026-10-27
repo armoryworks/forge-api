@@ -68,7 +68,8 @@ public class GetCustomerByIdHandler(ICustomerRepository repo, AppDbContext? db =
             CurrencyLocked: db is not null && await PartyCurrency.CustomerHasPostedDocumentsAsync(db, customer.Id, cancellationToken),
             FreightTerms: customer.FreightTerms,
             PaymentTermsId: customer.PaymentTermsId,
-            PaymentTerms: db is null ? null : await new PaymentTermsResolver(db).ModelAsync(customer.PaymentTermsId, customer.DefaultCreditTerms, cancellationToken));
+            PaymentTerms: db is null ? null : await new PaymentTermsResolver(db).ModelAsync(customer.PaymentTermsId, customer.DefaultCreditTerms, cancellationToken),
+            RequiresCoa: customer.RequiresCoa);
     }
 
     private static AddressOutput? PickAddress(Customer customer, AddressType type)

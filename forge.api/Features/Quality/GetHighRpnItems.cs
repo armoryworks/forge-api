@@ -59,6 +59,9 @@ public class GetHighRpnItemsHandler(AppDbContext db)
             RevisedDetection = i.RevisedDetection,
             RevisedRpn = FmeaRpn.Revised(i),
             CapaId = i.CapaId,
+            FmeaId = i.FmeaId,
+            FmeaNumber = i.Fmea.FmeaNumber,
+            FmeaName = i.Fmea.Name,
         }).ToList();
     }
 }

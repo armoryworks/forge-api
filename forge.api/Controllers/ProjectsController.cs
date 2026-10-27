@@ -109,4 +109,18 @@ public class ProjectsController(IMediator mediator) : ControllerBase
         await mediator.Send(new LinkJobToWbsCommand(id, elementId, request));
         return NoContent();
     }
+
+    [HttpDelete("{id:int}/wbs/{elementId:int}/jobs/{jobId:int}")]
+    public async Task<IActionResult> UnlinkJobFromWbs(int id, int elementId, int jobId)
+    {
+        await mediator.Send(new UnlinkJobFromWbsCommand(id, elementId, jobId));
+        return NoContent();
+    }
+
+    [HttpGet("{id:int}/jobs")]
+    public async Task<ActionResult<List<ProjectJobResponseModel>>> GetProjectJobs(int id)
+    {
+        var result = await mediator.Send(new GetProjectJobsQuery(id));
+        return Ok(result);
+    }
 }

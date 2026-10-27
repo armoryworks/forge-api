@@ -687,4 +687,58 @@ public sealed class InitiateRecallHandlerTests(PostgresFixture fixture)
         (await verify.BinContents.SingleAsync(b => b.Id == releasedRow.Id)).Status.Should().Be(BinContentStatus.Stored);
         (await verify.BinContents.SingleAsync(b => b.Id == heldRow.Id)).Status.Should().Be(BinContentStatus.QcHold);
     }
+
+    [Fact]
+    public async Task Preview_reports_what_initiating_records_without_saving_or_holding_stock()
+    {
+        await using var db = fixture.CreateContext();
+        var part = await SeedPartAsync(db);
+        var raw = await SeedLotAsync(db, part.Id, 100);
+        var shipped = await SeedShipmentAsync(db, "Preview Foods", 10);
+        var job = await SeedJobAsync(db, shipped.SoLine.Id);
+        var produced = await SeedLotAsync(db, part.Id, 40, jobId: job.Id);
+        await Consume(db, produced.Id, raw.Id, 60);
+        await ShipAsync(db, shipped.Line, produced.LotNumber, 10);
+        var loc = new StorageLocation { Name = "Bin PV1", LocationType = LocationType.Bin };
+        db.StorageLocations.Add(loc);
+        await db.SaveChangesAsync();
+        db.BinContents.Add(new BinContent
+        {
+            LocationId = loc.Id, EntityType = "part", EntityId = part.Id,
+            Quantity = 30, LotNumber = produced.LotNumber, Status = BinContentStatus.Stored,
+        });
+        await db.SaveChangesAsync();
+        var recallsBefore = await db.Recalls.CountAsync();
+
+        var preview = await new PreviewRecallHandler(db).Handle(
+            new PreviewRecallQuery(new PreviewRecallRequestModel(raw.Id)), CancellationToken.None);
+
+        await using (var verify = fixture.CreateContext())
+        {
+            (await verify.Recalls.CountAsync()).Should().Be(recallsBefore);
+            (await verify.BinContents.FirstAsync(b => b.LotNumber == produced.LotNumber)).Status
+                .Should().Be(BinContentStatus.Stored);
+        }
+
+        await using var initiateDb = fixture.CreateContext();
+        var recorded = await new InitiateRecallHandler(initiateDb, Http()).Handle(Recall(raw.Id), CancellationToken.None);
+
+        preview.AffectedLotsCount.Should().Be(recorded.AffectedLotsCount).And.Be(2);
+        preview.AffectedShipmentsCount.Should().Be(recorded.AffectedShipmentsCount).And.Be(1);
+        preview.AffectedCustomersCount.Should().Be(1);
+        preview.TotalQuarantineQuantity.Should().Be(recorded.TotalQuarantinedQuantity).And.Be(30);
+        preview.AffectedLots.Should().BeEquivalentTo(recorded.AffectedLots);
+        preview.AffectedShipments.Should().BeEquivalentTo(recorded.AffectedShipments);
+    }
+
+    [Fact]
+    public async Task Preview_of_an_unknown_lot_is_not_found()
+    {
+        await using var db = fixture.CreateContext();
+
+        var act = () => new PreviewRecallHandler(db).Handle(
+            new PreviewRecallQuery(new PreviewRecallRequestModel(int.MaxValue)), CancellationToken.None);
+
+        await act.Should().ThrowAsync<KeyNotFoundException>();
+    }
 }

@@ -18,4 +18,8 @@ public record ControlledDocumentResponseModel(
     int ReviewIntervalDays,
     int RevisionCount,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    int? PartId = null,
+    string? PartNumber = null,
+    int? OperationId = null,
+    string? OperationLabel = null);
