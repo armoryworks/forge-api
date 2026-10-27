@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Jobs;
+using Forge.Api.Features.Notifications;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -18,7 +19,8 @@ public class BulkAssignJobHandler(
     IActivityLogRepository actRepo,
     IHubContext<BoardHub> boardHub,
     AppDbContext db,
-    ICapabilitySnapshotProvider capabilities) : IRequestHandler<BulkAssignJobCommand, BulkOperationResponseModel>
+    ICapabilitySnapshotProvider capabilities,
+    IAssignmentNotifier? assignmentNotifier = null) : IRequestHandler<BulkAssignJobCommand, BulkOperationResponseModel>
 {
     public async Task<BulkOperationResponseModel> Handle(BulkAssignJobCommand request, CancellationToken ct)
     {
@@ -28,11 +30,14 @@ public class BulkAssignJobHandler(
         var jobs = await jobRepo.FindMultipleAsync(request.JobIds, ct);
         var errors = new List<BulkOperationError>();
         var successCount = 0;
+        var newlyAssigned = new List<Job>();
 
         foreach (var job in jobs)
         {
             var oldAssigneeId = job.AssigneeId;
             job.AssigneeId = request.AssigneeId;
+            if (request.AssigneeId.HasValue && oldAssigneeId != request.AssigneeId)
+                newlyAssigned.Add(job);
 
             var action = request.AssigneeId.HasValue ? ActivityAction.Assigned : ActivityAction.Unassigned;
             await actRepo.AddAsync(new JobActivityLog
@@ -55,6 +60,12 @@ public class BulkAssignJobHandler(
             errors.Add(new BulkOperationError(id, $"Job with ID {id} not found."));
 
         await jobRepo.SaveChangesAsync(ct);
+
+        if (assignmentNotifier is not null && request.AssigneeId is int assigneeId)
+        {
+            foreach (var job in newlyAssigned)
+                await assignmentNotifier.JobAssignedAsync(job.Id, job.JobNumber, job.Title, assigneeId, ct);
+        }
 
         // Broadcast board refresh for affected track types
         var trackTypeIds = jobs.Select(j => j.TrackTypeId).Distinct();

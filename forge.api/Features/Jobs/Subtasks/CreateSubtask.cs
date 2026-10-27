@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
+using Forge.Api.Features.Notifications;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
@@ -24,7 +25,8 @@ public class CreateSubtaskCommandValidator : AbstractValidator<CreateSubtaskComm
 
 public class CreateSubtaskHandler(
     ISubtaskRepository repo,
-    IHubContext<BoardHub> boardHub) : IRequestHandler<CreateSubtaskCommand, SubtaskResponseModel>
+    IHubContext<BoardHub> boardHub,
+    IAssignmentNotifier? assignmentNotifier = null) : IRequestHandler<CreateSubtaskCommand, SubtaskResponseModel>
 {
     public async Task<SubtaskResponseModel> Handle(CreateSubtaskCommand request, CancellationToken cancellationToken)
     {
@@ -44,6 +46,9 @@ public class CreateSubtaskHandler(
 
         await repo.AddAsync(subtask, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);
+
+        if (assignmentNotifier is not null && subtask.AssigneeId is int assigneeId)
+            await assignmentNotifier.SubtaskAssignedAsync(subtask.JobId, subtask.Text, assigneeId, cancellationToken);
 
         var result = new SubtaskResponseModel(
             subtask.Id,

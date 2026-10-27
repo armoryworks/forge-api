@@ -15,6 +15,9 @@ public class SendSetupInviteHandler(
     IIntegrationOutboxService outbox,
     ISystemSettingRepository settings) : IRequestHandler<SendSetupInviteCommand>
 {
+    public const string InviteEntityType = "ApplicationUser";
+    public const string OperationKeyPrefix = "setup-invite:";
+
     public async Task Handle(SendSetupInviteCommand request, CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(request.UserId.ToString())
@@ -37,14 +40,14 @@ public class SendSetupInviteHandler(
             actionUrl: setupUrl,
             actionLabel: "Complete Setup");
 
-        var operationKey = $"setup-invite:{user.Id}:{Guid.NewGuid():N}";
+        var operationKey = $"{OperationKeyPrefix}{user.Id}:{Guid.NewGuid():N}";
         await outbox.EnqueueEmailAsync(
             operationKey,
             new EmailMessage(
                 user.Email!,
                 $"[{companyName}] Complete Your Account Setup",
                 html),
-            entityType: "ApplicationUser",
+            entityType: InviteEntityType,
             entityId: user.Id,
             ct: cancellationToken);
     }

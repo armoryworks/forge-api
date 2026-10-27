@@ -20,6 +20,10 @@ public class UpdateCustomFieldDefinitionsValidator : AbstractValidator<UpdateCus
     public UpdateCustomFieldDefinitionsValidator()
     {
         RuleFor(x => x.TrackTypeId).GreaterThan(0);
+        RuleFor(x => x.Fields)
+            .Must(fields => fields.Select(f => f.Key?.Trim().ToLowerInvariant()).Distinct().Count() == fields.Count)
+            .When(x => x.Fields is not null)
+            .WithMessage("Each custom field key can be used once.");
         RuleForEach(x => x.Fields).ChildRules(field =>
         {
             field.RuleFor(f => f.Key).NotEmpty().MaximumLength(100);

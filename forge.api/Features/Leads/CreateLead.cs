@@ -4,6 +4,7 @@ using FluentValidation;
 using MediatR;
 
 using Forge.Api.Features.AssignmentRules;
+using Forge.Api.Features.Notifications;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -41,7 +42,8 @@ public class CreateLeadHandler(
     ILeadRepository repo,
     ISystemSettingRepository systemSettings,
     IBusinessIdentifierService identifiers,
-    AppDbContext db) : IRequestHandler<CreateLeadCommand, CreateLeadResult>
+    AppDbContext db,
+    IAssignmentNotifier? assignmentNotifier = null) : IRequestHandler<CreateLeadCommand, CreateLeadResult>
 {
     // System setting that gates caller-supplied lead numbers. Stored as "true"/"false".
     private const string AllowManualLeadNumbersKey = "leads.allow_manual_numbers";
@@ -124,6 +126,9 @@ public class CreateLeadHandler(
 
         // Record the number in the identifier registry (history + resolution).
         await identifiers.IssueAsync(BusinessEntityType.Lead, lead.Id, lead.LeadNumber!, cancellationToken);
+
+        if (assignmentNotifier is not null && lead.AssignedToUserId is int ownerId)
+            await assignmentNotifier.LeadAssignedAsync(lead.Id, lead.DisplayName, ownerId, cancellationToken);
 
         return new CreateLeadResult((await repo.GetByIdAsync(lead.Id, cancellationToken))!, Created: true);
     }

@@ -2,7 +2,6 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
-using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -19,12 +18,10 @@ public class GetShiftsHandler(AppDbContext db) : IRequestHandler<GetShiftsQuery,
             .OrderBy(s => s.StartTime)
             .ToListAsync(cancellationToken);
 
+        var workCenters = await ShiftWorkCenters.LoadAsync(db, shifts.Select(s => s.Id).ToList(), cancellationToken);
+
         return shifts
-            .Select(s => new ShiftResponseModel(
-                s.Id, s.Name, s.StartTime, s.EndTime,
-                s.BreakMinutes,
-                s.NetHours > 0 ? s.NetHours : ShiftHours.Net(s.StartTime, s.EndTime, s.BreakMinutes),
-                s.IsActive))
+            .Select(s => ShiftWorkCenters.ToResponse(s, workCenters.GetValueOrDefault(s.Id)))
             .ToList();
     }
 }

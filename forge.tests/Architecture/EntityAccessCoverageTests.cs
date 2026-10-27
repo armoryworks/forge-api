@@ -122,7 +122,7 @@ public sealed partial class EntityAccessCoverageTests
     public void Every_rule_is_either_controller_backed_or_an_owned_record()
     {
         EntityAccessRules.All.Keys
-            .Where(k => !OwningControllers.ContainsKey(k) && !HrKeys.Contains(k) && k is not ("chat" or "compliancetemplate"))
+            .Where(k => !OwningControllers.ContainsKey(k) && !HrKeys.Contains(k) && k is not ("chat" or "chatdm" or "compliancetemplate"))
             .Should().BeEmpty("add the owning controller to this test when a rule is added");
     }
 
@@ -147,6 +147,7 @@ public sealed partial class EntityAccessCoverageTests
     [InlineData("compliance_submissions", "compliancesubmission")]
     [InlineData("identity-documents", "identitydocument")]
     [InlineData("chat", "chat")]
+    [InlineData("chat-dm", "chatdm")]
     public void Spellings_fold_to_one_key(string entityType, string key)
     {
         EntityAccessRules.Normalize(entityType).Should().Be(key);

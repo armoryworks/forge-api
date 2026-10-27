@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.Notifications;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -27,7 +28,8 @@ public class UpdateLeadHandler(
     ILeadRepository repo,
     ISystemSettingRepository systemSettings,
     IBusinessIdentifierService identifiers,
-    AppDbContext db) : IRequestHandler<UpdateLeadCommand, LeadResponseModel>
+    AppDbContext db,
+    IAssignmentNotifier? assignmentNotifier = null) : IRequestHandler<UpdateLeadCommand, LeadResponseModel>
 {
     // System setting that gates caller-supplied lead numbers (shared with CreateLead).
     private const string AllowManualLeadNumbersKey = "leads.allow_manual_numbers";
@@ -174,12 +176,14 @@ public class UpdateLeadHandler(
             changedFields.Add(lead.AccountId.HasValue ? $"accountId: {lead.AccountId}" : "accountId: cleared");
         }
 
+        int? newOwnerId = null;
         if (data.AssignedToUserId.HasValue)
         {
             var owner = await LeadOwner.ResolveAsync(db, data.AssignedToUserId.Value, cancellationToken);
             if (owner.UserId != lead.AssignedToUserId)
             {
                 lead.AssignedToUserId = owner.UserId;
+                newOwnerId = owner.UserId;
                 changedFields.Add(owner.UserId.HasValue ? $"owner: {owner.Name}" : "owner: cleared");
             }
         }
@@ -193,6 +197,9 @@ public class UpdateLeadHandler(
         }
 
         await repo.SaveChangesAsync(cancellationToken);
+
+        if (assignmentNotifier is not null && newOwnerId is int ownerId)
+            await assignmentNotifier.LeadAssignedAsync(lead.Id, lead.DisplayName, ownerId, cancellationToken);
 
         return (await repo.GetByIdAsync(lead.Id, cancellationToken))!;
     }

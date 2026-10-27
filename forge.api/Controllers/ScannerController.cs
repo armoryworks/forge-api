@@ -17,6 +17,7 @@ namespace Forge.Api.Controllers;
 public class ScannerController(IMediator mediator) : ControllerBase
 {
     private const string StockRoles = "Admin,Manager,OfficeManager,Engineer,ProductionWorker";
+    private const string DeviceRoles = "Admin,Manager";
 
     public record ResolveCodeRequestModel(string Code);
 
@@ -88,6 +89,7 @@ public class ScannerController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("devices")]
+    [Authorize(Roles = DeviceRoles)]
     public async Task<ActionResult<List<ScanDeviceResponseModel>>> GetDevices()
     {
         var result = await mediator.Send(new GetScanDevicesQuery());
@@ -95,13 +97,20 @@ public class ScannerController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("devices")]
+    [Authorize(Roles = DeviceRoles)]
     public async Task<ActionResult<ScanDeviceResponseModel>> PairDevice([FromBody] ScanDeviceRequestModel request)
     {
         var result = await mediator.Send(new PairScanDeviceCommand(request));
         return Created($"/api/v1/scanner/devices/{result.Id}", result);
     }
 
+    [HttpPut("devices/{id:int}")]
+    [Authorize(Roles = DeviceRoles)]
+    public async Task<ActionResult<ScanDeviceResponseModel>> UpdateDevice(int id, [FromBody] UpdateScanDeviceRequestModel request)
+        => Ok(await mediator.Send(new UpdateScanDeviceCommand(id, request)));
+
     [HttpDelete("devices/{id:int}")]
+    [Authorize(Roles = DeviceRoles)]
     public async Task<IActionResult> UnpairDevice(int id)
     {
         await mediator.Send(new UnpairScanDeviceCommand(id));

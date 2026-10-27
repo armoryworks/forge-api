@@ -25,4 +25,5 @@ public record AdminUserResponseModel(
     I9ComplianceStatus? I9Status,
     bool IsNonEmployee,
     bool IsServiceAccount = false,
-    DateTimeOffset? HireDate = null);
+    DateTimeOffset? HireDate = null,
+    DateTimeOffset? LastInviteSentAt = null);

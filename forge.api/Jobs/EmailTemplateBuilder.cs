@@ -29,11 +29,13 @@ public static class EmailTemplateBuilder
         string notificationMessage,
         string? appBaseUrl = null,
         string? actionUrl = null,
-        string? actionLabel = null)
+        string? actionLabel = null,
+        string? language = null)
     {
+        var text = EmailTemplateText.For(language);
         var baseUrl = NormalizeBaseUrl(appBaseUrl);
         var href = actionUrl ?? (baseUrl is null ? null : $"{baseUrl}/notifications");
-        var label = actionUrl is not null && actionLabel is not null ? actionLabel : $"Open {companyName}";
+        var label = actionUrl is not null && actionLabel is not null ? actionLabel : string.Format(text.OpenCompany, companyName);
         var button = href is null ? "" : $"""
             <p style="margin-top:24px;">
               <a href="{Encode(href)}" style="background:#2563eb;color:white;padding:10px 20px;text-decoration:none;font-weight:600;">
@@ -43,13 +45,36 @@ public static class EmailTemplateBuilder
             """;
         var message = Encode(notificationMessage).Replace("\r\n", "\n").Replace("\n", "<br>");
         var body = $"""
-            <p>Hi {Encode(recipientName)},</p>
+            <p>{Encode(string.Format(text.Greeting, recipientName))}</p>
             <h3 style="margin:16px 0 8px;color:#333;">{Encode(notificationTitle)}</h3>
             <p style="color:#555;">{message}</p>
             {button}
             """;
 
-        return WrapHtml(companyName, notificationTitle, body, baseUrl);
+        return WrapHtml(companyName, notificationTitle, body, baseUrl, text);
+    }
+
+    public static string BuildRecordEventEmail(
+        string companyName,
+        string recipientName,
+        string notificationTitle,
+        string notificationMessage,
+        string? appBaseUrl,
+        string? recordPath,
+        string? language)
+    {
+        var text = EmailTemplateText.For(language);
+        var baseUrl = NormalizeBaseUrl(appBaseUrl);
+        var actionUrl = baseUrl is not null && recordPath is not null ? $"{baseUrl}{recordPath}" : null;
+        return BuildNotificationEmail(
+            companyName,
+            recipientName,
+            notificationTitle,
+            notificationMessage,
+            appBaseUrl,
+            actionUrl,
+            actionUrl is null ? null : string.Format(text.ViewRecord, companyName),
+            language);
     }
 
     private static string BuildDigestBody(
@@ -124,12 +149,14 @@ public static class EmailTemplateBuilder
         return sb.ToString();
     }
 
-    private static string WrapHtml(string companyName, string title, string body, string? appBaseUrl = null)
+    private static string WrapHtml(
+        string companyName, string title, string body, string? appBaseUrl = null, EmailTemplateText? text = null)
     {
+        text ??= EmailTemplateText.English;
         var baseUrl = NormalizeBaseUrl(appBaseUrl);
         var preferences = baseUrl is null
             ? ""
-            : $" · <a href=\"{Encode($"{baseUrl}/notifications?tab=preferences")}\" style=\"color:#6b7280;\">Manage preferences</a>";
+            : $" · <a href=\"{Encode($"{baseUrl}/notifications?tab=preferences")}\" style=\"color:#6b7280;\">{Encode(text.ManagePreferences)}</a>";
         return $"""
             <!DOCTYPE html>
             <html>
@@ -145,7 +172,7 @@ public static class EmailTemplateBuilder
                 </div>
                 <div style="background:#f9fafb;padding:16px 24px;border-top:1px solid #e5e7eb;text-align:center;">
                   <p style="margin:0;color:#9ca3af;font-size:11px;">
-                    Sent by {Encode(companyName)}{preferences}
+                    {Encode(string.Format(text.SentBy, companyName))}{preferences}
                   </p>
                 </div>
               </div>

@@ -7,4 +7,6 @@ public record ShiftResponseModel(
     TimeOnly EndTime,
     int BreakMinutes,
     decimal NetHours,
-    bool IsActive);
+    bool IsActive,
+    List<ShiftWorkCenterModel>? WorkCenters = null,
+    int? WorkingCalendarId = null);

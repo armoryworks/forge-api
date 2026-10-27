@@ -7,4 +7,5 @@ public class UserScanDevice : BaseEntity
     public string? DeviceName { get; set; }
     public DateTimeOffset PairedAt { get; set; }
     public bool IsActive { get; set; } = true;
+    public int? AssignedUserId { get; set; }
 }

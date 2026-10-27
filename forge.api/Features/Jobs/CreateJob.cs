@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Notifications;
 using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
 using Forge.Api.Services;
@@ -71,7 +72,8 @@ public class CreateJobHandler(
     IBusinessIdentifierService identifiers,
     ICapabilitySnapshotProvider capabilities,
     ITerminologyLabels terminology,
-    IStandardCostResolver? standardCost = null) : IRequestHandler<CreateJobCommand, JobDetailResponseModel>
+    IStandardCostResolver? standardCost = null,
+    IAssignmentNotifier? assignmentNotifier = null) : IRequestHandler<CreateJobCommand, JobDetailResponseModel>
 {
     // System setting that gates caller-supplied job numbers. Stored as "true"/"false".
     private const string AllowManualJobNumbersKey = "jobs.allow_manual_numbers";
@@ -194,6 +196,9 @@ public class CreateJobHandler(
 
         // Record the number in the identifier registry (history + resolution).
         await identifiers.IssueAsync(BusinessEntityType.Job, job.Id, job.JobNumber, cancellationToken);
+
+        if (assignmentNotifier is not null && job.AssigneeId is int assigneeId)
+            await assignmentNotifier.JobAssignedAsync(job.Id, job.JobNumber, job.Title, assigneeId, cancellationToken);
 
         var result = await mediator.Send(new GetJobByIdQuery(job.Id), cancellationToken);
 

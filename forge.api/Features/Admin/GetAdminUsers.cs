@@ -69,6 +69,15 @@ public class GetAdminUsersHandler(
             .Where(r => r.GroupCode == "state_withholding")
             .ToDictionaryAsync(r => r.Code, r => r.Label, cancellationToken);
 
+        var lastInvites = await db.IntegrationOutboxEntries
+            .AsNoTracking()
+            .Where(e => e.EntityType == SendSetupInviteHandler.InviteEntityType
+                && e.EntityId != null
+                && e.OperationKey.StartsWith(SendSetupInviteHandler.OperationKeyPrefix))
+            .GroupBy(e => e.EntityId!.Value)
+            .Select(g => new { UserId = g.Key, SentAt = g.Max(e => e.CreatedAt) })
+            .ToDictionaryAsync(x => x.UserId, x => x.SentAt, cancellationToken);
+
         var hrOn = EmployeeComplianceRules.IsHrTrackingOn(capabilities);
         var resolveStateCategory = await EmployeeComplianceRules.LoadStateCategoryResolverAsync(db, cancellationToken);
 
@@ -139,7 +148,8 @@ public class GetAdminUsersHandler(
                 i9Status,
                 user.IsNonEmployee,
                 isServiceAccount,
-                profile?.StartDate));
+                profile?.StartDate,
+                lastInvites.TryGetValue(user.Id, out var invitedAt) ? invitedAt : null));
         }
 
         return result;

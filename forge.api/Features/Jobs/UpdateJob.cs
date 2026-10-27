@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Notifications;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -59,7 +60,8 @@ public class UpdateJobHandler(
     IBusinessIdentifierService identifiers,
     AppDbContext db,
     ICapabilitySnapshotProvider capabilities,
-    IStandardCostResolver? standardCost = null) : IRequestHandler<UpdateJobCommand, JobDetailResponseModel>
+    IStandardCostResolver? standardCost = null,
+    IAssignmentNotifier? assignmentNotifier = null) : IRequestHandler<UpdateJobCommand, JobDetailResponseModel>
 {
     // System setting that gates caller-supplied job numbers (shared with CreateJob).
     private const string AllowManualJobNumbersKey = "jobs.allow_manual_numbers";
@@ -148,6 +150,7 @@ public class UpdateJobHandler(
             job.Description = request.Description;
         }
 
+        var reassigned = request.AssigneeId.HasValue && request.AssigneeId.Value != job.AssigneeId;
         if (request.AssigneeId.HasValue && request.AssigneeId.Value != job.AssigneeId)
         {
             var oldAssigneeName = job.AssigneeId.HasValue
@@ -263,6 +266,9 @@ public class UpdateJobHandler(
             await actRepo.AddAsync(log, cancellationToken);
 
         await repo.SaveChangesAsync(cancellationToken);
+
+        if (reassigned && assignmentNotifier is not null)
+            await assignmentNotifier.JobAssignedAsync(job.Id, job.JobNumber, job.Title, request.AssigneeId!.Value, cancellationToken);
 
         var result = await mediator.Send(new GetJobByIdQuery(job.Id), cancellationToken);
 
