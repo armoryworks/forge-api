@@ -16,7 +16,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/customers")]
-[Authorize(Roles = "Admin,Manager,OfficeManager,PM,Engineer")]
+[Authorize(Roles = CustomersController.ReadRoles)]
 [RequiresCapability("CAP-MD-CUSTOMERS")]
 public class CustomersController(IMediator mediator) : ControllerBase
 {
@@ -24,6 +24,9 @@ public class CustomersController(IMediator mediator) : ControllerBase
     /// Roles that may set a customer's commercial terms (tax exemption and credit limit).
     /// </summary>
     public static IReadOnlyList<string> CommercialTermsRoles { get; } = ["Admin", "Manager", "OfficeManager"];
+
+    /// <summary>Roles that read customers and their contacts; global search shows contacts only to these.</summary>
+    public const string ReadRoles = "Admin,Manager,OfficeManager,PM,Engineer";
 
     /// <summary>
     /// Phase 3 F7-partial / WU-17 — standardised paged-list contract.
@@ -139,7 +142,8 @@ public class CustomersController(IMediator mediator) : ControllerBase
     {
         var changesCommercialTerms = request.IsTaxExempt.HasValue || request.TaxExemptionId is not null
             || request.CreditLimit.HasValue || request.ClearCreditLimit == true
-            || request.DefaultCreditTerms is not null || request.ClearDefaultCreditTerms == true;
+            || request.DefaultCreditTerms is not null || request.ClearDefaultCreditTerms == true
+            || request.DefaultTaxCodeId.HasValue || request.ClearDefaultTaxCode == true;
         if (changesCommercialTerms && !CommercialTermsRoles.Any(User.IsInRole))
             return Forbid();
 
@@ -164,7 +168,9 @@ public class CustomersController(IMediator mediator) : ControllerBase
             FreightTerms: request.FreightTerms,
             ClearFreightTerms: request.ClearFreightTerms,
             PaymentTermsId: request.PaymentTermsId,
-            RequiresCoa: request.RequiresCoa));
+            RequiresCoa: request.RequiresCoa,
+            DefaultTaxCodeId: request.DefaultTaxCodeId,
+            ClearDefaultTaxCode: request.ClearDefaultTaxCode));
         return NoContent();
     }
 

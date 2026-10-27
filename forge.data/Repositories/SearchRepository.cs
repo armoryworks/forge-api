@@ -8,7 +8,10 @@ namespace Forge.Data.Repositories;
 
 public class SearchRepository(AppDbContext db) : ISearchRepository
 {
-    public async Task<List<SearchResultModel>> SearchAsync(string term, int limit, CancellationToken ct)
+    public Task<List<SearchResultModel>> SearchAsync(string term, int limit, CancellationToken ct)
+        => SearchAsync(term, limit, false, ct);
+
+    public async Task<List<SearchResultModel>> SearchAsync(string term, int limit, bool includeContacts, CancellationToken ct)
     {
         var perEntity = Math.Max(limit / 4, 3);
         var results = new List<SearchResultModel>();
@@ -87,6 +90,25 @@ public class SearchRepository(AppDbContext db) : ISearchRepository
                  WHERE deleted_at IS NULL
                    AND (description ILIKE @pattern ESCAPE '\' OR category ILIKE @pattern ESCAPE '\')
                  ORDER BY match_rank, length(description), updated_at DESC LIMIT @per)
+                UNION ALL
+                (SELECT 'Contact', ct.id, ct.last_name || ', ' || ct.first_name AS title,
+                        concat_ws(' · ', COALESCE(NULLIF(cu.company_name, ''), cu.name), NULLIF(ct.email, ''), NULLIF(ct.phone, '')) AS subtitle,
+                        'contact_page' AS icon, '/customers/' || ct.customer_id || '/contacts' AS url,
+                        CASE WHEN lower(ct.email) = lower(@term)
+                                  OR lower(ct.first_name || ' ' || ct.last_name) = lower(@term)
+                                  OR lower(ct.last_name || ', ' || ct.first_name) = lower(@term) THEN 0
+                             WHEN ct.first_name ILIKE @prefix ESCAPE '\' OR ct.last_name ILIKE @prefix ESCAPE '\'
+                                  OR ct.email ILIKE @prefix ESCAPE '\' THEN 1
+                             ELSE 2 END AS match_rank,
+                        7 AS entity_order, ct.updated_at
+                 FROM contacts ct
+                 JOIN customers cu ON cu.id = ct.customer_id AND cu.deleted_at IS NULL
+                 WHERE @contacts AND ct.deleted_at IS NULL
+                   AND (ct.first_name ILIKE @pattern ESCAPE '\' OR ct.last_name ILIKE @pattern ESCAPE '\'
+                        OR (ct.first_name || ' ' || ct.last_name) ILIKE @pattern ESCAPE '\'
+                        OR ct.email ILIKE @pattern ESCAPE '\' OR ct.phone ILIKE @pattern ESCAPE '\'
+                        OR ct.mobile ILIKE @pattern ESCAPE '\')
+                 ORDER BY match_rank, length(ct.last_name), ct.updated_at DESC LIMIT @per)
             ) ranked
             ORDER BY match_rank, length(title), entity_order, updated_at DESC
             LIMIT @limit
@@ -104,6 +126,7 @@ public class SearchRepository(AppDbContext db) : ISearchRepository
             command.Parameters.Add(new NpgsqlParameter("pattern", $"%{literal}%"));
             command.Parameters.Add(new NpgsqlParameter("per", perEntity));
             command.Parameters.Add(new NpgsqlParameter("limit", limit));
+            command.Parameters.Add(new NpgsqlParameter("contacts", includeContacts));
 
             await using var reader = await command.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))

@@ -32,4 +32,6 @@ public record UpdateCustomerRequestModel(
     FreightTerms? FreightTerms = null,
     bool? ClearFreightTerms = null,
     int? PaymentTermsId = null,
-    bool? RequiresCoa = null);
+    bool? RequiresCoa = null,
+    int? DefaultTaxCodeId = null,
+    bool? ClearDefaultTaxCode = null);

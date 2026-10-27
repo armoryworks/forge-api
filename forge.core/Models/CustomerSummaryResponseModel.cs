@@ -42,4 +42,5 @@ public record CustomerSummaryResponseModel(
     FreightTerms? FreightTerms = null,
     int? PaymentTermsId = null,
     PaymentTermsModel? PaymentTerms = null,
-    bool RequiresCoa = false);
+    bool RequiresCoa = false,
+    int? DefaultTaxCodeId = null);

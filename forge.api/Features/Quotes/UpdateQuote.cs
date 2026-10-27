@@ -1,6 +1,9 @@
+using System.Globalization;
+
 using FluentValidation;
 using MediatR;
 using Forge.Api.Services.Fx;
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -39,6 +42,7 @@ public class UpdateQuoteHandler(
     ISystemSettingRepository systemSettings,
     IBusinessIdentifierService identifiers,
     AppDbContext db,
+    IClock clock,
     // S1: optional/null-default so isolated unit-test constructions stay valid; DI supplies it.
     Forge.Api.Services.TaxOverrideGuard? taxGuard = null)
     : IRequestHandler<UpdateQuoteCommand>
@@ -79,6 +83,12 @@ public class UpdateQuoteHandler(
             }
         }
 
+        if (quote.Status is QuoteStatus.Sent or QuoteStatus.Expired && OnlyChangesValidUntil(request))
+        {
+            await ExtendValidUntilAsync(quote, request.ExpirationDate!.Value, cancellationToken);
+            return;
+        }
+
         if (quote.Status != QuoteStatus.Draft)
             throw new InvalidOperationException("Only Draft quotes can be updated");
 
@@ -114,6 +124,39 @@ public class UpdateQuoteHandler(
             db.LogActivityAt("updated", $"Quote number changed to {quote.QuoteNumber}", ("Quote", quote.Id));
 
         await repo.SaveChangesAsync(cancellationToken);
+    }
+
+    private static bool OnlyChangesValidUntil(UpdateQuoteCommand request) =>
+        request.ExpirationDate.HasValue
+        && request.ShippingAddressId is null
+        && request.Notes is null
+        && request.TaxRate is null
+        && request.CustomerPO is null
+        && request.CurrencyId is null
+        && request.FxRate is null;
+
+    private async Task ExtendValidUntilAsync(Quote quote, DateTimeOffset validUntil, CancellationToken ct)
+    {
+        var today = clock.UtcNow.UtcDateTime.Date;
+        if (validUntil.UtcDateTime.Date < today)
+            throw new InvalidOperationException(
+                "A sent or expired quote's valid-until date can only move to today or later.");
+
+        var previous = quote.ExpirationDate;
+        quote.ExpirationDate = validUntil;
+        var reopened = quote.Status == QuoteStatus.Expired;
+        if (reopened)
+            quote.Status = QuoteStatus.Sent;
+
+        var from = previous is { } p ? p.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture) : "none";
+        var to = validUntil.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture);
+        db.LogActivityAt(
+            "updated",
+            reopened
+                ? $"Expired quote extended: valid until {from} → {to}; returned to Sent"
+                : $"Quote valid-until extended: {from} → {to}",
+            ("Quote", quote.Id));
+        await repo.SaveChangesAsync(ct);
     }
 
     private async Task<bool> ManualQuoteNumbersAllowedAsync(CancellationToken ct)
