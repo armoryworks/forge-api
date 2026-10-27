@@ -242,6 +242,46 @@ END $$;");
     }
 
     [Fact]
+    public async Task ShipToCustomer_after_a_partial_receipt_costs_only_the_rest_and_measures_variance_on_all_output()
+    {
+        var s = await SeedAsync();
+        await using (var seed = fixture.CreateContext())
+        {
+            seed.ProductionRuns.Add(new ProductionRun
+            {
+                JobId = s.JobId, PartId = s.PartId, RunNumber = "R-1", TargetQuantity = 4, CompletedQuantity = 4,
+                Status = ProductionRunStatus.Completed, ReceivedQuantity = 4,
+                ReceivedToStockAt = new DateTimeOffset(2026, 1, 15, 12, 0, 0, TimeSpan.Zero),
+            });
+            await seed.SaveChangesAsync();
+            await Engine(seed).PostAsync(new PostingRequest
+            {
+                BookId = BookId, EntryDate = new DateOnly(2026, 1, 15), Source = JournalSource.Inventory, CurrencyId = UsdId,
+                IdempotencyKey = $"receipt:{s.JobId}",
+                Lines =
+                [
+                    new PostingLine { AccountKey = "INVENTORY_RAW", Debit = 72m },
+                    new PostingLine { AccountKey = "INVENTORY_WIP", Credit = 72m, JobId = s.JobId },
+                ],
+            }, s.UserId);
+        }
+
+        await using var db = fixture.CreateContext();
+        var standard = new FixedStandard(new StandardCostElements(10m, 6m, 2m));
+
+        await Handler(db, Service(db, standard)).Handle(Dispose(s.JobId, JobDisposition.ShipToCustomer, s.UserId), CancellationToken.None);
+
+        await using var read = fixture.CreateContext();
+        (await WipByJobAsync(read, s.JobId)).Should().Be(0m);
+        var lines = await CloseLinesAsync(read, s.JobId);
+        lines[CogsId].Should().Be(108m);
+        lines[MatUsageId].Should().Be(20m);
+        lines[LaborEffId].Should().Be(20m);
+        lines[OhEffId].Should().Be(-20m);
+        lines.Should().NotContainKey(ProdVarId);
+    }
+
+    [Fact]
     public async Task ShipToCustomer_with_no_standard_sends_the_whole_actual_cost_to_cogs()
     {
         var s = await SeedAsync();

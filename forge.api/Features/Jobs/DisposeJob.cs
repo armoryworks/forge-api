@@ -274,7 +274,10 @@ public class DisposeJobHandler(
                 .Select(l => (decimal?)l.Quantity)
                 .FirstOrDefaultAsync(ct)
             : null;
-        return OperationTimeMath.JobBuildQuantity(jobPartQuantity, salesOrderLineQuantity);
+        var received = await db.ProductionRuns.AsNoTracking()
+            .Where(r => r.JobId == job.Id && r.ReceivedToStockAt != null)
+            .SumAsync(r => (decimal?)r.ReceivedQuantity, ct) ?? 0m;
+        return Math.Max(0m, OperationTimeMath.JobBuildQuantity(jobPartQuantity, salesOrderLineQuantity) - received);
     }
 
     private async Task<List<string>> OpenChildJobNumbersAsync(int jobId, CancellationToken ct) =>

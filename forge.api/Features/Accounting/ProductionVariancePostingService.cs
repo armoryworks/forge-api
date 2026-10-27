@@ -194,11 +194,12 @@ public sealed class ProductionVariancePostingService(
             var standard = await ShippedStandardAsync(target, ct);
             if (standard.Total > 0m)
             {
+                var received = await ReceivedStandardAsync(jobId, ct);
                 var actualMaterial = Math.Round(await jobCost.GetActualMaterialCostAsync(jobId, ct), 2);
                 cogs = Math.Round(standard.Material, 2) + Math.Round(standard.Labor, 2) + Math.Round(standard.Overhead, 2);
-                matUsage = Math.Round(actualMaterial - standard.Material, 2);
-                laborEff = Math.Round(laborStd - standard.Labor, 2);
-                ohEff = Math.Round(burden - standard.Overhead, 2);
+                matUsage = Math.Round(actualMaterial - received.Material - standard.Material, 2);
+                laborEff = Math.Round(laborStd - received.Labor - standard.Labor, 2);
+                ohEff = Math.Round(burden - received.Overhead - standard.Overhead, 2);
                 catchall = Math.Round(residual - cogs - matUsage - laborRateVar - laborEff - ohEff, 2);
 
                 AddSigned(lines, KeyCogs, null, cogs, $"Cost of goods sold at standard — {jobLabel} shipped to the customer");
@@ -233,18 +234,7 @@ public sealed class ProductionVariancePostingService(
         else if (standardCost is not null)
         {
             // Standard cost of good output, decomposed, from the job's received production runs.
-            var runs = await db.ProductionRuns.AsNoTracking()
-                .Where(r => r.JobId == jobId && r.ReceivedToStockAt != null && r.ReceivedQuantity > 0)
-                .Select(r => new { r.PartId, r.ReceivedQuantity })
-                .ToListAsync(ct);
-            decimal stdMat = 0m, stdLab = 0m, stdOh = 0m;
-            foreach (var r in runs)
-            {
-                var e = await standardCost.ResolveAsync(r.PartId, ct);
-                stdMat += e.Material * r.ReceivedQuantity;
-                stdLab += e.Labor * r.ReceivedQuantity;
-                stdOh += e.Overhead * r.ReceivedQuantity;
-            }
+            var (stdMat, stdLab, stdOh) = await ReceivedStandardAsync(jobId, ct);
 
             var actualMaterial = Math.Round(await jobCost.GetActualMaterialCostAsync(jobId, ct), 2);
             matUsage = Math.Round(actualMaterial - stdMat, 2);   // actual material vs standard for output
@@ -305,6 +295,26 @@ public sealed class ProductionVariancePostingService(
             CostOfGoodsSold = cogs,
             WriteOffGlAccountId = writeOffAccount?.Id,
         };
+    }
+
+    private async Task<StandardCostElements> ReceivedStandardAsync(int jobId, CancellationToken ct)
+    {
+        if (standardCost is null)
+            return StandardCostElements.Zero;
+
+        var runs = await db.ProductionRuns.AsNoTracking()
+            .Where(r => r.JobId == jobId && r.ReceivedToStockAt != null && r.ReceivedQuantity > 0)
+            .Select(r => new { r.PartId, r.ReceivedQuantity })
+            .ToListAsync(ct);
+        decimal material = 0m, labor = 0m, overhead = 0m;
+        foreach (var r in runs)
+        {
+            var e = await standardCost.ResolveAsync(r.PartId, ct);
+            material += e.Material * r.ReceivedQuantity;
+            labor += e.Labor * r.ReceivedQuantity;
+            overhead += e.Overhead * r.ReceivedQuantity;
+        }
+        return new StandardCostElements(material, labor, overhead);
     }
 
     private async Task<StandardCostElements> ShippedStandardAsync(DisposedJobCostTarget target, CancellationToken ct)
