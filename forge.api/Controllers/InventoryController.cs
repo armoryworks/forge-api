@@ -210,9 +210,21 @@ public class InventoryController(IMediator mediator) : ControllerBase
     [RequiresCapability("CAP-INV-RESERVE")]
     public async Task<ActionResult<List<ReservationResponseModel>>> GetReservations(
         [FromQuery] int? partId,
-        [FromQuery] int? jobId)
+        [FromQuery] int? jobId,
+        [FromQuery] int? salesOrderId,
+        [FromQuery] int? salesOrderLineId)
     {
-        var result = await mediator.Send(new GetReservationsQuery(partId, jobId));
+        var result = await mediator.Send(new GetReservationsQuery(partId, jobId, salesOrderId, salesOrderLineId));
+        return Ok(result);
+    }
+
+    [HttpGet("reservations/sales-order-lines")]
+    [RequiresCapability("CAP-INV-RESERVE")]
+    public async Task<ActionResult<List<ReservableSalesOrderLineResponseModel>>> GetReservableSalesOrderLines(
+        [FromQuery] int partId,
+        [FromQuery] int? salesOrderId)
+    {
+        var result = await mediator.Send(new GetReservableSalesOrderLinesQuery(partId, salesOrderId));
         return Ok(result);
     }
 
@@ -320,18 +332,19 @@ public class InventoryController(IMediator mediator) : ControllerBase
 
     [HttpGet("atp/{partId:int}")]
     [RequiresCapability("CAP-PLAN-ATP")]
-    public async Task<ActionResult<AtpResult>> GetAtp(int partId, [FromQuery] decimal quantity = 1)
+    public async Task<ActionResult<AtpResult>> GetAtp(
+        int partId, [FromQuery] decimal quantity = 1, [FromQuery] int? excludeSalesOrderLineId = null)
     {
-        var result = await mediator.Send(new GetAtpForPartQuery(partId, quantity));
+        var result = await mediator.Send(new GetAtpForPartQuery(partId, quantity, excludeSalesOrderLineId));
         return Ok(result);
     }
 
     [HttpGet("atp/{partId:int}/timeline")]
     [RequiresCapability("CAP-PLAN-ATP")]
     public async Task<ActionResult<List<AtpBucket>>> GetAtpTimeline(
-        int partId, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
+        int partId, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] int? excludeSalesOrderLineId = null)
     {
-        var result = await mediator.Send(new GetAtpTimelineQuery(partId, from, to));
+        var result = await mediator.Send(new GetAtpTimelineQuery(partId, from, to, excludeSalesOrderLineId));
         return Ok(result);
     }
 }

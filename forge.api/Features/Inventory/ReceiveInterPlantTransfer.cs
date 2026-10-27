@@ -41,10 +41,38 @@ public class ReceiveInterPlantTransferHandler(
         if (blockedReason is not null)
             throw new InvalidOperationException(blockedReason);
 
-        var receivedLinesByPart = command.Lines.ToDictionary(l => l.PartId, l => l.ReceivedQuantity);
+        var requestsByLine = new Dictionary<int, ReceiveTransferLineRequestModel>();
+        foreach (var requested in command.Lines)
+        {
+            InterPlantTransferLine? target;
+            if (requested.LineId is int lineId)
+            {
+                target = transfer.Lines.FirstOrDefault(l => l.Id == lineId)
+                    ?? throw new InvalidOperationException($"Line {lineId} is not on transfer {transfer.TransferNumber}.");
+            }
+            else
+            {
+                var matches = transfer.Lines.Where(l => l.PartId == requested.PartId).ToList();
+                if (matches.Count > 1)
+                    throw new InvalidOperationException(
+                        $"{matches[0].Part?.PartNumber ?? $"Part {requested.PartId}"} is on more than one line of this transfer. Receive each line by its line id.");
+                target = matches.SingleOrDefault();
+            }
+            if (target is null)
+                continue;
+            if (!requestsByLine.TryAdd(target.Id, requested))
+                throw new InvalidOperationException(
+                    $"{target.Part?.PartNumber ?? $"Part {target.PartId}"} is listed twice in this receipt.");
+        }
+
+        foreach (var binId in requestsByLine.Values.Where(l => l.ToLocationId is not null).Select(l => l.ToLocationId!.Value).Distinct())
+        {
+            if (!await db.StorageLocations.AnyAsync(l => l.Id == binId, cancellationToken))
+                throw new KeyNotFoundException($"Bin {binId} not found");
+        }
         foreach (var line in transfer.Lines)
         {
-            if (receivedLinesByPart.TryGetValue(line.PartId, out var qty) && (qty < 0 || qty > line.Quantity))
+            if (requestsByLine.TryGetValue(line.Id, out var requested) && (requested.ReceivedQuantity < 0 || requested.ReceivedQuantity > line.Quantity))
                 throw new InvalidOperationException(
                     $"Receive between 0 and {line.Quantity} of {line.Part?.PartNumber ?? $"part {line.PartId}"}.");
         }
@@ -64,11 +92,15 @@ public class ReceiveInterPlantTransferHandler(
 
         foreach (var line in transfer.Lines.OrderBy(l => l.Id))
         {
-            var received = receivedLinesByPart.TryGetValue(line.PartId, out var qty) ? qty : line.Quantity;
+            requestsByLine.TryGetValue(line.Id, out var requested);
+            var received = requested?.ReceivedQuantity ?? line.Quantity;
             line.ReceivedQuantity = received;
+            if (requested?.ToLocationId is int receivingBinId)
+                line.ToLocationId = receivingBinId;
 
             var shippedLots = shippedMovements
-                .Where(m => m.EntityId == line.PartId && m.FromLocationId == line.FromLocationId)
+                .Where(m => m.EntityId == line.PartId && m.FromLocationId == line.FromLocationId
+                    && (line.LotNumber == null || m.LotNumber == line.LotNumber))
                 .GroupBy(m => m.LotNumber)
                 .Select(g => (LotNumber: g.Key, Quantity: g.Sum(m => m.Quantity)))
                 .ToList();

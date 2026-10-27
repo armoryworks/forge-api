@@ -19,6 +19,10 @@ public class CreateReservationCommandValidator : AbstractValidator<CreateReserva
         RuleFor(x => x.Data.BinContentId).GreaterThan(0);
         RuleFor(x => x.Data.Quantity).GreaterThan(0);
         RuleFor(x => x.Data.Notes).MaximumLength(500).When(x => x.Data.Notes is not null);
+        RuleFor(x => x.Data)
+            .Must(d => d.JobId is null || d.SalesOrderLineId is null)
+            .WithMessage("Reserve stock for a job or for a sales order line, not both.")
+            .WithErrorCode("reservation-one-demand");
     }
 }
 
@@ -41,6 +45,31 @@ public class CreateReservationHandler(
 
         var part = await db.Parts.FirstOrDefaultAsync(p => p.Id == data.PartId, ct)
             ?? throw new KeyNotFoundException($"Part {data.PartId} not found.");
+
+        if (binContent.EntityType != "part" || binContent.EntityId != data.PartId)
+            throw new InvalidOperationException("That bin does not hold this part. Choose one of the part's bins.");
+
+        SalesOrderLine? salesOrderLine = null;
+        if (data.SalesOrderLineId is int salesOrderLineId)
+        {
+            salesOrderLine = await db.SalesOrderLines
+                .Include(l => l.SalesOrder)
+                .FirstOrDefaultAsync(l => l.Id == salesOrderLineId, ct)
+                ?? throw new KeyNotFoundException($"Sales order line {salesOrderLineId} not found.");
+            if (salesOrderLine.PartId != data.PartId)
+                throw new InvalidOperationException(
+                    $"Line {salesOrderLine.LineNumber} of sales order {salesOrderLine.SalesOrder.OrderNumber} is for a different part.");
+            if (!await SalesOrderLineReservations.Reservable(db, data.PartId).AnyAsync(l => l.Id == salesOrderLineId, ct))
+                throw new InvalidOperationException(
+                    $"Line {salesOrderLine.LineNumber} of sales order {salesOrderLine.SalesOrder.OrderNumber} has nothing left to ship, or the order is not open.");
+
+            var alreadyReserved = (await SalesOrderLineReservations.ReservedByLineAsync(db, [salesOrderLineId], ct))
+                .GetValueOrDefault(salesOrderLineId);
+            var stillOpen = salesOrderLine.Quantity - salesOrderLine.ShippedQuantity - alreadyReserved;
+            if (data.Quantity > stillOpen)
+                throw new InvalidOperationException(
+                    $"Cannot reserve {data.Quantity:0.####} for line {salesOrderLine.LineNumber} of sales order {salesOrderLine.SalesOrder.OrderNumber}: only {Math.Max(stillOpen, 0):0.####} is still open and unreserved.");
+        }
 
         var reservation = new Reservation
         {
@@ -91,6 +120,9 @@ public class CreateReservationHandler(
             data.SalesOrderLineId,
             reservation.Quantity,
             reservation.Notes,
-            reservation.CreatedAt);
+            reservation.CreatedAt,
+            salesOrderLine?.SalesOrderId,
+            salesOrderLine?.SalesOrder.OrderNumber,
+            salesOrderLine?.LineNumber);
     }
 }

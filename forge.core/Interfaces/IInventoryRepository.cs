@@ -63,7 +63,7 @@ public interface IInventoryRepository
     Task AddCycleCountAsync(CycleCount cycleCount, CancellationToken ct);
 
     // Reservations
-    Task<List<ReservationResponseModel>> GetReservationsAsync(int? partId, int? jobId, CancellationToken ct);
+    Task<List<ReservationResponseModel>> GetReservationsAsync(int? partId, int? jobId, int? salesOrderId, int? salesOrderLineId, CancellationToken ct);
     Task<Reservation?> FindReservationAsync(int id, CancellationToken ct);
     Task AddReservationAsync(Reservation reservation, CancellationToken ct);
 

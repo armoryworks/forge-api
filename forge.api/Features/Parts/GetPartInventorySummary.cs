@@ -48,7 +48,8 @@ public class GetPartInventorySummaryHandler(AppDbContext db)
                 bc.ReservedQuantity,
                 bc.Quantity - bc.ReservedQuantity,
                 bc.LotNumber,
-                bc.Status))
+                bc.Status,
+                bc.LocationId))
             .ToList();
 
         return new PartInventorySummaryResponseModel(totalQuantity, totalReserved, totalAvailable, binLocations);

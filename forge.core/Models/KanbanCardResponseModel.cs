@@ -15,7 +15,9 @@ public record KanbanCardResponseModel
     public int NumberOfBins { get; init; }
     public string Status { get; init; } = string.Empty;
     public string SupplySource { get; init; } = string.Empty;
+    public int? SupplyVendorId { get; init; }
     public string? SupplyVendorName { get; init; }
+    public int? SupplyWorkCenterId { get; init; }
     public decimal? LeadTimeDays { get; init; }
     public DateTimeOffset? LastTriggeredAt { get; init; }
     public DateTimeOffset? LastReplenishedAt { get; init; }

@@ -235,7 +235,8 @@ public class GetLotTraceabilityHandler(AppDbContext db)
             shippedTo,
             receivedFrom,
             nonConformances,
-            producingJob);
+            producingJob,
+            lot.Notes);
     }
 
     private async Task<LotTraceJobModel?> ResolveProducingJobAsync(LotRecord lot, CancellationToken ct)

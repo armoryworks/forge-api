@@ -8,6 +8,7 @@ public record AbcClassificationResultResponseModel
     public string PartNumber { get; init; } = string.Empty;
     public string PartDescription { get; init; } = string.Empty;
     public AbcClass Classification { get; init; }
+    public AbcClass? CurrentClassification { get; init; }
     public decimal AnnualUsageValue { get; init; }
     public decimal AnnualDemandQuantity { get; init; }
     public decimal UnitCost { get; init; }

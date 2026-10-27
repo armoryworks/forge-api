@@ -180,7 +180,8 @@ public class ReceivePurchaseOrderHandler(
         await poRepo.SaveChangesAsync(cancellationToken);
 
         if (db is not null)
-            await ReceiptLotRecords.EnsureAsync(db, barcodes, capabilities, line, lot, baseQuantityReceived, cancellationToken);
+            await ReceiptLotRecords.EnsureAsync(
+                db, barcodes, capabilities, line, lot, baseQuantityReceived, data.ExpirationDate, clock.UtcNow, cancellationToken);
 
         // Inline inventory / GRNI posting (Phase-2 STAGE C parity for the inv-tab receive). Runs AFTER
         // the operational SaveChanges so the record is flushed and resolvable by ReceiptNumber; no-op

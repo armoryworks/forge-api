@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -15,6 +16,7 @@ public class TransferSerialValidator : AbstractValidator<TransferSerialCommand>
     public TransferSerialValidator()
     {
         RuleFor(x => x.Request.ToLocationId).GreaterThan(0);
+        RuleFor(x => x.Request.Notes).MaximumLength(1000).When(x => x.Request.Notes is not null);
     }
 }
 
@@ -26,6 +28,12 @@ public class TransferSerialHandler(AppDbContext db, IClock clock) : IRequestHand
             .Include(s => s.CurrentLocation)
             .FirstOrDefaultAsync(s => s.Id == request.SerialId, cancellationToken)
             ?? throw new KeyNotFoundException($"Serial number {request.SerialId} not found");
+
+        if (serial.Status is SerialNumberStatus.Shipped or SerialNumberStatus.Scrapped)
+            throw new InvalidOperationException(
+                $"Serial {serial.SerialValue} is {serial.Status.ToString().ToLowerInvariant()}, so it is no longer in stock to move.");
+        if (serial.CurrentLocationId == request.Request.ToLocationId)
+            throw new InvalidOperationException($"Serial {serial.SerialValue} is already in that location.");
 
         var toLocation = await db.StorageLocations.AsNoTracking()
             .FirstOrDefaultAsync(l => l.Id == request.Request.ToLocationId, cancellationToken)

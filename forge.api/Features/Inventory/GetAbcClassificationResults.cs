@@ -23,6 +23,7 @@ public class GetAbcClassificationResultsHandler(AppDbContext db) : IRequestHandl
                 PartNumber = c.Part.PartNumber,
                 PartDescription = c.Part.Description ?? c.Part.Name,
                 Classification = c.Classification,
+                CurrentClassification = c.Part.AbcClass,
                 AnnualUsageValue = c.AnnualUsageValue,
                 AnnualDemandQuantity = c.AnnualDemandQuantity,
                 UnitCost = c.UnitCost,

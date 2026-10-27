@@ -15,7 +15,9 @@ namespace Forge.Api.Features.Lots;
 /// lot adds to that record. Lot numbers are unique across parts, so when the number already belongs to another
 /// part (vendors reuse lot strings) the receipt still goes through, no record is made, and the PO activity
 /// says so. While CAP-INV-LOTS is on, a lot-tracked part received without a lot gets a house lot number
-/// (<see cref="LotNumbers"/>), so every receipt of it can be traced.
+/// (<see cref="LotNumbers"/>), so every receipt of it can be traced. The receipt's expiry date goes on the lot;
+/// when none is given and the part has a shelf life, the lot expires that many days after the receipt. A later
+/// receipt into the same lot keeps the earlier of the two expiry dates.
 /// </summary>
 public static class ReceiptLotRecords
 {
@@ -48,11 +50,14 @@ public static class ReceiptLotRecords
         PurchaseOrderLine line,
         string? lotNumber,
         decimal baseQuantity,
+        DateTimeOffset? expirationDate,
+        DateTimeOffset receivedAt,
         CancellationToken ct)
     {
         if (lotNumber is null || !TracksLot(line.Part, capabilities))
             return;
         var part = line.Part!;
+        var expires = ExpirationFor(part, expirationDate, receivedAt);
 
         var existing = await db.LotRecords
             .IgnoreQueryFilters()
@@ -63,6 +68,8 @@ public static class ReceiptLotRecords
             if (existing.PartId == part.Id && existing.DeletedAt is null)
             {
                 existing.Quantity += baseQuantity;
+                if (expires is not null && (existing.ExpirationDate is null || expires < existing.ExpirationDate))
+                    existing.ExpirationDate = expires;
                 await db.SaveChangesAsync(ct);
                 return;
             }
@@ -84,11 +91,21 @@ public static class ReceiptLotRecords
             PartRevision = part.Revision,
             PurchaseOrderLineId = line.Id,
             Quantity = baseQuantity,
+            ExpirationDate = expires,
         };
         db.LotRecords.Add(lot);
         await db.SaveChangesAsync(ct);
 
         if (barcodes is not null)
             await barcodes.CreateBarcodeAsync(BarcodeEntityType.Lot, lot.Id, lot.LotNumber, ct);
+    }
+
+    public static DateTimeOffset? ExpirationFor(Part part, DateTimeOffset? expirationDate, DateTimeOffset receivedAt)
+    {
+        if (expirationDate is not null)
+            return expirationDate;
+        return part.ShelfLifeDays is int days and > 0
+            ? new DateTimeOffset(receivedAt.UtcDateTime.Date.AddDays(days), TimeSpan.Zero)
+            : null;
     }
 }

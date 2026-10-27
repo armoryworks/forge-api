@@ -27,4 +27,5 @@ public record PurchaseOrderLineResponseModel(
     string? PartDefaultBinPath = null,
     bool LotTracked = false,
     string? UnitSymbol = null,
-    int? QuantityDecimalPlaces = null);
+    int? QuantityDecimalPlaces = null,
+    int? ShelfLifeDays = null);

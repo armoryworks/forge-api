@@ -487,13 +487,16 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<List<ReservationResponseModel>> GetReservationsAsync(int? partId, int? jobId, CancellationToken ct)
+    public async Task<List<ReservationResponseModel>> GetReservationsAsync(
+        int? partId, int? jobId, int? salesOrderId, int? salesOrderLineId, CancellationToken ct)
     {
         var query = db.Reservations
             .Include(r => r.Part)
             .Include(r => r.BinContent)
                 .ThenInclude(b => b.Location)
             .Include(r => r.Job)
+            .Include(r => r.SalesOrderLine)
+                .ThenInclude(l => l!.SalesOrder)
             .Where(r => r.DeletedAt == null)
             .AsQueryable();
 
@@ -502,6 +505,12 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
 
         if (jobId.HasValue)
             query = query.Where(r => r.JobId == jobId.Value);
+
+        if (salesOrderLineId.HasValue)
+            query = query.Where(r => r.SalesOrderLineId == salesOrderLineId.Value);
+
+        if (salesOrderId.HasValue)
+            query = query.Where(r => r.SalesOrderLine != null && r.SalesOrderLine.SalesOrderId == salesOrderId.Value);
 
         var reservations = await query
             .OrderByDescending(r => r.CreatedAt)
@@ -525,7 +534,10 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
             r.SalesOrderLineId,
             r.Quantity,
             r.Notes,
-            r.CreatedAt
+            r.CreatedAt,
+            r.SalesOrderLine?.SalesOrderId,
+            r.SalesOrderLine?.SalesOrder?.OrderNumber,
+            r.SalesOrderLine?.LineNumber
         )).ToList();
     }
 

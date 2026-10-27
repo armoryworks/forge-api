@@ -13,4 +13,7 @@ public record ReservationResponseModel(
     int? SalesOrderLineId,
     decimal Quantity,
     string? Notes,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    int? SalesOrderId = null,
+    string? SalesOrderNumber = null,
+    int? SalesOrderLineNumber = null);

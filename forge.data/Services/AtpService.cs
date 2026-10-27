@@ -9,7 +9,7 @@ namespace Forge.Data.Services;
 
 public class AtpService(AppDbContext db, IClock clock) : IAtpService
 {
-    public async Task<AtpResult> CalculateAtpAsync(int partId, decimal quantity, CancellationToken ct = default)
+    public async Task<AtpResult> CalculateAtpAsync(int partId, decimal quantity, int? excludeSalesOrderLineId = null, CancellationToken ct = default)
     {
         var part = await db.Parts
             .AsNoTracking()
@@ -29,7 +29,8 @@ public class AtpService(AppDbContext db, IClock clock) : IAtpService
             .Where(l => l.PartId == partId
                 && l.SalesOrder.Status != SalesOrderStatus.Cancelled
                 && l.SalesOrder.Status != SalesOrderStatus.Completed
-                && l.ShippedQuantity < l.Quantity)
+                && l.ShippedQuantity < l.Quantity
+                && (excludeSalesOrderLineId == null || l.Id != excludeSalesOrderLineId))
             .SumAsync(l => (decimal)(l.Quantity - l.ShippedQuantity), ct);
 
         // Scheduled receipts: open PO line quantities not yet received
@@ -52,7 +53,7 @@ public class AtpService(AppDbContext db, IClock clock) : IAtpService
         }
         else
         {
-            earliestDate = await GetEarliestAvailableDateAsync(partId, quantity, ct);
+            earliestDate = await GetEarliestAvailableDateAsync(partId, quantity, excludeSalesOrderLineId, ct);
         }
 
         return new AtpResult
@@ -69,12 +70,12 @@ public class AtpService(AppDbContext db, IClock clock) : IAtpService
         };
     }
 
-    public async Task<DateOnly?> GetEarliestAvailableDateAsync(int partId, decimal quantity, CancellationToken ct = default)
+    public async Task<DateOnly?> GetEarliestAvailableDateAsync(int partId, decimal quantity, int? excludeSalesOrderLineId = null, CancellationToken ct = default)
     {
         var today = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
         var horizon = today.AddDays(180);
 
-        var timeline = await GetAtpTimelineAsync(partId, today, horizon, ct);
+        var timeline = await GetAtpTimelineAsync(partId, today, horizon, excludeSalesOrderLineId, ct);
         foreach (var bucket in timeline)
         {
             if (bucket.NetAvailable >= quantity)
@@ -84,7 +85,7 @@ public class AtpService(AppDbContext db, IClock clock) : IAtpService
         return null;
     }
 
-    public async Task<List<AtpBucket>> GetAtpTimelineAsync(int partId, DateOnly from, DateOnly to, CancellationToken ct = default)
+    public async Task<List<AtpBucket>> GetAtpTimelineAsync(int partId, DateOnly from, DateOnly to, int? excludeSalesOrderLineId = null, CancellationToken ct = default)
     {
         _ = await db.Parts.AsNoTracking().FirstOrDefaultAsync(p => p.Id == partId, ct)
             ?? throw new KeyNotFoundException($"Part {partId} not found");
@@ -123,7 +124,8 @@ public class AtpService(AppDbContext db, IClock clock) : IAtpService
                 && l.SalesOrder.RequestedDeliveryDate != null
                 && l.SalesOrder.RequestedDeliveryDate >= fromOffset
                 && l.SalesOrder.RequestedDeliveryDate <= toOffset
-                && l.ShippedQuantity < l.Quantity)
+                && l.ShippedQuantity < l.Quantity
+                && (excludeSalesOrderLineId == null || l.Id != excludeSalesOrderLineId))
             .GroupBy(l => l.SalesOrder.RequestedDeliveryDate!.Value.Date)
             .Select(g => new { Date = g.Key, Quantity = g.Sum(l => (decimal)(l.Quantity - l.ShippedQuantity)) })
             .ToDictionaryAsync(x => DateOnly.FromDateTime(x.Date), x => x.Quantity, ct);
