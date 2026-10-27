@@ -17,7 +17,7 @@ public class ImportJobsTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 27, 12, 0, 0, TimeSpan.Zero);
 
-    private static ImportJobsHandler Handler(AppDbContext db)
+    internal static ImportJobsHandler Handler(AppDbContext db)
     {
         var clock = new Mock<IClock>();
         clock.SetupGet(c => c.UtcNow).Returns(Now);

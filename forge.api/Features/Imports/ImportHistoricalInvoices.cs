@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -17,7 +18,9 @@ namespace Forge.Api.Features.Imports;
 /// invoice. Nothing posts to the general ledger: with full GL on, the opening AR balance comes from the
 /// opening-balance journal and its open items, so posting these would count it twice. No email, overdue
 /// notice or integration event fires; an open invoice already past due imports as Overdue.
-/// A commit is all-or-nothing.
+/// With full GL on, only closed history (paid or voided) imports: an open balance belongs to the opening
+/// receivables, whose open items tie to the AR control account, and an imported open invoice would sit
+/// outside that sub-ledger. A commit is all-or-nothing.
 /// </summary>
 public record ImportHistoricalInvoicesCommand(IReadOnlyList<InvoiceImportRowModel> Rows, bool Commit)
     : IRequest<DataImportResultModel>;
@@ -26,7 +29,8 @@ public class ImportHistoricalInvoicesHandler(
     AppDbContext db,
     IPaymentRepository payments,
     IBusinessIdentifierService identifiers,
-    IClock clock) : IRequestHandler<ImportHistoricalInvoicesCommand, DataImportResultModel>
+    IClock clock,
+    ICapabilitySnapshotProvider capabilities) : IRequestHandler<ImportHistoricalInvoicesCommand, DataImportResultModel>
 {
     public const int MaxRows = 5000;
     public const string Provider = "HistoricalImport";
@@ -88,9 +92,10 @@ public class ImportHistoricalInvoicesHandler(
                 .ToListAsync(ct))
             .ToHashSet(StringComparer.Ordinal);
         var today = clock.UtcNow.UtcDateTime.Date;
+        var fullGl = capabilities.IsEnabled("CAP-ACCT-FULLGL");
 
         foreach (var plan in plans)
-            Validate(plan, lookup, existing, today);
+            Validate(plan, lookup, existing, today, fullGl);
 
         var invalid = orphanRows.Count + plans.Sum(p => p.Errors.Count > 0 ? p.Rows.Count : 0);
         if (!request.Commit || invalid > 0)
@@ -106,7 +111,8 @@ public class ImportHistoricalInvoicesHandler(
         return Result(plans, orphanRows, committed: true);
     }
 
-    private static void Validate(InvoicePlan plan, ImportReferenceLookup lookup, HashSet<string> existing, DateTime today)
+    private static void Validate(
+        InvoicePlan plan, ImportReferenceLookup lookup, HashSet<string> existing, DateTime today, bool fullGl)
     {
         var errors = plan.Errors;
         var head = plan.Rows[0].Row;
@@ -211,6 +217,9 @@ public class ImportHistoricalInvoicesHandler(
                     : plan.DueDate.UtcDateTime.Date < today ? InvoiceStatus.Overdue
                     : InvoiceStatus.Sent;
                 if (invoiceTotal == 0m) plan.Status = InvoiceStatus.Paid;
+                if (fullGl && plan.Status != InvoiceStatus.Paid)
+                    errors.Add("Full GL is on, so an invoice with an open balance comes in through the opening "
+                        + "receivables in Accounting, not this import. Import only paid or voided history here.");
                 break;
             case "void" or "voided":
                 if (plan.Paid > 0m) errors.Add("A voided invoice can't carry a paid amount.");

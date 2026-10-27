@@ -177,6 +177,7 @@ public class ImportJobsHandler(
     private async Task WriteAsync(List<Plan> plans, CancellationToken ct)
     {
         var now = clock.UtcNow;
+        await AdvanceJobNumberSequenceAsync(plans.Where(p => p.Number is not null).Select(p => p.Number!), ct);
         var positions = new Dictionary<int, int>();
         var created = new List<(Plan Plan, Job Job)>();
         foreach (var plan in plans)
@@ -235,7 +236,6 @@ public class ImportJobsHandler(
             await barcodes.CreateBarcodeAsync(BarcodeEntityType.Job, job.Id, job.JobNumber, ct);
             await identifiers.IssueAsync(BusinessEntityType.Job, job.Id, job.JobNumber, ct);
         }
-        await AdvanceJobNumberSequenceAsync(created.Select(c => c.Job.JobNumber), ct);
     }
 
     private async Task AdvanceJobNumberSequenceAsync(IEnumerable<string> numbers, CancellationToken ct)

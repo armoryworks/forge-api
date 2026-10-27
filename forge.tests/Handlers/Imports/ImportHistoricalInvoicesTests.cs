@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Features.Imports;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -17,14 +18,16 @@ public class ImportHistoricalInvoicesTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 27, 12, 0, 0, TimeSpan.Zero);
 
-    internal static ImportHistoricalInvoicesHandler Handler(AppDbContext db, DateTimeOffset? now = null)
+    internal static ImportHistoricalInvoicesHandler Handler(AppDbContext db, DateTimeOffset? now = null, bool fullGl = false)
     {
+        var capabilities = new Mock<ICapabilitySnapshotProvider>();
+        capabilities.Setup(c => c.IsEnabled("CAP-ACCT-FULLGL")).Returns(fullGl);
         var clock = new Mock<IClock>();
         clock.SetupGet(c => c.UtcNow).Returns(now ?? Now);
         var identifiers = new Mock<IBusinessIdentifierService>();
         identifiers.Setup(i => i.IssueAsync(It.IsAny<BusinessEntityType>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new BusinessIdentifier());
-        return new ImportHistoricalInvoicesHandler(db, new PaymentRepository(db), identifiers.Object, clock.Object);
+        return new ImportHistoricalInvoicesHandler(db, new PaymentRepository(db), identifiers.Object, clock.Object, capabilities.Object);
     }
 
     private static async Task SeedAsync(AppDbContext db)
@@ -97,6 +100,36 @@ public class ImportHistoricalInvoicesTests
         var invoice = await db.Invoices.Include(i => i.Lines).Include(i => i.PaymentApplications).SingleAsync(i => i.InvoiceNumber == "H-3");
         invoice.Status.Should().Be(InvoiceStatus.PartiallyPaid);
         invoice.BalanceDue.Should().Be(150m);
+    }
+
+    [Fact]
+    public async Task Full_gl_rejects_open_invoices_and_imports_closed_history()
+    {
+        using var db = TestDbContextFactory.Create();
+        await SeedAsync(db);
+
+        var rejected = await Handler(db, fullGl: true).Handle(new ImportHistoricalInvoicesCommand(
+        [
+            Line("H-20", "Open", 1m, 100m),
+            Line("H-21", "Part paid", 1m, 100m, paid: 40m),
+            Line("H-22", "Paid", 1m, 100m, paid: 100m),
+            Line("H-23", "Void", 1m, 100m, status: "Voided"),
+        ], Commit: true), CancellationToken.None);
+
+        rejected.Committed.Should().BeFalse();
+        rejected.Rows.Single(r => r.Number == "H-20").Errors.Should().Contain(e => e.Contains("opening receivables"));
+        rejected.Rows.Single(r => r.Number == "H-21").Errors.Should().Contain(e => e.Contains("opening receivables"));
+        rejected.Rows.Single(r => r.Number == "H-22").Errors.Should().BeEmpty();
+        rejected.Rows.Single(r => r.Number == "H-23").Errors.Should().BeEmpty();
+
+        var closed = await Handler(db, fullGl: true).Handle(new ImportHistoricalInvoicesCommand(
+        [
+            Line("H-22", "Paid", 1m, 100m, paid: 100m),
+            Line("H-23", "Void", 1m, 100m, status: "Voided"),
+        ], Commit: true), CancellationToken.None);
+
+        closed.Committed.Should().BeTrue();
+        closed.CreatedCount.Should().Be(2);
     }
 
     [Fact]

@@ -40,6 +40,12 @@ public class CustomerReturnsController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(GetReturn), new { id = result.Id }, result);
     }
 
+    /// <summary>Channel orders to record a channel return against (the "New return → Channel" picker).</summary>
+    [HttpGet("channel/orders")]
+    [RequiresCapability("CAP-O2C-RETAIL")]
+    public async Task<ActionResult<List<ChannelReturnOrderModel>>> GetChannelReturnOrders([FromQuery] string? q, CancellationToken ct)
+        => Ok(await mediator.Send(new GetChannelReturnOrdersQuery(q), ct));
+
     /// <summary>
     /// Record a return that a sales channel authorised. Separate from the
     /// standard RMA path because the platform has already approved it under its
@@ -49,12 +55,6 @@ public class CustomerReturnsController(IMediator mediator) : ControllerBase
     /// <para>Idempotent on (channel, externalRmaId): a connector replay returns
     /// 200 with the existing return rather than a duplicate.</para>
     /// </summary>
-    /// <summary>Channel orders to record a channel return against (the "New return → Channel" picker).</summary>
-    [HttpGet("channel/orders")]
-    [RequiresCapability("CAP-O2C-RETAIL")]
-    public async Task<ActionResult<List<ChannelReturnOrderModel>>> GetChannelReturnOrders([FromQuery] string? q, CancellationToken ct)
-        => Ok(await mediator.Send(new GetChannelReturnOrdersQuery(q), ct));
-
     [HttpPost("channel")]
     [RequiresCapability("CAP-O2C-RETAIL")]
     public async Task<ActionResult<CustomerReturnListItemModel>> CreateChannelReturn(
