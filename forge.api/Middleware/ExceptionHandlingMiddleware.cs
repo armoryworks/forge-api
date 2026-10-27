@@ -103,6 +103,23 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
 
             await context.Response.WriteAsJsonAsync(problem);
         }
+        catch (CodedConflictException ex)
+        {
+            logger.LogWarning(ex, "Coded conflict {Code} — returning 409", ex.Code);
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Action not allowed",
+                Detail = ex.Message,
+                Type = "about:blank"
+            };
+            problem.Extensions["code"] = ex.Code;
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
         catch (InvalidOperationException ex)
         {
             logger.LogWarning(ex, "InvalidOperationException caught — returning 409");

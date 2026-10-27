@@ -5,4 +5,5 @@ public record CompanyProfileRequestModel(
     string? Phone,
     string? Email,
     string? Ein,
-    string? Website);
+    string? Website,
+    string? TimeZone = null);

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 
 using Forge.Api.Capabilities;
 using Forge.Core.Interfaces;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Accounting;
 
@@ -30,7 +31,8 @@ public class ResubmitJournalEntryValidator : AbstractValidator<ResubmitJournalEn
 
 public class ResubmitJournalEntryHandler(
     IPostingEngine postingEngine,
-    IHttpContextAccessor httpContextAccessor)
+    IHttpContextAccessor httpContextAccessor,
+    AppDbContext? db = null)
     : IRequestHandler<ResubmitJournalEntryCommand, ManualJournalEntryResult>
 {
     public async Task<ManualJournalEntryResult> Handle(
@@ -44,6 +46,8 @@ public class ResubmitJournalEntryHandler(
             CreateManualJournalEntryHandler.ToPostingRequest(request.Entry),
             submittedByUserId,
             cancellationToken);
+        if (db is not null)
+            await CreateManualJournalEntryHandler.LogSoftCloseOverrideAsync(db, request.Entry, entry, cancellationToken);
         return entry.ToManualResult();
     }
 }
