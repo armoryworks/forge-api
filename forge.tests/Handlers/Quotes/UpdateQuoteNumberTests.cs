@@ -34,7 +34,8 @@ public class UpdateQuoteNumberTests
             _repo.Object,
             _settings.Object,
             _identifiers.Object,
-            _db);
+            _db,
+            new Forge.Integrations.SystemClock());
     }
 
     private void AllowManualNumbers(bool allowed) =>
