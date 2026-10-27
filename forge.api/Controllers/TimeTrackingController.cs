@@ -117,6 +117,12 @@ public class TimeTrackingController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("pay-period/preview")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<List<PayPeriodPreviewResponseModel>>> PreviewPayPeriods(
+        [FromQuery] string type, [FromQuery] DateOnly? anchorDate, CancellationToken ct)
+        => Ok(await mediator.Send(new PreviewPayPeriodsQuery(type, anchorDate), ct));
+
     [HttpPost("lock-period")]
     [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<LockPayPeriodResult>> LockPayPeriod([FromBody] LockPayPeriodCommand command)

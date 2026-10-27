@@ -52,6 +52,8 @@ public class CreateLeaveRequestHandler(AppDbContext db) : IRequestHandler<Create
         await db.SaveChangesAsync(cancellationToken);
 
         var userName = user.LastName + ", " + user.FirstName;
+        await LeaveNotifications.NotifyApproversAsync(db, leaveRequest, userName, policy.Name, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
 
         return new LeaveRequestResponseModel(
             leaveRequest.Id, leaveRequest.UserId, userName,

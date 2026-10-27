@@ -4,4 +4,5 @@ public record PayPeriodResponseModel(
     string Type,
     DateTimeOffset PeriodStart,
     DateTimeOffset PeriodEnd,
-    int DaysRemaining);
+    int DaysRemaining,
+    DateTimeOffset? AnchorDate = null);

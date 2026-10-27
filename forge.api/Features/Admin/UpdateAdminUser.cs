@@ -223,6 +223,7 @@ public class UpdateAdminUserHandler(
             user.WorkLocation?.Name,
             null, // I9Status — computed in Batch F (I9StatusComputer)
             user.IsNonEmployee,
-            isServiceAccount);
+            isServiceAccount,
+            profile?.StartDate);
     }
 }

@@ -67,6 +67,6 @@ public class GetCurrentPayPeriodHandler(AppDbContext db) : IRequestHandler<GetCu
 
         var daysRemaining = (int)(periodEnd.Date - now.Date).TotalDays;
 
-        return new PayPeriodResponseModel(type, periodStart, periodEnd, daysRemaining);
+        return new PayPeriodResponseModel(type, periodStart, periodEnd, daysRemaining, anchor);
     }
 }

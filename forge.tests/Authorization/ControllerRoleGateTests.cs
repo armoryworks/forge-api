@@ -139,6 +139,23 @@ public sealed class ControllerRoleGateTests
     }
 
     [Theory]
+    [InlineData("PUT", "api/v1/leave/policies/{id:int}")]
+    [InlineData("POST", "api/v1/leave/balances/{userId:int}/adjust")]
+    [InlineData("GET", "api/v1/time-tracking/pay-period/preview")]
+    public void Leave_policies_balance_adjustments_and_pay_period_setup_are_admin_only(string verb, string template)
+    {
+        EffectiveRoles(verb, template).Should().BeEquivalentTo(["Admin"], $"{verb} {template}");
+    }
+
+    [Fact]
+    public void Payroll_roles_read_every_leave_balance_and_everyone_reads_and_cancels_their_own()
+    {
+        EffectiveRoles("GET", "api/v1/leave/balances").Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager", "Controller"]);
+        EffectiveRoles("GET", "api/v1/leave/balances/{userId:int}/adjustments").Should().Contain("ProductionWorker");
+        EffectiveRoles("POST", "api/v1/leave/requests/{id:int}/cancel").Should().Contain("ProductionWorker");
+    }
+
+    [Theory]
     [InlineData("POST", "api/v1/parts/{id:int}/operations")]
     [InlineData("PATCH", "api/v1/parts/{id:int}/operations/{operationId:int}")]
     [InlineData("PUT", "api/v1/parts/{id:int}/operations/order")]
