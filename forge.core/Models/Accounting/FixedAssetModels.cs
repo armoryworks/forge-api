@@ -42,5 +42,7 @@ public sealed record FixedAssetModel(
     int? LinkedAssetId = null,
     decimal? UsefulLifeUnits = null);
 
-/// <summary>Result of a monthly depreciation run.</summary>
-public sealed record DepreciationRunResult(int BookId, DateOnly PeriodMonth, int AssetsDepreciated, decimal TotalAmount);
+/// <summary>Result of a monthly depreciation run, with the journal entries it posted (one per asset).</summary>
+public sealed record DepreciationRunResult(
+    int BookId, DateOnly PeriodMonth, int AssetsDepreciated, decimal TotalAmount,
+    IReadOnlyList<long>? JournalEntryIds = null);

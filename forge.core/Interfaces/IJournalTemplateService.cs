@@ -12,6 +12,9 @@ public interface IJournalTemplateService
     Task<JournalTemplateModel> CreateAsync(CreateJournalTemplateModel model, CancellationToken ct = default);
     Task<IReadOnlyList<JournalTemplateModel>> ListAsync(int bookId, CancellationToken ct = default);
     Task<JournalTemplateModel?> GetAsync(int templateId, CancellationToken ct = default);
+
+    /// <summary>Replaces a template's header and lines. Entries already posted from it are untouched.</summary>
+    Task<JournalTemplateModel> UpdateAsync(int templateId, UpdateJournalTemplateModel model, CancellationToken ct = default);
     Task<PostedFromTemplateModel> PostFromTemplateAsync(
         int templateId, DateOnly entryDate, string? memoOverride, int postedByUserId, CancellationToken ct = default);
 }

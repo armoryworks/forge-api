@@ -88,12 +88,22 @@
       "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
     },
     {
+      "prefix": "accounting/depreciation/preview",
+      "capability": "CAP-ACCT-DEPRECIATION",
+      "reason": "Depends on CAP-ACCT-FULLGL, which turns CAP-ACCT-GL-VIEW on, so the UI's GL-VIEW gate never blocks it while it is on."
+    },
+    {
       "prefix": "accounting/depreciation/run",
       "capability": "CAP-ACCT-DEPRECIATION",
       "reason": "Depends on CAP-ACCT-FULLGL, which turns CAP-ACCT-GL-VIEW on, so the UI's GL-VIEW gate never blocks it while it is on."
     },
     {
       "prefix": "accounting/fixed-assets",
+      "capability": "CAP-ACCT-DEPRECIATION",
+      "reason": "Depends on CAP-ACCT-FULLGL, which turns CAP-ACCT-GL-VIEW on, so the UI's GL-VIEW gate never blocks it while it is on."
+    },
+    {
+      "prefix": "accounting/fixed-assets/linkable-assets",
       "capability": "CAP-ACCT-DEPRECIATION",
       "reason": "Depends on CAP-ACCT-FULLGL, which turns CAP-ACCT-GL-VIEW on, so the UI's GL-VIEW gate never blocks it while it is on."
     },

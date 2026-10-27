@@ -59,7 +59,8 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
                 request.CurrencyId,
                 request.Memo,
                 request.AllowSoftClosedOverride,
-                request.Lines),
+                request.Lines,
+                request.AutoReverseNextPeriod),
             ct);
 
         return CreatedAtAction(
@@ -475,9 +476,17 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     [HttpPost("overhead/record")]
     public async Task<ActionResult> RecordActualOverhead([FromBody] RecordActualOverheadRequest body, CancellationToken ct)
     {
-        await mediator.Send(new RecordActualOverheadCommand(body.Amount, body.Memo ?? string.Empty, body.EntryDate), ct);
+        await mediator.Send(
+            new RecordActualOverheadCommand(body.Amount, body.Memo ?? string.Empty, body.EntryDate, body.SourceGlAccountId), ct);
         return NoContent();
     }
+
+    /// <summary>Standard costing — the overhead pool as of a date: actual, applied, the variance a close would post,
+    /// and whether that date is already closed.</summary>
+    [HttpGet("overhead/status")]
+    public async Task<ActionResult<OverheadPoolStatusModel>> GetOverheadPoolStatus(
+        [FromQuery] DateOnly asOf, CancellationToken ct)
+        => Ok(await mediator.Send(new GetOverheadPoolStatusQuery(asOf), ct));
 
     /// <summary>Standard costing — close the overhead pool for a period: post the spending variance + clear the pool.</summary>
     [RequiresCapability("CAP-ACCT-FULLGL")]
@@ -556,6 +565,33 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         [FromQuery] int bookId, CancellationToken ct)
         => Ok(await mediator.Send(new ListFixedAssetsQuery(bookId), ct));
 
+    /// <summary>Phase-4 — one fixed asset with its GL accounts and its posted and projected depreciation schedule.</summary>
+    [HttpGet("fixed-assets/{id:int}")]
+    [RequiresCapability("CAP-ACCT-DEPRECIATION")]
+    public async Task<ActionResult<FixedAssetDetailModel>> GetFixedAsset(int id, CancellationToken ct)
+        => Ok(await mediator.Send(new GetFixedAssetQuery(id), ct));
+
+    /// <summary>Phase-4 — edit a fixed asset; refused (409) once any depreciation has posted for it.</summary>
+    [HttpPut("fixed-assets/{id:int}")]
+    [RequiresCapability("CAP-ACCT-DEPRECIATION")]
+    public async Task<ActionResult<FixedAssetDetailModel>> UpdateFixedAsset(
+        int id, [FromBody] UpdateFixedAssetModel model, CancellationToken ct)
+        => Ok(await mediator.Send(new UpdateFixedAssetCommand(id, model), ct));
+
+    /// <summary>Phase-4 — company-owned operational assets a fixed asset may book.</summary>
+    [HttpGet("fixed-assets/linkable-assets")]
+    [RequiresCapability("CAP-ACCT-DEPRECIATION")]
+    public async Task<ActionResult<IReadOnlyList<LinkableAssetModel>>> ListLinkableAssets(
+        [FromQuery] int bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new ListLinkableAssetsQuery(bookId), ct));
+
+    /// <summary>Phase-4 — dry run of a month's depreciation: what the run would post, asset by asset, posting nothing.</summary>
+    [HttpPost("depreciation/preview")]
+    [RequiresCapability("CAP-ACCT-DEPRECIATION")]
+    public async Task<ActionResult<DepreciationPreviewResult>> PreviewDepreciation(
+        [FromBody] RunDepreciationRequest body, CancellationToken ct)
+        => Ok(await mediator.Send(new PreviewDepreciationQuery(body.BookId, body.PeriodMonth), ct));
+
     /// <summary>Phase-4 — post a month's depreciation for the book (idempotent per asset per month).</summary>
     [HttpPost("depreciation/run")]
     [RequiresCapability("CAP-ACCT-DEPRECIATION")]
@@ -569,6 +605,13 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<FixedAssetDisposalResult>> DisposeFixedAsset(
         int id, [FromBody] DisposeFixedAssetModel model, CancellationToken ct)
         => Ok(await mediator.Send(new DisposeFixedAssetCommand(id, model), ct));
+
+    /// <summary>Phase-4 — what disposing of a fixed asset would post (catch-up, book value, gain/loss), posting nothing.</summary>
+    [HttpPost("fixed-assets/{id:int}/dispose/preview")]
+    [RequiresCapability("CAP-ACCT-DEPRECIATION")]
+    public async Task<ActionResult<FixedAssetDisposalPreview>> PreviewFixedAssetDisposal(
+        int id, [FromBody] DisposeFixedAssetModel model, CancellationToken ct)
+        => Ok(await mediator.Send(new PreviewFixedAssetDisposalQuery(id, model.DisposalDate, model.Proceeds), ct));
 
     // ─────────────────────────── Phase-2 STAGE E inventory valuation ───────────────────────────
 
@@ -645,6 +688,33 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<IReadOnlyList<JournalTemplateModel>>> ListJournalTemplates(
         [FromQuery] int bookId, CancellationToken ct)
         => Ok(await mediator.Send(new ListJournalTemplatesQuery(bookId), ct));
+
+    /// <summary>Phase-3 — customers or vendors to name as the counterparty on a control-account template line.</summary>
+    [HttpGet("journal-templates/parties")]
+    public async Task<ActionResult<IReadOnlyList<JournalPartyOptionModel>>> SearchJournalParties(
+        [FromQuery] SubledgerPartyType partyType, [FromQuery] string? search, [FromQuery] int? id, CancellationToken ct)
+        => Ok(await mediator.Send(new SearchJournalPartiesQuery(partyType, search, id), ct));
+
+    /// <summary>Phase-3 — one journal template with its lines.</summary>
+    [HttpGet("journal-templates/{id:int}")]
+    public async Task<ActionResult<JournalTemplateModel>> GetJournalTemplate(int id, CancellationToken ct)
+        => Ok(await mediator.Send(new GetJournalTemplateQuery(id), ct));
+
+    /// <summary>Phase-3 — replace a journal template's header and lines.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    [HttpPut("journal-templates/{id:int}")]
+    public async Task<ActionResult<JournalTemplateModel>> UpdateJournalTemplate(
+        int id, [FromBody] UpdateJournalTemplateModel model, CancellationToken ct)
+        => Ok(await mediator.Send(new UpdateJournalTemplateCommand(id, model), ct));
+
+    /// <summary>Phase-3 — soft-delete a journal template; entries already posted from it are untouched.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    [HttpDelete("journal-templates/{id:int}")]
+    public async Task<IActionResult> DeleteJournalTemplate(int id, CancellationToken ct)
+    {
+        await mediator.Send(new DeleteJournalTemplateCommand(id), ct);
+        return NoContent();
+    }
 
     /// <summary>Phase-3 — post a journal entry from a template for a given date.</summary>
     [RequiresCapability("CAP-ACCT-FULLGL")]
@@ -756,4 +826,5 @@ public record CreateManualJournalEntryRequest(
     int CurrencyId,
     string? Memo,
     bool AllowSoftClosedOverride,
-    IReadOnlyList<CreateManualJournalLineModel> Lines);
+    IReadOnlyList<CreateManualJournalLineModel> Lines,
+    bool AutoReverseNextPeriod = false);
