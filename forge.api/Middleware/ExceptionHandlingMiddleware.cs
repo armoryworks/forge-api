@@ -304,6 +304,23 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
 
             await context.Response.WriteAsJsonAsync(problem);
         }
+        catch (Forge.Data.Interceptors.PhysicalInventoryFrozenException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Stock frozen for a physical inventory",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = Forge.Data.Interceptors.PhysicalInventoryFrozenException.Code;
+            problem.Extensions["inventoryNumber"] = ex.InventoryNumber;
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
         catch (Services.Fx.CurrencyLockedException ex)
         {
             context.Response.StatusCode = StatusCodes.Status409Conflict;

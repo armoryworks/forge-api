@@ -24,7 +24,8 @@ public static class ScanBinStock
             .Where(bc => bc.EntityType == "part"
                 && bc.EntityId == partId
                 && bc.LocationId == locationId
-                && bc.RemovedAt == null)
+                && bc.RemovedAt == null
+                && bc.OwnerVendorId == null)
             .LoadAsync(ct);
 
         return db.BinContents.Local
@@ -112,5 +113,6 @@ public static class ScanBinStock
         => bc.EntityType == "part"
             && bc.EntityId == partId
             && bc.LocationId == locationId
-            && bc.RemovedAt == null;
+            && bc.RemovedAt == null
+            && bc.OwnerVendorId == null;
 }

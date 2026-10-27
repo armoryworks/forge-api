@@ -22,6 +22,8 @@ public class BinMovement : BaseEntity
     public int? ReversedMovementId { get; set; }
     public int? ScanActionLogId { get; set; }
     public int? ShipmentLineId { get; set; }
+    public int? ConsignmentAgreementId { get; set; }
+    public int? PhysicalInventoryId { get; set; }
 
     public StorageLocation? FromLocation { get; set; }
     public StorageLocation? ToLocation { get; set; }

@@ -59,6 +59,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
             .OfType<Interceptors.LedgerImmutabilityInterceptor>().Any() ?? false;
         if (!alreadyRegistered)
             optionsBuilder.AddInterceptors(new Interceptors.LedgerImmutabilityInterceptor());
+
+        var freezeRegistered = extension?.Interceptors?
+            .OfType<Interceptors.PhysicalInventoryFreezeInterceptor>().Any() ?? false;
+        if (!freezeRegistered)
+            optionsBuilder.AddInterceptors(Interceptors.PhysicalInventoryFreezeInterceptor.Instance);
     }
 
     public DbSet<TrackType> TrackTypes => Set<TrackType>();
@@ -484,6 +489,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     // Consignment Inventory
     public DbSet<ConsignmentAgreement> ConsignmentAgreements => Set<ConsignmentAgreement>();
     public DbSet<ConsignmentTransaction> ConsignmentTransactions => Set<ConsignmentTransaction>();
+    public DbSet<PhysicalInventory> PhysicalInventories => Set<PhysicalInventory>();
+    public DbSet<PhysicalInventoryTag> PhysicalInventoryTags => Set<PhysicalInventoryTag>();
 
     // ABC Classification
     public DbSet<AbcClassificationRun> AbcClassificationRuns => Set<AbcClassificationRun>();

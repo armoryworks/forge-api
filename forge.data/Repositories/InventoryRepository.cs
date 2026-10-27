@@ -165,6 +165,7 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
         var contents = await db.BinContents
             .Include(c => c.Location)
             .Include(c => c.Job)
+            .Include(c => c.OwnerVendor)
             .Where(c => c.LocationId == locationId && c.RemovedAt == null)
             .OrderBy(c => c.EntityType).ThenBy(c => c.PlacedAt)
             .ToListAsync(ct);
@@ -183,7 +184,8 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
             c.EntityType, c.EntityId,
             c.EntityType == "part" && parts.TryGetValue(c.EntityId, out var part) ? $"{part.PartNumber} — {part.Description}" : $"{c.EntityType}:{c.EntityId}",
             c.Quantity, c.LotNumber, c.JobId,
-            c.Job?.JobNumber, c.Status, c.PlacedAt
+            c.Job?.JobNumber, c.Status, c.PlacedAt,
+            c.OwnerVendorId, c.OwnerVendor?.CompanyName, c.ConsignmentAgreementId
         )).ToList();
     }
 
@@ -193,7 +195,7 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
     public Task<List<BinContent>> GetActiveBinContentsByPartLocationAsync(int partId, int locationId, CancellationToken ct)
         => db.BinContents.Include(c => c.Location)
             .Where(c => c.EntityType == "part" && c.EntityId == partId
-                && c.LocationId == locationId && c.RemovedAt == null)
+                && c.LocationId == locationId && c.RemovedAt == null && c.OwnerVendorId == null)
             .OrderBy(c => c.LotNumber != null)
             .ThenBy(c => c.PlacedAt)
             .ThenBy(c => c.Id)
@@ -204,7 +206,7 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
         => db.BinContents.Include(c => c.Location)
             .FirstOrDefaultAsync(c => c.EntityType == "part" && c.EntityId == partId
                 && c.LocationId == locationId && c.LotNumber == lotNumber && c.Status == status
-                && c.RemovedAt == null, ct);
+                && c.RemovedAt == null && c.OwnerVendorId == null, ct);
 
     public Task<string?> FindQualityHoldNcrNumberAsync(int partId, string? lotNumber, CancellationToken ct)
         => db.FindQualityHoldNcrNumberAsync(partId, lotNumber, ct);
@@ -244,6 +246,7 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
 
         var contents = await db.BinContents
             .Include(c => c.Location)
+            .Include(c => c.OwnerVendor)
             .Where(c => c.EntityType == "part" && partIds.Contains(c.EntityId) && c.RemovedAt == null)
             .ToListAsync(ct);
 
@@ -275,8 +278,9 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
             .Select(p =>
             {
                 var bins = contentsByPart[p.Id].ToList();
-                var onHand = bins.Sum(b => b.Quantity);
-                var reserved = bins.Sum(b => b.ReservedQuantity);
+                var owned = bins.Where(b => b.OwnerVendorId == null).ToList();
+                var onHand = owned.Sum(b => b.Quantity);
+                var reserved = owned.Sum(b => b.ReservedQuantity);
 
                 return new InventoryPartSummaryResponseModel(
                     p.Id, p.PartNumber, p.Description ?? p.Name,
@@ -289,10 +293,12 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
                             BuildPath(b.Location, locById),
                             b.Quantity, b.ReservedQuantity, b.Quantity - b.ReservedQuantity,
                             b.Status, b.LotNumber,
-                            lot?.Id, lot?.ExpirationDate, lot?.SupplierLotNumber);
+                            lot?.Id, lot?.ExpirationDate, lot?.SupplierLotNumber,
+                            b.OwnerVendorId, b.OwnerVendor?.CompanyName);
                     }).ToList(),
                     p.MinStockThreshold,
-                    p.ReorderPoint);
+                    p.ReorderPoint,
+                    bins.Where(b => b.OwnerVendorId != null).Sum(b => b.Quantity));
             }).ToList();
     }
 

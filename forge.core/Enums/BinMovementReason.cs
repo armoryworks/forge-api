@@ -19,5 +19,7 @@ public enum BinMovementReason
     ScanReceive,
     ScanShip,
     ScanIssue,
-    ScanReturn
+    ScanReturn,
+    PhysicalInventory,
+    ConsignmentConsume
 }

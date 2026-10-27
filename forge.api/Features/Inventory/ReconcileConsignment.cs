@@ -1,66 +1,25 @@
+using FluentValidation;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
-using Forge.Core.Entities;
-using Forge.Core.Enums;
-using Forge.Core.Interfaces;
 using Forge.Core.Models;
-using Forge.Data.Context;
 
 namespace Forge.Api.Features.Inventory;
 
-public record ReconcileConsignmentCommand(int AgreementId, ReconcileConsignmentRequestModel Request) : IRequest<ConsignmentReconciliationResponseModel>;
+public record ReconcileConsignmentCommand(int AgreementId, ReconcileConsignmentRequestModel Request, int UserId = 0) : IRequest<ConsignmentReconciliationResponseModel>;
 
-public class ReconcileConsignmentHandler(AppDbContext db, IClock clock) : IRequestHandler<ReconcileConsignmentCommand, ConsignmentReconciliationResponseModel>
+public class ReconcileConsignmentValidator : AbstractValidator<ReconcileConsignmentCommand>
 {
-    public async Task<ConsignmentReconciliationResponseModel> Handle(ReconcileConsignmentCommand command, CancellationToken cancellationToken)
+    public ReconcileConsignmentValidator()
     {
-        var agreement = await db.ConsignmentAgreements
-            .FirstOrDefaultAsync(a => a.Id == command.AgreementId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Consignment agreement {command.AgreementId} not found");
-
-        var transactions = await db.ConsignmentTransactions
-            .AsNoTracking()
-            .Where(t => t.AgreementId == command.AgreementId)
-            .ToListAsync(cancellationToken);
-
-        var bookQuantity = transactions
-            .Where(t => t.Type == ConsignmentTransactionType.Receipt
-                || t.Type == ConsignmentTransactionType.Adjustment
-                || t.Type == ConsignmentTransactionType.Reconciliation)
-            .Sum(t => t.Quantity)
-            - transactions
-            .Where(t => t.Type == ConsignmentTransactionType.Consumption || t.Type == ConsignmentTransactionType.Return)
-            .Sum(t => t.Quantity);
-
-        var variance = command.Request.PhysicalCount - bookQuantity;
-        int? adjustmentId = null;
-
-        if (variance != 0)
-        {
-            var adjustment = new ConsignmentTransaction
-            {
-                AgreementId = agreement.Id,
-                Type = ConsignmentTransactionType.Reconciliation,
-                Quantity = variance,
-                UnitPrice = agreement.AgreedUnitPrice,
-                ExtendedAmount = variance * agreement.AgreedUnitPrice,
-                Notes = $"Reconciliation adjustment: book={bookQuantity}, physical={command.Request.PhysicalCount}",
-                CreatedAt = clock.UtcNow,
-            };
-
-            db.ConsignmentTransactions.Add(adjustment);
-            await db.SaveChangesAsync(cancellationToken);
-            adjustmentId = adjustment.Id;
-        }
-
-        return new ConsignmentReconciliationResponseModel
-        {
-            AgreementId = agreement.Id,
-            BookQuantity = bookQuantity,
-            PhysicalQuantity = command.Request.PhysicalCount,
-            Variance = variance,
-            AdjustmentTransactionId = adjustmentId,
-        };
+        RuleFor(x => x.Request.PhysicalCount).GreaterThanOrEqualTo(0m).When(x => x.Request.PhysicalCount.HasValue);
+        RuleFor(x => x.Request.PeriodTo).GreaterThanOrEqualTo(x => x.Request.PeriodFrom)
+            .When(x => x.Request.PeriodFrom.HasValue && x.Request.PeriodTo.HasValue);
+        RuleFor(x => x.Request.VendorInvoiceNumber).MaximumLength(60);
     }
+}
+
+public class ReconcileConsignmentHandler(IConsignmentStockService consignment) : IRequestHandler<ReconcileConsignmentCommand, ConsignmentReconciliationResponseModel>
+{
+    public Task<ConsignmentReconciliationResponseModel> Handle(ReconcileConsignmentCommand command, CancellationToken cancellationToken)
+        => consignment.ReconcileAsync(command.AgreementId, command.Request, command.UserId, cancellationToken);
 }

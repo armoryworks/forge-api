@@ -15,4 +15,7 @@ public record BinContentResponseModel(
     int? JobId,
     string? JobNumber,
     BinContentStatus Status,
-    DateTimeOffset PlacedAt);
+    DateTimeOffset PlacedAt,
+    int? OwnerVendorId = null,
+    string? OwnerVendorName = null,
+    int? ConsignmentAgreementId = null);

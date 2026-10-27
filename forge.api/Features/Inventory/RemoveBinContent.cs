@@ -26,6 +26,10 @@ public sealed class RemoveBinContentHandler(
         if (content.RemovedAt is not null)
             throw new InvalidOperationException("This bin content has already been removed.");
 
+        if (content.OwnerVendorId is not null)
+            throw new InvalidOperationException(
+                "This stock belongs to the vendor under a consignment agreement. Record a consume or a consignment count on the agreement instead.");
+
         // S-RI1: a bin with committed reservations can't be removed wholesale —
         // that would silently drop reserved stock and inflate `available`.
         if (content.ReservedQuantity > 0)

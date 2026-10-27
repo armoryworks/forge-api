@@ -148,7 +148,7 @@ public class BackflushService(
         DateTimeOffset now, DateOnly shopToday, CancellationToken ct)
     {
         var locationIds = await db.BinContents.AsNoTracking()
-            .Where(bc => bc.EntityType == "part" && bc.EntityId == partId && bc.RemovedAt == null && bc.Quantity > 0
+            .Where(bc => bc.EntityType == "part" && bc.OwnerVendorId == null && bc.EntityId == partId && bc.RemovedAt == null && bc.Quantity > 0
                 && bc.Status != BinContentStatus.QcHold)
             .Select(bc => bc.LocationId)
             .Distinct()

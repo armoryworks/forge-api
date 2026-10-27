@@ -13,4 +13,6 @@ public record BinStockResponseModel(
     string? LotNumber,
     int? LotId,
     DateTimeOffset? LotExpirationDate,
-    string? SupplierLotNumber);
+    string? SupplierLotNumber,
+    int? OwnerVendorId = null,
+    string? OwnerVendorName = null);

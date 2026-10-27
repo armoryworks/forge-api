@@ -19,7 +19,7 @@ public class GetLowStockAlertsHandler(AppDbContext db)
             .Where(p => (p.MinStockThreshold.HasValue || p.ReorderPoint.HasValue) && p.Status == PartStatus.Active)
             // Only alert for parts that have been received at least once —
             // parts with thresholds but no bin history are a setup/purchasing concern, not a low-stock alert
-            .Where(p => db.BinContents.Any(bc => bc.EntityType == "part" && bc.EntityId == p.Id))
+            .Where(p => db.BinContents.Any(bc => bc.EntityType == "part" && bc.OwnerVendorId == null && bc.EntityId == p.Id))
             .Select(p => new
             {
                 p.Id,
@@ -29,7 +29,7 @@ public class GetLowStockAlertsHandler(AppDbContext db)
                 p.MinStockThreshold,
                 p.ReorderPoint,
                 CurrentStock = db.BinContents
-                    .Where(bc => bc.EntityType == "part" && bc.EntityId == p.Id && bc.Status == BinContentStatus.Stored)
+                    .Where(bc => bc.EntityType == "part" && bc.OwnerVendorId == null && bc.EntityId == p.Id && bc.Status == BinContentStatus.Stored)
                     .Sum(bc => (decimal?)bc.Quantity) ?? 0m,
             })
             .ToListAsync(ct);

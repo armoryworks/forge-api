@@ -40,6 +40,10 @@ public class AdjustStockHandler(
         var content = await repo.FindBinContentWithLocationAsync(data.BinContentId, cancellationToken)
             ?? throw new KeyNotFoundException($"Bin content {data.BinContentId} not found");
 
+        if (content.OwnerVendorId is not null)
+            throw new InvalidOperationException(
+                "This stock belongs to the vendor under a consignment agreement. Record a consume or a consignment count on the agreement instead.");
+
         // S-RI1: never let an adjustment drop on-hand below what's already reserved —
         // that would inflate `available` (= on-hand − reserved) into a phantom surplus.
         if (data.NewQuantity < content.ReservedQuantity)

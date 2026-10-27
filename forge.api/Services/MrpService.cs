@@ -125,7 +125,7 @@ public class MrpService(
             // 3a: On-hand inventory (BinContents aggregated by part)
             var onHandByPart = await db.BinContents
                 .AsNoTracking()
-                .Where(bc => bc.EntityType == "part"   // canonical BinContent entity type — capital "Part" matched nothing
+                .Where(bc => bc.EntityType == "part" && bc.OwnerVendorId == null   // canonical BinContent entity type — capital "Part" matched nothing
                     && bc.Status != BinContentStatus.QcHold
                     && partIds.Contains(bc.EntityId))
                 .GroupBy(bc => bc.EntityId)
@@ -371,7 +371,7 @@ public class MrpService(
             // Also load on-hand for child parts
             var childOnHand = await db.BinContents
                 .AsNoTracking()
-                .Where(bc => bc.EntityType == "part"   // canonical BinContent entity type — capital "Part" matched nothing
+                .Where(bc => bc.EntityType == "part" && bc.OwnerVendorId == null   // canonical BinContent entity type — capital "Part" matched nothing
                     && bc.Status != BinContentStatus.QcHold
                     && allPartIds.Contains(bc.EntityId)
                     && !partIds.Contains(bc.EntityId))
@@ -806,7 +806,7 @@ public class MrpService(
                     .Sum(r => (int?)r.ReceivedQuantity) ?? 0,
                 db.BinContents
                     .Where(bc => bc.JobId == j.Id
-                        && bc.EntityType == "part"
+                        && bc.EntityType == "part" && bc.OwnerVendorId == null
                         && bc.EntityId == j.PartId
                         && bc.Status != BinContentStatus.QcHold)
                     .Sum(bc => (decimal?)bc.Quantity) ?? 0m,

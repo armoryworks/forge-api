@@ -38,6 +38,18 @@ public class BinMovementConfiguration : IEntityTypeConfiguration<BinMovement>
             .HasForeignKey(e => e.ShipmentLineId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne<ConsignmentAgreement>()
+            .WithMany()
+            .HasForeignKey(e => e.ConsignmentAgreementId)
+            .HasConstraintName("fk_bin_movements_consignment_agreement")
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne<PhysicalInventory>()
+            .WithMany()
+            .HasForeignKey(e => e.PhysicalInventoryId)
+            .HasConstraintName("fk_bin_movements_physical_inventory")
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(e => new { e.EntityType, e.EntityId });
         builder.HasIndex(e => e.MovedAt);
         builder.HasIndex(e => e.ReversedMovementId)

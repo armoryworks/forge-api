@@ -75,7 +75,7 @@ public class OnSalesOrderConfirmed_CheckBomMaterials(
 
         // Get current inventory for these material parts
         var inventoryByPart = await db.BinContents
-            .Where(bc => bc.EntityType == "part"
+            .Where(bc => bc.EntityType == "part" && bc.OwnerVendorId == null
                 && materialPartIds.Contains(bc.EntityId)
                 && bc.Status == BinContentStatus.Stored
                 && bc.RemovedAt == null)

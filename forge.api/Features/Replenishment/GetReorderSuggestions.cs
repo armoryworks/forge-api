@@ -75,7 +75,7 @@ public class GetReorderSuggestionsHandler(AppDbContext db, IPartSourcingResolver
         var qcHoldByPart = suggestionPartIds.Count == 0
             ? new Dictionary<int, decimal>()
             : await db.BinContents
-                .Where(bc => bc.EntityType == "part"
+                .Where(bc => bc.EntityType == "part" && bc.OwnerVendorId == null
                     && suggestionPartIds.Contains(bc.EntityId)
                     && bc.RemovedAt == null
                     && bc.Status == BinContentStatus.QcHold)

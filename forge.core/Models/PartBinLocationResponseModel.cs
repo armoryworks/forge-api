@@ -9,4 +9,6 @@ public record PartBinLocationResponseModel(
     decimal ReservedQuantity,
     decimal AvailableQuantity,
     string? LotNumber,
-    BinContentStatus Status);
+    BinContentStatus Status,
+    int? OwnerVendorId = null,
+    string? OwnerVendorName = null);

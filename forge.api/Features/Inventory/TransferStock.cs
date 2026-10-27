@@ -78,6 +78,8 @@ public class TransferStockHandler(
             PlacedBy = userId,
             PlacedAt = now,
             Notes = data.Notes,
+            OwnerVendorId = source.OwnerVendorId,
+            ConsignmentAgreementId = source.ConsignmentAgreementId,
         };
 
         await repo.AddBinContentAsync(destContent, cancellationToken);

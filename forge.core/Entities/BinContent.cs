@@ -19,9 +19,13 @@ public class BinContent : BaseEntity
     public int? UomId { get; set; }
 
     public decimal ReservedQuantity { get; set; }
+    public int? OwnerVendorId { get; set; }
+    public int? ConsignmentAgreementId { get; set; }
 
     public StorageLocation Location { get; set; } = null!;
     public Job? Job { get; set; }
     public UnitOfMeasure? Uom { get; set; }
+    public Vendor? OwnerVendor { get; set; }
+    public ConsignmentAgreement? ConsignmentAgreement { get; set; }
     public ICollection<Reservation> Reservations { get; set; } = [];
 }
