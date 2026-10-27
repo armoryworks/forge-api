@@ -35,6 +35,33 @@ public class OvertimeServiceWorkedHoursTests
     }
 
     [Fact]
+    public async Task The_breakdown_names_the_rule_it_applied()
+    {
+        _db.OvertimeRules.Add(new OvertimeRule
+        {
+            Name = "Weekly 40", DailyThresholdHours = 8, WeeklyThresholdHours = 40, OvertimeMultiplier = 1.5m,
+            DoubletimeMultiplier = 2m, IsDefault = true, ApplyDailyBeforeWeekly = false,
+        });
+        await _db.SaveChangesAsync();
+
+        var ot = await Service().CalculateOvertimeAsync(7, LastMonday, LastMonday.AddDays(6), CancellationToken.None);
+
+        ot.RuleName.Should().Be("Weekly 40");
+        ot.DailyThresholdsFirst.Should().BeFalse();
+        ot.WeeklyThresholdHours.Should().Be(40m);
+    }
+
+    [Fact]
+    public async Task Without_a_saved_rule_the_breakdown_reports_the_built_in_default()
+    {
+        var ot = await Service().CalculateOvertimeAsync(7, LastMonday, LastMonday.AddDays(6), CancellationToken.None);
+
+        ot.RuleName.Should().Be("Default");
+        ot.DailyThresholdsFirst.Should().BeTrue();
+        ot.DailyThresholdHours.Should().Be(8m);
+    }
+
+    [Fact]
     public async Task An_evening_timer_counts_on_its_shop_day_not_the_utc_date()
     {
         var sundayEvening = new DateTimeOffset(2026, 10, 19, 1, 0, 0, TimeSpan.Zero);

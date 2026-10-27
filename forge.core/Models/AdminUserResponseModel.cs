@@ -24,4 +24,5 @@ public record AdminUserResponseModel(
     string? WorkLocationName,
     I9ComplianceStatus? I9Status,
     bool IsNonEmployee,
-    bool IsServiceAccount = false);
+    bool IsServiceAccount = false,
+    DateTimeOffset? HireDate = null);

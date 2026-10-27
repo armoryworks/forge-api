@@ -115,7 +115,11 @@ public class OvertimeService(AppDbContext db, IWorkedHoursService workedHours) :
                 totalRegular * effectiveRate
                 + totalOt * effectiveRate * rule.OvertimeMultiplier
                 + totalDt * effectiveRate * rule.DoubletimeMultiplier, 2),
-            DailyBreakdown: dailyBreakdown);
+            DailyBreakdown: dailyBreakdown,
+            RuleName: rule.Name,
+            DailyThresholdsFirst: rule.ApplyDailyBeforeWeekly,
+            DailyThresholdHours: rule.DailyThresholdHours,
+            WeeklyThresholdHours: rule.WeeklyThresholdHours);
     }
 
     private static (decimal regular, decimal overtime, decimal doubletime) CalculateDailyOt(

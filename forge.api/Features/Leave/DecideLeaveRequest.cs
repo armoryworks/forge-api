@@ -49,6 +49,10 @@ public class DecideLeaveRequestHandler(AppDbContext db, IClock clock) : IRequest
             }
         }
 
+        var policyName = await db.LeavePolicies.AsNoTracking()
+            .Where(p => p.Id == leaveRequest.PolicyId).Select(p => p.Name).FirstOrDefaultAsync(cancellationToken) ?? "leave";
+        LeaveNotifications.NotifyRequester(db, leaveRequest, policyName, request.Approve, request.DecidedByUserId);
+
         await db.SaveChangesAsync(cancellationToken);
     }
 }

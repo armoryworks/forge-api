@@ -8,4 +8,5 @@ public record LeaveBalanceResponseModel(
     decimal Balance,
     decimal UsedThisYear,
     decimal AccruedThisYear,
-    DateTimeOffset LastAccrualDate);
+    DateTimeOffset LastAccrualDate,
+    string? UserName = null);

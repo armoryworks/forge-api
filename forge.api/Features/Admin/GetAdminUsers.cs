@@ -138,7 +138,8 @@ public class GetAdminUsersHandler(
                 user.WorkLocation?.Name,
                 i9Status,
                 user.IsNonEmployee,
-                isServiceAccount));
+                isServiceAccount,
+                profile?.StartDate));
         }
 
         return result;

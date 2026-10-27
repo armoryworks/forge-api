@@ -9,6 +9,8 @@ namespace Forge.Api.Features.Leave;
 
 public static class LeaveAccrual
 {
+    public const string NoHireDateSource = "leave-accrual";
+
     public static async Task<int> AccrueThroughAsync(AppDbContext db, DateOnly lockedThrough, CancellationToken ct)
     {
         var policies = await db.LeavePolicies
@@ -20,7 +22,7 @@ public static class LeaveAccrual
         var users = await db.Users.AsNoTracking()
             .Where(u => u.IsActive && !u.IsNonEmployee)
             .WithoutServiceAccounts(db)
-            .Select(u => new { u.Id, u.CreatedAt })
+            .Select(u => new { u.Id, u.CreatedAt, Name = u.LastName + ", " + u.FirstName })
             .ToListAsync(ct);
         var hireDates = (await db.EmployeeProfiles.AsNoTracking()
                 .Where(p => p.UserId != null && p.StartDate != null)
@@ -45,6 +47,7 @@ public static class LeaveAccrual
         var calendar = await PayPeriodCalendar.LoadAsync(db, ct);
         var lastClosed = calendar.LastClosedPeriod(lockedThrough);
         var credited = 0;
+        var noHireDate = new Dictionary<int, DateOnly>();
 
         foreach (var policy in policies)
         {
@@ -80,17 +83,55 @@ public static class LeaveAccrual
                 }
 
                 if (!hasHireDate && accruedThrough is null)
+                {
+                    noHireDate.TryAdd(userId, hired);
                     db.LogActivityAt(
                         "leave-accrual-no-hire-date",
                         $"No hire date, accruing {policy.Name} from account creation ({hired:yyyy-MM-dd})",
                         ("ApplicationUser", userId));
+                }
 
                 balance.LastAccrualDate = new DateTimeOffset(lastClosed.End.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
                 credited++;
             }
         }
 
+        if (noHireDate.Count > 0)
+            await NotifyAdminsOfMissingHireDatesAsync(
+                db, noHireDate, users.ToDictionary(u => u.Id, u => u.Name), ct);
+
         return credited;
+    }
+
+    private static async Task NotifyAdminsOfMissingHireDatesAsync(
+        AppDbContext db, Dictionary<int, DateOnly> accruingFrom, Dictionary<int, string> names, CancellationToken ct)
+    {
+        var userIds = accruingFrom.Keys.ToList();
+        var alreadyNoticed = await db.Notifications.AsNoTracking()
+            .Where(n => n.Source == NoHireDateSource && n.EntityType == "users"
+                && n.EntityId != null && userIds.Contains(n.EntityId.Value))
+            .Select(n => n.EntityId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+        var admins = await LeaveNotifications.UserIdsInRolesAsync(db, ["Admin"], ct);
+        foreach (var (userId, from) in accruingFrom.Where(kv => !alreadyNoticed.Contains(kv.Key)))
+        {
+            var name = names.GetValueOrDefault(userId) ?? $"User {userId}";
+            foreach (var adminId in admins)
+            {
+                db.Notifications.Add(new Notification
+                {
+                    UserId = adminId,
+                    Type = "leave",
+                    Severity = "warning",
+                    Source = NoHireDateSource,
+                    Title = "No hire date",
+                    Message = $"No hire date for {name}: accruing leave from {from:MM/dd/yyyy}. Add the hire date on the user to correct it.",
+                    EntityType = "users",
+                    EntityId = userId,
+                });
+            }
+        }
     }
 
     private static int PeriodsToCredit(
