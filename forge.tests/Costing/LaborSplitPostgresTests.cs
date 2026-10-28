@@ -53,6 +53,7 @@ public sealed class LaborSplitPostgresTests(PostgresFixture fixture)
         settings.Setup(s => s.GetStringAsync(ShopFloorSettings.LaborSplitKey, It.IsAny<CancellationToken>())).ReturnsAsync("Weighted");
         settings.Setup(s => s.GetBoolAsync(ShopFloorSettings.BreaksPauseLaborKey, It.IsAny<CancellationToken>())).ReturnsAsync(true);
         settings.Setup(s => s.GetBoolAsync(ShopFloorSettings.OperationTrackingKey, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        settings.Setup(s => s.GetStringAsync(ShopFloorSettings.MaxOverrunPercentKey, It.IsAny<CancellationToken>())).ReturnsAsync("0");
         var eventTypes = new Mock<IClockEventTypeService>();
         eventTypes.Setup(t => t.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Definitions);
         var providers = new Mock<IAccountingProviderFactory>();
@@ -271,7 +272,7 @@ public sealed class LaborSplitPostgresTests(PostgresFixture fixture)
         {
             var rig = Build(db);
             var tooMany = () => new StopJobOperationTimerHandler(new TimeTrackingRepository(db), db, Caller(), rig.Mediator.Object, rig.Clock)
-                .Handle(new StopJobOperationTimerCommand(jobB, deburr, new StopJobOperationTimerRequestModel(GoodQuantity: 8m, ScrapQuantity: 5m)), CancellationToken.None);
+                .Handle(new StopJobOperationTimerCommand(jobB, deburr, new StopJobOperationTimerRequestModel(GoodQuantity: 13m, ScrapQuantity: 5m)), CancellationToken.None);
             await tooMany.Should().ThrowAsync<ValidationException>();
         }
 

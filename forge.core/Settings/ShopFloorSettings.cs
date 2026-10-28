@@ -18,6 +18,7 @@ public static class ShopFloorSettings
     public const string RecentJobDaysKey = "shop-floor.recent-job-days";
     public const string StepGatingKey = "shop-floor.step-gating";
     public const string StaleTimerHoursKey = "shop-floor.stale-timer-hours";
+    public const string MaxOverrunPercentKey = "shop-floor.max-overrun-percent";
     public const string LaborSplitWeighted = "Weighted";
     public const string LaborSplitNone = "None";
     public const int DefaultStaleTimerHours = 14;
@@ -72,6 +73,14 @@ public static class ShopFloorSettings
                 new(nameof(StepGatingMode.Warn), "Warn"),
                 new(nameof(StepGatingMode.Block), "Block"),
             ]),
+        new(MaxOverrunPercentKey, Group, "Maximum overrun (% over the target)", SettingDataType.Integer,
+            Description: "How far good pieces on a routing step may go past the job's target (the job quantity, or "
+                + "the ordered quantity when the job starts extra pieces to cover scrap). Scrap never counts. "
+                + "Operators see a warning and confirm before recording an overrun; above this limit the entry is "
+                + "refused. Blank = no limit, 0 = no overrun at all.",
+            DefaultValue: null,
+            SortOrder: 155,
+            ValidationPattern: "^([0-9]|[1-9][0-9]|[1-9][0-9][0-9]|1000)$"),
         new(StaleTimerHoursKey, Group, "Stale timer alert (hours)", SettingDataType.Integer,
             Description: "Managers and production managers get a notification when a timer has been running this "
                 + "many hours, and the labor reconciliation report counts it. Timers are never stopped automatically.",

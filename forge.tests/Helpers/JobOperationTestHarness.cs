@@ -27,6 +27,7 @@ public sealed class JobOperationTestHarness
     public Mock<IBackflushService> Backflush { get; } = new();
     public bool TrackingEnabled { get; set; } = true;
     public string? StepGating { get; set; }
+    public string? MaxOverrunPercent { get; set; }
     public bool GateOverrideEnabled { get; set; } = true;
     public string[] Roles { get; set; } = [];
     public Mock<ICapabilitySnapshotProvider> Capabilities { get; } = new();
@@ -48,6 +49,8 @@ public sealed class JobOperationTestHarness
 
         Settings.Setup(s => s.GetStringAsync(ShopFloorSettings.StepGatingKey, It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => StepGating);
+        Settings.Setup(s => s.GetStringAsync(ShopFloorSettings.MaxOverrunPercentKey, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => MaxOverrunPercent);
         Capabilities.Setup(c => c.IsEnabled(StepGateService.OverrideCapability)).Returns(() => GateOverrideEnabled);
 
         Operations = new JobOperationService(Timers.Db, Settings.Object, Timers.Clock.Object);

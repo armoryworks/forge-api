@@ -159,13 +159,12 @@ public class ReceiveBackSubcontractHandler(
         var jobQuantity = await operations.GetJobQuantityAsync(job, ct);
         var before = JobOperationRules.Describe(row, jobQuantity);
 
-        var remaining = Math.Max(0m, jobQuantity - row.CompletedQuantity - row.ScrapQuantity);
-        var scrapAdded = Math.Min(data.ScrapQuantity, remaining);
-        var goodAdded = Math.Min(data.ReceivedQuantity, remaining - scrapAdded);
-        var notCounted = data.ReceivedQuantity + data.ScrapQuantity - goodAdded - scrapAdded;
+        var goodRoom = Math.Max(0m, jobQuantity - row.CompletedQuantity);
+        var goodAdded = Math.Min(data.ReceivedQuantity, goodRoom);
+        var notCounted = data.ReceivedQuantity - goodAdded;
 
         row.CompletedQuantity += goodAdded;
-        row.ScrapQuantity += scrapAdded;
+        row.ScrapQuantity += data.ScrapQuantity;
         row.StartedAt ??= now;
 
         var reached = row.CompletedQuantity + row.ScrapQuantity >= jobQuantity;
@@ -201,7 +200,7 @@ public class ReceiveBackSubcontractHandler(
 
         var after = JobOperationRules.Describe(row, jobQuantity);
         var overNote = notCounted > 0m
-            ? $"; {notCounted:0.####} over the job quantity not counted"
+            ? $"; {notCounted:0.####} good over the job quantity not counted"
             : string.Empty;
         db.JobActivityLogs.Add(new JobActivityLog
         {

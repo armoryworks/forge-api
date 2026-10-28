@@ -107,6 +107,22 @@ public class StepGatingHandlerTests
     }
 
     [Fact]
+    public async Task Block_lets_a_later_step_carry_an_overrun_its_predecessor_passed_but_no_more()
+    {
+        var (job, routing, user) = await SeedAsync(10m);
+        await ReportAsync(user, job.Id, routing[0].Id, 12m);
+        _h.StepGating = "Block";
+        _h.Roles = ["ProductionWorker"];
+
+        var result = await ReportAsync(user, job.Id, routing[1].Id, 11m, scrap: 1m);
+        var act = () => ReportAsync(user, job.Id, routing[1].Id, 12m, scrap: 1m);
+
+        result.Operation.CompletedQuantity.Should().Be(11m);
+        result.Operation.Available.Should().Be(12m);
+        (await act.Should().ThrowAsync<StepGateException>()).Which.Violation.Available.Should().Be(12m);
+    }
+
+    [Fact]
     public async Task Block_refuses_a_worker_even_with_a_reason()
     {
         var (job, routing, user) = await SeedAsync();

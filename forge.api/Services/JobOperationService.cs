@@ -1,7 +1,10 @@
+using System.Globalization;
+
 using Microsoft.EntityFrameworkCore;
 
 using Npgsql;
 
+using Forge.Api.Features.Jobs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -41,6 +44,13 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
             ? await db.SalesOrderLines.Where(l => l.Id == lineId).Select(l => (decimal?)l.Quantity).FirstOrDefaultAsync(ct)
             : null;
         return OperationTimeMath.JobBuildQuantity(quantity, lineQuantity);
+    }
+
+    public async Task<decimal?> GetOverrunLimitAsync(decimal targetQuantity, CancellationToken ct)
+    {
+        var raw = await settings.GetStringAsync(ShopFloorSettings.MaxOverrunPercentKey, ct);
+        return JobOverrun.Limit(targetQuantity,
+            int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var percent) ? percent : null);
     }
 
     public async Task<JobOperation> EnsureRowAsync(Job job, Operation operation, CancellationToken ct)
