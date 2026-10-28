@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.VendorCredits;
 using Forge.Api.Services;
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -21,10 +22,11 @@ namespace Forge.Api.Features.VendorPayments;
 /// from the restored balance), reverses the cash-disbursement origination journal (incl. any realized-FX
 /// plug; no-op while CAP-ACCT-FULLGL is off), cancels any non-terminal bank transmission, and soft-deletes
 /// the payment (lossless — the row + activity trail are preserved; <c>SetTimestamps</c> stamps DeletedBy).
+/// An ACH return reuses the same unwind through <see cref="VoidVendorPaymentHandler.ReverseBankReturnAsync"/>.
 /// <para>
 /// HARD STOP: once the latest transmission has <b>Succeeded</b>, money has been transmitted — the void is
-/// rejected; corrections must be made with a new transaction. (This also means a settlement entry can
-/// never exist at void time, so reversing the origination alone restores the GL exactly.)
+/// rejected; corrections must be made with a new transaction. A bank return is the exception: the money
+/// came back, so the settlement entry is reversed along with the origination.
 /// </para>
 /// </summary>
 public record VoidVendorPaymentCommand(int Id, string Reason) : IRequest;
@@ -65,6 +67,34 @@ public class VoidVendorPaymentHandler(
                 $"Cannot void vendor payment {payment.PaymentNumber}: money has been transmitted; "
                 + "corrections must be made with a new transaction.");
 
+        var userId = int.TryParse(
+            httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier),
+            out var uid) ? uid : 0;
+        await ReverseAsync(payment, reason, userId, bankReturn: null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reverses a vendor payment the bank returned (ACH R-code) through the same unwind as a void: the bills
+    /// reopen with their balances (and any discount taken) restored, the cash-disbursement and settlement
+    /// journals reverse at their booked rates on the return date, open transmissions are cancelled and the
+    /// payment is voided with the return code on its audit trail. The transmitted-money hard stop does not
+    /// apply: the money came back. Returns false, changing nothing, when the payment is already voided.
+    /// </summary>
+    public async Task<bool> ReverseBankReturnAsync(
+        int vendorPaymentId, VendorPaymentBankReturn bankReturn, int userId, CancellationToken cancellationToken)
+    {
+        var payment = await repo.FindWithDetailsAsync(vendorPaymentId, cancellationToken);
+        if (payment is null)
+            return false;
+
+        await ReverseAsync(payment, $"ACH return {bankReturn.Reason}", userId, bankReturn, cancellationToken);
+        return true;
+    }
+
+    private async Task ReverseAsync(
+        VendorPayment payment, string reason, int userId, VendorPaymentBankReturn? bankReturn,
+        CancellationToken cancellationToken)
+    {
         // One unit of work (mirrors CreateVendorPayment): transmission cancellation + GL reversal +
         // application removal + bill-status restore + soft delete commit (or roll back) together.
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -87,12 +117,8 @@ public class VoidVendorPaymentHandler(
         // GL reversal of the origination entry (Dr AP / Cr CASH-or-CIT + FX plug), FULLGL-respecting:
         // the posting service self-gates and no-ops when nothing was posted.
         if (cashPosting is not null)
-        {
-            var userId = int.TryParse(
-                httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier),
-                out var uid) ? uid : 0;
-            await cashPosting.ReverseVendorPaymentCreatedAsync(payment.Id, reason, userId, cancellationToken);
-        }
+            await cashPosting.ReverseVendorPaymentCreatedAsync(
+                payment.Id, reason, userId, bankReturn?.ReturnDate, cancellationToken);
 
         var deductedCredits = await db.VendorCreditMemoApplications
             .Where(a => a.VendorPaymentId == payment.Id && a.ReversedAt == null)
@@ -118,11 +144,13 @@ public class VoidVendorPaymentHandler(
         // Soft delete — SetTimestamps stamps DeletedBy from the current principal automatically.
         payment.DeletedAt = clock.UtcNow;
 
+        var voidedText = bankReturn is null
+            ? $"Vendor payment {payment.PaymentNumber} voided: {reason}"
+            : $"Vendor payment {payment.PaymentNumber} returned by the bank ({bankReturn.Reason}, trace "
+              + $"{bankReturn.TraceNumber}, returned {bankReturn.ReturnDate:yyyy-MM-dd}) and reversed";
         db.LogActivityAt(
             "voided",
-            appliedTo.Length == 0
-                ? $"Vendor payment {payment.PaymentNumber} voided: {reason}"
-                : $"Vendor payment {payment.PaymentNumber} voided: {reason}. It was applied to {appliedTo}.",
+            appliedTo.Length == 0 ? voidedText : $"{voidedText}. It was applied to {appliedTo}.",
             ("VendorPayment", payment.Id));
 
         await db.SaveChangesAsync(cancellationToken);
@@ -145,7 +173,10 @@ public class VoidVendorPaymentHandler(
             var money = await MoneyFormat.ForCurrencyIdAsync(db, bill.CurrencyId, cancellationToken);
             db.LogActivityAt(
                 "payment-voided",
-                $"Payment {payment.PaymentNumber} voided — balance {money.Format(bill.BalanceDue)} restored",
+                bankReturn is null
+                    ? $"Payment {payment.PaymentNumber} voided — balance {money.Format(bill.BalanceDue)} restored"
+                    : $"Payment {payment.PaymentNumber} returned by the bank ({bankReturn.Reason}) — balance "
+                      + $"{money.Format(bill.BalanceDue)} restored",
                 ("VendorBill", bill.Id));
         }
 

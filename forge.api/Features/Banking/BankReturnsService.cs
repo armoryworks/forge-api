@@ -1,10 +1,13 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Notifications;
+using Forge.Api.Features.VendorPayments;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
@@ -16,18 +19,20 @@ namespace Forge.Api.Features.Banking;
 /// ⚡ BANKING BOUNDARY — applies a bank's ACH return/NOC file (BANK-002 Phase C). The stored
 /// per-entry trace numbers are the join key:
 /// <list type="bullet">
-///   <item><b>Payment return (R-code):</b> the payment's transmission flips to Failed with the
-///         reason — the existing Payables triage (banner, retry/void flow) takes over; the
-///         payment creator gets a critical notification. The money correction (the credit came
-///         back) is the controller's call: void the payment (reopens the bill, reverses the GL)
-///         or re-send to a corrected account.</item>
+///   <item><b>Payment return (R-code):</b> the credit came back, so the payment is reversed through
+///         the void unwind (<see cref="VoidVendorPaymentHandler.ReverseBankReturnAsync"/>): its bills
+///         reopen with their balances and any discount restored, the disbursement and settlement
+///         journals reverse at their booked rates on the return date, the transmission is cancelled
+///         with the return reason kept, and the payment is voided with the return code on its audit
+///         trail. The payment creator gets a critical notification to fix the account and pay again.</item>
 ///   <item><b>Prenote return:</b> the bank rejected the account — it flips to Disabled (numbers
 ///         must be re-entered, which re-runs dual control + prenote).</item>
 ///   <item><b>NOC (C-code):</b> a correction notice, not a failure — recorded on the vendor's
 ///         activity trail with the bank's corrected data; payments keep flowing.</item>
 /// </list>
-/// Idempotent per entry: an already-failed transmission / already-disabled account is skipped,
-/// so re-importing the same file (or the SFTP poll re-reading one) double-applies nothing.
+/// Idempotent per entry: an already-voided payment, a return for a trace a later file superseded, and
+/// an already-disabled account are skipped, so re-importing the same file (or the SFTP poll re-reading
+/// one) double-applies nothing.
 /// </summary>
 public interface IBankReturnsService
 {
@@ -37,7 +42,11 @@ public interface IBankReturnsService
 /// <inheritdoc />
 public sealed class BankReturnsService(
     AppDbContext db,
-    IMediator mediator) : IBankReturnsService
+    IMediator mediator,
+    IVendorPaymentRepository payments,
+    IClock clock,
+    IVendorPaymentCashPostingService? cashPosting = null,
+    IVendorCreditMemoPostingService? creditPosting = null) : IBankReturnsService
 {
     public async Task<BankReturnsImportResultModel> ApplyAsync(
         string fileContents, int? actorUserId, CancellationToken ct = default)
@@ -54,7 +63,6 @@ public sealed class BankReturnsService(
             // Traces are globally unique from this build forward; OrderByDescending guards
             // legacy duplicates (pre-fix data) by preferring the most recent assignment.
             var item = await db.PaymentBatchItems
-                .Include(i => i.VendorPayment)
                 .Include(i => i.VendorBankAccount).ThenInclude(a => a.Vendor)
                 .Where(i => i.TraceNumber == entry.OriginalTraceNumber)
                 .OrderByDescending(i => i.Id)
@@ -100,51 +108,70 @@ public sealed class BankReturnsService(
                 continue;
             }
 
-            // Payment return: flip the latest transmission to Failed (idempotent) → Payables triage.
-            var transmission = await db.PaymentTransmissions
-                .Where(t => t.SourceType == "VendorPayment" && t.SourceId == item.VendorPaymentId.Value)
-                .OrderByDescending(t => t.Id)
+            var paymentId = item.VendorPaymentId.Value;
+            var payment = await db.VendorPayments.IgnoreQueryFilters().AsNoTracking()
+                .Where(p => p.Id == paymentId)
+                .Select(p => new { p.PaymentNumber, p.DeletedAt })
                 .FirstOrDefaultAsync(ct);
-
-            if (transmission is null || transmission.Status == PaymentTransmissionStatus.Failed)
+            var superseded = await db.PaymentBatchItems
+                .AnyAsync(i => i.VendorPaymentId == paymentId && i.Id > item.Id && i.TraceNumber != null, ct);
+            if (payment is null || payment.DeletedAt is not null || superseded)
             {
                 skipped++;
                 continue;
             }
 
+            var transmission = await db.PaymentTransmissions
+                .Where(t => t.SourceType == "VendorPayment" && t.SourceId == paymentId)
+                .OrderByDescending(t => t.Id)
+                .FirstOrDefaultAsync(ct);
+
             paymentsReturned++;
-            transmission.Status = PaymentTransmissionStatus.Failed;
-            transmission.LastError = $"ACH RETURNED by the bank: {reason} (trace {entry.OriginalTraceNumber})";
+            if (transmission is not null)
+            {
+                transmission.Status = PaymentTransmissionStatus.Cancelled;
+                transmission.NextAttemptAt = null;
+                transmission.LastError = $"ACH RETURNED by the bank: {reason} (trace {entry.OriginalTraceNumber})";
+            }
 
             db.LogActivityAt(
                 "transmission-returned",
-                $"Payment {item.VendorPayment!.PaymentNumber} RETURNED by the bank: {reason}",
-                ("VendorPayment", item.VendorPaymentId.Value));
+                $"Payment {payment.PaymentNumber} RETURNED by the bank: {reason}",
+                ("VendorPayment", paymentId));
+
+            var money = await MoneyFormat.ForVendorPaymentAsync(db, paymentId, ct);
+            var bankReturn = new VendorPaymentBankReturn(
+                entry.ReasonCode,
+                NachaReturnParser.Describe(entry.ReasonCode),
+                entry.OriginalTraceNumber,
+                entry.ReturnDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime));
+            await new VoidVendorPaymentHandler(payments, db, clock, cashPosting, creditPosting: creditPosting)
+                .ReverseBankReturnAsync(paymentId, bankReturn, actorUserId ?? transmission?.CreatedByUserId ?? 0, ct);
 
             // Best-effort critical notification to whoever released/created the transmission.
             try
             {
-                var notifyUserId = transmission.CreatedByUserId ?? actorUserId;
+                var notifyUserId = transmission?.CreatedByUserId ?? actorUserId;
                 if (notifyUserId is int userId && userId > 0)
                 {
-                    var money = await MoneyFormat.ForVendorPaymentAsync(db, item.VendorPaymentId.Value, ct);
                     await mediator.Send(new CreateNotificationCommand(new CreateNotificationRequestModel(
                         UserId: userId,
                         Type: "alert",
                         Severity: "critical",
                         Source: "ach-return",
                         Title: "ACH payment returned",
-                        Message: $"Payment {item.VendorPayment.PaymentNumber} ({money.Format(entry.Amount)}) was returned by the "
-                                 + $"bank: {reason}. Void it (reopens the bill) or fix the vendor's bank account and re-send.",
+                        Message: $"Payment {payment.PaymentNumber} ({money.Format(entry.Amount)}) was returned by the "
+                                 + $"bank: {reason}. It has been reversed and its bills reopened; fix the vendor's "
+                                 + "bank account and pay them again.",
                         EntityType: "VendorPayment",
-                        EntityId: item.VendorPaymentId.Value,
+                        EntityId: paymentId,
                         SenderId: null)), ct);
                 }
             }
             catch (Exception ex)
             {
                 Log.Warning(ex, "ACH-return notification failed for payment {PaymentId}; return is applied.",
-                    item.VendorPaymentId);
+                    paymentId);
             }
         }
 

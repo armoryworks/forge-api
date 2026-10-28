@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Forge.Api.Features.Banking;
 
 /// <summary>One returned/corrected entry from a bank returns file.</summary>
@@ -6,7 +8,8 @@ public sealed record NachaReturnEntry(
     string ReasonCode,            // R-code (return) or C-code (NOC)
     bool IsNotificationOfChange,  // addenda 98 (NOC) vs 99 (return)
     decimal Amount,               // from the preceding entry-detail record
-    string? CorrectedData);       // NOC only — the bank's corrected account info
+    string? CorrectedData,        // NOC only — the bank's corrected account info
+    DateOnly? ReturnDate = null);
 
 /// <summary>
 /// ⚡ BANKING BOUNDARY — parser for bank ACH return / NOC files (BANK-002 Phase C). Returns
@@ -22,6 +25,7 @@ public static class NachaReturnParser
     {
         var entries = new List<NachaReturnEntry>();
         decimal pendingAmount = 0m;
+        DateOnly? batchDate = null;
 
         foreach (var raw in contents.Split('\n'))
         {
@@ -31,6 +35,13 @@ public static class NachaReturnParser
 
             switch (line[0])
             {
+                case '5':
+                    batchDate = DateOnly.TryParseExact(
+                        line.Substring(69, 6), "yyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+                        ? date
+                        : null;
+                    break;
+
                 case '6':
                     // Entry detail: amount at positions 29..39 (10, implied cents).
                     pendingAmount = long.TryParse(line.Substring(29, 10), out var cents) ? cents / 100m : 0m;
@@ -52,7 +63,8 @@ public static class NachaReturnParser
                         reasonCode,
                         isNoc,
                         pendingAmount,
-                        isNoc ? line.Substring(35, 29).Trim() : null));
+                        isNoc ? line.Substring(35, 29).Trim() : null,
+                        batchDate));
                     pendingAmount = 0m;
                     break;
             }

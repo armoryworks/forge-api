@@ -8,14 +8,16 @@ using Moq;
 using Forge.Api.Features.Banking;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Data.Repositories;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Banking;
 
 /// <summary>
 /// BANK-002 Phase C — NACHA-standard return/NOC ingestion (bank-agnostic by construction).
-/// Proves: addenda-99 returns flip the payment's transmission to Failed with the R-code reason;
+/// Proves: addenda-99 returns reverse the payment (transmission cancelled with the R-code reason, payment voided);
 /// prenote returns disable the bank account; addenda-98 NOCs record the correction without
 /// touching the account; unknown traces are skipped; re-applying the same file is idempotent.
 /// </summary>
@@ -55,10 +57,16 @@ public class BankReturnsTests
         return sb.ToString();
     }
 
+    private sealed class FixedClock(DateTimeOffset now) : IClock
+    {
+        public DateTimeOffset UtcNow => now;
+    }
+
     private static (AppDbContext Db, BankReturnsService Service) CreateHarness()
     {
         var db = TestDbContextFactory.Create();
-        return (db, new BankReturnsService(db, new Mock<IMediator>().Object));
+        return (db, new BankReturnsService(
+            db, new Mock<IMediator>().Object, new VendorPaymentRepository(db), new FixedClock(DateTimeOffset.UtcNow)));
     }
 
     /// <summary>A released batch item with its trace + transmission, mirroring a real release.</summary>
@@ -140,7 +148,7 @@ public class BankReturnsTests
     }
 
     [Fact]
-    public async Task PaymentReturn_FlipsTransmissionToFailed_WithReason()
+    public async Task PaymentReturn_CancelsTransmission_KeepsReason_VoidsPayment()
     {
         var (db, service) = CreateHarness();
         var (_, transmission) = await SeedReleasedPaymentAsync(db, "071000300000001");
@@ -150,8 +158,9 @@ public class BankReturnsTests
 
         result.PaymentsReturned.Should().Be(1);
         var updated = await db.PaymentTransmissions.SingleAsync(t => t.Id == transmission.Id);
-        updated.Status.Should().Be(PaymentTransmissionStatus.Failed);
+        updated.Status.Should().Be(PaymentTransmissionStatus.Cancelled);
         updated.LastError.Should().Contain("R02").And.Contain("Account closed");
+        (await db.VendorPayments.AnyAsync(p => p.Id == transmission.SourceId)).Should().BeFalse();
     }
 
     [Fact]
@@ -211,7 +220,7 @@ public class BankReturnsTests
 
         second.PaymentsReturned.Should().Be(0);
         second.AlreadyApplied.Should().Be(1);
-        (await db.PaymentTransmissions.CountAsync(t => t.Status == PaymentTransmissionStatus.Failed))
+        (await db.PaymentTransmissions.CountAsync(t => t.Status == PaymentTransmissionStatus.Cancelled))
             .Should().Be(1);
     }
 

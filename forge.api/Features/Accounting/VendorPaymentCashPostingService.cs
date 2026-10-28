@@ -46,13 +46,16 @@ public interface IVendorPaymentCashPostingService
     Task PostVendorPaymentCreatedAsync(int vendorPaymentId, int createdByUserId, CancellationToken ct = default);
 
     /// <summary>
-    /// Reverses the posted cash-disbursement journal for a vendor payment being voided (equal-and-opposite
-    /// entry — including any realized-FX plug lines — original flipped to Reversed). A no-op while
+    /// Reverses the posted cash-disbursement journal for a vendor payment being voided or returned by the bank
+    /// (equal-and-opposite entry — including any discount and realized-FX plug lines — original flipped to
+    /// Reversed), and the bank-settlement entry too when one was posted, so a returned ACH payment nets to
+    /// Dr cash / Cr AP. Dated <paramref name="reversalDate"/> (the return date), else today. A no-op while
     /// CAP-ACCT-FULLGL is off, when nothing is posted for the payment (created while the capability was
     /// off), or when the origination is already reversed.
     /// </summary>
     Task ReverseVendorPaymentCreatedAsync(
-        int vendorPaymentId, string reason, int reversedByUserId, CancellationToken ct = default);
+        int vendorPaymentId, string reason, int reversedByUserId, DateOnly? reversalDate = null,
+        CancellationToken ct = default);
 }
 
 /// <inheritdoc />
@@ -91,7 +94,8 @@ public sealed class VendorPaymentCashPostingService(
     }
 
     public async Task ReverseVendorPaymentCreatedAsync(
-        int vendorPaymentId, string reason, int reversedByUserId, CancellationToken ct = default)
+        int vendorPaymentId, string reason, int reversedByUserId, DateOnly? reversalDate = null,
+        CancellationToken ct = default)
     {
         // ── GATE (dark by default) ──
         if (!capabilities.IsEnabled(FullGlCapability))
@@ -106,7 +110,6 @@ public sealed class VendorPaymentCashPostingService(
 
         // The origination entry, located by its idempotency key. Skip if none is currently posted —
         // the payment may have been created while FULLGL was off, or the entry was already reversed.
-        // (A settlement entry cannot exist here: void is blocked once the transmission Succeeded.)
         var idempotencyKey = $"{JournalSource.AP}:VendorPayment:{vendorPaymentId}:PAYMENT";
         var entry = await db.JournalEntries.IgnoreQueryFilters()
             .FirstOrDefaultAsync(e => e.BookId == book.Id && e.IdempotencyKey == idempotencyKey, ct);
@@ -147,9 +150,16 @@ public sealed class VendorPaymentCashPostingService(
 
         // Reverse on the VOID date (today) — the original period may differ; the engine guards closed
         // periods. ReverseAsync flips the WHOLE entry, including any realized-FX plug lines.
-        var reversalDate = DateOnly.FromDateTime((clock?.UtcNow ?? DateTimeOffset.UtcNow).UtcDateTime);
+        var onDate = reversalDate ?? DateOnly.FromDateTime((clock?.UtcNow ?? DateTimeOffset.UtcNow).UtcDateTime);
         await postingEngine.ReverseAsSystemAsync(
-            entry.Id, reversalDate, $"Vendor payment {vendorPaymentId} voided: {reason}", reversedByUserId, ct);
+            entry.Id, onDate, $"Vendor payment {vendorPaymentId} voided: {reason}", reversedByUserId, ct);
+
+        var settlementKey = $"{JournalSource.AP}:VendorPayment:{vendorPaymentId}:SETTLEMENT";
+        var settlement = await db.JournalEntries.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(e => e.BookId == book.Id && e.IdempotencyKey == settlementKey, ct);
+        if (settlement is { Status: JournalEntryStatus.Posted, ReversedByEntryId: null })
+            await postingEngine.ReverseAsSystemAsync(
+                settlement.Id, onDate, $"Vendor payment {vendorPaymentId} returned: {reason}", reversedByUserId, ct);
     }
 
     private async Task PostCoreAsync(int vendorPaymentId, int createdByUserId, CancellationToken ct)
