@@ -61,7 +61,7 @@ public class DuplicateQuoteHandler(
             ActiveCheck.EnsureActive(part, "Part", $"lines[{i}].partId", partId);
         }
 
-        var defaultRate = await taxGuard.GetDefaultRateAsync(source.CustomerId, cancellationToken);
+        var defaultRate = await taxGuard.GetComputedRateAsync(source.CustomerId, cancellationToken);
         var taxOverride = taxGuard.EnsureCanCopyOverride(
             source.CustomerId, source.TaxRate, defaultRate,
             source.TaxOverrideReason, source.TaxOverrideNote, source.TaxDocumentId, "quote");

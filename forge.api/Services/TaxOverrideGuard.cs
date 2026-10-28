@@ -17,7 +17,9 @@ namespace Forge.Api.Services;
 /// <summary>
 /// Gates manual tax-rate overrides on quotes, sales orders and invoices. A document's tax rate may
 /// deviate from the rate computed for its customer (<see cref="GetTaxRateForCustomerQuery"/>) only
-/// when the caller holds one of <see cref="OverrideRoles"/> and gives a <see cref="TaxOverrideReason"/>;
+/// when the caller holds one of <see cref="OverrideRoles"/> and gives a <see cref="TaxOverrideReason"/>.
+/// An override is a deviation from a rate the system determined: when no tax configuration applies to the
+/// customer (<see cref="GetComputedRateAsync"/> is null), a typed rate is ordinary tax entry and passes;
 /// <see cref="TaxOverrideReason.Other"/> also needs a note, and the certificate-backed reasons need a
 /// Verified, unexpired <see cref="CustomerTaxDocument"/> on file. Every accepted override is written
 /// to the audit log. Registered as a concrete scoped service (same convention as
@@ -65,9 +67,36 @@ public class TaxOverrideGuard(AppDbContext db, IMediator mediator, IClock clock,
         return rate?.Rate ?? 0m;
     }
 
+    /// <summary>
+    /// The rate the system determines for a customer: the configured rate that applies
+    /// (<see cref="GetTaxRateForCustomerHandler"/>), 0 for a customer exempt today with no exempt rate
+    /// configured, or null when no tax configuration applies to the customer at all.
+    /// </summary>
+    public async Task<decimal?> GetComputedRateAsync(int customerId, CancellationToken ct)
+    {
+        var rate = await mediator.Send(new GetTaxRateForCustomerQuery(customerId), ct);
+        if (rate is not null)
+            return rate.Rate;
+        return await IsExemptTodayAsync(db, customerId, clock.UtcNow, ct) ? 0m : null;
+    }
+
+    /// <summary>True when the customer is tax exempt on the shop's current date.</summary>
+    internal static async Task<bool> IsExemptTodayAsync(AppDbContext db, int customerId, DateTimeOffset now, CancellationToken ct)
+    {
+        var customer = await db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == customerId, ct);
+        return customer?.IsTaxExemptOn(DateOnly.FromDateTime(now.UtcDateTime)) ?? false;
+    }
+
     /// <summary>True when <paramref name="requestedRate"/> differs from <paramref name="computedDefaultRate"/>.</summary>
     public static bool IsOverride(decimal requestedRate, decimal computedDefaultRate)
         => decimal.Round(requestedRate, 6) != decimal.Round(computedDefaultRate, 6);
+
+    /// <summary>
+    /// True when <paramref name="requestedRate"/> deviates from a rate the system determined; never when
+    /// <paramref name="computedRate"/> is null (no tax configuration applies, so the rate is entered by hand).
+    /// </summary>
+    public static bool IsOverride(decimal requestedRate, decimal? computedRate)
+        => computedRate is decimal computed && IsOverride(requestedRate, computed);
 
     /// <summary>True when the signed-in caller may override a tax rate.</summary>
     public bool CallerMayOverride()
@@ -75,7 +104,8 @@ public class TaxOverrideGuard(AppDbContext db, IMediator mediator, IClock clock,
 
     /// <summary>
     /// Ensures the requested tax rate is allowed on a <paramref name="documentType"/> for the customer.
-    /// When it matches the computed default, returns null (no override). When it deviates, checks the
+    /// When it matches the computed default, or no rate is computed for the customer
+    /// (<paramref name="computedDefaultRate"/> null), returns null (no override). When it deviates, checks the
     /// caller's role, the reason, the note and (for a certificate-backed reason) the certificate, records
     /// a "<c>{documentType}.tax_override</c>" audit row (flushed by the caller's SaveChangesAsync) and
     /// returns the override to stamp on the document.
@@ -83,7 +113,7 @@ public class TaxOverrideGuard(AppDbContext db, IMediator mediator, IClock clock,
     /// <exception cref="ForbiddenException">The caller's role may not override a tax rate.</exception>
     /// <exception cref="ValidationException">The reason, its note or its certificate is missing.</exception>
     public async Task<TaxOverrideStamp?> EnsureCanOverrideAsync(
-        int customerId, decimal requestedRate, decimal computedDefaultRate,
+        int customerId, decimal requestedRate, decimal? computedDefaultRate,
         TaxOverrideReason? reason, string? note, string documentType, CancellationToken ct)
     {
         if (!IsOverride(requestedRate, computedDefaultRate))
@@ -123,18 +153,18 @@ public class TaxOverrideGuard(AppDbContext db, IMediator mediator, IClock clock,
         }
 
         var stamp = new TaxOverrideStamp(reason.Value, trimmedNote, documentId);
-        Audit(customerId, documentType, computedDefaultRate, requestedRate, stamp);
+        Audit(customerId, documentType, computedDefaultRate!.Value, requestedRate, stamp);
         return stamp;
     }
 
     /// <summary>
     /// Carries an override that was already accepted on a source document (a revision, an order made
     /// from a quote) onto a copy: the caller must still hold an override role when the copied rate
-    /// deviates, and the copy is audited, but the source's reason is not asked for again.
+    /// deviates from a computed rate, and the copy is audited, but the source's reason is not asked for again.
     /// </summary>
     /// <exception cref="ForbiddenException">The copied rate deviates and the caller's role may not override a tax rate.</exception>
     public TaxOverrideStamp? EnsureCanCopyOverride(
-        int customerId, decimal copiedRate, decimal computedDefaultRate,
+        int customerId, decimal copiedRate, decimal? computedDefaultRate,
         TaxOverrideReason? reason, string? note, int? taxDocumentId, string documentType)
     {
         if (!IsOverride(copiedRate, computedDefaultRate))
@@ -146,7 +176,7 @@ public class TaxOverrideGuard(AppDbContext db, IMediator mediator, IClock clock,
                 ForbiddenCode);
 
         var stamp = reason is null ? null : new TaxOverrideStamp(reason.Value, note, taxDocumentId);
-        Audit(customerId, documentType, computedDefaultRate, copiedRate, stamp);
+        Audit(customerId, documentType, computedDefaultRate!.Value, copiedRate, stamp);
         return stamp;
     }
 

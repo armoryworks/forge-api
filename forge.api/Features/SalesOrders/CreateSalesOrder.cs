@@ -91,7 +91,7 @@ public class CreateSalesOrderHandler(
         Forge.Api.Services.TaxOverrideStamp? taxOverride = null;
         if (taxGuard is not null)
         {
-            var defaultRate = await taxGuard.GetDefaultRateAsync(request.CustomerId, cancellationToken);
+            var defaultRate = await taxGuard.GetComputedRateAsync(request.CustomerId, cancellationToken);
             taxOverride = await taxGuard.EnsureCanOverrideAsync(
                 request.CustomerId, request.TaxRate, defaultRate,
                 request.TaxOverrideReason, request.TaxOverrideNote, "sales_order", cancellationToken);

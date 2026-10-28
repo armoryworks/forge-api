@@ -55,6 +55,51 @@ public class TaxOverrideGuardTests
 
     [Theory]
     [InlineData("PM")]
+    [InlineData("Controller")]
+    public async Task With_no_computed_rate_a_typed_rate_is_not_an_override(string role)
+    {
+        using var db = TestDbContextFactory.Create();
+
+        var result = await Guard(db, role).EnsureCanOverrideAsync(2, 0.0825m, null, null, null, "quote", CancellationToken.None);
+
+        result.Should().BeNull();
+        db.AuditLogEntries.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task The_computed_rate_is_null_when_no_tax_configuration_applies()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.Customers.Add(new Customer { Id = 2, Name = "Acme Corp" });
+        await db.SaveChangesAsync();
+
+        (await Guard(db).GetComputedRateAsync(2, CancellationToken.None)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task An_exempt_customer_computes_zero_so_a_typed_rate_is_an_override()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.Customers.Add(new Customer { Id = 2, Name = "Acme Corp", IsTaxExempt = true });
+        await db.SaveChangesAsync();
+
+        var computed = await Guard(db).GetComputedRateAsync(2, CancellationToken.None);
+        var act = () => Guard(db, "PM").EnsureCanOverrideAsync(2, 0.05m, computed, null, null, "quote", CancellationToken.None);
+
+        computed.Should().Be(0m);
+        (await act.Should().ThrowAsync<ForbiddenException>()).Which.Code.Should().Be(TaxOverrideGuard.ForbiddenCode);
+    }
+
+    [Fact]
+    public void Copying_a_document_with_no_computed_rate_needs_no_role()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        Guard(db, "PM").EnsureCanCopyOverride(2, 0.0825m, null, null, null, null, "quote").Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("PM")]
     [InlineData("Engineer")]
     [InlineData("Procurement")]
     public async Task A_role_outside_tax_management_cannot_override(string role)
@@ -210,6 +255,31 @@ public class TaxOverrideGuardTests
         var code = await FailureCode(() => handler.Handle(Command(taxRate: 0m), CancellationToken.None));
 
         code.Should().Be(TaxOverrideGuard.ReasonRequiredCode);
+    }
+
+    [Fact]
+    public async Task CreateQuote_for_a_customer_with_no_tax_configured_takes_a_typed_rate_from_any_role()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.Customers.Add(new Customer { Id = 2, Name = "Acme Corp" });
+        await db.SaveChangesAsync();
+
+        Quote? added = null;
+        var quoteRepo = new Mock<IQuoteRepository>();
+        quoteRepo.Setup(r => r.GenerateNextQuoteNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("QUO-0002");
+        quoteRepo.Setup(r => r.AddAsync(It.IsAny<Quote>(), It.IsAny<CancellationToken>()))
+            .Callback<Quote, CancellationToken>((q, _) => added = q)
+            .Returns(Task.CompletedTask);
+        var customerRepo = new Mock<ICustomerRepository>();
+        customerRepo.Setup(r => r.FindAsync(2, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Customer { Id = 2, Name = "Acme Corp" });
+        var handler = new CreateQuoteHandler(
+            quoteRepo.Object, customerRepo.Object, new Mock<IPartRepository>().Object, null, Guard(db, "PM"));
+
+        await handler.Handle(Command(taxRate: 0.0825m), CancellationToken.None);
+
+        added!.TaxRate.Should().Be(0.0825m);
+        added.TaxOverrideReason.Should().BeNull();
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

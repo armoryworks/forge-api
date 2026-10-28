@@ -152,7 +152,7 @@ public class UpdateSalesOrderHandler(
             var rateChanged = TaxOverrideGuard.IsOverride(request.TaxRate.Value, order.TaxRate);
             if (taxGuard is not null && (rateChanged || request.TaxOverrideReason is not null))
             {
-                var defaultRate = await taxGuard.GetDefaultRateAsync(order.CustomerId, cancellationToken);
+                var defaultRate = await taxGuard.GetComputedRateAsync(order.CustomerId, cancellationToken);
                 var taxOverride = await taxGuard.EnsureCanOverrideAsync(
                     order.CustomerId, request.TaxRate.Value, defaultRate,
                     request.TaxOverrideReason, request.TaxOverrideNote, "sales_order", cancellationToken);

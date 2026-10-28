@@ -111,7 +111,7 @@ public class UpdateQuoteHandler(
             var rateChanged = TaxOverrideGuard.IsOverride(request.TaxRate.Value, quote.TaxRate);
             if (taxGuard is not null && (rateChanged || request.TaxOverrideReason is not null))
             {
-                var defaultRate = await taxGuard.GetDefaultRateAsync(quote.CustomerId, cancellationToken);
+                var defaultRate = await taxGuard.GetComputedRateAsync(quote.CustomerId, cancellationToken);
                 var taxOverride = await taxGuard.EnsureCanOverrideAsync(
                     quote.CustomerId, request.TaxRate.Value, defaultRate,
                     request.TaxOverrideReason, request.TaxOverrideNote, "quote", cancellationToken);

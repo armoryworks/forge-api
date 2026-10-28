@@ -49,14 +49,50 @@ public class GetCustomerTaxEditabilityHandlerTests
     public async Task Other_roles_are_locked_even_with_a_certificate_on_file(string role)
     {
         using var db = TestDbContextFactory.Create();
+        db.SalesTaxRates.Add(DefaultRate());
         db.CustomerTaxDocuments.Add(Document(TaxDocumentStatus.Verified, expires: Now.AddYears(1)));
         await db.SaveChangesAsync();
 
         var result = await Handler(db, role).Handle(new GetCustomerTaxEditabilityQuery(2), CancellationToken.None);
 
         result.CanEditTax.Should().BeFalse();
+        result.RateDetermined.Should().BeTrue();
         result.Reason.Should().Contain("Controller");
     }
+
+    [Theory]
+    [InlineData("PM")]
+    [InlineData("Engineer")]
+    public async Task With_no_tax_configured_every_role_enters_the_rate(string role)
+    {
+        using var db = TestDbContextFactory.Create();
+        db.Customers.Add(new Customer { Id = 2, Name = "Acme Corp" });
+        await db.SaveChangesAsync();
+
+        var result = await Handler(db, role).Handle(new GetCustomerTaxEditabilityQuery(2), CancellationToken.None);
+
+        result.RateDetermined.Should().BeFalse();
+        result.CanEditTax.Should().BeTrue();
+        result.Reason.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task An_exempt_customer_has_a_determined_rate_even_with_no_tax_configured()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.Customers.Add(new Customer { Id = 2, Name = "Acme Corp", IsTaxExempt = true });
+        await db.SaveChangesAsync();
+
+        var result = await Handler(db, "PM").Handle(new GetCustomerTaxEditabilityQuery(2), CancellationToken.None);
+
+        result.RateDetermined.Should().BeTrue();
+        result.CanEditTax.Should().BeFalse();
+    }
+
+    private static SalesTaxRate DefaultRate() => new()
+    {
+        Name = "Default", Code = "DEF", Rate = 0.0725m, EffectiveFrom = Now.AddYears(-1), IsDefault = true, IsActive = true,
+    };
 
     [Fact]
     public async Task A_verified_unexpired_certificate_is_reported()

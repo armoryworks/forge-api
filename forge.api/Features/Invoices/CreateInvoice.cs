@@ -308,7 +308,7 @@ public class CreateInvoiceHandler(
         {
             var computed = await GetTaxRateForCustomerHandler.ResolveAsync(db, request.CustomerId, request.InvoiceDate, cancellationToken);
             taxOverride = await taxGuard.EnsureCanOverrideAsync(
-                request.CustomerId, request.TaxRate, computed?.Rate ?? 0m,
+                request.CustomerId, request.TaxRate, computed?.Rate,
                 request.TaxOverrideReason, request.TaxOverrideNote, "invoice", cancellationToken);
             taxOverrideIsNew = taxOverride is not null;
         }
