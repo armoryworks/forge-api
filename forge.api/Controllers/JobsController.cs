@@ -51,6 +51,12 @@ public class JobsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("start-plan")]
+    public async Task<ActionResult<JobStartPlanResponseModel>> GetStartPlan(
+        [FromQuery] int partId, [FromQuery] decimal quantity,
+        [FromQuery] int? salesOrderLineId = null, [FromQuery] int? jobId = null)
+        => Ok(await mediator.Send(new GetJobStartPlanQuery(partId, quantity, salesOrderLineId, jobId)));
+
     [HttpPost]
     public async Task<ActionResult<JobDetailResponseModel>> CreateJob(CreateJobCommand command)
     {
@@ -237,12 +243,20 @@ public class JobsController(IMediator mediator) : ControllerBase
     [Authorize(Roles = JobRoles.StockMove)]
     [RequiresCapability("CAP-MFG-COMPLETE")]
     public async Task<ActionResult<ProductionRunResponseModel>> ReceiveProductionRunToStock(
-        int id, int runId, [FromQuery] int? locationId = null)
+        int id, int runId, [FromQuery] int? locationId = null, [FromQuery] int? surplusLocationId = null)
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var result = await mediator.Send(new ReceiveProductionRunToStockCommand(id, runId, userId, locationId));
+        var result = await mediator.Send(
+            new ReceiveProductionRunToStockCommand(id, runId, userId, locationId, surplusLocationId));
         return Ok(result);
     }
+
+    [HttpGet("{id:int}/surplus-split")]
+    [Authorize(Roles = JobRoles.StockMove)]
+    [RequiresCapability("CAP-MFG-COMPLETE")]
+    public async Task<ActionResult<JobSurplusSplitResponseModel>> GetSurplusSplit(
+        int id, [FromQuery] decimal quantity, [FromQuery] int? runId = null)
+        => Ok(await mediator.Send(new GetJobSurplusSplitQuery(id, quantity, runId)));
 
     // Bulk operations
     [HttpPatch("bulk/stage")]

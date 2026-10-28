@@ -61,6 +61,7 @@ public static partial class JobMapper
             SalesOrderId: job.SalesOrderLine?.SalesOrderId,
             SalesOrderNumber: job.SalesOrderLine?.SalesOrder?.OrderNumber,
             PartRevision: job.PartRevision,
-            TargetQuantity: job.TargetQuantity);
+            TargetQuantity: job.TargetQuantity,
+            ExtraPieces: job.ExtraPieces);
     }
 }

@@ -135,9 +135,9 @@ public class UpdateJobOperationProgressHandler(
         }
 
         var goodGrows = completed > row.CompletedQuantity;
-        if (goodGrows && completed > targetQuantity
-            && await operations.GetOverrunLimitAsync(targetQuantity, cancellationToken) is decimal limit && completed > limit)
-            throw JobOverrun.LimitExceeded(nameof(data.CompletedQuantity), completed, targetQuantity, limit);
+        if (goodGrows && completed > jobQuantity
+            && await operations.GetOverrunLimitAsync(jobQuantity, cancellationToken) is decimal limit && completed > limit)
+            throw JobOverrun.LimitExceeded(nameof(data.CompletedQuantity), completed, jobQuantity, limit);
 
         var gate = stepGate is null
             ? StepGateOutcome.None
@@ -169,7 +169,7 @@ public class UpdateJobOperationProgressHandler(
         var after = JobOperationRules.Describe(row, jobQuantity);
         var reworkNote = rework > 0m ? $" {rework:0.##} sent to rework." : string.Empty;
         var reasonNote = string.IsNullOrWhiteSpace(data.ReasonCode) ? string.Empty : $" Reason: {data.ReasonCode.Trim()}.";
-        var overrunNote = goodGrows ? JobOverrun.Note(targetQuantity, completed) : string.Empty;
+        var overrunNote = goodGrows ? JobOverrun.Note(jobQuantity, completed) : string.Empty;
         var gateNote = !gate.Overridden ? string.Empty
             : (gate.Mode == StepGatingMode.Block ? " Step gate overridden" : " Step gate warning acknowledged")
                 + (gate.Reason is null ? "." : $": {gate.Reason}.");

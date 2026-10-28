@@ -46,10 +46,10 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
         return OperationTimeMath.JobBuildQuantity(quantity, lineQuantity);
     }
 
-    public async Task<decimal?> GetOverrunLimitAsync(decimal targetQuantity, CancellationToken ct)
+    public async Task<decimal?> GetOverrunLimitAsync(decimal startQuantity, CancellationToken ct)
     {
         var raw = await settings.GetStringAsync(ShopFloorSettings.MaxOverrunPercentKey, ct);
-        return JobOverrun.Limit(targetQuantity,
+        return JobOverrun.Limit(startQuantity,
             int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var percent) ? percent : null);
     }
 
@@ -152,7 +152,7 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
             .ToHashSet();
         var plannedByOperation = plannedInputs.ToDictionary(
             p => p.Key,
-            p => startSteps.Contains(p.Key) ? quantity : Math.Min(p.Value, quantity));
+            p => job.ExtraPieces is not null || startSteps.Contains(p.Key) ? quantity : Math.Min(p.Value, quantity));
 
         var rows = await db.JobOperations
             .AsNoTracking()

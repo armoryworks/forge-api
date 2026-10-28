@@ -228,4 +228,111 @@ public class UpdateJobQuantityTests
     {
         new UpdateJobCommandValidator().Validate(Update(null)).IsValid.Should().BeTrue();
     }
+
+    private static UpdateJobCommand Extras(int? extra, decimal? quantity = null, bool clear = false) =>
+        new(1, null, null, null, null, null, null, null, null, Quantity: quantity, ExtraPieces: extra,
+            ClearExtraPieces: clear ? true : null);
+
+    [Fact]
+    public async Task Extra_pieces_make_the_current_quantity_the_order_and_start_the_order_plus_extras()
+    {
+        await SeedJobAsync(quantity: 100m);
+
+        await _handler.Handle(Extras(14), CancellationToken.None);
+
+        var job = await _db.Jobs.SingleAsync(j => j.Id == 1);
+        job.TargetQuantity.Should().Be(100m);
+        job.ExtraPieces.Should().Be(14);
+        (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(114m);
+        _logged.Select(l => l.FieldName).Should().Equal("TargetQuantity", "ExtraPieces", "Quantity");
+        _logged.Single(l => l.FieldName == "ExtraPieces").Description.Should().Be("Extra pieces set to 14.");
+    }
+
+    [Fact]
+    public async Task With_extra_pieces_the_quantity_sent_is_the_order_quantity()
+    {
+        var job = await SeedJobAsync(quantity: 114m);
+        job.TargetQuantity = 100m;
+        job.ExtraPieces = 14;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(Extras(10, quantity: 200m), CancellationToken.None);
+
+        job.TargetQuantity.Should().Be(200m);
+        job.ExtraPieces.Should().Be(10);
+        (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(210m);
+        _logged.Single(l => l.FieldName == "ExtraPieces").Description.Should().Be("Extra pieces changed from 14 to 10.");
+    }
+
+    [Fact]
+    public async Task Clearing_extra_pieces_returns_an_order_job_to_the_calculated_plan()
+    {
+        var job = await SeedJobAsync(quantity: 114m);
+        var part = await _db.Parts.SingleAsync(p => p.Id == 700);
+        part.ExpectedYieldPercent = 95m;
+        var order = new SalesOrder { OrderNumber = "SO-1", CustomerId = 1, Status = SalesOrderStatus.Confirmed };
+        _db.SalesOrders.Add(order);
+        await _db.SaveChangesAsync();
+        var line = new SalesOrderLine { SalesOrderId = order.Id, PartId = 700, Description = "x", Quantity = 100m, LineNumber = 1 };
+        _db.SalesOrderLines.Add(line);
+        await _db.SaveChangesAsync();
+        job.SalesOrderLineId = line.Id;
+        job.TargetQuantity = 100m;
+        job.ExtraPieces = 14;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(Extras(null, clear: true), CancellationToken.None);
+
+        job.ExtraPieces.Should().BeNull();
+        job.TargetQuantity.Should().Be(100m);
+        (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(106m);
+        _logged.Single(l => l.FieldName == "ExtraPieces").Description
+            .Should().Be("Extra pieces cleared (was 14); the start quantity uses the calculated plan.");
+    }
+
+    [Fact]
+    public async Task Unchanged_extra_pieces_log_nothing()
+    {
+        var job = await SeedJobAsync(quantity: 114m);
+        job.TargetQuantity = 100m;
+        job.ExtraPieces = 14;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(Extras(14), CancellationToken.None);
+
+        _logged.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_finished_job_keeps_its_extra_pieces()
+    {
+        var job = await SeedJobAsync(quantity: 100m);
+        job.CompletedDate = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync();
+
+        var act = () => _handler.Handle(Extras(5), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message
+            .Should().Be(UpdateJobHandler.QuantityLockedMessage);
+        job.ExtraPieces.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_job_without_a_part_cannot_take_extra_pieces()
+    {
+        await SeedJobAsync(partId: null);
+
+        var act = () => _handler.Handle(Extras(5), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ValidationException>()
+            .WithMessage($"*{CreateJobCommandValidator.ExtraPiecesNeedPartMessage}*");
+    }
+
+    [Theory]
+    [InlineData(-1, false, false)]
+    [InlineData(3, true, false)]
+    [InlineData(0, false, true)]
+    [InlineData(null, true, true)]
+    public void Extra_pieces_validation(int? extra, bool clear, bool valid)
+        => new UpdateJobCommandValidator().Validate(Extras(extra, clear: clear)).IsValid.Should().Be(valid);
 }

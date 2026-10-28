@@ -36,6 +36,7 @@ public class DisposeJobCommandValidator : AbstractValidator<DisposeJobCommand>
             .Must(q => q % 1 == 0).WithMessage("Good quantity must be a whole number.").WithErrorCode("whole-quantity-required")
             .When(x => x.Data.GoodQuantity.HasValue);
         RuleFor(x => x.Data.LocationId).GreaterThan(0).When(x => x.Data.LocationId.HasValue);
+        RuleFor(x => x.Data.SurplusLocationId).GreaterThan(0).When(x => x.Data.SurplusLocationId.HasValue);
         RuleFor(x => x.Data.AssetGlAccountId).GreaterThan(0).When(x => x.Data.AssetGlAccountId.HasValue);
         RuleFor(x => x.Data.ExpenseGlAccountId).GreaterThan(0).When(x => x.Data.ExpenseGlAccountId.HasValue);
     }
@@ -382,7 +383,8 @@ public class DisposeJobHandler(
         foreach (var runId in runIds)
         {
             await mediator.Send(
-                new ReceiveProductionRunToStockCommand(job.Id, runId, request.UserId, request.Data.LocationId),
+                new ReceiveProductionRunToStockCommand(
+                    job.Id, runId, request.UserId, request.Data.LocationId, request.Data.SurplusLocationId),
                 ct);
         }
 

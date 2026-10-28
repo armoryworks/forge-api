@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Notifications;
 using Forge.Api.Hubs;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -33,7 +34,9 @@ public record UpdateJobCommand(
     string? JobNumber = null,
     DateTimeOffset? StartDate = null,
     int? PartId = null,
-    decimal? Quantity = null) : IRequest<JobDetailResponseModel>;
+    decimal? Quantity = null,
+    int? ExtraPieces = null,
+    bool? ClearExtraPieces = null) : IRequest<JobDetailResponseModel>;
 
 public class UpdateJobCommandValidator : AbstractValidator<UpdateJobCommand>
 {
@@ -47,6 +50,10 @@ public class UpdateJobCommandValidator : AbstractValidator<UpdateJobCommand>
             .WithMessage(UpdateJobHandler.StartAfterDueMessage);
         RuleFor(x => x.Quantity).GreaterThan(0).When(x => x.Quantity is not null);
         RuleFor(x => x.Quantity).JobQuantityLimits();
+        RuleFor(x => x.ExtraPieces).ExtraPiecesLimits();
+        RuleFor(x => x.ExtraPieces)
+            .Null().When(x => x.ClearExtraPieces == true)
+            .WithMessage(UpdateJobHandler.ExtraPiecesAndClearMessage);
     }
 }
 
@@ -69,6 +76,7 @@ public class UpdateJobHandler(
     public const string StartAfterDueMessage = "The start date must be on or before the due date.";
     public const string PartLockedMessage = "The part can't be changed after work has started.";
     public const string QuantityLockedMessage = "The quantity can't be changed on a finished work order.";
+    public const string ExtraPiecesAndClearMessage = "Send extra pieces or clear them, not both.";
     public const string QuantityExplodedMessage =
         "The quantity can't be changed after the BOM has been exploded. Mark its sub-jobs as entered in error first.";
 
@@ -236,9 +244,7 @@ public class UpdateJobHandler(
         if (newPart is not null)
             changes.Add(await ChangePartAsync(job, newPart, currentUserId, cancellationToken));
 
-        if (request.Quantity.HasValue
-            && await SetQuantityAsync(job, request.Quantity.Value, currentUserId, cancellationToken) is { } quantityLog)
-            changes.Add(quantityLog);
+        await ApplyQuantityAsync(job, request, currentUserId, changes, cancellationToken);
 
         if (request.IterationCount.HasValue && request.IterationCount.Value != job.IterationCount)
         {
@@ -375,6 +381,86 @@ public class UpdateJobHandler(
                 && c.DeletedAt == null
                 && c.Disposition != JobDisposition.EnteredInError, ct))
             throw new InvalidOperationException(QuantityExplodedMessage);
+    }
+
+    private async Task ApplyQuantityAsync(
+        Job job, UpdateJobCommand request, int? currentUserId, List<JobActivityLog> changes, CancellationToken ct)
+    {
+        var extraBefore = job.ExtraPieces;
+        var extraAfter = request.ClearExtraPieces == true ? null : request.ExtraPieces ?? extraBefore;
+        if (extraBefore is null && extraAfter is null)
+        {
+            if (request.Quantity.HasValue
+                && await SetQuantityAsync(job, request.Quantity.Value, currentUserId, ct) is { } quantityLog)
+                changes.Add(quantityLog);
+            return;
+        }
+
+        if (job.PartId is not int partId)
+            throw new ValidationException(
+                [new ValidationFailure(nameof(UpdateJobCommand.ExtraPieces), CreateJobCommandValidator.ExtraPiecesNeedPartMessage)]);
+
+        var currentStart = await CurrentStartQuantityAsync(job, ct);
+        var targetBefore = job.TargetQuantity;
+        var order = extraAfter is null
+            ? job.TargetQuantity ?? currentStart
+            : request.Quantity ?? job.TargetQuantity ?? currentStart;
+        var start = extraAfter is int extra
+            ? ProductionQuantityPlan.StartWithExtraPieces(order, extra)
+            : request.Quantity ?? await ProductionQuantityPlan.CalculatedStartAsync(db, job, partId, order, ct);
+
+        if (extraAfter == extraBefore && order == targetBefore && start == currentStart)
+            return;
+
+        await EnsureQuantityEditableAsync(db, job, ct);
+
+        if (extraAfter is not null && order != targetBefore)
+        {
+            var oldTarget = targetBefore?.ToString("0.####", CultureInfo.InvariantCulture);
+            var newTarget = order.ToString("0.####", CultureInfo.InvariantCulture);
+            changes.Add(new JobActivityLog
+            {
+                JobId = job.Id, UserId = currentUserId, Action = ActivityAction.FieldChanged,
+                FieldName = "TargetQuantity", OldValue = oldTarget, NewValue = newTarget,
+                Description = oldTarget is null
+                    ? $"Order quantity set to {newTarget}."
+                    : $"Order quantity changed from {oldTarget} to {newTarget}.",
+            });
+            job.TargetQuantity = order;
+        }
+
+        if (extraAfter != extraBefore)
+        {
+            changes.Add(new JobActivityLog
+            {
+                JobId = job.Id, UserId = currentUserId, Action = ActivityAction.FieldChanged,
+                FieldName = "ExtraPieces",
+                OldValue = extraBefore?.ToString(CultureInfo.InvariantCulture),
+                NewValue = extraAfter?.ToString(CultureInfo.InvariantCulture),
+                Description = (extraBefore, extraAfter) switch
+                {
+                    (null, int set) => $"Extra pieces set to {set}.",
+                    (int was, null) => $"Extra pieces cleared (was {was}); the start quantity uses the calculated plan.",
+                    _ => $"Extra pieces changed from {extraBefore} to {extraAfter}.",
+                },
+            });
+            job.ExtraPieces = extraAfter;
+        }
+
+        if (await SetQuantityAsync(job, start, currentUserId, ct) is { } startLog)
+            changes.Add(startLog);
+    }
+
+    private async Task<decimal> CurrentStartQuantityAsync(Job job, CancellationToken ct)
+    {
+        await db.JobParts.Where(jp => jp.JobId == job.Id).LoadAsync(ct);
+        var built = db.JobParts.Local
+            .Where(jp => jp.JobId == job.Id && jp.PartId == job.PartId && db.Entry(jp).State != EntityState.Deleted)
+            .Sum(jp => jp.Quantity);
+        var lineQuantity = job.SalesOrderLineId is int lineId
+            ? await db.SalesOrderLines.Where(l => l.Id == lineId).Select(l => (decimal?)l.Quantity).FirstOrDefaultAsync(ct)
+            : null;
+        return OperationTimeMath.JobBuildQuantity(built, lineQuantity);
     }
 
     private async Task<JobActivityLog?> SetQuantityAsync(Job job, decimal quantity, int? currentUserId, CancellationToken ct)

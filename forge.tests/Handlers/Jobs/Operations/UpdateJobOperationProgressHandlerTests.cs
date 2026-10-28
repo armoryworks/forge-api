@@ -169,7 +169,7 @@ public class UpdateJobOperationProgressHandlerTests
         events.Single(e => e.Kind == JobOperationEventKind.Scrap).Quantity.Should().Be(2m);
         var log = await _h.Timers.Db.JobActivityLogs.AsNoTracking().SingleAsync(l => l.FieldName == "OperationStatus");
         log.NewValue.Should().Be("In progress 43/40 (2 scrap)");
-        log.Description.Should().Contain("Overrun: 3 good over the target quantity of 40.");
+        log.Description.Should().Contain("Overrun: 3 good over the start quantity of 40.");
     }
 
     [Fact]
@@ -187,7 +187,7 @@ public class UpdateJobOperationProgressHandlerTests
     }
 
     [Fact]
-    public async Task AJobThatStartsExtraPieces_ComparesGoodWithItsTargetAndDoneFillsToTheTarget()
+    public async Task AJobThatStartsExtraPieces_RecordsGoodUpToItsStartQuantityWithoutAnOverrunAndDoneFillsToTheTarget()
     {
         var (job, routing) = await _h.AddJobWithRoutingAsync(44m);
         job.TargetQuantity = 40m;
@@ -196,15 +196,37 @@ public class UpdateJobOperationProgressHandlerTests
         _h.MaxOverrunPercent = "5";
 
         var done = await PatchAsync(user.Id, job.Id, routing[1].Id, new(null, 3m, JobOperationStatus.Complete));
-        var overrun = await PatchAsync(user.Id, job.Id, routing[0].Id, new(42m, 1m, null));
-        var act = () => PatchAsync(user.Id, job.Id, routing[0].Id, new(43m, 1m, null));
+        var planned = await PatchAsync(user.Id, job.Id, routing[0].Id, new(44m, 1m, null));
+        var overrun = await PatchAsync(user.Id, job.Id, routing[2].Id, new(46m, null, null));
+        var act = () => PatchAsync(user.Id, job.Id, routing[0].Id, new(47m, 1m, null));
 
         done.Operation.CompletedQuantity.Should().Be(40m);
-        overrun.Operation.CompletedQuantity.Should().Be(42m);
+        planned.Operation.CompletedQuantity.Should().Be(44m);
+        overrun.Operation.CompletedQuantity.Should().Be(46m);
         (await _h.Timers.Db.JobActivityLogs.AsNoTracking()
             .Where(l => l.FieldName == "OperationStatus" && l.OperationId == routing[0].Id).SingleAsync())
-            .Description.Should().Contain("Overrun: 2 good over the target quantity of 40.");
-        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Single().ErrorCode.Should().Be(JobOverrun.LimitCode);
+            .Description.Should().NotContain("Overrun");
+        (await _h.Timers.Db.JobActivityLogs.AsNoTracking()
+            .Where(l => l.FieldName == "OperationStatus" && l.OperationId == routing[2].Id).SingleAsync())
+            .Description.Should().Contain("Overrun: 2 good over the start quantity of 44.");
+        var thrown = (await act.Should().ThrowAsync<ValidationException>()).Which;
+        thrown.Errors.Single().ErrorCode.Should().Be(JobOverrun.LimitCode);
+        thrown.Errors.Single().FormattedMessagePlaceholderValues["ComparisonValue"].Should().Be(46.2m);
+    }
+
+    [Fact]
+    public async Task AJobWithExtraPieces_PlansEveryStepAtTheStartQuantity()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(114m);
+        job.TargetQuantity = 100m;
+        job.ExtraPieces = 14;
+        routing[1].ScrapFactor = 0.5m;
+        await _h.Timers.Db.SaveChangesAsync();
+
+        var built = await _h.Operations.BuildAsync(job.Id, CancellationToken.None);
+
+        built.Operations.Select(o => o.PlannedQuantity).Should().AllBeEquivalentTo(114m);
+        built.TargetQuantity.Should().Be(100m);
     }
 
     [Fact]

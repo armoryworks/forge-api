@@ -3,12 +3,14 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.Inventory;
 using Forge.Api.Features.Lots;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Settings;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Jobs.ProductionRuns;
@@ -21,7 +23,8 @@ namespace Forge.Api.Features.Jobs.ProductionRuns;
 /// made for the run, else a new one with the next house lot number. Idempotent: a run already received to stock is a
 /// no-op (returns current state).
 /// </summary>
-public record ReceiveProductionRunToStockCommand(int JobId, int RunId, int ReceivedByUserId, int? LocationId = null)
+public record ReceiveProductionRunToStockCommand(
+    int JobId, int RunId, int ReceivedByUserId, int? LocationId = null, int? SurplusLocationId = null)
     : IRequest<ProductionRunResponseModel>;
 
 public class ReceiveProductionRunToStockHandler(
@@ -35,7 +38,8 @@ public class ReceiveProductionRunToStockHandler(
     // accounting context, and it no-ops while CAP-ACCT-FULLGL is off.
     IProductionReceiptPostingService? posting = null,
     IBackflushService? backflush = null,
-    IBarcodeService? barcodes = null)
+    IBarcodeService? barcodes = null,
+    ISettingsService? settings = null)
     : IRequestHandler<ReceiveProductionRunToStockCommand, ProductionRunResponseModel>
 {
     public const string MultiLocationCapability = "CAP-INV-MULTILOC";
@@ -77,45 +81,28 @@ public class ReceiveProductionRunToStockHandler(
             // Operational FG stock-in (not CAP-ACCT-FULLGL gated): find-or-create the active BinContent for
             // (part, bin, lot) and increment it, then record a Receive movement.
             string? binName = null;
+            string surplusNote = string.Empty;
             if (inventory is not null)
             {
                 var location = await ResolveReceivingBinAsync(
                     inventory, request.LocationId, run.Part.DefaultBinId, cancellationToken);
-                var locationId = location.Id;
                 binName = location.Name;
 
-                var existing = await inventory.FindActiveBinContentByPartLocationLotAsync(
-                    run.PartId, locationId, lotNumber, BinContentStatus.Stored, cancellationToken);
-                if (existing is not null)
-                {
-                    existing.Quantity += goodQty;
-                }
-                else
-                {
-                    await inventory.AddBinContentAsync(new BinContent
-                    {
-                        LocationId = locationId,
-                        EntityType = "part",
-                        EntityId = run.PartId,
-                        Quantity = goodQty,
-                        LotNumber = lotNumber,
-                        Status = BinContentStatus.Stored,
-                        PlacedBy = request.ReceivedByUserId,
-                        PlacedAt = receivedAt,
-                    }, cancellationToken);
-                }
+                var split = await SurplusStock.PlanAsync(
+                    db, settings, run.JobId, run.PartId, goodQty, request.SurplusLocationId, run.Id, cancellationToken);
+                var surplusQty = split.SurplusLocation is { } surplusBin && surplusBin.Id != location.Id
+                    ? (int)split.SurplusQuantity
+                    : 0;
 
-                await inventory.AddMovementAsync(new BinMovement
+                if (goodQty - surplusQty > 0)
+                    await StockAsync(inventory, run, location.Id, goodQty - surplusQty, lotNumber,
+                        request.ReceivedByUserId, receivedAt, cancellationToken);
+                if (surplusQty > 0)
                 {
-                    EntityType = "part",
-                    EntityId = run.PartId,
-                    Quantity = goodQty,
-                    LotNumber = lotNumber,
-                    ToLocationId = locationId,
-                    MovedBy = request.ReceivedByUserId,
-                    MovedAt = receivedAt,
-                    Reason = BinMovementReason.Receive,
-                }, cancellationToken);
+                    await StockAsync(inventory, run, split.SurplusLocation!.Id, surplusQty, lotNumber,
+                        request.ReceivedByUserId, receivedAt, cancellationToken);
+                    surplusNote = $" {surplusQty} beyond the order quantity went to the surplus location {split.SurplusLocation.Name}.";
+                }
             }
 
             run.ReceivedQuantity = goodQty;
@@ -128,7 +115,7 @@ public class ReceiveProductionRunToStockHandler(
                 Action = ActivityAction.StatusChanged,
                 Description = binName is null
                     ? $"Received {goodQty} of {run.Part.PartNumber} from run {run.RunNumber} to stock."
-                    : $"Received {goodQty} of {run.Part.PartNumber} from run {run.RunNumber} into {binName}.",
+                    : $"Received {goodQty} of {run.Part.PartNumber} from run {run.RunNumber} into {binName}.{surplusNote}",
                 CreatedAt = receivedAt,
             });
 
@@ -149,6 +136,44 @@ public class ReceiveProductionRunToStockHandler(
         }
 
         return await BuildResponseAsync(run, cancellationToken);
+    }
+
+    private static async Task StockAsync(
+        IInventoryRepository inventory, ProductionRun run, int locationId, int quantity, string? lotNumber,
+        int userId, DateTimeOffset at, CancellationToken ct)
+    {
+        var existing = await inventory.FindActiveBinContentByPartLocationLotAsync(
+            run.PartId, locationId, lotNumber, BinContentStatus.Stored, ct);
+        if (existing is not null)
+        {
+            existing.Quantity += quantity;
+        }
+        else
+        {
+            await inventory.AddBinContentAsync(new BinContent
+            {
+                LocationId = locationId,
+                EntityType = "part",
+                EntityId = run.PartId,
+                Quantity = quantity,
+                LotNumber = lotNumber,
+                Status = BinContentStatus.Stored,
+                PlacedBy = userId,
+                PlacedAt = at,
+            }, ct);
+        }
+
+        await inventory.AddMovementAsync(new BinMovement
+        {
+            EntityType = "part",
+            EntityId = run.PartId,
+            Quantity = quantity,
+            LotNumber = lotNumber,
+            ToLocationId = locationId,
+            MovedBy = userId,
+            MovedAt = at,
+            Reason = BinMovementReason.Receive,
+        }, ct);
     }
 
     /// <summary>The lot the run's output is stocked under: null unless the part is lot-tracked and CAP-INV-LOTS

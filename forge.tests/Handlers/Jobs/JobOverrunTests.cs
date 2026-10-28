@@ -28,6 +28,6 @@ public class JobOverrunTests
     public void Note_names_only_good_pieces_over_the_target()
     {
         JobOverrun.Note(40m, 40m).Should().BeEmpty();
-        JobOverrun.Note(40m, 43m).Should().Be(" Overrun: 3 good over the target quantity of 40.");
+        JobOverrun.Note(40m, 43m).Should().Be(" Overrun: 3 good over the start quantity of 40.");
     }
 }
