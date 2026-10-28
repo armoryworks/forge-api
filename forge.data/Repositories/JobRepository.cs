@@ -262,9 +262,10 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
         var makingByJobId = jobIds.Count > 0
             ? await db.Jobs
                 .Where(j => jobIds.Contains(j.Id))
-                .Select(j => new
+                .Select(ParameterReplacer.Bind(new JobListExpressions(db, default).PercentComplete, (Job j, decimal? percentComplete) => new
                 {
                     j.Id,
+                    PercentComplete = percentComplete,
                     PartNumber = j.Part != null ? j.Part.PartNumber : null,
                     Quantity = j.JobParts.Any(jp => jp.PartId == j.PartId)
                         ? (decimal?)j.JobParts.Where(jp => jp.PartId == j.PartId).Sum(jp => jp.Quantity)
@@ -273,7 +274,7 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
                             : j.PartId != null
                                 ? 1m
                                 : null,
-                })
+                }))
                 .ToDictionaryAsync(x => x.Id, ct)
             : [];
 
@@ -330,7 +331,8 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
                 CompletedDate: j.CompletedDate,
                 UpdatedAt: j.UpdatedAt,
                 EstimatedTotalCost: j.EstimatedTotalCost,
-                QuotedPrice: j.QuotedPrice);
+                QuotedPrice: j.QuotedPrice,
+                PercentComplete: making?.PercentComplete);
         }).ToList();
     }
 

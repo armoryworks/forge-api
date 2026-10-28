@@ -45,4 +45,5 @@ public record JobListResponseModel(
     DateTimeOffset? CompletedDate = null,
     DateTimeOffset? UpdatedAt = null,
     decimal? EstimatedTotalCost = null,
-    decimal? QuotedPrice = null);
+    decimal? QuotedPrice = null,
+    decimal? PercentComplete = null);

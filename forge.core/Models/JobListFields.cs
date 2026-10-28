@@ -30,6 +30,7 @@ public static class JobListFields
         new("parentJobNumber", JobListFieldKind.Text, JobListFieldGate.None),
         new("childJobCount", JobListFieldKind.Number, JobListFieldGate.None),
         new("disposition", JobListFieldKind.Enum, JobListFieldGate.None),
+        new("percentComplete", JobListFieldKind.Number, JobListFieldGate.None),
         new("customerName", JobListFieldKind.Text, JobListFieldGate.Customer),
         new("salesOrderNumber", JobListFieldKind.Text, JobListFieldGate.SalesOrder),
         new("billingStatus", JobListFieldKind.Enum, JobListFieldGate.Billing),

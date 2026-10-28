@@ -14,6 +14,56 @@ namespace Forge.Data.Repositories;
 /// </summary>
 internal sealed class JobListExpressions(AppDbContext db, DateTimeOffset startOfToday)
 {
+    private const JobOperationStatus NotStarted = JobOperationStatus.NotStarted;
+    private const JobOperationStatus Complete = JobOperationStatus.Complete;
+    private const JobOperationStatus Skipped = JobOperationStatus.Skipped;
+
+    private sealed class RoutingStepProgress
+    {
+        public JobOperationStatus Status { get; init; }
+        public bool Started { get; init; }
+        public decimal SetupMinutes { get; init; }
+        public decimal LotMinutes { get; init; }
+        public decimal EachMinutes { get; init; }
+        public decimal GoodQuantity { get; init; }
+        public decimal JobQuantity { get; init; }
+    }
+
+    public Expression<Func<Job, decimal?>> PercentComplete { get; } = ParameterReplacer.Bind<Job, IQueryable<RoutingStepProgress>, decimal?>(
+        j => db.Operations
+            .Where(o => o.PartId == j.PartId)
+            .SelectMany(
+                o => db.JobOperations.Where(r => r.JobId == j.Id && r.OperationId == o.Id).DefaultIfEmpty(),
+                (o, r) => new RoutingStepProgress
+                {
+                    Status = r != null ? r.Status : NotStarted,
+                    Started = r != null && (r.Status != NotStarted || r.CompletedQuantity > 0m || r.ScrapQuantity > 0m),
+                    SetupMinutes = r != null ? r.EstSetupMinutes : o.SetupMinutes,
+                    LotMinutes = r != null ? r.EstRunMinutesLot : o.RunMinutesLot,
+                    EachMinutes = r != null
+                        ? r.EstRunMinutesEach
+                        : o.RunMinutesEach > 0m ? o.RunMinutesEach : (decimal)(o.EstimatedMs ?? 0L) / 60000m,
+                    GoodQuantity = r != null ? r.CompletedQuantity : 0m,
+                    JobQuantity = j.TargetQuantity > 0m
+                        ? j.TargetQuantity.Value
+                        : db.JobParts.Where(jp => jp.JobId == j.Id && jp.PartId == j.PartId).Sum(jp => jp.Quantity) > 0m
+                            ? db.JobParts.Where(jp => jp.JobId == j.Id && jp.PartId == j.PartId).Sum(jp => jp.Quantity)
+                            : db.SalesOrderLines.Where(l => l.Id == j.SalesOrderLineId && l.Quantity > 0m).Select(l => (decimal?)l.Quantity).FirstOrDefault() ?? 1m,
+                }),
+        (j, steps) => j.CompletedDate != null
+            ? 100m
+            : !steps.Any()
+                ? null
+                : steps.Sum(s => s.SetupMinutes + s.LotMinutes + s.EachMinutes * s.JobQuantity) > 0m
+                    ? Math.Floor(Math.Min(100m, Math.Max(0m,
+                        100m * steps.Sum(s => s.Status == Complete || s.Status == Skipped
+                            ? s.SetupMinutes + s.LotMinutes + s.EachMinutes * s.JobQuantity
+                            : (s.Started ? s.SetupMinutes : 0m)
+                                + (s.EachMinutes + s.LotMinutes / s.JobQuantity)
+                                    * (s.GoodQuantity < s.JobQuantity ? s.GoodQuantity : s.JobQuantity))
+                        / steps.Sum(s => s.SetupMinutes + s.LotMinutes + s.EachMinutes * s.JobQuantity))))
+                    : Math.Floor(100m * steps.Count(s => s.Status == Complete || s.Status == Skipped) / steps.Count()));
+
     private static readonly Expression<Func<Job, decimal?>> QuantitySelector = j =>
         j.JobParts.Any(jp => jp.PartId == j.PartId)
             ? (decimal?)j.JobParts.Where(jp => jp.PartId == j.PartId).Sum(jp => jp.Quantity)
@@ -55,7 +105,7 @@ internal sealed class JobListExpressions(AppDbContext db, DateTimeOffset startOf
         _ => null,
     };
 
-    public static Expression<Func<Job, decimal?>>? Number(string key) => key switch
+    public Expression<Func<Job, decimal?>>? Number(string key) => key switch
     {
         "id" => j => j.Id,
         "quantity" => QuantitySelector,
@@ -66,6 +116,7 @@ internal sealed class JobListExpressions(AppDbContext db, DateTimeOffset startOf
         "priorityName" => j => (int)j.Priority,
         "disposition" => j => (int?)j.Disposition,
         "currentStageId" => j => j.CurrentStage.SortOrder,
+        "percentComplete" => PercentComplete,
         _ => null,
     };
 
