@@ -53,6 +53,7 @@ public static class SettingDescriptorCatalog
         list.AddRange(CreditMemoSettings.Descriptors);
         list.AddRange(QuickBooksItemSettings.Descriptors);
         list.AddRange(QuoteSettings.Descriptors);
+        list.AddRange(ToleranceSettings.Descriptors);
         list.AddRange(BankingSettings.Descriptors);
         list.AddRange(PayrollSettings.Descriptors);
         list.AddRange(NumberingSettings.Descriptors);

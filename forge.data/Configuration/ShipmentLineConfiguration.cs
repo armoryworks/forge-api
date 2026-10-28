@@ -14,6 +14,7 @@ public class ShipmentLineConfiguration : IEntityTypeConfiguration<ShipmentLine>
         builder.Property(e => e.IsHazmat).HasDefaultValueSql("false").ValueGeneratedNever();
         builder.Property(e => e.Notes).HasMaxLength(1000);
         builder.Property(e => e.Description).HasMaxLength(500);
+        builder.Property(e => e.OverToleranceReason).HasMaxLength(500);
         // Phase 3 / WU-23 (F8-broad): decimal(18,4) for UoM-aware fractional qty.
         builder.Property(e => e.Quantity).HasPrecision(18, 4);
         builder.Property(e => e.Weight).HasPrecision(12, 4);

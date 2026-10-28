@@ -161,8 +161,8 @@ public class RunAbcClassificationHandler(AppDbContext db, IClock clock) : IReque
             .Where(l => l.PartId != null
                 && l.SalesOrder!.Status != SalesOrderStatus.Cancelled
                 && l.SalesOrder!.Status != SalesOrderStatus.Completed
-                && l.Quantity - l.ShippedQuantity > 0)
-            .Select(l => new { PartId = l.PartId!.Value, Quantity = l.Quantity - l.ShippedQuantity })
+                && l.Quantity - l.ShippedQuantity - l.ShortClosedQuantity > 0)
+            .Select(l => new { PartId = l.PartId!.Value, Quantity = l.Quantity - l.ShippedQuantity - l.ShortClosedQuantity })
             .ToListAsync(cancellationToken);
 
         var bomByParent = (await db.BOMLines

@@ -11,6 +11,7 @@ public class SalesOrderLineConfiguration : IEntityTypeConfiguration<SalesOrderLi
         builder.Ignore(e => e.LineTotal);
         builder.Ignore(e => e.RemainingQuantity);
         builder.Ignore(e => e.IsFullyShipped);
+        builder.Ignore(e => e.ClosedWithinTolerance);
 
         builder.Property(e => e.Description).HasMaxLength(500);
         builder.Property(e => e.Notes).HasMaxLength(1000);
@@ -19,6 +20,10 @@ public class SalesOrderLineConfiguration : IEntityTypeConfiguration<SalesOrderLi
         builder.Property(e => e.Quantity).HasPrecision(18, 4);
         builder.Property(e => e.ShippedQuantity).HasPrecision(18, 4);
         builder.Property(e => e.UnitPrice).HasPrecision(18, 4);
+        builder.Property(e => e.OverShipTolerancePct).HasPrecision(6, 2);
+        builder.Property(e => e.UnderShipTolerancePct).HasPrecision(6, 2);
+        builder.Property(e => e.ShortClosedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
+        builder.Property(e => e.ShortCloseReason).HasMaxLength(200);
 
         builder.HasIndex(e => e.SalesOrderId);
         builder.HasIndex(e => e.PartId);

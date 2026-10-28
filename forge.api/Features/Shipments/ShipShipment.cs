@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Tolerances;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -100,7 +101,15 @@ public class ShipShipmentHandler(
                 .Include(o => o.Shipments).ThenInclude(s => s.Lines)
                 .FirstOrDefaultAsync(o => o.Id == shipment.SalesOrderId, cancellationToken);
             if (order is not null)
-                SalesOrderShipping.RecordShipped(order);
+            {
+                var closedLines = SalesOrderShipping.RecordShipped(
+                    order, await QuantityTolerances.ForSalesOrderAsync(db, order, cancellationToken));
+                foreach (var (closedLine, closedQuantity) in closedLines)
+                    db.LogActivityAt(
+                        "line-closed-within-tolerance",
+                        $"Line {closedLine.LineNumber} closed within tolerance: {closedLine.ShippedQuantity:0.####} of {closedLine.Quantity:0.####} shipped, {closedQuantity:0.####} closed",
+                        ("SalesOrder", order.Id));
+            }
         }
 
         // Transactional entity logs on itself (CLAUDE.md Activity-logging rules). Same scoped context as

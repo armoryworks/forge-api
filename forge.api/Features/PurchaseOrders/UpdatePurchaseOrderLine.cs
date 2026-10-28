@@ -6,6 +6,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Settings;
 
 namespace Forge.Api.Features.PurchaseOrders;
 
@@ -23,6 +24,8 @@ public class UpdatePurchaseOrderLineValidator : AbstractValidator<UpdatePurchase
         RuleFor(x => x.Data.Quantity).GreaterThan(0).UnitScale();
         RuleFor(x => x.Data.UnitPrice).GreaterThanOrEqualTo(0).UnitScale();
         RuleFor(x => x.Data.Description).MaximumLength(PurchaseOrderLine.DescriptionMaxLength);
+        RuleFor(x => x.Data.OverTolerancePct).InclusiveBetween(0m, ToleranceSettings.MaxOverPercent).When(x => x.Data.OverTolerancePct.HasValue);
+        RuleFor(x => x.Data.UnderTolerancePct).InclusiveBetween(0m, ToleranceSettings.MaxUnderPercent).When(x => x.Data.UnderTolerancePct.HasValue);
     }
 }
 
@@ -45,6 +48,10 @@ public class UpdatePurchaseOrderLineHandler(IPurchaseOrderRepository repo, IMedi
         line.UnitPrice = request.Data.UnitPrice;
         line.Notes = request.Data.Notes;
         line.PurchaseUnitId = request.Data.PurchaseUnitId;
+        if (request.Data.OverTolerancePct is decimal over)
+            line.OverReceiptTolerancePct = over;
+        if (request.Data.UnderTolerancePct is decimal under)
+            line.UnderReceiptTolerancePct = under;
 
         await repo.SaveChangesAsync(cancellationToken);
 

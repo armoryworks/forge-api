@@ -21,9 +21,30 @@ public class SalesOrderLine : BaseEntity
     public string? Notes { get; set; }
     public int? UomId { get; set; }
 
+    /// <summary>Over-ship tolerance for this line, in percent. Null = the customer's, then the company default.</summary>
+    public decimal? OverShipTolerancePct { get; set; }
+
+    /// <summary>Under-ship tolerance for this line, in percent. Null = the customer's, then the company default.</summary>
+    public decimal? UnderShipTolerancePct { get; set; }
+
+    /// <summary>
+    /// Quantity that will not ship because the line shipped inside its under-ship tolerance. It is no longer
+    /// open demand or back order; it is recomputed whenever the line's shipments change.
+    /// </summary>
+    public decimal ShortClosedQuantity { get; set; }
+
+    /// <summary>Why <see cref="ShortClosedQuantity"/> was set. <see cref="WithinToleranceReason"/> when a shipment inside the under-ship tolerance closed the line.</summary>
+    public string? ShortCloseReason { get; set; }
+
+    /// <summary>The <see cref="ShortCloseReason"/> recorded when shipping inside the under-ship tolerance closes the line.</summary>
+    public const string WithinToleranceReason = "Within tolerance";
+
     public decimal LineTotal => Quantity * UnitPrice;
-    public decimal RemainingQuantity => Quantity - ShippedQuantity;
-    public bool IsFullyShipped => ShippedQuantity >= Quantity;
+    public decimal RemainingQuantity => Quantity - ShippedQuantity - ShortClosedQuantity;
+    public bool IsFullyShipped => ShippedQuantity + ShortClosedQuantity >= Quantity;
+
+    /// <summary>True when the line was closed by shipping inside its under-ship tolerance.</summary>
+    public bool ClosedWithinTolerance => ShortClosedQuantity > 0 && ShortCloseReason == WithinToleranceReason;
 
     public bool ShipsGoods => LineType != DocumentLineType.Freight && Part?.InventoryClass != InventoryClass.Service;
 

@@ -34,4 +34,8 @@ public record UpdateCustomerRequestModel(
     int? PaymentTermsId = null,
     bool? RequiresCoa = null,
     int? DefaultTaxCodeId = null,
-    bool? ClearDefaultTaxCode = null);
+    bool? ClearDefaultTaxCode = null,
+    decimal? OverShipTolerancePct = null,
+    decimal? UnderShipTolerancePct = null,
+    bool? ClearOverShipTolerance = null,
+    bool? ClearUnderShipTolerance = null);

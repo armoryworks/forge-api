@@ -9,6 +9,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Settings;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.SalesOrders;
@@ -60,6 +61,8 @@ public class CreateSalesOrderValidator : AbstractValidator<CreateSalesOrderComma
             // Phase 3 / WU-10 — fractional quantity allowed; zero / negative not.
             line.RuleFor(l => l.Quantity).GreaterThan(0m);
             line.RuleFor(l => l.UnitPrice).GreaterThanOrEqualTo(0m);
+            line.RuleFor(l => l.OverShipTolerancePct).InclusiveBetween(0m, ToleranceSettings.MaxOverPercent).When(l => l.OverShipTolerancePct.HasValue);
+            line.RuleFor(l => l.UnderShipTolerancePct).InclusiveBetween(0m, ToleranceSettings.MaxUnderPercent).When(l => l.UnderShipTolerancePct.HasValue);
         });
     }
 }
@@ -180,6 +183,8 @@ public class CreateSalesOrderHandler(
                 LineNumber = lineNumber++,
                 Notes = line.Notes,
                 LineType = line.LineType,
+                OverShipTolerancePct = line.OverShipTolerancePct,
+                UnderShipTolerancePct = line.UnderShipTolerancePct,
                 TaxCode = !isFreight ? null
                     : db is null ? (line.Taxable == true ? FreightLines.TaxableCode : InvoiceLine.NonTaxableCode)
                     : await FreightLines.TaxCodeForAsync(db, request.CustomerId, (clock ?? new Forge.Integrations.SystemClock()).UtcNow, line.Taxable, cancellationToken),

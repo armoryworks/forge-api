@@ -60,7 +60,7 @@ public class OnPurchaseOrderReceived_CheckMaterialReady(
                 var receivedByPart = allPoLinesForJob
                     .Where(l => l.PartId != null)
                     .GroupBy(l => l.PartId!.Value)
-                    .ToDictionary(g => g.Key, g => g.All(l => l.ReceivedQuantity >= l.OrderedQuantity));
+                    .ToDictionary(g => g.Key, g => g.All(l => l.ReceivedQuantity + l.CancelledShortCloseQuantity >= l.OrderedQuantity));
 
                 // Check if all BOM buy-type materials have been fully received
                 var allBomMaterialsReady = buyBomLines.All(bom =>
@@ -80,7 +80,7 @@ public class OnPurchaseOrderReceived_CheckMaterialReady(
 
             var allFullyReceived = allPosForJob
                 .SelectMany(p => p.Lines)
-                .All(line => line.ReceivedQuantity >= line.OrderedQuantity);
+                .All(line => line.ReceivedQuantity + line.CancelledShortCloseQuantity >= line.OrderedQuantity);
 
             if (!allFullyReceived) return;
         }

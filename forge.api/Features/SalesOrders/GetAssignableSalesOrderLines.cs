@@ -64,6 +64,7 @@ public class GetAssignableSalesOrderLinesHandler(AppDbContext db, ISalesOrderAcc
                 l.Description,
                 l.Quantity,
                 l.ShippedQuantity,
+                l.ShortClosedQuantity,
                 OnLiveShipments = l.ShipmentLines
                     .Where(sl => sl.Shipment.Status != ShipmentStatus.Cancelled)
                     .Sum(sl => (decimal?)sl.Quantity) ?? 0m,
@@ -97,7 +98,7 @@ public class GetAssignableSalesOrderLinesHandler(AppDbContext db, ISalesOrderAcc
                 r.UomId.HasValue && r.PartStockUomId.HasValue && r.UomId != r.PartStockUomId
                     ? null
                     : SalesOrderLineDefaultQuantity.Remaining(
-                        r.Quantity, Math.Max(r.ShippedQuantity, r.OnLiveShipments), r.OnJobsInProgress, r.OnCompletedJobs),
+                        r.Quantity - r.ShortClosedQuantity, Math.Max(r.ShippedQuantity, r.OnLiveShipments), r.OnJobsInProgress, r.OnCompletedJobs),
                 r.RequestedDeliveryDate))
             .ToList();
     }

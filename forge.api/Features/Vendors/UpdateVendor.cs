@@ -6,6 +6,7 @@ using Forge.Api.Workflows;
 using Forge.Api.Services.Fx;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Core.Settings;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
 
@@ -35,7 +36,11 @@ public record UpdateVendorCommand(
     bool? ClearCurrency = null,
     int? PaymentTermsId = null,
     AutoPoMode? AutoPoMode = null,
-    bool? ClearAutoPoMode = null) : IRequest;
+    bool? ClearAutoPoMode = null,
+    decimal? OverReceiptTolerancePct = null,
+    decimal? UnderReceiptTolerancePct = null,
+    bool? ClearOverReceiptTolerance = null,
+    bool? ClearUnderReceiptTolerance = null) : IRequest;
 
 public class UpdateVendorValidator : AbstractValidator<UpdateVendorCommand>
 {
@@ -49,6 +54,14 @@ public class UpdateVendorValidator : AbstractValidator<UpdateVendorCommand>
             .InclusiveBetween(0m, 100m)
             .When(x => x.OffTierVariancePct.HasValue)
             .WithMessage("Off-tier variance % must be between 0 and 100.");
+        RuleFor(x => x.OverReceiptTolerancePct)
+            .InclusiveBetween(0m, ToleranceSettings.MaxOverPercent)
+            .When(x => x.OverReceiptTolerancePct.HasValue)
+            .WithMessage("Over-receipt tolerance % must be between 0 and 999.99.");
+        RuleFor(x => x.UnderReceiptTolerancePct)
+            .InclusiveBetween(0m, ToleranceSettings.MaxUnderPercent)
+            .When(x => x.UnderReceiptTolerancePct.HasValue)
+            .WithMessage("Under-receipt tolerance % must be between 0 and 100.");
         RuleFor(x => x.TaxId).MaximumLength(32).When(x => x.TaxId != null);
         RuleFor(x => x.Fax).MaximumLength(50).When(x => x.Fax != null);
         RuleFor(x => x.AutoPoMode).IsInEnum().When(x => x.AutoPoMode.HasValue);
@@ -167,6 +180,18 @@ public class UpdateVendorHandler(
         {
             vendor.OffTierVariancePct = request.OffTierVariancePct;
             changedFields.Add("offTierVariancePct");
+        }
+        var overReceipt = request.ClearOverReceiptTolerance == true ? null : request.OverReceiptTolerancePct ?? vendor.OverReceiptTolerancePct;
+        if (overReceipt != vendor.OverReceiptTolerancePct)
+        {
+            vendor.OverReceiptTolerancePct = overReceipt;
+            changedFields.Add("overReceiptTolerancePct");
+        }
+        var underReceipt = request.ClearUnderReceiptTolerance == true ? null : request.UnderReceiptTolerancePct ?? vendor.UnderReceiptTolerancePct;
+        if (underReceipt != vendor.UnderReceiptTolerancePct)
+        {
+            vendor.UnderReceiptTolerancePct = underReceipt;
+            changedFields.Add("underReceiptTolerancePct");
         }
         if (request.AutoPoMode.HasValue || request.ClearAutoPoMode == true)
         {

@@ -143,7 +143,9 @@ public class CustomersController(IMediator mediator) : ControllerBase
         var changesCommercialTerms = request.IsTaxExempt.HasValue || request.TaxExemptionId is not null
             || request.CreditLimit.HasValue || request.ClearCreditLimit == true
             || request.DefaultCreditTerms is not null || request.ClearDefaultCreditTerms == true
-            || request.DefaultTaxCodeId.HasValue || request.ClearDefaultTaxCode == true;
+            || request.DefaultTaxCodeId.HasValue || request.ClearDefaultTaxCode == true
+            || request.OverShipTolerancePct.HasValue || request.ClearOverShipTolerance == true
+            || request.UnderShipTolerancePct.HasValue || request.ClearUnderShipTolerance == true;
         if (changesCommercialTerms && !CommercialTermsRoles.Any(User.IsInRole))
             return Forbid();
 
@@ -170,7 +172,11 @@ public class CustomersController(IMediator mediator) : ControllerBase
             PaymentTermsId: request.PaymentTermsId,
             RequiresCoa: request.RequiresCoa,
             DefaultTaxCodeId: request.DefaultTaxCodeId,
-            ClearDefaultTaxCode: request.ClearDefaultTaxCode));
+            ClearDefaultTaxCode: request.ClearDefaultTaxCode,
+            OverShipTolerancePct: request.OverShipTolerancePct,
+            UnderShipTolerancePct: request.UnderShipTolerancePct,
+            ClearOverShipTolerance: request.ClearOverShipTolerance,
+            ClearUnderShipTolerance: request.ClearUnderShipTolerance));
         return NoContent();
     }
 

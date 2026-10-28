@@ -69,7 +69,7 @@ public class CreateReservationHandler(
 
             var alreadyReserved = (await SalesOrderLineReservations.ReservedByLineAsync(db, [salesOrderLineId], ct))
                 .GetValueOrDefault(salesOrderLineId);
-            var stillOpen = salesOrderLine.Quantity - salesOrderLine.ShippedQuantity - alreadyReserved;
+            var stillOpen = salesOrderLine.Quantity - salesOrderLine.ShippedQuantity - salesOrderLine.ShortClosedQuantity - alreadyReserved;
             if (data.Quantity > stillOpen)
                 throw new InvalidOperationException(
                     $"Cannot reserve {data.Quantity:0.####} for line {salesOrderLine.LineNumber} of sales order {salesOrderLine.SalesOrder.OrderNumber}: only {Math.Max(stillOpen, 0):0.####} is still open and unreserved.");

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Auth;
 using Forge.Api.Features.Jobs;
+using Forge.Api.Features.Tolerances;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -184,6 +185,8 @@ public class ReverseScanActionHandler(
         var po = line.PurchaseOrder;
         line.ReceivedQuantity -= receipt.QuantityReceived;
         receipt.DeletedAt = now;
+        PurchaseLineTolerance.ApplyAfterReceipt(
+            line, await QuantityTolerances.ForPurchaseLineAsync(db, line, po.VendorId, ct));
 
         if (po.Status is PurchaseOrderStatus.Received or PurchaseOrderStatus.PartiallyReceived
             && po.Lines.Any(l => l.RemainingQuantity > 0))

@@ -19,6 +19,7 @@ public class ShipmentLine : BaseEntity
     public string? SerialNumbers { get; set; }
     // BE-1 / F-030: set exactly once when inventory is relieved for this line (idempotency guard).
     public DateTimeOffset? InventoryRelievedAt { get; set; }
+    public string? OverToleranceReason { get; set; }
 
     public Shipment Shipment { get; set; } = null!;
     public SalesOrderLine? SalesOrderLine { get; set; }

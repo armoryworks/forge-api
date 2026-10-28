@@ -29,4 +29,6 @@ public record VendorDetailResponseModel(
     bool CurrencyLocked = false,
     int? PaymentTermsId = null,
     PaymentTermsModel? PaymentTermsDetail = null,
-    string? AutoPoMode = null);
+    string? AutoPoMode = null,
+    decimal? OverReceiptTolerancePct = null,
+    decimal? UnderReceiptTolerancePct = null);

@@ -64,6 +64,8 @@ public class GetVendorByIdHandler(IVendorRepository repo, AppDbContext? db = nul
             db is not null && await PartyCurrency.VendorHasPostedDocumentsAsync(db, vendor.Id, cancellationToken),
             vendor.PaymentTermsId,
             db is null ? null : await new PaymentTermsResolver(db).ModelAsync(vendor.PaymentTermsId, null, cancellationToken),
-            vendor.AutoPoMode?.ToString());
+            vendor.AutoPoMode?.ToString(),
+            vendor.OverReceiptTolerancePct,
+            vendor.UnderReceiptTolerancePct);
     }
 }

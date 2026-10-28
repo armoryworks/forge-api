@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +10,7 @@ using Forge.Api.Workflows;
 using Forge.Api.Services.Fx;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Core.Settings;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
 
@@ -44,7 +47,11 @@ public record UpdateCustomerCommand(
     int? PaymentTermsId = null,
     bool? RequiresCoa = null,
     int? DefaultTaxCodeId = null,
-    bool? ClearDefaultTaxCode = null) : IRequest;
+    bool? ClearDefaultTaxCode = null,
+    decimal? OverShipTolerancePct = null,
+    decimal? UnderShipTolerancePct = null,
+    bool? ClearOverShipTolerance = null,
+    bool? ClearUnderShipTolerance = null) : IRequest;
 
 public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
 {
@@ -82,6 +89,14 @@ public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
             .Null()
             .When(x => x.ClearDefaultTaxCode == true)
             .WithMessage("Send either a default tax code or ClearDefaultTaxCode, not both.");
+        RuleFor(x => x.OverShipTolerancePct)
+            .InclusiveBetween(0m, ToleranceSettings.MaxOverPercent)
+            .When(x => x.OverShipTolerancePct.HasValue)
+            .WithMessage("Over-ship tolerance % must be between 0 and 999.99.");
+        RuleFor(x => x.UnderShipTolerancePct)
+            .InclusiveBetween(0m, ToleranceSettings.MaxUnderPercent)
+            .When(x => x.UnderShipTolerancePct.HasValue)
+            .WithMessage("Under-ship tolerance % must be between 0 and 100.");
         RuleFor(x => x.FreightTerms).IsInEnum().When(x => x.FreightTerms is not null);
         RuleFor(x => x.FreightTerms)
             .Null()
@@ -270,6 +285,18 @@ public class UpdateCustomerHandler(
         {
             customer.IsItarControlled = request.IsItarControlled.Value;
             changedFields.Add($"isItarControlled: {customer.IsItarControlled}");
+        }
+        var overShip = request.ClearOverShipTolerance == true ? null : request.OverShipTolerancePct ?? customer.OverShipTolerancePct;
+        if (overShip != customer.OverShipTolerancePct)
+        {
+            customer.OverShipTolerancePct = overShip;
+            changedFields.Add($"overShipTolerancePct: {overShip?.ToString("0.##", CultureInfo.InvariantCulture) ?? "default"}");
+        }
+        var underShip = request.ClearUnderShipTolerance == true ? null : request.UnderShipTolerancePct ?? customer.UnderShipTolerancePct;
+        if (underShip != customer.UnderShipTolerancePct)
+        {
+            customer.UnderShipTolerancePct = underShip;
+            changedFields.Add($"underShipTolerancePct: {underShip?.ToString("0.##", CultureInfo.InvariantCulture) ?? "default"}");
         }
         if (request.RequiresCoa.HasValue && request.RequiresCoa.Value != customer.RequiresCoa)
         {

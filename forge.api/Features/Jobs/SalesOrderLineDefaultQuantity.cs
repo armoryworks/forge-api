@@ -19,7 +19,7 @@ public static class SalesOrderLineDefaultQuantity
             {
                 l.PartId,
                 l.UomId,
-                l.Quantity,
+                Quantity = l.Quantity - l.ShortClosedQuantity,
                 l.ShippedQuantity,
                 OnLiveShipments = l.ShipmentLines
                     .Where(sl => sl.Shipment.Status != ShipmentStatus.Cancelled)

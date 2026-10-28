@@ -27,4 +27,8 @@ public record UpdateVendorRequestModel(
     bool? ClearCurrency = null,
     int? PaymentTermsId = null,
     AutoPoMode? AutoPoMode = null,
-    bool? ClearAutoPoMode = null);
+    bool? ClearAutoPoMode = null,
+    decimal? OverReceiptTolerancePct = null,
+    decimal? UnderReceiptTolerancePct = null,
+    bool? ClearOverReceiptTolerance = null,
+    bool? ClearUnderReceiptTolerance = null);

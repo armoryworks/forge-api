@@ -90,6 +90,8 @@ public class GetCustomerSummaryHandler(AppDbContext db, IClock clock)
             customer.PaymentTermsId,
             await new PaymentTermsResolver(db).ModelAsync(customer.PaymentTermsId, customer.DefaultCreditTerms, ct),
             customer.RequiresCoa,
-            customer.DefaultTaxCodeId);
+            customer.DefaultTaxCodeId,
+            customer.OverShipTolerancePct,
+            customer.UnderShipTolerancePct);
     }
 }

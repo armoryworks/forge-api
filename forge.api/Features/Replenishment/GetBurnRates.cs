@@ -86,11 +86,12 @@ public class GetBurnRatesHandler(AppDbContext db, IPartSourcingResolver sourcing
             .Where(l => l.PartId != null
                 && partIds.Contains(l.PartId.Value)
                 && l.PurchaseOrder.DeletedAt == null
-                && openStatuses.Contains(l.PurchaseOrder.Status))
+                && openStatuses.Contains(l.PurchaseOrder.Status)
+                && l.OrderedQuantity - l.ReceivedQuantity - l.CancelledShortCloseQuantity > 0)
             .Select(l => new
             {
                 PartId = l.PartId!.Value,
-                RemainingQty = (decimal)(l.OrderedQuantity - l.ReceivedQuantity),
+                RemainingQty = (decimal)(l.OrderedQuantity - l.ReceivedQuantity - l.CancelledShortCloseQuantity),
                 ExpectedDate = l.PurchaseOrder.ExpectedDeliveryDate,
             })
             .ToListAsync(cancellationToken);

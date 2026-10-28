@@ -91,7 +91,7 @@ public class AutoPurchaseOrderJob(
             .Where(l => l.PartId != null
                 && l.SalesOrder.DeletedAt == null
                 && ActiveSoStatuses.Contains(l.SalesOrder.Status)
-                && l.Quantity > l.ShippedQuantity)
+                && l.Quantity > l.ShippedQuantity + l.ShortClosedQuantity)
             .ToListAsync(ct);
 
         if (activeSOLines.Count == 0)
@@ -141,7 +141,7 @@ public class AutoPurchaseOrderJob(
             if (!soLine.PartId.HasValue || !bomByParent.TryGetValue(soLine.PartId.Value, out var bomLines))
                 continue;
 
-            var remainingQty = soLine.Quantity - soLine.ShippedQuantity;
+            var remainingQty = soLine.Quantity - soLine.ShippedQuantity - soLine.ShortClosedQuantity;
             var deliveryDate = soLine.SalesOrder.RequestedDeliveryDate;
 
             foreach (var bom in bomLines)
@@ -201,9 +201,10 @@ public class AutoPurchaseOrderJob(
             .Where(l => l.PartId != null
                 && childPartIds.Contains(l.PartId.Value)
                 && l.PurchaseOrder.DeletedAt == null
-                && OpenPoStatuses.Contains(l.PurchaseOrder.Status))
+                && OpenPoStatuses.Contains(l.PurchaseOrder.Status)
+                && l.OrderedQuantity - l.ReceivedQuantity - l.CancelledShortCloseQuantity > 0)
             .GroupBy(l => l.PartId!.Value)
-            .Select(g => new { PartId = g.Key, InTransit = g.Sum(l => l.OrderedQuantity - l.ReceivedQuantity) })
+            .Select(g => new { PartId = g.Key, InTransit = g.Sum(l => l.OrderedQuantity - l.ReceivedQuantity - l.CancelledShortCloseQuantity) })
             .ToDictionaryAsync(x => x.PartId, x => x.InTransit, ct);
 
         // 8. Check for existing pending suggestions to avoid duplicates

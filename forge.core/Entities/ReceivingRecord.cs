@@ -63,6 +63,12 @@ public class ReceivingRecord : BaseAuditableEntity
     /// </summary>
     public decimal FxRate { get; set; } = 1m;
 
+    /// <summary>
+    /// The reason a manager gave for accepting this receipt above the line's over-receipt tolerance.
+    /// Null for every receipt inside the tolerance.
+    /// </summary>
+    public string? OverToleranceReason { get; set; }
+
     public PurchaseOrderLine PurchaseOrderLine { get; set; } = null!;
     public StorageLocation? StorageLocation { get; set; }
 }

@@ -54,6 +54,8 @@ public static partial class CustomerMapper
     [MapperIgnoreSource(nameof(Customer.IsReferenceOk))]
     [MapperIgnoreSource(nameof(Customer.ReferenceNotes))]
     [MapperIgnoreSource(nameof(Customer.RequiresCoa))]
+    [MapperIgnoreSource(nameof(Customer.OverShipTolerancePct))]
+    [MapperIgnoreSource(nameof(Customer.UnderShipTolerancePct))]
     [MapperIgnoreSource(nameof(Customer.Version))]
     [MapperIgnoreSource(nameof(BaseAuditableEntity.CreatedAt))]
     [MapperIgnoreSource(nameof(BaseAuditableEntity.UpdatedAt))]

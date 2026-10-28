@@ -6,4 +6,6 @@ public record ReceivePurchaseOrderRequestModel(
     int? LocationId,
     string? LotNumber,
     string? Notes,
-    DateTimeOffset? ExpirationDate = null);
+    DateTimeOffset? ExpirationDate = null,
+    bool ConfirmOverTolerance = false,
+    string? OverToleranceReason = null);

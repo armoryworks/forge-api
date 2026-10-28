@@ -2,12 +2,14 @@ using System.Globalization;
 
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Settings;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
 
@@ -30,6 +32,8 @@ public class AddPurchaseOrderLineValidator : AbstractValidator<AddPurchaseOrderL
         RuleFor(x => x.Data.Notes).MaximumLength(1000);
         RuleFor(x => x.Data.Quantity).GreaterThan(0m).UnitScale();
         RuleFor(x => x.Data.UnitPrice).GreaterThanOrEqualTo(0m).UnitScale();
+        RuleFor(x => x.Data.OverReceiptTolerancePct).InclusiveBetween(0m, ToleranceSettings.MaxOverPercent).When(x => x.Data.OverReceiptTolerancePct.HasValue);
+        RuleFor(x => x.Data.UnderReceiptTolerancePct).InclusiveBetween(0m, ToleranceSettings.MaxUnderPercent).When(x => x.Data.UnderReceiptTolerancePct.HasValue);
     }
 }
 
@@ -60,6 +64,11 @@ public class AddPurchaseOrderLineHandler(
             ? PurchaseOrderLine.ClipDescription(part?.Description ?? part?.Name)
             : data.Description.Trim();
 
+        var vendorTolerance = await db.Vendors.AsNoTracking()
+            .Where(v => v.Id == po.VendorId)
+            .Select(v => new { v.OverReceiptTolerancePct, v.UnderReceiptTolerancePct })
+            .FirstOrDefaultAsync(cancellationToken);
+
         po.Lines.Add(new PurchaseOrderLine
         {
             PartId = data.PartId,
@@ -69,6 +78,8 @@ public class AddPurchaseOrderLineHandler(
             Notes = data.Notes,
             PurchaseUnitId = data.PurchaseUnitId,
             ManualOverrideReason = data.ManualOverrideReason,
+            OverReceiptTolerancePct = data.OverReceiptTolerancePct ?? vendorTolerance?.OverReceiptTolerancePct,
+            UnderReceiptTolerancePct = data.UnderReceiptTolerancePct ?? vendorTolerance?.UnderReceiptTolerancePct,
         });
 
         db.LogActivityAt(

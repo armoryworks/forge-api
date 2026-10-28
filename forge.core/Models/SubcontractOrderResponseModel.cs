@@ -7,4 +7,10 @@ public record SubcontractOrderResponseModel(
     DateTimeOffset SentAt, DateTimeOffset? ExpectedReturnDate, DateTimeOffset? ReceivedAt,
     decimal? ReceivedQuantity, string Status,
     string? ShippingTrackingNumber, string? ReturnTrackingNumber, string? Notes,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    decimal ScrapQuantity = 0m,
+    decimal OverTolerancePct = 0m,
+    decimal UnderTolerancePct = 0m,
+    decimal MaxAcceptedQuantity = 0m,
+    decimal MinCompleteQuantity = 0m,
+    string? OverToleranceReason = null);

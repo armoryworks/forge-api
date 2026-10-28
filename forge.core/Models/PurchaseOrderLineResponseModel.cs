@@ -32,4 +32,12 @@ public record PurchaseOrderLineResponseModel(
     int? SalesOrderLineId = null,
     int? SalesOrderId = null,
     string? SalesOrderNumber = null,
-    int? SalesOrderLineNumber = null);
+    int? SalesOrderLineNumber = null,
+    decimal? LineOverReceiptTolerancePct = null,
+    decimal? LineUnderReceiptTolerancePct = null,
+    decimal OverReceiptTolerancePct = 0m,
+    decimal UnderReceiptTolerancePct = 0m,
+    decimal MaxReceivableQuantity = 0m,
+    decimal MinCompleteQuantity = 0m,
+    bool ClosedWithinTolerance = false,
+    string? ShortCloseReason = null);

@@ -29,7 +29,7 @@ public class GetReservableSalesOrderLinesHandler(AppDbContext db)
                 l.SalesOrder.OrderNumber,
                 l.LineNumber,
                 CustomerName = l.SalesOrder.Customer.CompanyName ?? l.SalesOrder.Customer.Name,
-                Open = l.Quantity - l.ShippedQuantity,
+                Open = l.Quantity - l.ShippedQuantity - l.ShortClosedQuantity,
                 l.SalesOrder.RequestedDeliveryDate,
             })
             .Take(200)

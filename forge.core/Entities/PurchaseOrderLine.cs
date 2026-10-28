@@ -53,6 +53,24 @@ public class PurchaseOrderLine : BaseEntity
     /// <summary>The sales order line a drop-ship or back-to-back PO line buys for. Null on stock purchases.</summary>
     public int? SalesOrderLineId { get; set; }
 
+    /// <summary>Over-receipt tolerance for this line, in percent. Copied from the vendor when the line is created; null = the vendor's, then the company default.</summary>
+    public decimal? OverReceiptTolerancePct { get; set; }
+
+    /// <summary>Under-receipt tolerance for this line, in percent. Copied from the vendor when the line is created; null = the vendor's, then the company default.</summary>
+    public decimal? UnderReceiptTolerancePct { get; set; }
+
+    /// <summary>
+    /// Why <see cref="CancelledShortCloseQuantity"/> was set on this line. <see cref="WithinToleranceReason"/>
+    /// marks a line closed by receiving inside its under-receipt tolerance; that close is recomputed if more arrives.
+    /// </summary>
+    public string? ShortCloseReason { get; set; }
+
+    /// <summary>The <see cref="ShortCloseReason"/> recorded when a receipt inside the under-receipt tolerance closes the line.</summary>
+    public const string WithinToleranceReason = "Within tolerance";
+
+    /// <summary>True when the line was closed by a receipt inside its under-receipt tolerance.</summary>
+    public bool ClosedWithinTolerance => CancelledShortCloseQuantity > 0 && ShortCloseReason == WithinToleranceReason;
+
     // Phase 3 / WU-14 — RemainingQuantity excludes cancelled-short-close so
     // a short-closed line reports 0 remaining, not the unreceived portion.
     public decimal RemainingQuantity => OrderedQuantity - ReceivedQuantity - CancelledShortCloseQuantity;

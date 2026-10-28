@@ -21,4 +21,12 @@ public record SalesOrderLineResponseModel(
     bool ShipsGoods = true,
     DocumentLineType LineType = DocumentLineType.Item,
     bool Taxable = true,
-    List<SalesOrderLinePurchaseModel>? Purchases = null);
+    List<SalesOrderLinePurchaseModel>? Purchases = null,
+    decimal? LineOverShipTolerancePct = null,
+    decimal? LineUnderShipTolerancePct = null,
+    decimal OverShipTolerancePct = 0m,
+    decimal UnderShipTolerancePct = 0m,
+    decimal MaxShippableQuantity = 0m,
+    decimal MinCompleteQuantity = 0m,
+    decimal ShortClosedQuantity = 0m,
+    bool ClosedWithinTolerance = false);

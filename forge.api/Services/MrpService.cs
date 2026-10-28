@@ -89,12 +89,12 @@ public class MrpService(
                     && l.SalesOrder!.Status != SalesOrderStatus.Completed
                     && l.PartId.HasValue
                     && partIds.Contains(l.PartId!.Value)
-                    && (l.Quantity - l.ShippedQuantity) > 0)
+                    && (l.Quantity - l.ShippedQuantity - l.ShortClosedQuantity) > 0)
                 .Select(l => new
                 {
                     l.Id,
                     PartId = l.PartId!.Value,
-                    Quantity = (decimal)(l.Quantity - l.ShippedQuantity),
+                    Quantity = (decimal)(l.Quantity - l.ShippedQuantity - l.ShortClosedQuantity),
                     RequiredDate = l.SalesOrder!.RequestedDeliveryDate ?? l.SalesOrder.ConfirmedDate ?? l.SalesOrder.CreatedAt.AddDays(30),
                 })
                 .ToListAsync(cancellationToken);
@@ -142,12 +142,12 @@ public class MrpService(
                     && l.PurchaseOrder!.Status != PurchaseOrderStatus.Closed
                     && l.PartId != null
                     && partIds.Contains(l.PartId.Value)
-                    && (l.OrderedQuantity - l.ReceivedQuantity) > 0)
+                    && (l.OrderedQuantity - l.ReceivedQuantity - l.CancelledShortCloseQuantity) > 0)
                 .Select(l => new
                 {
                     l.Id,
                     l.PartId,
-                    Quantity = (decimal)(l.OrderedQuantity - l.ReceivedQuantity),
+                    Quantity = (decimal)(l.OrderedQuantity - l.ReceivedQuantity - l.CancelledShortCloseQuantity),
                     AvailableDate = l.PurchaseOrder!.ExpectedDeliveryDate != null
                         ? l.PurchaseOrder.ExpectedDeliveryDate.Value
                         : l.PurchaseOrder.SubmittedDate != null
@@ -797,7 +797,7 @@ public class MrpService(
                 j.SalesOrderLine != null ? j.SalesOrderLine.PartId : null,
                 j.BomRevisionIdAtRelease,
                 j.MrpPlannedOrder != null ? (decimal?)j.MrpPlannedOrder.Quantity : null,
-                j.SalesOrderLine != null ? (decimal?)j.SalesOrderLine.Quantity : null,
+                j.SalesOrderLine != null ? (decimal?)(j.SalesOrderLine.Quantity - j.SalesOrderLine.ShortClosedQuantity) : null,
                 j.SalesOrderLine != null ? (decimal?)j.SalesOrderLine.ShippedQuantity : null,
                 j.JobParts.Any(jp => jp.PartId == j.PartId),
                 j.JobParts.Where(jp => jp.PartId == j.PartId).Sum(jp => (decimal?)jp.Quantity) ?? 0m,
@@ -1094,7 +1094,7 @@ public class MrpService(
                 || db.SalesOrderLines.Any(l => l.PartId == p.Id
                     && l.SalesOrder!.Status != SalesOrderStatus.Cancelled
                     && l.SalesOrder!.Status != SalesOrderStatus.Completed
-                    && (l.Quantity - l.ShippedQuantity) > 0))
+                    && (l.Quantity - l.ShippedQuantity - l.ShortClosedQuantity) > 0))
             .CountAsync(cancellationToken);
     }
 

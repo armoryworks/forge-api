@@ -18,4 +18,6 @@ public record CreateShipmentLineModel(
     int? SalesOrderLineId,
     decimal Quantity,
     string? Notes,
-    int? PartId = null);
+    int? PartId = null,
+    bool ConfirmOverTolerance = false,
+    string? OverToleranceReason = null);

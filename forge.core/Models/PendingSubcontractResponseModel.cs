@@ -10,6 +10,8 @@ public record PendingSubcontractResponseModel
     public int VendorId { get; init; }
     public string VendorName { get; init; } = string.Empty;
     public decimal Quantity { get; init; }
+    public decimal ReceivedQuantity { get; init; }
+    public decimal ScrapQuantity { get; init; }
     public DateTimeOffset SentAt { get; init; }
     public DateTimeOffset? ExpectedReturnDate { get; init; }
     public string Status { get; init; } = string.Empty;

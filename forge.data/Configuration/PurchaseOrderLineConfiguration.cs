@@ -10,6 +10,7 @@ public class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<PurchaseO
     {
         builder.Ignore(e => e.RemainingQuantity);
         builder.Ignore(e => e.UnreceivedQuantity);
+        builder.Ignore(e => e.ClosedWithinTolerance);
 
         builder.Property(e => e.Description).HasMaxLength(PurchaseOrderLine.DescriptionMaxLength);
         builder.Property(e => e.Notes).HasMaxLength(1000);
@@ -25,6 +26,9 @@ public class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<PurchaseO
         // Phase-2 STAGE-D 3-way match — quantity already billed (for open-GRNI tracking).
         builder.Property(e => e.BilledQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
         builder.Property(e => e.UnitPrice).HasPrecision(18, 4);
+        builder.Property(e => e.OverReceiptTolerancePct).HasPrecision(6, 2);
+        builder.Property(e => e.UnderReceiptTolerancePct).HasPrecision(6, 2);
+        builder.Property(e => e.ShortCloseReason).HasMaxLength(200);
 
         builder.HasIndex(e => e.PurchaseOrderId);
         builder.HasIndex(e => e.PartId);

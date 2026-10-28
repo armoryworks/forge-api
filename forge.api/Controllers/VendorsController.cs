@@ -57,7 +57,8 @@ public class VendorsController(IMediator mediator) : ControllerBase
             request.Country, request.PaymentTerms, request.Notes,
             request.Is1099, request.TaxId,
             request.VendorNumber, request.Fax,
-            request.CurrencyId, request.PaymentTermsId));
+            request.CurrencyId, request.PaymentTermsId,
+            request.OverReceiptTolerancePct, request.UnderReceiptTolerancePct));
         return CreatedAtAction(nameof(GetVendor), new { id = result.Id }, result);
     }
 
@@ -73,7 +74,9 @@ public class VendorsController(IMediator mediator) : ControllerBase
             request.Is1099, request.TaxId,
             request.VendorNumber, request.Fax,
             request.CurrencyId, request.ClearCurrency, request.PaymentTermsId,
-            request.AutoPoMode, request.ClearAutoPoMode));
+            request.AutoPoMode, request.ClearAutoPoMode,
+            request.OverReceiptTolerancePct, request.UnderReceiptTolerancePct,
+            request.ClearOverReceiptTolerance, request.ClearUnderReceiptTolerance));
         return NoContent();
     }
 

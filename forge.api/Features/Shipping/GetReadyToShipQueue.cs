@@ -33,7 +33,7 @@ public class GetReadyToShipQueueHandler(AppDbContext db)
             .Include(so => so.Lines).ThenInclude(l => l.Part)
             .Include(so => so.Shipments).ThenInclude(s => s.Lines)
             .Where(so => OpenStatuses.Contains(so.Status)
-                && so.Lines.Any(l => l.Quantity - l.ShippedQuantity > 0
+                && so.Lines.Any(l => l.Quantity - l.ShippedQuantity - l.ShortClosedQuantity > 0
                     && (l.Part == null || l.Part.InventoryClass != InventoryClass.Service)))
             .ToListAsync(ct);
 

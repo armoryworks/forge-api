@@ -12,6 +12,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Settings;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
 
@@ -60,6 +61,8 @@ public class CreatePurchaseOrderValidator : AbstractValidator<CreatePurchaseOrde
             // Phase 3 / WU-10 — Quantity is decimal; allow fractional values
             // (e.g. 0.5 lb of solder), but disallow zero / negative.
             line.RuleFor(l => l.Quantity).GreaterThan(0m).UnitScale();
+            line.RuleFor(l => l.OverReceiptTolerancePct).InclusiveBetween(0m, ToleranceSettings.MaxOverPercent).When(l => l.OverReceiptTolerancePct.HasValue);
+            line.RuleFor(l => l.UnderReceiptTolerancePct).InclusiveBetween(0m, ToleranceSettings.MaxUnderPercent).When(l => l.UnderReceiptTolerancePct.HasValue);
             line.RuleFor(l => l.UnitPrice).GreaterThanOrEqualTo(0m).UnitScale();
         });
         RuleFor(x => x.EstimatedFreight)
@@ -205,6 +208,8 @@ public class CreatePurchaseOrderHandler(
                 Notes = line.Notes,
                 PurchaseUnitId = line.PurchaseUnitId,
                 ManualOverrideReason = line.ManualOverrideReason,
+                OverReceiptTolerancePct = line.OverReceiptTolerancePct ?? vendor!.OverReceiptTolerancePct,
+                UnderReceiptTolerancePct = line.UnderReceiptTolerancePct ?? vendor!.UnderReceiptTolerancePct,
             });
         }
 

@@ -43,4 +43,6 @@ public record CustomerSummaryResponseModel(
     int? PaymentTermsId = null,
     PaymentTermsModel? PaymentTerms = null,
     bool RequiresCoa = false,
-    int? DefaultTaxCodeId = null);
+    int? DefaultTaxCodeId = null,
+    decimal? OverShipTolerancePct = null,
+    decimal? UnderShipTolerancePct = null);

@@ -156,7 +156,7 @@ public class GetEcoImpactHandler(AppDbContext db) : IRequestHandler<GetEcoImpact
         var lines = await db.SalesOrderLines.AsNoTracking()
             .Where(l => l.PartId == partId
                 && !ClosedSoStatuses.Contains(l.SalesOrder.Status)
-                && l.Quantity - l.ShippedQuantity > 0)
+                && l.Quantity - l.ShippedQuantity - l.ShortClosedQuantity > 0)
             .OrderBy(l => l.SalesOrder.OrderNumber).ThenBy(l => l.LineNumber)
             .Select(l => new
             {
@@ -165,7 +165,7 @@ public class GetEcoImpactHandler(AppDbContext db) : IRequestHandler<GetEcoImpact
                 l.Id,
                 l.LineNumber,
                 l.SalesOrder.Customer.Name,
-                Open = l.Quantity - l.ShippedQuantity,
+                Open = l.Quantity - l.ShippedQuantity - l.ShortClosedQuantity,
                 l.SalesOrder.Status,
             })
             .ToListAsync(ct);

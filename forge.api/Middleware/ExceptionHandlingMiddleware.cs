@@ -88,6 +88,23 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             });
             await context.Response.WriteAsync(json);
         }
+        catch (Features.Tolerances.QuantityToleranceException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Over tolerance",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = Features.Tolerances.QuantityToleranceException.Code;
+            problem.Extensions["tolerance"] = JsonSerializer.SerializeToElement(ex.Violation, CamelCaseEnums);
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
         catch (InvalidOperationException ex) when (IsFrameworkException(ex))
         {
             logger.LogError(ex, "Framework InvalidOperationException (e.g. EF Core query translation) — returning 500");

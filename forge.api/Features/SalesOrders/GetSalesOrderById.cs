@@ -5,6 +5,7 @@ using MediatR;
 
 using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Features.Shipments;
+using Forge.Api.Features.Tolerances;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -63,6 +64,8 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
         var subtotal = so.Lines.Sum(l => l.Quantity * l.UnitPrice);
 
         var lineIds = so.Lines.Select(l => l.Id).ToList();
+        var toleranceFor = await QuantityTolerances.ForSalesOrderAsync(db, so, cancellationToken);
+
         var purchases = (await db.PurchaseOrderLines.AsNoTracking()
                 .Where(l => l.SalesOrderLineId != null && lineIds.Contains(l.SalesOrderLineId.Value))
                 .OrderBy(l => l.PurchaseOrderId)
@@ -132,7 +135,15 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
                 l.ShipsGoods,
                 l.LineType,
                 l.TaxCode != InvoiceLine.NonTaxableCode,
-                purchases[l.Id].ToList()
+                purchases[l.Id].ToList(),
+                l.OverShipTolerancePct,
+                l.UnderShipTolerancePct,
+                toleranceFor(l).OverPercent,
+                toleranceFor(l).UnderPercent,
+                toleranceFor(l).MaxAccepted(l.Quantity),
+                toleranceFor(l).MinComplete(l.Quantity),
+                l.ShortClosedQuantity,
+                l.ClosedWithinTolerance
             )).ToList(),
             so.Shipments.Select(s => new SalesOrderShipmentModel(
                 s.Id,

@@ -37,4 +37,6 @@ public record CreatePurchaseOrderLineModel(
     int? PurchaseUnitId = null,
     // Optional reason captured when a user manually overrides the suggested
     // (vendor-tier) unit price. Null when the price was not overridden.
-    string? ManualOverrideReason = null);
+    string? ManualOverrideReason = null,
+    decimal? OverReceiptTolerancePct = null,
+    decimal? UnderReceiptTolerancePct = null);

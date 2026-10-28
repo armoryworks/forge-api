@@ -63,6 +63,22 @@ public class Vendor : BaseAuditableEntity, IActiveAware, IConcurrencyVersioned
     public decimal? OffTierVariancePct { get; set; }
 
     /// <summary>
+    /// Per-vendor over-receipt tolerance, in percent of the ordered quantity. A receipt may bring a line up
+    /// to ordered × (1 + this / 100) without an override; above that a manager must confirm it with a reason.
+    /// New purchase-order lines copy it. Null falls back to the system-wide default in <c>SystemSetting</c>
+    /// key <c>purchasing.over-receipt-percent</c> (0 out of the box).
+    /// </summary>
+    public decimal? OverReceiptTolerancePct { get; set; }
+
+    /// <summary>
+    /// Per-vendor under-receipt tolerance, in percent of the ordered quantity. Once a line has received at
+    /// least ordered × (1 − this / 100) it is complete and the rest is short-closed "within tolerance"
+    /// instead of staying on back order. New purchase-order lines copy it. Null falls back to the
+    /// system-wide default in <c>SystemSetting</c> key <c>purchasing.under-receipt-percent</c> (0 out of the box).
+    /// </summary>
+    public decimal? UnderReceiptTolerancePct { get; set; }
+
+    /// <summary>
     /// Marks the vendor as a 1099 payee — an unincorporated contractor/service
     /// provider whose calendar-year payments must be reported to the IRS on a
     /// Form 1099-NEC. Drives inclusion in the 1099 report; false by default.

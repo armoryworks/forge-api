@@ -147,11 +147,12 @@ public class ReorderAnalysisJob(
                 .Where(l => l.PartId != null
                     && partIds.Contains(l.PartId.Value)
                     && l.PurchaseOrder.DeletedAt == null
-                    && OpenPoStatuses.Contains(l.PurchaseOrder.Status))
+                    && OpenPoStatuses.Contains(l.PurchaseOrder.Status)
+                    && l.OrderedQuantity - l.ReceivedQuantity - l.CancelledShortCloseQuantity > 0)
                 .Select(l => new
                 {
                     PartId = l.PartId!.Value,
-                    RemainingQty = (decimal)(l.OrderedQuantity - l.ReceivedQuantity),
+                    RemainingQty = (decimal)(l.OrderedQuantity - l.ReceivedQuantity - l.CancelledShortCloseQuantity),
                     l.PurchaseOrder.ExpectedDeliveryDate,
                 })
                 .ToListAsync(ct);

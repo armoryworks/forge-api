@@ -20,4 +20,6 @@ public record ReceiveLineModel(
     string? Notes,
     decimal? ManualFreight = null,
     string? LotNumber = null,
-    DateTimeOffset? ExpirationDate = null);
+    DateTimeOffset? ExpirationDate = null,
+    bool ConfirmOverTolerance = false,
+    string? OverToleranceReason = null);

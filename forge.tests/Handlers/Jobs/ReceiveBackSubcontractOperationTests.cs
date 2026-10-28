@@ -4,6 +4,7 @@ using Moq;
 
 using Forge.Api.Features.Jobs;
 using Forge.Api.Features.Jobs.Operations;
+using Forge.Api.Features.Tolerances;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -85,8 +86,8 @@ public class ReceiveBackSubcontractOperationTests
 
         var act = () => ReceiveAsync(order.Id, good: 9m, scrap: 2m);
 
-        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
-            .Which.Errors.Single().ErrorMessage.Should().Contain("10");
+        (await act.Should().ThrowAsync<QuantityToleranceException>())
+            .Which.Violation.MaxAccepted.Should().Be(10m);
         var after = await _h.Timers.Db.SubcontractOrders.AsNoTracking().SingleAsync();
         after.ReceivedAt.Should().BeNull();
         after.ReceivedQuantity.Should().BeNull();
@@ -221,7 +222,7 @@ public class ReceiveBackSubcontractOperationTests
     }
 
     [Fact]
-    public async Task FullLotOnTopOfEarlierProgress_StopsAtTheJobQuantityAndStaysEditable()
+    public async Task FullLotOnTopOfEarlierProgress_CountsEveryGoodPieceAndStaysEditable()
     {
         var (job, operation, order) = await SeedAsync(withOperationRow: true);
         var row = await _h.Timers.Db.JobOperations.SingleAsync();
@@ -232,13 +233,13 @@ public class ReceiveBackSubcontractOperationTests
         await ReceiveAsync(order.Id, good: 9m, scrap: 1m);
 
         var after = await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync();
-        after.CompletedQuantity.Should().Be(10m);
+        after.CompletedQuantity.Should().Be(13m);
         after.ScrapQuantity.Should().Be(1m);
         after.Status.Should().Be(JobOperationStatus.Complete);
         var log = await _h.Timers.Db.JobActivityLogs.AsNoTracking()
             .SingleAsync(a => a.FieldName == "OperationStatus");
-        log.NewValue.Should().Be("Complete 10/10 (1 scrap)");
-        log.Description.Should().Contain("3 good over the job quantity not counted");
+        log.NewValue.Should().Be("Complete 13/10 (1 scrap)");
+        log.Description.Should().NotContain("not counted");
 
         var user = await _h.Timers.AddUserAsync();
         _h.Timers.Db.ChangeTracker.Clear();

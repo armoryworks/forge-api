@@ -20,4 +20,6 @@ public record CreateVendorRequestModel(
     string? VendorNumber = null,
     string? Fax = null,
     int? CurrencyId = null,
-    int? PaymentTermsId = null);
+    int? PaymentTermsId = null,
+    decimal? OverReceiptTolerancePct = null,
+    decimal? UnderReceiptTolerancePct = null);

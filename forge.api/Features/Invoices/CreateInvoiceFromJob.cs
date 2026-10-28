@@ -15,7 +15,8 @@ namespace Forge.Api.Features.Invoices;
 /// Drafts the invoice for a completed job through <see cref="CreateInvoiceCommand"/>, so it gets
 /// the same numbering, order link, shipped-quantity guard and sync as any other invoice. The
 /// price comes from the job's sales-order line (that line's price and its not-yet-invoiced
-/// quantity, at the order's tax rate) or, for a job with no order line, from the job's quoted
+/// quantity — what it shipped once anything has shipped, so an under- or over-shipment inside tolerance
+/// bills what actually left, else what it ordered — at the order's tax rate) or, for a job with no order line, from the job's quoted
 /// price at the customer's default tax rate. A job with neither is refused rather than drafted
 /// at 0.00, because an invoice cannot be repriced after it is created. Credit terms come from the
 /// order, then the customer's default, then Net 30, and the due date follows those terms.
@@ -114,12 +115,21 @@ public class CreateInvoiceFromJobHandler(AppDbContext db, IMediator mediator, IC
         if (orderLine.PartId is not int partId)
             return orderLine.Quantity;
 
-        var orderedForPart = await db.SalesOrderLines
-            .Where(l => l.SalesOrderId == orderLine.SalesOrderId && l.PartId == partId)
-            .SumAsync(l => l.Quantity, ct);
         var invoicedForPart = await db.InvoiceLines
             .Where(l => l.PartId == partId && l.Invoice.SalesOrderId == orderLine.SalesOrderId
                 && l.Invoice.Status != InvoiceStatus.Voided)
+            .SumAsync(l => l.Quantity, ct);
+
+        if (orderLine.ShippedQuantity > 0m)
+        {
+            var shippedForPart = await db.SalesOrderLines
+                .Where(l => l.SalesOrderId == orderLine.SalesOrderId && l.PartId == partId)
+                .SumAsync(l => l.ShippedQuantity, ct);
+            return Math.Min(orderLine.ShippedQuantity, shippedForPart - invoicedForPart);
+        }
+
+        var orderedForPart = await db.SalesOrderLines
+            .Where(l => l.SalesOrderId == orderLine.SalesOrderId && l.PartId == partId)
             .SumAsync(l => l.Quantity, ct);
 
         return Math.Min(orderLine.Quantity, orderedForPart - invoicedForPart);

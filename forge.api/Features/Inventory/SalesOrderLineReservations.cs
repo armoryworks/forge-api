@@ -20,7 +20,7 @@ public static class SalesOrderLineReservations
         => db.SalesOrderLines
             .Where(l => l.PartId == partId
                 && !ClosedStatuses.Contains(l.SalesOrder.Status)
-                && l.Quantity > l.ShippedQuantity);
+                && l.Quantity > l.ShippedQuantity + l.ShortClosedQuantity);
 
     public static async Task<Dictionary<int, decimal>> ReservedByLineAsync(
         AppDbContext db, IReadOnlyCollection<int> lineIds, CancellationToken ct)

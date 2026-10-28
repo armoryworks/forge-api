@@ -10,12 +10,14 @@ using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Lots;
 using Forge.Api.Features.PurchaseOrders;
 using Forge.Api.Features.ShopFloor;
+using Forge.Api.Features.Tolerances;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Inventory;
 
@@ -35,6 +37,7 @@ public class ReceivePurchaseOrderCommandValidator : AbstractValidator<ReceivePur
         RuleFor(x => x.Data.LotNumber)
             .Must(lot => lot is null || lot.Trim().Length <= 100)
             .WithMessage("Lot / heat number must be 100 characters or fewer.").WithErrorCode("lot-number-too-long");
+        RuleFor(x => x.Data.OverToleranceReason).MaximumLength(QuantityToleranceGuard.ReasonMaxLength);
     }
 }
 
@@ -63,9 +66,11 @@ public class ReceivePurchaseOrderHandler(
 
         PurchaseOrderSubmission.EnsureReceivable(line.PurchaseOrder);
 
-        if (data.QuantityReceived > line.RemainingQuantity)
-            throw new InvalidOperationException(
-                $"Cannot receive {data.QuantityReceived} — only {line.RemainingQuantity} remaining");
+        var tolerance = await QuantityTolerances.ForPurchaseLineAsync(db, line, line.PurchaseOrder.VendorId, cancellationToken);
+        var overReason = QuantityToleranceGuard.EnsureAccepted(
+            PurchaseLineTolerance.Kind, line.Id, PurchaseLineTolerance.OrderedBasis(line), line.ReceivedQuantity,
+            data.QuantityReceived, tolerance, data.ConfirmOverTolerance, data.OverToleranceReason,
+            httpContext.HttpContext?.User, "receive", $"line {line.Part?.PartNumber ?? line.Description}");
 
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var userName = httpContext.HttpContext.User.DisplayName();
@@ -90,6 +95,7 @@ public class ReceivePurchaseOrderHandler(
             Notes = data.Notes,
             LotNumber = lot,
             ReceiptNumber = receiptNumber,
+            OverToleranceReason = overReason,
             InspectionStatus = ReceivingInspectionPolicy.InitialStatus(line.Part?.RequiresReceivingInspection == true, capabilities),
             FxRate = db is null
                 ? line.PurchaseOrder.FxRate ?? 1m
@@ -101,6 +107,7 @@ public class ReceivePurchaseOrderHandler(
         // Update line received quantity (stays in the line's order unit — options when the line
         // is option-priced, base units otherwise — to match OrderedQuantity / RemainingQuantity).
         line.ReceivedQuantity += data.QuantityReceived;
+        var closedWithinTolerance = PurchaseLineTolerance.ApplyAfterReceipt(line, tolerance);
 
         // UoM purchase-units effort — inventory is always tracked in the part's base/stock UoM.
         // When the line was ordered in purchase units (e.g. 2 "4×8 sheets"), convert the received
@@ -176,6 +183,17 @@ public class ReceivePurchaseOrderHandler(
         await using var tx = db is not null
             ? await db.Database.BeginTransactionAsync(cancellationToken)
             : null;
+
+        if (closedWithinTolerance > 0m)
+            db?.LogActivityAt(
+                "line-closed-within-tolerance",
+                $"Line {line.Part?.PartNumber ?? line.Description} closed within tolerance: {line.ReceivedQuantity:0.####} of {line.OrderedQuantity:0.####} received, {closedWithinTolerance:0.####} short-closed",
+                ("PurchaseOrder", line.PurchaseOrderId));
+        if (overReason is not null)
+            db?.LogActivityAt(
+                "over-tolerance-accepted",
+                $"Line {line.Part?.PartNumber ?? line.Description} received {data.QuantityReceived:0.####} above its over-receipt tolerance ({line.ReceivedQuantity:0.####} of {line.OrderedQuantity:0.####}): {overReason}",
+                ("PurchaseOrder", line.PurchaseOrderId));
 
         await poRepo.SaveChangesAsync(cancellationToken);
 

@@ -6,6 +6,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Settings;
 
 namespace Forge.Api.Features.SalesOrders;
 
@@ -21,6 +22,8 @@ public class UpdateSalesOrderLineValidator : AbstractValidator<UpdateSalesOrderL
         RuleFor(x => x.LineId).GreaterThan(0);
         RuleFor(x => x.Data.Quantity).GreaterThan(0);
         RuleFor(x => x.Data.UnitPrice).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Data.OverTolerancePct).InclusiveBetween(0m, ToleranceSettings.MaxOverPercent).When(x => x.Data.OverTolerancePct.HasValue);
+        RuleFor(x => x.Data.UnderTolerancePct).InclusiveBetween(0m, ToleranceSettings.MaxUnderPercent).When(x => x.Data.UnderTolerancePct.HasValue);
     }
 }
 
@@ -42,6 +45,10 @@ public class UpdateSalesOrderLineHandler(ISalesOrderRepository repo, IMediator m
         line.Quantity = request.Data.Quantity;
         line.UnitPrice = request.Data.UnitPrice;
         line.Notes = request.Data.Notes;
+        if (request.Data.OverTolerancePct is decimal over)
+            line.OverShipTolerancePct = over;
+        if (request.Data.UnderTolerancePct is decimal under)
+            line.UnderShipTolerancePct = under;
         if (line.IsFreight && request.Data.Taxable is bool taxable)
             line.TaxCode = taxable ? FreightLines.TaxableCode : InvoiceLine.NonTaxableCode;
 

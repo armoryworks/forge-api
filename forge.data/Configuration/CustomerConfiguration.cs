@@ -25,6 +25,8 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(e => e.Version).HasDefaultValue(1u);
 
         builder.Property(e => e.Name).HasMaxLength(200);
+        builder.Property(e => e.OverShipTolerancePct).HasPrecision(6, 2);
+        builder.Property(e => e.UnderShipTolerancePct).HasPrecision(6, 2);
         builder.Property(e => e.CompanyName).HasMaxLength(200);
         builder.Property(e => e.CustomerNumber).HasMaxLength(50);
         builder.Property(e => e.Email).HasMaxLength(200);

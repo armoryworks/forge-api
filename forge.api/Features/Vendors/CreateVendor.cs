@@ -6,6 +6,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Settings;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Vendors;
@@ -28,13 +29,17 @@ public record CreateVendorCommand(
     string? VendorNumber = null,
     string? Fax = null,
     int? CurrencyId = null,
-    int? PaymentTermsId = null) : IRequest<VendorListItemModel>;
+    int? PaymentTermsId = null,
+    decimal? OverReceiptTolerancePct = null,
+    decimal? UnderReceiptTolerancePct = null) : IRequest<VendorListItemModel>;
 
 public class CreateVendorValidator : AbstractValidator<CreateVendorCommand>
 {
     public CreateVendorValidator()
     {
         RuleFor(x => x.CompanyName).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.OverReceiptTolerancePct).InclusiveBetween(0m, ToleranceSettings.MaxOverPercent).When(x => x.OverReceiptTolerancePct.HasValue);
+        RuleFor(x => x.UnderReceiptTolerancePct).InclusiveBetween(0m, ToleranceSettings.MaxUnderPercent).When(x => x.UnderReceiptTolerancePct.HasValue);
         // Matches the vendors.vendor_number column (varchar(50)). Uniqueness is
         // checked in the handler since it needs a DB lookup.
         RuleFor(x => x.VendorNumber).MaximumLength(50).When(x => !string.IsNullOrWhiteSpace(x.VendorNumber));
@@ -78,6 +83,8 @@ public class CreateVendorHandler(
             Notes = request.Notes,
             Is1099 = request.Is1099,
             TaxId = string.IsNullOrWhiteSpace(request.TaxId) ? null : request.TaxId.Trim(),
+            OverReceiptTolerancePct = request.OverReceiptTolerancePct,
+            UnderReceiptTolerancePct = request.UnderReceiptTolerancePct,
         };
         if (db is not null)
         {

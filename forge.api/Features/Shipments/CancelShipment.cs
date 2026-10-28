@@ -3,6 +3,7 @@ using System.Globalization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Tolerances;
 using Forge.Core.Enums;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
@@ -50,7 +51,7 @@ public class CancelShipmentHandler(AppDbContext db) : IRequestHandler<CancelShip
         shipment.Status = ShipmentStatus.Cancelled;
         if (order.Status is SalesOrderStatus.Shipped or SalesOrderStatus.PartiallyShipped)
         {
-            SalesOrderShipping.RecordShipped(order);
+            SalesOrderShipping.RecordShipped(order, await QuantityTolerances.ForSalesOrderAsync(db, order, cancellationToken));
             if (!order.Lines.Any(l => l.ShippedQuantity > 0))
                 order.Status = await StatusBeforeShippingAsync(order.Id, cancellationToken);
         }

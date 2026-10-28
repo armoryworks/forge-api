@@ -125,7 +125,7 @@ public class GetScanContextHandler(
         var openPoLines = await db.PurchaseOrderLines
             .AsNoTracking()
             .Where(pol => pol.PartId == part.Id
-                && pol.ReceivedQuantity < pol.OrderedQuantity
+                && pol.ReceivedQuantity + pol.CancelledShortCloseQuantity < pol.OrderedQuantity
                 && (pol.PurchaseOrder.Status == PurchaseOrderStatus.Submitted
                     || pol.PurchaseOrder.Status == PurchaseOrderStatus.Acknowledged
                     || pol.PurchaseOrder.Status == PurchaseOrderStatus.PartiallyReceived))
@@ -135,7 +135,7 @@ public class GetScanContextHandler(
                 pol.PurchaseOrder.PONumber,
                 pol.OrderedQuantity,
                 pol.ReceivedQuantity,
-                pol.OrderedQuantity - pol.ReceivedQuantity,
+                pol.OrderedQuantity - pol.ReceivedQuantity - pol.CancelledShortCloseQuantity,
                 lotTracked))
             .ToListAsync(cancellationToken);
 

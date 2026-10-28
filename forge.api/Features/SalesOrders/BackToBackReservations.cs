@@ -23,7 +23,7 @@ public static class BackToBackReservations
 
         var line = await db.SalesOrderLines.AsNoTracking()
             .Where(l => l.Id == salesOrderLineId)
-            .Select(l => new { l.Id, l.SalesOrderId, l.Quantity, l.ShippedQuantity, OrderNumber = l.SalesOrder.OrderNumber, l.LineNumber })
+            .Select(l => new { l.Id, l.SalesOrderId, l.Quantity, l.ShippedQuantity, l.ShortClosedQuantity, OrderNumber = l.SalesOrder.OrderNumber, l.LineNumber })
             .FirstOrDefaultAsync(ct);
         if (line is null)
             return 0m;
@@ -35,7 +35,7 @@ public static class BackToBackReservations
             .Where(e => e.State == EntityState.Added && e.Entity.SalesOrderLineId == salesOrderLineId)
             .Sum(e => e.Entity.Quantity);
 
-        var needed = line.Quantity - line.ShippedQuantity - reserved;
+        var needed = line.Quantity - line.ShippedQuantity - line.ShortClosedQuantity - reserved;
         var free = binContent.Quantity - binContent.ReservedQuantity;
         var toReserve = Math.Min(quantity, Math.Min(needed, free));
         if (toReserve <= 0m)

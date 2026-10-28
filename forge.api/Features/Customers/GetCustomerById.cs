@@ -69,7 +69,9 @@ public class GetCustomerByIdHandler(ICustomerRepository repo, AppDbContext? db =
             FreightTerms: customer.FreightTerms,
             PaymentTermsId: customer.PaymentTermsId,
             PaymentTerms: db is null ? null : await new PaymentTermsResolver(db).ModelAsync(customer.PaymentTermsId, customer.DefaultCreditTerms, cancellationToken),
-            RequiresCoa: customer.RequiresCoa);
+            RequiresCoa: customer.RequiresCoa,
+            OverShipTolerancePct: customer.OverShipTolerancePct,
+            UnderShipTolerancePct: customer.UnderShipTolerancePct);
     }
 
     private static AddressOutput? PickAddress(Customer customer, AddressType type)

@@ -44,7 +44,9 @@ public record CustomerDetailResponseModel(
     FreightTerms? FreightTerms = null,
     int? PaymentTermsId = null,
     PaymentTermsModel? PaymentTerms = null,
-    bool RequiresCoa = false);
+    bool RequiresCoa = false,
+    decimal? OverShipTolerancePct = null,
+    decimal? UnderShipTolerancePct = null);
 
 /// <summary>
 /// Minimal nested address shape returned alongside a customer record. Phase 3 F3.

@@ -36,6 +36,8 @@ public class VendorConfiguration : IEntityTypeConfiguration<Vendor>
         builder.Property(e => e.MinOrderAmount).HasPrecision(18, 4);
         // Bought-parts effort PR4 — variance pct stored to 2dp (e.g. 7.50 = 7.5%).
         builder.Property(e => e.OffTierVariancePct).HasPrecision(6, 2);
+        builder.Property(e => e.OverReceiptTolerancePct).HasPrecision(6, 2);
+        builder.Property(e => e.UnderReceiptTolerancePct).HasPrecision(6, 2);
         builder.Property(e => e.TaxId).HasMaxLength(32);
         // EF's snake_case convention renders Is1099 as "is1099" (no underscore
         // before the digit); the forge-db column is "is_1099". Map it explicitly.

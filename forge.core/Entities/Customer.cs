@@ -127,6 +127,21 @@ public class Customer : BaseAuditableEntity, IActiveAware, IConcurrencyVersioned
     /// <summary>CAP-QC-COA — ship this customer's lots with a certificate of analysis (generated and attached when the shipment ships).</summary>
     public bool RequiresCoa { get; set; }
 
+    /// <summary>
+    /// Per-customer over-ship tolerance, in percent of the ordered quantity. A line may ship up to
+    /// ordered × (1 + this / 100) without an override; above that a manager must confirm it with a reason.
+    /// Null falls back to the system-wide default in <c>SystemSetting</c> key <c>sales.over-ship-percent</c> (0 out of the box).
+    /// </summary>
+    public decimal? OverShipTolerancePct { get; set; }
+
+    /// <summary>
+    /// Per-customer under-ship tolerance, in percent of the ordered quantity. Once a line has shipped at least
+    /// ordered × (1 − this / 100) it is complete and the rest is closed "within tolerance" instead of staying on
+    /// back order. Null falls back to the system-wide default in <c>SystemSetting</c> key
+    /// <c>sales.under-ship-percent</c> (0 out of the box).
+    /// </summary>
+    public decimal? UnderShipTolerancePct { get; set; }
+
     public ICollection<Contact> Contacts { get; set; } = [];
     public ICollection<Job> Jobs { get; set; } = [];
     public ICollection<CustomerAddress> Addresses { get; set; } = [];

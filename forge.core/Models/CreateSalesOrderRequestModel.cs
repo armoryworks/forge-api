@@ -32,4 +32,6 @@ public record CreateSalesOrderLineModel(
     decimal UnitPrice,
     string? Notes,
     DocumentLineType LineType = DocumentLineType.Item,
-    bool? Taxable = null);
+    bool? Taxable = null,
+    decimal? OverShipTolerancePct = null,
+    decimal? UnderShipTolerancePct = null);

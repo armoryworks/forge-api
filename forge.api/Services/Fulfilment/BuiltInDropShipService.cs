@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.PurchaseOrders;
 using Forge.Api.Features.Shipments;
+using Forge.Api.Features.Tolerances;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -106,7 +107,13 @@ public sealed class BuiltInDropShipService(
                 .Include(o => o.Lines).ThenInclude(l => l.Part)
                 .Include(o => o.Shipments).ThenInclude(s => s.Lines)
                 .FirstAsync(o => o.Id == soLine.SalesOrderId, ct);
-            SalesOrderShipping.RecordShipped(order);
+            var closedLines = SalesOrderShipping.RecordShipped(
+                order, await QuantityTolerances.ForSalesOrderAsync(db, order, ct));
+            foreach (var (closedLine, closedQuantity) in closedLines)
+                db.LogActivityAt(
+                    "line-closed-within-tolerance",
+                    $"Line {closedLine.LineNumber} closed within tolerance: {closedLine.ShippedQuantity:0.####} of {closedLine.Quantity:0.####} shipped, {closedQuantity:0.####} closed",
+                    ("SalesOrder", order.Id));
 
             db.LogActivityAt(
                 "delivered",

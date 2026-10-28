@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Lots;
+using Forge.Api.Features.Tolerances;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -41,6 +42,8 @@ public class GetPurchaseOrderByIdHandler(
         var belowMin = po.Vendor.MinOrderAmount.HasValue
             && po.Vendor.MinOrderAmount.Value > 0
             && poTotal < po.Vendor.MinOrderAmount.Value;
+
+        var toleranceFor = await QuantityTolerances.ForVendorAsync(db, po.VendorId, cancellationToken);
 
         var fallbackBin = po.Lines.Any(l => l.PartId is not null)
             ? ReceiveItemsHandler.PickFallbackBin(await db.StorageLocations
@@ -139,7 +142,15 @@ public class GetPurchaseOrderByIdHandler(
                 l.SalesOrderLineId,
                 l.SalesOrderLineId is int soLineId && soLines.TryGetValue(soLineId, out var soLine) ? soLine.SalesOrderId : null,
                 l.SalesOrderLineId is int numberLineId && soLines.TryGetValue(numberLineId, out var numberLine) ? numberLine.OrderNumber : null,
-                l.SalesOrderLineId is int seqLineId && soLines.TryGetValue(seqLineId, out var seqLine) ? seqLine.LineNumber : null)).ToList(),
+                l.SalesOrderLineId is int seqLineId && soLines.TryGetValue(seqLineId, out var seqLine) ? seqLine.LineNumber : null,
+                l.OverReceiptTolerancePct,
+                l.UnderReceiptTolerancePct,
+                toleranceFor(l).OverPercent,
+                toleranceFor(l).UnderPercent,
+                toleranceFor(l).MaxAccepted(PurchaseLineTolerance.OrderedBasis(l)),
+                toleranceFor(l).MinComplete(PurchaseLineTolerance.OrderedBasis(l)),
+                l.ClosedWithinTolerance,
+                l.ShortCloseReason)).ToList(),
             po.CreatedAt,
             po.UpdatedAt,
             po.ShortCloseReason,

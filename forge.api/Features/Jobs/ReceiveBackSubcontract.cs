@@ -1,12 +1,13 @@
 using System.Globalization;
 
 using FluentValidation;
-using FluentValidation.Results;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Jobs.Operations;
+using Forge.Api.Features.Tolerances;
 using Forge.Api.Hubs;
 using Forge.Api.Services;
 using Forge.Core.Entities;
@@ -31,6 +32,7 @@ public class ReceiveBackSubcontractValidator : AbstractValidator<ReceiveBackSubc
             .WithMessage("Enter a good or scrap quantity.");
         RuleFor(x => x.Data.ReturnTrackingNumber).MaximumLength(200);
         RuleFor(x => x.Data.Notes).MaximumLength(2000);
+        RuleFor(x => x.Data.OverToleranceReason).MaximumLength(QuantityToleranceGuard.ReasonMaxLength);
     }
 }
 
@@ -41,10 +43,10 @@ public class ReceiveBackSubcontractHandler(
     IHubContext<BoardHub> boardHub,
     IMediator mediator,
     IClock clock,
-    IBackflushService? backflush = null)
+    IBackflushService? backflush = null,
+    IHttpContextAccessor? httpContext = null)
     : IRequestHandler<ReceiveBackSubcontractCommand, SubcontractOrderResponseModel>
 {
-    public const string OverReceiveMessage = "Good plus scrap can't be more than the {0:0.####} sent to the vendor.";
 
     public async Task<SubcontractOrderResponseModel> Handle(ReceiveBackSubcontractCommand request, CancellationToken ct)
     {
@@ -58,12 +60,15 @@ public class ReceiveBackSubcontractHandler(
         if (order.ReceivedAt.HasValue || order.Status is SubcontractStatus.Complete or SubcontractStatus.Rejected)
             throw new InvalidOperationException("This subcontract order has already been received back.");
 
-        if (request.Data.ReceivedQuantity + request.Data.ScrapQuantity > order.Quantity)
-            throw new ValidationException(
-            [
-                new ValidationFailure(nameof(ReceiveBackRequestModel.ReceivedQuantity),
-                    string.Format(CultureInfo.InvariantCulture, OverReceiveMessage, order.Quantity)),
-            ]);
+        var tolerance = (await SubcontractTolerances.ForOrdersAsync(
+            db, [(order.Id, order.VendorId, order.PurchaseOrderId)], ct))[order.Id];
+        var goodBefore = order.ReceivedQuantity ?? 0m;
+        var returnedBefore = goodBefore + order.ScrapQuantity;
+        var returning = request.Data.ReceivedQuantity + request.Data.ScrapQuantity;
+        var overReason = QuantityToleranceGuard.EnsureAccepted(
+            SubcontractTolerances.Kind, order.Id, order.Quantity, returnedBefore, returning, tolerance,
+            request.Data.ConfirmOverTolerance, request.Data.OverToleranceReason, httpContext?.HttpContext?.User, "receive back",
+            string.Format(CultureInfo.InvariantCulture, "the {0:0.####} sent for Op {1} {2}", order.Quantity, order.Operation.StepNumber, order.Operation.Title));
 
         var row = request.Data.PassedInspection
             ? await FindOrCreateOperationRowAsync(order, ct)
@@ -71,14 +76,23 @@ public class ReceiveBackSubcontractHandler(
 
         var now = clock.UtcNow;
         var previousStatus = order.Status;
-        order.ReceivedAt = now;
-        order.ReceivedById = db.CurrentUserId;
-        order.ReceivedQuantity = request.Data.ReceivedQuantity;
-        order.ReturnTrackingNumber = request.Data.ReturnTrackingNumber?.Trim();
+        var returnedTotal = returnedBefore + returning;
+        var withinTolerance = tolerance.Completes(order.Quantity, returnedTotal);
+        var closes = !request.Data.PassedInspection || withinTolerance || request.Data.CloseShort;
+        order.ReceivedQuantity = goodBefore + request.Data.ReceivedQuantity;
+        order.ScrapQuantity += request.Data.ScrapQuantity;
+        order.ReturnTrackingNumber = request.Data.ReturnTrackingNumber?.Trim() ?? order.ReturnTrackingNumber;
         order.Notes = request.Data.Notes?.Trim() ?? order.Notes;
-        order.Status = request.Data.PassedInspection
-            ? SubcontractStatus.Complete
-            : SubcontractStatus.Rejected;
+        if (overReason is not null)
+            order.OverToleranceReason = overReason;
+        if (closes)
+        {
+            order.ReceivedAt = now;
+            order.ReceivedById = db.CurrentUserId;
+        }
+        order.Status = !request.Data.PassedInspection
+            ? SubcontractStatus.Rejected
+            : closes ? SubcontractStatus.Complete : SubcontractStatus.PartiallyReceived;
 
         db.JobActivityLogs.Add(new JobActivityLog
         {
@@ -90,7 +104,8 @@ public class ReceiveBackSubcontractHandler(
             NewValue = order.Status.ToString(),
             OperationId = order.OperationId,
             CreatedAt = now,
-            Description = $"Received back {request.Data.ReceivedQuantity:0.####} good, {request.Data.ScrapQuantity:0.####} scrap from {order.Vendor.CompanyName} for Op {order.Operation.StepNumber} {order.Operation.Title}",
+            Description = $"Received back {request.Data.ReceivedQuantity:0.####} good, {request.Data.ScrapQuantity:0.####} scrap from {order.Vendor.CompanyName} for Op {order.Operation.StepNumber} {order.Operation.Title}"
+                + DescribeOutcome(order, returnedTotal, withinTolerance, overReason),
         });
 
         var advance = row is not null
@@ -137,7 +152,27 @@ public class ReceiveBackSubcontractHandler(
             order.SentAt, order.ExpectedReturnDate, order.ReceivedAt,
             order.ReceivedQuantity, order.Status.ToString(),
             order.ShippingTrackingNumber, order.ReturnTrackingNumber, order.Notes,
-            order.CreatedAt);
+            order.CreatedAt,
+            order.ScrapQuantity,
+            tolerance.OverPercent,
+            tolerance.UnderPercent,
+            tolerance.MaxAccepted(order.Quantity),
+            tolerance.MinComplete(order.Quantity),
+            order.OverToleranceReason);
+    }
+
+    private static string DescribeOutcome(SubcontractOrder order, decimal returnedTotal, bool withinTolerance, string? overReason)
+    {
+        var outcome = order.Status switch
+        {
+            SubcontractStatus.PartiallyReceived => string.Format(CultureInfo.InvariantCulture,
+                "; {0:0.####} of {1:0.####} back, the rest stays open", returnedTotal, order.Quantity),
+            SubcontractStatus.Complete when returnedTotal < order.Quantity => withinTolerance
+                ? string.Format(CultureInfo.InvariantCulture, "; {0:0.####} of {1:0.####} back, closed within tolerance", returnedTotal, order.Quantity)
+                : string.Format(CultureInfo.InvariantCulture, "; {0:0.####} of {1:0.####} back, closed short", returnedTotal, order.Quantity),
+            _ => string.Empty,
+        };
+        return overReason is null ? outcome : $"{outcome}; accepted over tolerance: {overReason}";
     }
 
     private async Task<JobOperation?> FindOrCreateOperationRowAsync(SubcontractOrder order, CancellationToken ct)
@@ -159,11 +194,7 @@ public class ReceiveBackSubcontractHandler(
         var jobQuantity = await operations.GetJobQuantityAsync(job, ct);
         var before = JobOperationRules.Describe(row, jobQuantity);
 
-        var goodRoom = Math.Max(0m, jobQuantity - row.CompletedQuantity);
-        var goodAdded = Math.Min(data.ReceivedQuantity, goodRoom);
-        var notCounted = data.ReceivedQuantity - goodAdded;
-
-        row.CompletedQuantity += goodAdded;
+        row.CompletedQuantity += data.ReceivedQuantity;
         row.ScrapQuantity += data.ScrapQuantity;
         row.StartedAt ??= now;
 
@@ -199,9 +230,6 @@ public class ReceiveBackSubcontractHandler(
         }
 
         var after = JobOperationRules.Describe(row, jobQuantity);
-        var overNote = notCounted > 0m
-            ? $"; {notCounted:0.####} good over the job quantity not counted"
-            : string.Empty;
         db.JobActivityLogs.Add(new JobActivityLog
         {
             JobId = order.JobId,
@@ -210,7 +238,7 @@ public class ReceiveBackSubcontractHandler(
             FieldName = "OperationStatus",
             OldValue = before,
             NewValue = after,
-            Description = $"Operation {order.Operation.StepNumber} {order.Operation.Title}: {before} → {after} (received back from {order.Vendor.CompanyName}{overNote}).",
+            Description = $"Operation {order.Operation.StepNumber} {order.Operation.Title}: {before} → {after} (received back from {order.Vendor.CompanyName}).",
             CreatedAt = now,
             OperationId = order.OperationId,
             WorkCenterId = order.Operation.WorkCenterId,

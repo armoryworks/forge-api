@@ -63,7 +63,7 @@ public sealed class BuiltInBackToBackService(AppDbContext db, LinkedPurchaseOrde
             .Where(l => l.SalesOrderLineId != null
                 && l.PurchaseOrder.FulfilmentType == FulfilmentType.BackToBack
                 && l.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
-                && l.SalesOrderLine!.ShippedQuantity < l.SalesOrderLine.Quantity)
+                && l.SalesOrderLine!.ShippedQuantity + l.SalesOrderLine.ShortClosedQuantity < l.SalesOrderLine.Quantity)
             .OrderBy(l => l.PurchaseOrder.ExpectedDeliveryDate).ThenBy(l => l.Id)
             .Select(l => new
             {

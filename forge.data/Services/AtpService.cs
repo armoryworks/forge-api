@@ -35,9 +35,9 @@ public class AtpService(AppDbContext db, IClock clock) : IAtpService
             .Where(l => l.PartId == partId
                 && l.SalesOrder.Status != SalesOrderStatus.Cancelled
                 && l.SalesOrder.Status != SalesOrderStatus.Completed
-                && l.ShippedQuantity < l.Quantity
+                && l.ShippedQuantity + l.ShortClosedQuantity < l.Quantity
                 && (excludeSalesOrderLineId == null || l.Id != excludeSalesOrderLineId))
-            .SumAsync(l => (decimal)(l.Quantity - l.ShippedQuantity), ct);
+            .SumAsync(l => (decimal)(l.Quantity - l.ShippedQuantity - l.ShortClosedQuantity), ct);
 
         // Scheduled receipts: open PO line quantities not yet received
         var scheduledReceipts = await db.PurchaseOrderLines
@@ -46,8 +46,8 @@ public class AtpService(AppDbContext db, IClock clock) : IAtpService
             .Where(l => l.PartId == partId
                 && l.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
                 && l.PurchaseOrder.Status != PurchaseOrderStatus.Closed
-                && l.ReceivedQuantity < l.OrderedQuantity)
-            .SumAsync(l => (decimal)(l.OrderedQuantity - l.ReceivedQuantity), ct);
+                && l.ReceivedQuantity + l.CancelledShortCloseQuantity < l.OrderedQuantity)
+            .SumAsync(l => (decimal)(l.OrderedQuantity - l.ReceivedQuantity - l.CancelledShortCloseQuantity), ct);
 
         var atp = onHand + scheduledReceipts - allocatedToOrders;
         var canFulfill = atp >= quantity;
@@ -116,9 +116,9 @@ public class AtpService(AppDbContext db, IClock clock) : IAtpService
                 && l.PurchaseOrder.ExpectedDeliveryDate != null
                 && l.PurchaseOrder.ExpectedDeliveryDate >= fromOffset
                 && l.PurchaseOrder.ExpectedDeliveryDate <= toOffset
-                && l.ReceivedQuantity < l.OrderedQuantity)
+                && l.ReceivedQuantity + l.CancelledShortCloseQuantity < l.OrderedQuantity)
             .GroupBy(l => l.PurchaseOrder.ExpectedDeliveryDate!.Value.Date)
-            .Select(g => new { Date = g.Key, Quantity = g.Sum(l => (decimal)(l.OrderedQuantity - l.ReceivedQuantity)) })
+            .Select(g => new { Date = g.Key, Quantity = g.Sum(l => (decimal)(l.OrderedQuantity - l.ReceivedQuantity - l.CancelledShortCloseQuantity)) })
             .ToDictionaryAsync(x => DateOnly.FromDateTime(x.Date), x => x.Quantity, ct);
 
         // Demand by date (SO required/due dates — use SalesOrder's RequiredDate)
@@ -131,10 +131,10 @@ public class AtpService(AppDbContext db, IClock clock) : IAtpService
                 && l.SalesOrder.RequestedDeliveryDate != null
                 && l.SalesOrder.RequestedDeliveryDate >= fromOffset
                 && l.SalesOrder.RequestedDeliveryDate <= toOffset
-                && l.ShippedQuantity < l.Quantity
+                && l.ShippedQuantity + l.ShortClosedQuantity < l.Quantity
                 && (excludeSalesOrderLineId == null || l.Id != excludeSalesOrderLineId))
             .GroupBy(l => l.SalesOrder.RequestedDeliveryDate!.Value.Date)
-            .Select(g => new { Date = g.Key, Quantity = g.Sum(l => (decimal)(l.Quantity - l.ShippedQuantity)) })
+            .Select(g => new { Date = g.Key, Quantity = g.Sum(l => (decimal)(l.Quantity - l.ShippedQuantity - l.ShortClosedQuantity)) })
             .ToDictionaryAsync(x => DateOnly.FromDateTime(x.Date), x => x.Quantity, ct);
 
         // Build weekly buckets

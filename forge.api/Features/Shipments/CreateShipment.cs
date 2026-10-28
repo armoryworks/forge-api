@@ -6,11 +6,13 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.Freight;
 using Forge.Api.Features.Quality;
+using Forge.Api.Features.Tolerances;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Shipments;
 
@@ -45,6 +47,7 @@ public class CreateShipmentValidator : AbstractValidator<CreateShipmentCommand>
                 .WithMessage("Each line must reference either a Sales Order Line or a Part");
             // Phase 3 / WU-23 (F8-broad): decimal quantity supports fractional UoM.
             line.RuleFor(l => l.Quantity).GreaterThan(0m);
+            line.RuleFor(l => l.OverToleranceReason).MaximumLength(QuantityToleranceGuard.ReasonMaxLength);
         });
     }
 }
@@ -115,6 +118,14 @@ public class CreateShipmentHandler(
         var takenHere = new Dictionary<int, decimal>();
         decimal OpenToShip(SalesOrderLine orderLine)
             => SalesOrderShipping.OpenToShip(order, orderLine) - takenHere.GetValueOrDefault(orderLine.Id);
+        var toleranceFor = await QuantityTolerances.ForSalesOrderAsync(db, order, cancellationToken);
+        var user = httpContext.HttpContext?.User;
+        string? EnsureWithinTolerance(SalesOrderLine orderLine, CreateShipmentLineModel line)
+            => QuantityToleranceGuard.EnsureAccepted(
+                SalesOrderShipping.ToleranceKind, orderLine.Id, orderLine.Quantity,
+                SalesOrderShipping.Taken(order, orderLine) + takenHere.GetValueOrDefault(orderLine.Id),
+                line.Quantity, toleranceFor(orderLine), line.ConfirmOverTolerance, line.OverToleranceReason, user,
+                "ship", $"line {orderLine.LineNumber}");
 
         foreach (var line in request.Lines)
         {
@@ -127,10 +138,7 @@ public class CreateShipmentHandler(
                     throw new InvalidOperationException(
                         $"Line {orderLine.LineNumber} is a freight charge, which is invoiced, not shipped.");
 
-                var open = OpenToShip(orderLine);
-                if (line.Quantity > open)
-                    throw new InvalidOperationException(
-                        $"Cannot ship {line.Quantity} of line {orderLine.LineNumber} — only {open} remaining");
+                var overReason = EnsureWithinTolerance(orderLine, line);
 
                 takenHere[orderLine.Id] = takenHere.GetValueOrDefault(orderLine.Id) + line.Quantity;
 
@@ -140,6 +148,7 @@ public class CreateShipmentHandler(
                     PartId = orderLine.PartId,
                     Quantity = line.Quantity,
                     Notes = line.Notes,
+                    OverToleranceReason = overReason,
                 });
             }
             else
@@ -153,10 +162,7 @@ public class CreateShipmentHandler(
                     ?? throw new InvalidOperationException(
                         $"Part {line.PartId} is not on sales order {order.OrderNumber}");
 
-                var open = OpenToShip(orderLine);
-                if (line.Quantity > open)
-                    throw new InvalidOperationException(
-                        $"Cannot ship {line.Quantity} of line {orderLine.LineNumber} — only {open} remaining");
+                var overReason = EnsureWithinTolerance(orderLine, line);
 
                 takenHere[orderLine.Id] = takenHere.GetValueOrDefault(orderLine.Id) + line.Quantity;
 
@@ -166,6 +172,7 @@ public class CreateShipmentHandler(
                     PartId = orderLine.PartId,
                     Quantity = line.Quantity,
                     Notes = line.Notes,
+                    OverToleranceReason = overReason,
                 });
             }
         }
@@ -180,6 +187,21 @@ public class CreateShipmentHandler(
 
         await shipmentRepo.AddAsync(shipment, cancellationToken);
         await shipmentRepo.SaveChangesAsync(cancellationToken);
+
+        var overLines = shipment.Lines.Where(l => l.OverToleranceReason is not null).ToList();
+        if (db is not null && overLines.Count > 0)
+        {
+            foreach (var overLine in overLines)
+            {
+                var orderLine = order.Lines.First(l => l.Id == overLine.SalesOrderLineId);
+                db.LogActivityAt(
+                    "over-tolerance-accepted",
+                    $"Shipment {shipment.ShipmentNumber} ships {overLine.Quantity:0.####} of line {orderLine.LineNumber} above its over-ship tolerance ({orderLine.Quantity:0.####} ordered): {overLine.OverToleranceReason}",
+                    ("SalesOrder", order.Id),
+                    ("Shipment", shipment.Id));
+            }
+            await db.SaveChangesAsync(cancellationToken);
+        }
 
         // Record the number in the identifier registry (history + resolution).
         if (identifiers is not null)

@@ -85,6 +85,8 @@ public class VendorWorkflowAdapter(
             Is1099 = ReadBoolOrDefault(initialData, "is1099") ?? false,
             TaxId = ReadStringOrDefault(initialData, "taxId")?.Trim().NullIfEmpty(),
             OffTierVariancePct = ReadDecimalOrDefault(initialData, "offTierVariancePct"),
+            OverReceiptTolerancePct = ReadDecimalOrDefault(initialData, "overReceiptTolerancePct"),
+            UnderReceiptTolerancePct = ReadDecimalOrDefault(initialData, "underReceiptTolerancePct"),
             MinOrderAmount = ReadDecimalOrDefault(initialData, "minOrderAmount"),
             AutoPoMode = ReadNullableEnum<AutoPoMode>(initialData, "autoPoMode"),
             IsActive = true,
@@ -182,6 +184,10 @@ public class VendorWorkflowAdapter(
             vendor.Is1099 = is1099.Value;
         if (TryReadDecimal(fields, "offTierVariancePct", out var pct))
             vendor.OffTierVariancePct = pct;
+        if (TryReadDecimal(fields, "overReceiptTolerancePct", out var overReceipt))
+            vendor.OverReceiptTolerancePct = overReceipt;
+        if (TryReadDecimal(fields, "underReceiptTolerancePct", out var underReceipt))
+            vendor.UnderReceiptTolerancePct = underReceipt;
         if (TryReadDecimal(fields, "minOrderAmount", out var minOrder))
             vendor.MinOrderAmount = minOrder;
         if (TryReadNullableEnum<AutoPoMode>(fields, "autoPoMode", out var autoPo))

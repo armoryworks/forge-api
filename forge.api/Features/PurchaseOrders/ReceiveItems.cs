@@ -11,6 +11,7 @@ using Forge.Api.Features.Inventory;
 using Forge.Api.Features.Lots;
 using Forge.Api.Features.SalesOrders;
 using Forge.Api.Features.ShopFloor;
+using Forge.Api.Features.Tolerances;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -48,6 +49,7 @@ public class ReceiveItemsValidator : AbstractValidator<ReceiveItemsCommand>
                 .Must(lot => lot is null || lot.Trim().Length <= 100)
                 .WithMessage("Lot / heat number must be 100 characters or fewer.").WithErrorCode("lot-number-too-long");
             line.RuleFor(l => l.Notes).MaximumLength(1000);
+            line.RuleFor(l => l.OverToleranceReason).MaximumLength(QuantityToleranceGuard.ReasonMaxLength);
         });
     }
 }
@@ -109,6 +111,8 @@ public class ReceiveItemsHandler(
         var receivedBy = user?.DisplayName();
 
         var assignedLots = new List<string>();
+        var toleranceFor = await QuantityTolerances.ForVendorAsync(db, po.VendorId, cancellationToken);
+        var toleranceCloses = new List<(PurchaseOrderLine line, decimal closed)>();
 
         // Pre-compute per-line allocation. ByExtendedValue / ByQuantity
         // need the totals, so we collect first then divvy up. Manual reads
@@ -125,10 +129,16 @@ public class ReceiveItemsHandler(
             if (receiveItem.Quantity <= 0)
                 throw new InvalidOperationException("Receive quantity must be positive");
 
-            if (receiveItem.Quantity > line.RemainingQuantity)
-                throw new InvalidOperationException($"Cannot receive {receiveItem.Quantity} — only {line.RemainingQuantity} remaining");
+            var tolerance = toleranceFor(line);
+            var overReason = QuantityToleranceGuard.EnsureAccepted(
+                PurchaseLineTolerance.Kind, line.Id, PurchaseLineTolerance.OrderedBasis(line), line.ReceivedQuantity,
+                receiveItem.Quantity, tolerance, receiveItem.ConfirmOverTolerance, receiveItem.OverToleranceReason,
+                user, "receive", $"line {DescribeLine(line)}");
 
             line.ReceivedQuantity += receiveItem.Quantity;
+            var closedNow = PurchaseLineTolerance.ApplyAfterReceipt(line, tolerance);
+            if (closedNow > 0m)
+                toleranceCloses.Add((line, closedNow));
 
             var contentPerUnit = line.PurchaseUnit?.ContentQuantity;
             var baseQty = contentPerUnit is > 0
@@ -153,6 +163,7 @@ public class ReceiveItemsHandler(
                     : ReceivingInspectionPolicy.InitialStatus(line.Part?.RequiresReceivingInspection == true, capabilities),
                 ActualFreight = actualFreight,
                 FreightAllocationMethod = request.FreightAllocationMethod,
+                OverToleranceReason = overReason,
                 // Filled in below once totals are known.
                 AllocatedFreight = null,
                 FxRate = receiptFxRate,
@@ -258,6 +269,16 @@ public class ReceiveItemsHandler(
             "items-received",
             DescribeReceipt(receiptNumber, packingSlip, newRecords.Select(t => t.lot)),
             ("PurchaseOrder", po.Id));
+        foreach (var (closedLine, closed) in toleranceCloses)
+            db?.LogActivityAt(
+                "line-closed-within-tolerance",
+                $"Line {DescribeLine(closedLine)} closed within tolerance: {closedLine.ReceivedQuantity:0.####} of {closedLine.OrderedQuantity:0.####} received, {closed:0.####} short-closed",
+                ("PurchaseOrder", po.Id));
+        foreach (var (_, overLine, overRecord, _, _) in newRecords.Where(t => t.rec.OverToleranceReason is not null))
+            db?.LogActivityAt(
+                "over-tolerance-accepted",
+                $"Line {DescribeLine(overLine)} received {overRecord.QuantityReceived:0.####} above its over-receipt tolerance ({overLine.ReceivedQuantity:0.####} of {overLine.OrderedQuantity:0.####}): {overRecord.OverToleranceReason}",
+                ("PurchaseOrder", po.Id));
 
         await repo.SaveChangesAsync(cancellationToken);
 
@@ -349,6 +370,10 @@ public class ReceiveItemsHandler(
         await mediator.Publish(new PurchaseOrderReceivedEvent(request.PurchaseOrderId, 0, userId), cancellationToken);
         return new ReceiveItemsResult(receiptNumber, movementIds);
     }
+
+    /// <summary>The line's part number, or its description when it has no part.</summary>
+    private static string DescribeLine(PurchaseOrderLine line)
+        => string.IsNullOrWhiteSpace(line.Part?.PartNumber) ? line.Description : line.Part.PartNumber;
 
     /// <summary>
     /// The PO activity line for a receipt: how many lines came in under which receipt number, the vendor's

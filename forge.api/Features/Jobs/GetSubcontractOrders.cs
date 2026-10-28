@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Tolerances;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -13,7 +14,7 @@ public class GetSubcontractOrdersHandler(AppDbContext db)
 {
     public async Task<List<SubcontractOrderResponseModel>> Handle(GetSubcontractOrdersQuery request, CancellationToken ct)
     {
-        return await db.SubcontractOrders
+        var orders = await db.SubcontractOrders
             .AsNoTracking()
             .Where(o => o.JobId == request.JobId)
             .OrderByDescending(o => o.SentAt)
@@ -26,7 +27,24 @@ public class GetSubcontractOrdersHandler(AppDbContext db)
                 o.SentAt, o.ExpectedReturnDate, o.ReceivedAt,
                 o.ReceivedQuantity, o.Status.ToString(),
                 o.ShippingTrackingNumber, o.ReturnTrackingNumber, o.Notes,
-                o.CreatedAt))
+                o.CreatedAt,
+                o.ScrapQuantity,
+                0m, 0m, 0m, 0m,
+                o.OverToleranceReason))
             .ToListAsync(ct);
+
+        var tolerances = await SubcontractTolerances.ForOrdersAsync(
+            db, orders.Select(o => (o.Id, o.VendorId, o.PurchaseOrderId)).ToList(), ct);
+        return orders.Select(o =>
+        {
+            var tolerance = tolerances[o.Id];
+            return o with
+            {
+                OverTolerancePct = tolerance.OverPercent,
+                UnderTolerancePct = tolerance.UnderPercent,
+                MaxAcceptedQuantity = tolerance.MaxAccepted(o.Quantity),
+                MinCompleteQuantity = tolerance.MinComplete(o.Quantity),
+            };
+        }).ToList();
     }
 }

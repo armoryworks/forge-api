@@ -7,4 +7,6 @@ public record AddPurchaseOrderLineRequestModel(
     decimal UnitPrice,
     string? Notes,
     int? PurchaseUnitId = null,
-    string? ManualOverrideReason = null);
+    string? ManualOverrideReason = null,
+    decimal? OverReceiptTolerancePct = null,
+    decimal? UnderReceiptTolerancePct = null);

@@ -7,6 +7,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Settings;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
 
@@ -31,6 +32,8 @@ public class AddSalesOrderLineValidator : AbstractValidator<AddSalesOrderLineCom
             .WithErrorCode(FreightLines.PartCode);
         RuleFor(x => x.Data.Quantity).GreaterThan(0);
         RuleFor(x => x.Data.UnitPrice).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Data.OverShipTolerancePct).InclusiveBetween(0m, ToleranceSettings.MaxOverPercent).When(x => x.Data.OverShipTolerancePct.HasValue);
+        RuleFor(x => x.Data.UnderShipTolerancePct).InclusiveBetween(0m, ToleranceSettings.MaxUnderPercent).When(x => x.Data.UnderShipTolerancePct.HasValue);
     }
 }
 
@@ -71,6 +74,8 @@ public class AddSalesOrderLineHandler(
             LineNumber = nextLineNumber,
             Notes = request.Data.Notes,
             LineType = request.Data.LineType,
+            OverShipTolerancePct = request.Data.OverShipTolerancePct,
+            UnderShipTolerancePct = request.Data.UnderShipTolerancePct,
             TaxCode = isFreight
                 ? await FreightLines.TaxCodeForAsync(db, order.CustomerId, (clock ?? new Forge.Integrations.SystemClock()).UtcNow, request.Data.Taxable, cancellationToken)
                 : null,
