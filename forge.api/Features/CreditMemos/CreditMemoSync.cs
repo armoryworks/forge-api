@@ -1,3 +1,5 @@
+using Forge.Core.Settings;
+
 namespace Forge.Api.Features.CreditMemos;
 
 /// <summary>Sync-queue operations and settings for pushing credit memos and refunds to the connected accounting provider.</summary>
@@ -8,13 +10,13 @@ public static class CreditMemoSync
     public const string CreateRefundReceiptOperation = "CreateRefundReceipt";
 
     /// <summary>The QuickBooks item a write-off credit memo is booked against (an item pointing at bad debt).</summary>
-    public const string BadDebtItemSettingKey = "qbo.bad_debt_item_id";
+    public const string BadDebtItemSettingKey = QuickBooksItemSettings.BadDebtItemKey;
 
     /// <summary>The QuickBooks item a refund receipt line is booked against.</summary>
-    public const string RefundItemSettingKey = "qbo.refund_item_id";
+    public const string RefundItemSettingKey = QuickBooksItemSettings.RefundItemKey;
 
     /// <summary>The QuickBooks bank account a refund receipt is paid from.</summary>
-    public const string RefundAccountSettingKey = "qbo.refund_account_id";
+    public const string RefundAccountSettingKey = QuickBooksItemSettings.RefundAccountKey;
 
     public const string RefundMappingMissingMessage =
         "Map a QuickBooks item and bank account for refunds (settings qbo.refund_item_id and qbo.refund_account_id) before recording refunds in connected mode.";

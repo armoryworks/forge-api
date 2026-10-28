@@ -30,7 +30,7 @@ public sealed class BuiltInCpqService(
     IBomRevisionService bomRevisions,
     TaxOverrideGuard taxGuard) : ICpqService
 {
-    public const string QuoteValidDaysKey = "quotes.default_valid_days";
+    public const string QuoteValidDaysKey = Forge.Core.Settings.QuoteSettings.DefaultValidDaysKey;
     public const int DefaultQuoteValidDays = 30;
     private const int PartNumberMaxLength = 50;
 

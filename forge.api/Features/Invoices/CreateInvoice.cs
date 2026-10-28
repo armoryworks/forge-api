@@ -106,7 +106,7 @@ public class CreateInvoiceHandler(
     private const string AllowManualInvoiceNumbersKey = "invoices.allow_manual_numbers";
 
     /// <summary>System setting naming the QuickBooks item freight lines sync to.</summary>
-    public const string FreightItemSettingKey = "qbo.freight_item_id";
+    public const string FreightItemSettingKey = Forge.Core.Settings.QuickBooksItemSettings.FreightItemKey;
 
     private static readonly ShipmentStatus[] ShippedStatuses =
         [ShipmentStatus.Shipped, ShipmentStatus.InTransit, ShipmentStatus.Delivered];
