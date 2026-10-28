@@ -25,6 +25,10 @@ public class InventoryController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("surplus-location")]
+    public async Task<ActionResult<SurplusLocationResponseModel>> GetSurplusLocation(CancellationToken ct)
+        => Ok(await mediator.Send(new GetSurplusLocationQuery(), ct));
+
     [HttpGet("locations/bins")]
     public async Task<ActionResult<PagedResponse<StorageLocationFlatResponseModel>>> GetBinLocations(
         [FromQuery] string? search,

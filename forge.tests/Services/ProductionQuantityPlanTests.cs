@@ -1,9 +1,11 @@
 using FluentAssertions;
 
+using Forge.Api.Features.Jobs;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Routing;
+using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Services;
 
@@ -105,5 +107,36 @@ public class ProductionQuantityPlanTests
         planned[2].Should().Be(110m);
         planned[3].Should().Be(100m);
         planned[1].Should().Be(116m);
+    }
+
+    [Theory]
+    [InlineData(100, 14, 114)]
+    [InlineData(100, 0, 100)]
+    [InlineData(2.5, 3, 5.5)]
+    public void Extra_pieces_start_the_target_plus_the_extras(decimal target, int extra, decimal expected) =>
+        ProductionQuantityPlan.StartWithExtraPieces(target, extra).Should().Be(expected);
+
+    [Fact]
+    public void Only_jobs_made_for_demand_use_the_calculated_plan()
+    {
+        ProductionQuantityPlan.PlansForDemand(new Job()).Should().BeFalse();
+        ProductionQuantityPlan.PlansForDemand(new Job { SalesOrderLineId = 1 }).Should().BeTrue();
+        ProductionQuantityPlan.PlansForDemand(new Job { MrpPlannedOrderId = 1 }).Should().BeTrue();
+        ProductionQuantityPlan.PlansForDemand(new Job { ParentJobId = 1 }).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task The_start_plan_offers_the_calculated_extras_for_an_order_line_and_none_for_a_manual_job()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.Parts.Add(new Part { Id = 5, PartNumber = "P-5", ExpectedYieldPercent = 95m });
+        await db.SaveChangesAsync();
+        var handler = new GetJobStartPlanHandler(db);
+
+        var forLine = await handler.Handle(new GetJobStartPlanQuery(5, 100m, SalesOrderLineId: 9), default);
+        var manual = await handler.Handle(new GetJobStartPlanQuery(5, 100m), default);
+
+        forLine.Should().Be(new Forge.Core.Models.JobStartPlanResponseModel(100m, 106m, 6));
+        manual.Should().Be(new Forge.Core.Models.JobStartPlanResponseModel(100m, 100m, 0));
     }
 }

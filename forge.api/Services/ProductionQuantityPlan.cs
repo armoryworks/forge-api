@@ -90,6 +90,18 @@ public static class ProductionQuantityPlan
         return JobQuantityRules.Fit(Math.Max(start, target));
     }
 
+    public static decimal StartWithExtraPieces(decimal target, int extraPieces) =>
+        JobQuantityRules.Fit(target + Math.Max(0, extraPieces));
+
+    public static bool PlansForDemand(Job job) =>
+        job.SalesOrderLineId is not null || job.MrpPlannedOrderId is not null || job.ParentJobId is not null;
+
+    public static async Task<decimal> CalculatedStartAsync(
+        AppDbContext db, Job job, int partId, decimal target, CancellationToken ct) =>
+        PlansForDemand(job)
+            ? await StartForPartAsync(db, partId, target, ct)
+            : JobQuantityRules.Fit(target);
+
     public static async Task<decimal> StartForPartAsync(
         AppDbContext db, int partId, decimal target, CancellationToken ct)
     {

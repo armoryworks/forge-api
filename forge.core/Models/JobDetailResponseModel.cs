@@ -46,4 +46,5 @@ public record JobDetailResponseModel(
     string? SalesOrderNumber = null,
     string? PartRevision = null,
     decimal? Quantity = null,
-    decimal? TargetQuantity = null);
+    decimal? TargetQuantity = null,
+    int? ExtraPieces = null);

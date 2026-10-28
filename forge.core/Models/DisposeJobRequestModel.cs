@@ -8,4 +8,5 @@ public record DisposeJobRequestModel(
     decimal? GoodQuantity = null,
     int? LocationId = null,
     int? AssetGlAccountId = null,
-    int? ExpenseGlAccountId = null);
+    int? ExpenseGlAccountId = null,
+    int? SurplusLocationId = null);

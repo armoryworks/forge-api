@@ -293,4 +293,41 @@ public class CreateJobSoDefaultsTests
 
         _created!.TargetQuantity.Should().Be(200m);
     }
+
+    [Fact]
+    public async Task Extra_pieces_on_an_order_line_job_override_the_yield_plan()
+    {
+        var (line, part) = await SeedLineAsync(100m);
+        part.ExpectedYieldPercent = 95m;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(ForLine(line.Id) with { ExtraPieces = 14 }, CancellationToken.None);
+
+        _created!.TargetQuantity.Should().Be(100m);
+        _created.ExtraPieces.Should().Be(14);
+        _created.JobParts.Should().ContainSingle().Which.Quantity.Should().Be(114m);
+        _created.ActivityLogs.Single().Description.Should().EndWith("14 extra pieces planned over the order quantity of 100.");
+    }
+
+    [Fact]
+    public async Task Extra_pieces_on_a_manual_job_make_the_typed_quantity_the_order_quantity()
+    {
+        _db.Parts.Add(new Part { Id = 600, PartNumber = "40-1700M" });
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(new CreateJobCommand("Manual", null, 1, null, null, null, null,
+            PartId: 600, Quantity: 50m, ExtraPieces: 5), CancellationToken.None);
+
+        _created!.TargetQuantity.Should().Be(50m);
+        _created.ExtraPieces.Should().Be(5);
+        _created.JobParts.Should().ContainSingle().Which.Quantity.Should().Be(55m);
+    }
+
+    [Theory]
+    [InlineData(-1, 600, false)]
+    [InlineData(0, 600, true)]
+    [InlineData(3, null, false)]
+    public void Extra_pieces_must_be_whole_non_negative_and_need_a_part(int extra, int? partId, bool valid)
+        => new CreateJobCommandValidator().Validate(new CreateJobCommand("J", null, 1, null, null, null, null,
+            PartId: partId, ExtraPieces: extra)).IsValid.Should().Be(valid);
 }

@@ -406,7 +406,8 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
                 : job.SalesOrderLine?.Quantity > 0m ? job.SalesOrderLine.Quantity
                 : job.PartId.HasValue ? 1m
                 : null,
-            job.TargetQuantity);
+            job.TargetQuantity,
+            job.ExtraPieces);
     }
 
     public async Task<Job?> FindAsync(int id, CancellationToken ct)

@@ -73,11 +73,12 @@ public static class ShopFloorSettings
                 new(nameof(StepGatingMode.Warn), "Warn"),
                 new(nameof(StepGatingMode.Block), "Block"),
             ]),
-        new(MaxOverrunPercentKey, Group, "Maximum overrun (% over the target)", SettingDataType.Integer,
-            Description: "How far good pieces on a routing step may go past the job's target (the job quantity, or "
-                + "the ordered quantity when the job starts extra pieces to cover scrap). Scrap never counts. "
-                + "Operators see a warning and confirm before recording an overrun; above this limit the entry is "
-                + "refused. Blank = no limit, 0 = no overrun at all.",
+        new(MaxOverrunPercentKey, Group, "Maximum overrun (% over the start quantity)", SettingDataType.Integer,
+            Description: "How far good pieces on a routing step may go past the job's start quantity (the ordered "
+                + "quantity plus any extra pieces planned for scrap or material yield). Planned extra pieces are "
+                + "not an overrun, and scrap never counts. Operators see a warning and confirm before recording "
+                + "good past the start quantity; above this limit the entry is refused. Blank = no limit, 0 = no "
+                + "overrun at all.",
             DefaultValue: null,
             SortOrder: 155,
             ValidationPattern: "^([0-9]|[1-9][0-9]|[1-9][0-9][0-9]|1000)$"),

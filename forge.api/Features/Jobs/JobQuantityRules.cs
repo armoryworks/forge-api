@@ -16,6 +16,11 @@ public static class JobQuantityRules
         rule.LessThanOrEqualTo(Max).WithMessage(TooLargeMessage)
             .Must(FitsScale).WithMessage(ScaleMessage);
 
+    public const string ExtraPiecesMessage = "Extra pieces must be a whole number from 0 to 999,999,999.";
+
+    public static IRuleBuilderOptions<T, int?> ExtraPiecesLimits<T>(this IRuleBuilder<T, int?> rule) =>
+        rule.Must(e => e is null || (e.Value >= 0 && e.Value <= Max)).WithMessage(ExtraPiecesMessage);
+
     public static IRuleBuilderOptions<T, decimal?> JobQuantityLimits<T>(this IRuleBuilder<T, decimal?> rule) =>
         rule.LessThanOrEqualTo(Max).WithMessage(TooLargeMessage)
             .Must(q => q is null || FitsScale(q.Value)).WithMessage(ScaleMessage);

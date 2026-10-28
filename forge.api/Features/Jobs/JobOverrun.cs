@@ -12,23 +12,23 @@ public static class JobOverrun
     public static decimal TargetQuantity(Job job, decimal buildQuantity) =>
         Math.Min(job.TargetQuantity ?? buildQuantity, buildQuantity);
 
-    public static decimal? Limit(decimal targetQuantity, int? percent) =>
+    public static decimal? Limit(decimal startQuantity, int? percent) =>
         percent is int p && p >= 0
-            ? decimal.Floor(targetQuantity * (100m + p) / 100m * 10_000m) / 10_000m
+            ? decimal.Floor(startQuantity * (100m + p) / 100m * 10_000m) / 10_000m
             : null;
 
-    public static decimal Over(decimal targetQuantity, decimal good) => Math.Max(0m, good - targetQuantity);
+    public static decimal Over(decimal startQuantity, decimal good) => Math.Max(0m, good - startQuantity);
 
-    public static string Note(decimal targetQuantity, decimal good) =>
-        Over(targetQuantity, good) is var over && over > 0m
-            ? $" Overrun: {over:0.####} good over the target quantity of {targetQuantity:0.####}."
+    public static string Note(decimal startQuantity, decimal good) =>
+        Over(startQuantity, good) is var over && over > 0m
+            ? $" Overrun: {over:0.####} good over the start quantity of {startQuantity:0.####}."
             : string.Empty;
 
-    public static ValidationException LimitExceeded(string property, decimal good, decimal targetQuantity, decimal limit) =>
+    public static ValidationException LimitExceeded(string property, decimal good, decimal startQuantity, decimal limit) =>
         new([
             new ValidationFailure(property,
                 $"Good ({good:0.####}) is more than the overrun allowed on this job: at most {limit:0.####} good "
-                    + $"against a target quantity of {targetQuantity:0.####}.")
+                    + $"against a start quantity of {startQuantity:0.####}.")
             {
                 ErrorCode = LimitCode,
                 FormattedMessagePlaceholderValues = new Dictionary<string, object?> { ["ComparisonValue"] = limit },

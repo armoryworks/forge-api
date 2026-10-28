@@ -310,7 +310,7 @@ public class JobOperationTimerHandlerTests
         result.Operation.Status.Should().Be(JobOperationStatus.Complete);
         (await _h.Timers.Db.TimeEntries.AnyAsync(t => t.TimerStop == null)).Should().BeFalse();
         var log = await _h.Timers.Db.JobActivityLogs.AsNoTracking().SingleAsync(l => l.Action == ActivityAction.OperationCompleted);
-        log.Description.Should().Contain("Overrun: 2 good over the target quantity of 10.");
+        log.Description.Should().Contain("Overrun: 2 good over the start quantity of 10.");
     }
 
     [Fact]

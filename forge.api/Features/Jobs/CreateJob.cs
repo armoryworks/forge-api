@@ -32,11 +32,13 @@ public record CreateJobCommand(
     // Optional caller-supplied job number — gated by jobs.allow_manual_numbers.
     string? JobNumber = null,
     decimal? Quantity = null,
-    int? InitialStageId = null) : IRequest<JobDetailResponseModel>;
+    int? InitialStageId = null,
+    int? ExtraPieces = null) : IRequest<JobDetailResponseModel>;
 
 public class CreateJobCommandValidator : AbstractValidator<CreateJobCommand>
 {
     public const string QuantityNeedsPartMessage = "A quantity needs a part to count.";
+    public const string ExtraPiecesNeedPartMessage = "Extra pieces need a part to count.";
 
     public CreateJobCommandValidator()
     {
@@ -55,6 +57,11 @@ public class CreateJobCommandValidator : AbstractValidator<CreateJobCommand>
         RuleFor(x => x.PartId)
             .NotNull().When(x => x.Quantity.HasValue && x.SalesOrderLineId is null)
             .WithMessage(QuantityNeedsPartMessage);
+
+        RuleFor(x => x.ExtraPieces).ExtraPiecesLimits();
+        RuleFor(x => x.PartId)
+            .NotNull().When(x => x.ExtraPieces.HasValue && x.SalesOrderLineId is null)
+            .WithMessage(ExtraPiecesNeedPartMessage);
     }
 }
 
@@ -123,10 +130,21 @@ public class CreateJobHandler(
                 throw new ValidationException(
                     [new FluentValidation.Results.ValidationFailure(
                         nameof(CreateJobCommand.PartId), CreateJobCommandValidator.QuantityNeedsPartMessage)]);
+            if (partId is null && request.ExtraPieces.HasValue)
+                throw new ValidationException(
+                    [new FluentValidation.Results.ValidationFailure(
+                        nameof(CreateJobCommand.PartId), CreateJobCommandValidator.ExtraPiecesNeedPartMessage)]);
         }
 
         decimal? targetQuantity = null;
-        if (request.SalesOrderLineId.HasValue && partId is int planPartId && quantity is decimal demand)
+        int? extraPieces = null;
+        if (request.ExtraPieces is int extra && partId is not null)
+        {
+            extraPieces = extra;
+            targetQuantity = quantity ?? 1m;
+            quantity = ProductionQuantityPlan.StartWithExtraPieces(targetQuantity.Value, extra);
+        }
+        else if (request.SalesOrderLineId.HasValue && partId is int planPartId && quantity is decimal demand)
         {
             targetQuantity = demand;
             quantity = await ProductionQuantityPlan.StartForPartAsync(db, planPartId, demand, cancellationToken);
@@ -152,6 +170,7 @@ public class CreateJobHandler(
             PartId = partId,
             SalesOrderLineId = request.SalesOrderLineId,
             TargetQuantity = targetQuantity,
+            ExtraPieces = extraPieces,
         };
 
         // Phase 3 H4 / WU-20 — if this job is being released against a
@@ -183,9 +202,12 @@ public class CreateJobHandler(
         job.ActivityLogs.Add(new JobActivityLog
         {
             Action = ActivityAction.Created,
-            Description = request.SalesOrderLineId is int linkedLineId
+            Description = (request.SalesOrderLineId is int linkedLineId
                 ? $"{jobTerm} {jobNumber} created (linked to SO line #{linkedLineId})."
-                : $"{jobTerm} {jobNumber} created.",
+                : $"{jobTerm} {jobNumber} created.")
+                + (extraPieces is int planned
+                    ? $" {planned} extra pieces planned over the order quantity of {targetQuantity:0.####}."
+                    : string.Empty),
         });
 
         await jobRepo.AddAsync(job, cancellationToken);
