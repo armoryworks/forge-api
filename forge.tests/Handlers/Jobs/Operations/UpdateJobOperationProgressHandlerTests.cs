@@ -3,6 +3,7 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
+using Forge.Api.Features.Jobs;
 using Forge.Api.Features.Jobs.Operations;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -94,7 +95,7 @@ public class UpdateJobOperationProgressHandlerTests
     }
 
     [Fact]
-    public async Task Complete_WithoutQuantity_FillsTheRestAndStopsEveryTimerOnThatStepOnly()
+    public async Task Complete_WithoutQuantity_FillsTheGoodCountAndStopsEveryTimerOnThatStepOnly()
     {
         var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
         var first = await _h.Timers.AddUserAsync();
@@ -107,7 +108,7 @@ public class UpdateJobOperationProgressHandlerTests
         var result = await PatchAsync(first.Id, job.Id, routing[1].Id, new(null, 1m, JobOperationStatus.Complete));
 
         result.Operation.Status.Should().Be(JobOperationStatus.Complete);
-        result.Operation.CompletedQuantity.Should().Be(39m);
+        result.Operation.CompletedQuantity.Should().Be(40m, "scrap does not count toward the job quantity, so Done fills the good count");
         result.Operation.ScrapQuantity.Should().Be(1m);
         result.Operation.CompletedByName.Should().Be("Machinist, Pat");
         result.Operation.RemainingMinutes.Should().Be(0m);
@@ -119,7 +120,7 @@ public class UpdateJobOperationProgressHandlerTests
         timers.Single(t => t.OperationId == routing[2].Id).TimerStop.Should().BeNull();
         var log = await _h.Timers.Db.JobActivityLogs.AsNoTracking()
             .SingleAsync(l => l.Action == ActivityAction.OperationCompleted);
-        log.NewValue.Should().Be("Complete 39/40 (1 scrap)");
+        log.NewValue.Should().Be("Complete 40/40 (1 scrap)");
     }
 
     [Fact]
@@ -137,14 +138,127 @@ public class UpdateJobOperationProgressHandlerTests
     }
 
     [Fact]
-    public async Task MoreThanTheJobQuantity_IsRejected()
+    public async Task ScrapNeverCountsTowardTheJobQuantity()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        var user = await _h.Timers.AddUserAsync();
+        _h.MaxOverrunPercent = "0";
+
+        var result = await PatchAsync(user.Id, job.Id, routing[0].Id, new(40m, 15m, null));
+
+        result.Operation.CompletedQuantity.Should().Be(40m);
+        result.Operation.ScrapQuantity.Should().Be(15m);
+        var log = await _h.Timers.Db.JobActivityLogs.AsNoTracking().SingleAsync(l => l.FieldName == "OperationStatus");
+        log.Description.Should().NotContain("Overrun");
+    }
+
+    [Fact]
+    public async Task GoodPastTheJobQuantity_IsRecordedAsAnOverrun()
     {
         var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
         var user = await _h.Timers.AddUserAsync();
 
-        var act = () => PatchAsync(user.Id, job.Id, routing[0].Id, new(39m, 2m, null));
+        var result = await PatchAsync(user.Id, job.Id, routing[0].Id, new(43m, 2m, null));
 
-        (await act.Should().ThrowAsync<ValidationException>()).WithMessage("*39*2*40*");
+        result.Operation.CompletedQuantity.Should().Be(43m);
+        result.Operation.ScrapQuantity.Should().Be(2m);
+        result.Operation.RemainingMinutes.Should().BeGreaterThanOrEqualTo(0m);
+        var events = await _h.Timers.Db.JobOperationEvents.AsNoTracking().ToListAsync();
+        events.Should().HaveCount(2);
+        events.Single(e => e.Kind == JobOperationEventKind.Good).Quantity.Should().Be(43m);
+        events.Single(e => e.Kind == JobOperationEventKind.Scrap).Quantity.Should().Be(2m);
+        var log = await _h.Timers.Db.JobActivityLogs.AsNoTracking().SingleAsync(l => l.FieldName == "OperationStatus");
+        log.NewValue.Should().Be("In progress 43/40 (2 scrap)");
+        log.Description.Should().Contain("Overrun: 3 good over the target quantity of 40.");
+    }
+
+    [Fact]
+    public async Task Complete_WithAnOverrunAlreadyRecorded_KeepsTheRecordedCount()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        var user = await _h.Timers.AddUserAsync();
+        await PatchAsync(user.Id, job.Id, routing[0].Id, new(45m, null, null));
+
+        var result = await PatchAsync(user.Id, job.Id, routing[0].Id, new(null, null, JobOperationStatus.Complete));
+
+        result.Operation.Status.Should().Be(JobOperationStatus.Complete);
+        result.Operation.CompletedQuantity.Should().Be(45m);
+        result.Operation.RemainingMinutes.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task AJobThatStartsExtraPieces_ComparesGoodWithItsTargetAndDoneFillsToTheTarget()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(44m);
+        job.TargetQuantity = 40m;
+        await _h.Timers.Db.SaveChangesAsync();
+        var user = await _h.Timers.AddUserAsync();
+        _h.MaxOverrunPercent = "5";
+
+        var done = await PatchAsync(user.Id, job.Id, routing[1].Id, new(null, 3m, JobOperationStatus.Complete));
+        var overrun = await PatchAsync(user.Id, job.Id, routing[0].Id, new(42m, 1m, null));
+        var act = () => PatchAsync(user.Id, job.Id, routing[0].Id, new(43m, 1m, null));
+
+        done.Operation.CompletedQuantity.Should().Be(40m);
+        overrun.Operation.CompletedQuantity.Should().Be(42m);
+        (await _h.Timers.Db.JobActivityLogs.AsNoTracking()
+            .Where(l => l.FieldName == "OperationStatus" && l.OperationId == routing[0].Id).SingleAsync())
+            .Description.Should().Contain("Overrun: 2 good over the target quantity of 40.");
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Single().ErrorCode.Should().Be(JobOverrun.LimitCode);
+    }
+
+    [Fact]
+    public async Task OverrunPastTheConfiguredLimit_IsRefused()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        var user = await _h.Timers.AddUserAsync();
+        _h.MaxOverrunPercent = "10";
+
+        await PatchAsync(user.Id, job.Id, routing[0].Id, new(44m, 9m, null));
+        var act = () => PatchAsync(user.Id, job.Id, routing[0].Id, new(45m, 9m, null));
+
+        var thrown = (await act.Should().ThrowAsync<ValidationException>()).Which;
+        thrown.Errors.Single().ErrorCode.Should().Be(JobOverrun.LimitCode);
+        thrown.Errors.Single().FormattedMessagePlaceholderValues["ComparisonValue"].Should().Be(44m);
+        (await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync()).CompletedQuantity.Should().Be(44m);
+    }
+
+    [Fact]
+    public async Task ZeroOverrunLimit_RefusesAnyGoodPastTheJobQuantity()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        var user = await _h.Timers.AddUserAsync();
+        _h.MaxOverrunPercent = "0";
+
+        await PatchAsync(user.Id, job.Id, routing[0].Id, new(40m, 2m, null));
+        var act = () => PatchAsync(user.Id, job.Id, routing[0].Id, new(41m, 2m, null));
+
+        await act.Should().ThrowAsync<ValidationException>();
+    }
+
+    [Fact]
+    public async Task LoweringACountThatIsAlreadyPastTheLimit_IsAllowed()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        var user = await _h.Timers.AddUserAsync();
+        await PatchAsync(user.Id, job.Id, routing[0].Id, new(60m, null, null));
+        _h.MaxOverrunPercent = "10";
+
+        var result = await PatchAsync(user.Id, job.Id, routing[0].Id, new(50m, null, null));
+
+        result.Operation.CompletedQuantity.Should().Be(50m);
+    }
+
+    [Fact]
+    public void NegativeOrTooPreciseOrAbsurdQuantities_AreStillRejectedByTheValidator()
+    {
+        var validator = new UpdateJobOperationProgressValidator();
+
+        validator.Validate(new UpdateJobOperationProgressCommand(1, 1, new(-1m, null, null))).IsValid.Should().BeFalse();
+        validator.Validate(new UpdateJobOperationProgressCommand(1, 1, new(null, -1m, null))).IsValid.Should().BeFalse();
+        validator.Validate(new UpdateJobOperationProgressCommand(1, 1, new(1.00001m, null, null))).IsValid.Should().BeFalse();
+        validator.Validate(new UpdateJobOperationProgressCommand(1, 1, new(1_000_000_000m, null, null))).IsValid.Should().BeFalse();
+        validator.Validate(new UpdateJobOperationProgressCommand(1, 1, new(999_999_999m, null, null))).IsValid.Should().BeTrue();
     }
 
     [Fact]
@@ -276,9 +390,9 @@ public class UpdateJobOperationProgressHandlerTests
 
         var events = await _h.Timers.Db.JobOperationEvents.AsNoTracking().OrderBy(e => e.Id).ToListAsync();
         events.Select(e => (e.Kind, e.Quantity)).Should().Equal(
-            (JobOperationEventKind.Good, 39m),
+            (JobOperationEventKind.Good, 40m),
             (JobOperationEventKind.Scrap, 1m),
-            (JobOperationEventKind.Good, -39m),
+            (JobOperationEventKind.Good, -40m),
             (JobOperationEventKind.Scrap, -1m));
     }
 
@@ -299,7 +413,9 @@ public class UpdateJobOperationProgressHandlerTests
         var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
         var user = await _h.Timers.AddUserAsync();
 
-        var act = () => PatchAsync(user.Id, job.Id, routing[0].Id, new(39m, 2m, null, ReworkQuantity: 1m));
+        _h.MaxOverrunPercent = "0";
+
+        var act = () => PatchAsync(user.Id, job.Id, routing[0].Id, new(41m, 2m, null, ReworkQuantity: 1m));
 
         await act.Should().ThrowAsync<ValidationException>();
         (await _h.Timers.Db.JobOperationEvents.AnyAsync()).Should().BeFalse();

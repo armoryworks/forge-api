@@ -11,6 +11,8 @@ public interface IJobOperationService
 
     Task<decimal> GetJobQuantityAsync(Job job, CancellationToken ct);
 
+    Task<decimal?> GetOverrunLimitAsync(decimal targetQuantity, CancellationToken ct);
+
     Task<JobOperation> EnsureRowAsync(Job job, Operation operation, CancellationToken ct);
 
     void ApplyProgress(JobOperation row, decimal completed, decimal scrap, decimal rework,

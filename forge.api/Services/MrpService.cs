@@ -165,7 +165,7 @@ public class MrpService(
                 {
                     r.Id,
                     r.PartId,
-                    Quantity = (decimal)(r.TargetQuantity - r.CompletedQuantity),
+                    Quantity = (decimal)(r.TargetQuantity > r.CompletedQuantity ? r.TargetQuantity - r.CompletedQuantity : 0),
                     AvailableDate = r.CompletedAt ?? clock.UtcNow.AddDays(14),
                 })
                 .ToListAsync(cancellationToken);

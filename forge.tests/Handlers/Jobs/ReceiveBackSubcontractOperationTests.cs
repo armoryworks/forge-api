@@ -232,13 +232,13 @@ public class ReceiveBackSubcontractOperationTests
         await ReceiveAsync(order.Id, good: 9m, scrap: 1m);
 
         var after = await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync();
-        after.CompletedQuantity.Should().Be(9m);
+        after.CompletedQuantity.Should().Be(10m);
         after.ScrapQuantity.Should().Be(1m);
         after.Status.Should().Be(JobOperationStatus.Complete);
         var log = await _h.Timers.Db.JobActivityLogs.AsNoTracking()
             .SingleAsync(a => a.FieldName == "OperationStatus");
-        log.NewValue.Should().Be("Complete 9/10 (1 scrap)");
-        log.Description.Should().Contain("4 over the job quantity not counted");
+        log.NewValue.Should().Be("Complete 10/10 (1 scrap)");
+        log.Description.Should().Contain("3 good over the job quantity not counted");
 
         var user = await _h.Timers.AddUserAsync();
         _h.Timers.Db.ChangeTracker.Clear();

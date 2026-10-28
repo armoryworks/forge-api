@@ -8,8 +8,8 @@ using Forge.Tests.Helpers;
 namespace Forge.Tests.Handlers.Jobs;
 
 /// <summary>
-/// F-049 regression: UpdateProductionRun must reject completedQty > targetQty (INV-SF2).
-/// Boundary: completedQty == targetQty is allowed.
+/// UpdateProductionRun records good and scrap past the run's target as an overrun (logged, not refused);
+/// negative quantities are still refused.
 /// </summary>
 public class UpdateProductionRunHandlerTests : IDisposable
 {
@@ -47,23 +47,46 @@ public class UpdateProductionRunHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Handle_CompletedPlusScrapExceedsTarget_ThrowsInvalidOperation_F049()
+    public async Task Handle_GoodOverTarget_IsRecordedAsAnOverrunAndScrapNeverCounts()
     {
-        // 8 good + 3 scrap = 11 > targetQty 10 — must reject
         var run = await SeedRunAsync(targetQty: 10);
 
-        var act = () => _handler.Handle(new UpdateProductionRunCommand(
+        var result = await _handler.Handle(new UpdateProductionRunCommand(
             JobId: run.JobId,
             RunId: run.Id,
-            CompletedQuantity: 8,
+            CompletedQuantity: 10,
+            ScrapQuantity: 3,
+            Status: ProductionRunStatus.InProgress.ToString(),
+            Notes: null,
+            SetupTimeMinutes: null,
+            RunTimeMinutes: null), CancellationToken.None);
+        var overrun = await _handler.Handle(new UpdateProductionRunCommand(
+            JobId: run.JobId,
+            RunId: run.Id,
+            CompletedQuantity: 12,
             ScrapQuantity: 3,
             Status: ProductionRunStatus.InProgress.ToString(),
             Notes: null,
             SetupTimeMinutes: null,
             RunTimeMinutes: null), CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*cannot exceed target quantity*");
+        result.CompletedQuantity.Should().Be(10);
+        result.ScrapQuantity.Should().Be(3);
+        overrun.CompletedQuantity.Should().Be(12);
+        var logs = _db.ActivityLogs.Where(l => l.Action == "production-run-updated").OrderBy(l => l.Id).ToList();
+        logs.Should().HaveCount(2);
+        logs[0].Description.Should().NotContain("over the target");
+        logs[1].Description.Should().Contain("2 good over the target of 10");
+    }
+
+    [Fact]
+    public async Task Handle_NegativeQuantities_AreStillRejected()
+    {
+        var validator = new UpdateProductionRunCommandValidator();
+        var command = new UpdateProductionRunCommand(1, 1, -1, 0, ProductionRunStatus.InProgress.ToString(), null, null, null);
+
+        (await validator.ValidateAsync(command)).IsValid.Should().BeFalse();
+        (await validator.ValidateAsync(command with { CompletedQuantity = 0, ScrapQuantity = -1 })).IsValid.Should().BeFalse();
     }
 
     [Fact]

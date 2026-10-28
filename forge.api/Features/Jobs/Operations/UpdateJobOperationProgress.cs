@@ -1,7 +1,6 @@
 using System.Security.Claims;
 
 using FluentValidation;
-using FluentValidation.Results;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
@@ -70,6 +69,7 @@ public class UpdateJobOperationProgressHandler(
             throw new InvalidOperationException(JobOperationRules.StaleMessage);
 
         var jobQuantity = await operations.GetJobQuantityAsync(job, cancellationToken);
+        var targetQuantity = JobOverrun.TargetQuantity(job, jobQuantity);
         var before = JobOperationRules.Describe(row, jobQuantity);
         var wasClosed = JobOperationRules.IsClosed(row.Status);
         var wasComplete = row.Status == JobOperationStatus.Complete;
@@ -88,7 +88,7 @@ public class UpdateJobOperationProgressHandler(
         switch (data.Status)
         {
             case JobOperationStatus.Complete:
-                completed = data.CompletedQuantity ?? Math.Max(row.CompletedQuantity, jobQuantity - scrap);
+                completed = data.CompletedQuantity ?? Math.Max(row.CompletedQuantity, targetQuantity);
                 row.Status = JobOperationStatus.Complete;
                 row.StartedAt ??= now;
                 row.CompletedAt = now;
@@ -134,11 +134,10 @@ public class UpdateJobOperationProgressHandler(
                 break;
         }
 
-        if (completed + scrap > jobQuantity)
-            throw new ValidationException([
-                new ValidationFailure(nameof(data.CompletedQuantity),
-                    $"Completed ({completed:0.##}) plus scrap ({scrap:0.##}) is more than the job quantity ({jobQuantity:0.##})."),
-            ]);
+        var goodGrows = completed > row.CompletedQuantity;
+        if (goodGrows && completed > targetQuantity
+            && await operations.GetOverrunLimitAsync(targetQuantity, cancellationToken) is decimal limit && completed > limit)
+            throw JobOverrun.LimitExceeded(nameof(data.CompletedQuantity), completed, targetQuantity, limit);
 
         var gate = stepGate is null
             ? StepGateOutcome.None
@@ -170,6 +169,7 @@ public class UpdateJobOperationProgressHandler(
         var after = JobOperationRules.Describe(row, jobQuantity);
         var reworkNote = rework > 0m ? $" {rework:0.##} sent to rework." : string.Empty;
         var reasonNote = string.IsNullOrWhiteSpace(data.ReasonCode) ? string.Empty : $" Reason: {data.ReasonCode.Trim()}.";
+        var overrunNote = goodGrows ? JobOverrun.Note(targetQuantity, completed) : string.Empty;
         var gateNote = !gate.Overridden ? string.Empty
             : (gate.Mode == StepGatingMode.Block ? " Step gate overridden" : " Step gate warning acknowledged")
                 + (gate.Reason is null ? "." : $": {gate.Reason}.");
@@ -181,7 +181,7 @@ public class UpdateJobOperationProgressHandler(
             FieldName = "OperationStatus",
             OldValue = before,
             NewValue = after,
-            Description = $"Operation {operation.StepNumber} {operation.Title}: {before} → {after}.{reworkNote}{reasonNote}{gateNote}",
+            Description = $"Operation {operation.StepNumber} {operation.Title}: {before} → {after}.{overrunNote}{reworkNote}{reasonNote}{gateNote}",
             CreatedAt = now,
             OperationId = operation.Id,
             WorkCenterId = operation.WorkCenterId,

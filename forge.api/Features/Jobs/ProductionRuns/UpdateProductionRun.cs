@@ -57,10 +57,6 @@ public class UpdateProductionRunHandler(AppDbContext db, IClock clock) : IReques
 
         var newStatus = Enum.Parse<ProductionRunStatus>(request.Status, true);
 
-        if (request.CompletedQuantity + request.ScrapQuantity > run.TargetQuantity)
-            throw new InvalidOperationException(
-                $"Completed quantity ({request.CompletedQuantity}) + scrap ({request.ScrapQuantity}) cannot exceed target quantity ({run.TargetQuantity}).");
-
         if (run.ReceivedToStockAt is not null
             && (request.CompletedQuantity != run.CompletedQuantity || request.ScrapQuantity != run.ScrapQuantity))
             throw new InvalidOperationException(
@@ -103,6 +99,9 @@ public class UpdateProductionRunHandler(AppDbContext db, IClock clock) : IReques
         if (before != (run.CompletedQuantity, run.ScrapQuantity, run.Status) || shotsAdded != 0)
             db.LogActivityAt("production-run-updated",
                 $"Production run {run.RunNumber}: {run.Status}, {run.CompletedQuantity} good, {run.ScrapQuantity} scrap"
+                    + (run.CompletedQuantity > run.TargetQuantity
+                        ? $", {run.CompletedQuantity - run.TargetQuantity} good over the target of {run.TargetQuantity}"
+                        : string.Empty)
                     + (shotsAdded != 0 ? $", {shotsAdded:+#;-#} shots on tooling" : string.Empty),
                 ("Job", run.JobId));
 

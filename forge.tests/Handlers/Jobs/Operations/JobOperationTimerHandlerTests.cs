@@ -293,14 +293,36 @@ public class JobOperationTimerHandlerTests
     }
 
     [Fact]
-    public async Task Stop_WithTooManyPieces_IsRefusedAndTheTimerKeepsRunning()
+    public async Task Stop_PastTheJobQuantity_RecordsTheOverrunAndStopsTheTimer()
     {
         var (job, routing) = await _h.AddJobWithRoutingAsync(10m);
         var user = await _h.Timers.AddUserAsync();
         await StartAsync(user.Id, job.Id, routing[0].Id);
+        _h.Timers.Now = _h.Timers.Now.AddMinutes(20);
+
+        var result = await _h.StopHandler(user.Id).Handle(
+            new StopJobOperationTimerCommand(job.Id, routing[0].Id, new StopJobOperationTimerRequestModel(GoodQuantity: 12m, ScrapQuantity: 1m, MarkComplete: true)),
+            CancellationToken.None);
+
+        result.Stopped.Should().BeTrue();
+        result.Operation!.CompletedQuantity.Should().Be(12m);
+        result.Operation.ScrapQuantity.Should().Be(1m);
+        result.Operation.Status.Should().Be(JobOperationStatus.Complete);
+        (await _h.Timers.Db.TimeEntries.AnyAsync(t => t.TimerStop == null)).Should().BeFalse();
+        var log = await _h.Timers.Db.JobActivityLogs.AsNoTracking().SingleAsync(l => l.Action == ActivityAction.OperationCompleted);
+        log.Description.Should().Contain("Overrun: 2 good over the target quantity of 10.");
+    }
+
+    [Fact]
+    public async Task Stop_PastTheOverrunLimit_IsRefusedAndTheTimerKeepsRunning()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(10m);
+        var user = await _h.Timers.AddUserAsync();
+        await StartAsync(user.Id, job.Id, routing[0].Id);
+        _h.MaxOverrunPercent = "10";
 
         var act = () => _h.StopHandler(user.Id).Handle(
-            new StopJobOperationTimerCommand(job.Id, routing[0].Id, new StopJobOperationTimerRequestModel(GoodQuantity: 9m, ScrapQuantity: 3m)),
+            new StopJobOperationTimerCommand(job.Id, routing[0].Id, new StopJobOperationTimerRequestModel(GoodQuantity: 12m, ScrapQuantity: 3m)),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<FluentValidation.ValidationException>();
