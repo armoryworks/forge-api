@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record QuoteDetailResponseModel(
@@ -26,4 +28,6 @@ public record QuoteDetailResponseModel(
     int? CurrencyId = null,
     string? CurrencyCode = null,
     decimal FxRate = 1m,
-    decimal FreightSubtotal = 0m);
+    decimal FreightSubtotal = 0m,
+    TaxOverrideReason? TaxOverrideReason = null,
+    string? TaxOverrideNote = null);

@@ -184,6 +184,8 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
             so.FreightTerms?.ToString(),
             so.FreightSubtotal,
             so.PaymentTermsId,
-            await new PaymentTermsResolver(db).ModelAsync(so.PaymentTermsId, so.CreditTerms, cancellationToken));
+            await new PaymentTermsResolver(db).ModelAsync(so.PaymentTermsId, so.CreditTerms, cancellationToken),
+            so.TaxOverrideReason,
+            so.TaxOverrideNote);
     }
 }

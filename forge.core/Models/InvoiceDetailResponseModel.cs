@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record InvoiceDetailResponseModel(
@@ -39,4 +41,6 @@ public record InvoiceDetailResponseModel(
     decimal DiscountAvailable = 0m,
     PaymentTermsModel? PaymentTerms = null,
     decimal CreditsApplied = 0m,
-    List<CreditMemoApplicationModel>? CreditApplications = null);
+    List<CreditMemoApplicationModel>? CreditApplications = null,
+    TaxOverrideReason? TaxOverrideReason = null,
+    string? TaxOverrideNote = null);

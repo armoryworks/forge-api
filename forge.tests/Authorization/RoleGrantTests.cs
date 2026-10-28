@@ -90,15 +90,20 @@ public sealed class RoleGrantTests
     }
 
     [Fact]
-    public void Filing_an_expense_is_limited_to_the_roles_the_expenses_screen_admits()
+    public void Every_employee_files_their_own_expenses_and_recurring_company_expenses_stay_with_the_office()
     {
-        string[] filers = ["Admin", "Manager", "Engineer", "OfficeManager"];
-        EffectiveRoles(Single("POST", "api/v1/expenses")).Should().BeEquivalentTo(filers);
-        EffectiveRoles(Single("PUT", "api/v1/expenses/{id:int}")).Should().BeEquivalentTo(filers);
-        EffectiveRoles(Single("POST", "api/v1/expenses/receipts")).Should().BeEquivalentTo(filers);
-        EffectiveRoles(Single("POST", "api/v1/expenses/recurring")).Should().BeEquivalentTo(filers);
-        EffectiveRoles(Single("PATCH", "api/v1/expenses/recurring/{id:int}")).Should().BeEquivalentTo(filers);
-        EffectiveRoles(Single("DELETE", "api/v1/expenses/recurring/{id:int}")).Should().BeEquivalentTo(filers);
+        EffectiveRoles(Single("POST", "api/v1/expenses")).Should().BeEquivalentTo(AllRoles);
+        EffectiveRoles(Single("PUT", "api/v1/expenses/{id:int}")).Should().BeEquivalentTo(AllRoles);
+        EffectiveRoles(Single("POST", "api/v1/expenses/receipts")).Should().BeEquivalentTo(AllRoles);
+
+        string[] recurring = ["Admin", "Manager", "Engineer", "OfficeManager"];
+        EffectiveRoles(Single("POST", "api/v1/expenses/recurring")).Should().BeEquivalentTo(recurring);
+        EffectiveRoles(Single("PATCH", "api/v1/expenses/recurring/{id:int}")).Should().BeEquivalentTo(recurring);
+        EffectiveRoles(Single("DELETE", "api/v1/expenses/recurring/{id:int}")).Should().BeEquivalentTo(recurring);
+
+        string[] reviewers = ["Admin", "Manager", "OfficeManager"];
+        EffectiveRoles(Single("PATCH", "api/v1/expenses/{id:int}/status")).Should().BeEquivalentTo(reviewers);
+        EffectiveRoles(Single("POST", "api/v1/expenses/{id:int}/reimburse")).Should().BeEquivalentTo(reviewers);
     }
 
     [Fact]

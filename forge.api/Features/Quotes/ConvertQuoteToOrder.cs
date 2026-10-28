@@ -59,6 +59,8 @@ public class ConvertQuoteToOrderHandler(
             ShippingAddressId = shippingAddressId,
             BillingAddressId = billingAddressId,
             TaxRate = quote.TaxRate,
+            TaxOverrideReason = quote.TaxOverrideReason,
+            TaxOverrideNote = quote.TaxOverrideNote,
             // AUDIT-S3: preserve the quote's Notes onto the order (was dropped on convert).
             Notes = quote.Notes,
             // F7: the customer's PO reference captured at quote time follows the order.

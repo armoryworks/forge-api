@@ -2,6 +2,7 @@ using System.Globalization;
 
 using FluentValidation;
 using MediatR;
+using Forge.Api.Services;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -21,7 +22,9 @@ public record UpdateQuoteCommand(
     // Optional editable quote number — see UpdateQuoteRequestModel.QuoteNumber.
     string? QuoteNumber = null,
     int? CurrencyId = null,
-    decimal? FxRate = null) : IRequest;
+    decimal? FxRate = null,
+    TaxOverrideReason? TaxOverrideReason = null,
+    string? TaxOverrideNote = null) : IRequest;
 
 public class UpdateQuoteValidator : AbstractValidator<UpdateQuoteCommand>
 {
@@ -105,16 +108,20 @@ public class UpdateQuoteHandler(
         if (request.Notes != null) quote.Notes = request.Notes;
         if (request.TaxRate.HasValue)
         {
-            quote.TaxRate = request.TaxRate.Value;
-
-            // S1: a rate deviating from the customer's computed default requires
-            // a verified tax certificate; matching the default clears the stamp.
-            if (taxGuard is not null)
+            var rateChanged = TaxOverrideGuard.IsOverride(request.TaxRate.Value, quote.TaxRate);
+            if (taxGuard is not null && (rateChanged || request.TaxOverrideReason is not null))
             {
                 var defaultRate = await taxGuard.GetDefaultRateAsync(quote.CustomerId, cancellationToken);
-                quote.TaxDocumentId = await taxGuard.EnsureCanOverrideAsync(
-                    quote.CustomerId, request.TaxRate.Value, defaultRate, cancellationToken);
+                var taxOverride = await taxGuard.EnsureCanOverrideAsync(
+                    quote.CustomerId, request.TaxRate.Value, defaultRate,
+                    request.TaxOverrideReason, request.TaxOverrideNote, "quote", cancellationToken);
+                quote.TaxDocumentId = taxOverride?.TaxDocumentId;
+                quote.TaxOverrideReason = taxOverride?.Reason;
+                quote.TaxOverrideNote = taxOverride?.Note;
+                if (taxOverride is not null)
+                    db.LogActivityAt("tax-override", TaxOverrideActivity.Describe(request.TaxRate.Value, taxOverride), ("Quote", quote.Id));
             }
+            quote.TaxRate = request.TaxRate.Value;
         }
         // Empty string clears the PO; null leaves it untouched (patch semantics).
         if (request.CustomerPO != null)
@@ -131,6 +138,7 @@ public class UpdateQuoteHandler(
         && request.ShippingAddressId is null
         && request.Notes is null
         && request.TaxRate is null
+        && request.TaxOverrideReason is null
         && request.CustomerPO is null
         && request.CurrencyId is null
         && request.FxRate is null;

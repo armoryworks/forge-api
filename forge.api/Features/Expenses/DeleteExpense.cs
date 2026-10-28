@@ -22,10 +22,7 @@ public sealed class DeleteExpenseHandler(IExpenseRepository repo, IHttpContextAc
         // F-EXP-06: only the owner — or an approver role — may delete an expense.
         var user = http.HttpContext?.User;
         var callerId = int.TryParse(user?.FindFirstValue(ClaimTypes.NameIdentifier), out var v) ? v : 0;
-        var isApprover = user?.IsInRole("Admin") == true
-                         || user?.IsInRole("Manager") == true
-                         || user?.IsInRole("OfficeManager") == true;
-        if (expense.UserId != callerId && !isApprover)
+        if (expense.UserId != callerId && !ExpenseReviewers.Includes(user))
             throw new ForbiddenException("You can only delete your own expenses.");
 
         if (expense.Status != ExpenseStatus.Pending)

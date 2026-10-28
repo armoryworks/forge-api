@@ -58,7 +58,10 @@ public class InvoicesController(IMediator mediator) : ControllerBase
             CurrencyId: request.CurrencyId, FxRate: request.FxRate,
             InvoiceNumber: request.InvoiceNumber,
             SalesTaxRateId: request.SalesTaxRateId,
-            PaymentTermsId: request.PaymentTermsId));
+            PaymentTermsId: request.PaymentTermsId,
+            TaxOverrideReason: request.TaxOverrideReason,
+            TaxOverrideNote: request.TaxOverrideNote,
+            EnforceTaxOverride: true));
         return CreatedAtAction(nameof(GetInvoice), new { id = result.Id }, result);
     }
 

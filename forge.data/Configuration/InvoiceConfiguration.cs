@@ -28,6 +28,7 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(e => e.InvoiceNumber).HasMaxLength(20);
         builder.Property(e => e.Notes).HasMaxLength(2000);
         builder.Property(e => e.TaxRate).HasPrecision(8, 6);
+        builder.Property(e => e.TaxOverrideNote).HasMaxLength(500);
         builder.Property(e => e.DiscountPercent).HasPrecision(7, 4);
 
         // Multi-currency (Phase-4 FULLGL, additive). Column default 1 so existing rows backfill to the

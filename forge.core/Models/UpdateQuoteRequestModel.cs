@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record UpdateQuoteRequestModel(
@@ -10,4 +12,6 @@ public record UpdateQuoteRequestModel(
     // and only when the quotes.allow_manual_numbers setting is on.
     string? QuoteNumber = null,
     int? CurrencyId = null,
-    decimal? FxRate = null);
+    decimal? FxRate = null,
+    TaxOverrideReason? TaxOverrideReason = null,
+    string? TaxOverrideNote = null);

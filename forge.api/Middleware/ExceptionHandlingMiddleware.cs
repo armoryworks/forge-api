@@ -175,13 +175,16 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             // (per-row ownership check). 403 — distinct from the 401 below.
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             context.Response.ContentType = "application/problem+json";
-            await context.Response.WriteAsJsonAsync(new ProblemDetails
+            var problem = new ProblemDetails
             {
                 Status = StatusCodes.Status403Forbidden,
                 Title = "Forbidden",
                 Detail = ex.Message,
                 Type = "about:blank",
-            });
+            };
+            if (ex.Code is not null)
+                problem.Extensions["code"] = ex.Code;
+            await context.Response.WriteAsJsonAsync(problem);
         }
         catch (ServiceUnavailableException ex)
         {

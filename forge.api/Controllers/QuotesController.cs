@@ -50,7 +50,7 @@ public class QuotesController(IMediator mediator, IConfiguration config) : Contr
         var result = await mediator.Send(new CreateQuoteCommand(
             request.CustomerId, request.ShippingAddressId, request.ExpirationDate,
             request.Notes, request.TaxRate, request.Lines, request.CustomerPO, request.QuoteNumber, request.AssignedToId,
-            request.CurrencyId, request.FxRate));
+            request.CurrencyId, request.FxRate, request.TaxOverrideReason, request.TaxOverrideNote));
         return CreatedAtAction(nameof(GetQuote), new { id = result.Id }, result);
     }
 
@@ -61,7 +61,7 @@ public class QuotesController(IMediator mediator, IConfiguration config) : Contr
         await mediator.Send(new UpdateQuoteCommand(
             id, request.ShippingAddressId, request.ExpirationDate,
             request.Notes, request.TaxRate, request.CustomerPO, request.QuoteNumber,
-            request.CurrencyId, request.FxRate));
+            request.CurrencyId, request.FxRate, request.TaxOverrideReason, request.TaxOverrideNote));
         return NoContent();
     }
 

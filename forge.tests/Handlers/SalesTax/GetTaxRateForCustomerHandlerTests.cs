@@ -5,6 +5,7 @@ using Moq;
 using Forge.Api.Features.SalesTax;
 using Forge.Api.Services;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 using Forge.Tests.Helpers;
@@ -235,7 +236,7 @@ public class GetTaxRateForCustomerHandlerTests
             .Returns((GetTaxRateForCustomerQuery q, CancellationToken ct) => Handler(db).Handle(q, ct));
         var clock = new Mock<IClock>();
         clock.Setup(c => c.UtcNow).Returns(Now);
-        return new TaxOverrideGuard(db, mediator.Object, clock.Object);
+        return new TaxOverrideGuard(db, mediator.Object, clock.Object, TestCaller.As(7, "Controller"));
     }
 
     [Fact]
@@ -247,10 +248,10 @@ public class GetTaxRateForCustomerHandlerTests
         var guard = Guard(db);
 
         var baseline = await guard.GetDefaultRateAsync(customer.Id, CancellationToken.None);
-        var documentId = await guard.EnsureCanOverrideAsync(customer.Id, 0m, baseline, CancellationToken.None);
+        var stamp = await guard.EnsureCanOverrideAsync(customer.Id, 0m, baseline, null, null, "quote", CancellationToken.None);
 
         baseline.Should().Be(0m);
-        documentId.Should().BeNull();
+        stamp.Should().BeNull();
     }
 
     [Fact]
@@ -266,8 +267,10 @@ public class GetTaxRateForCustomerHandlerTests
         var guard = Guard(db);
 
         var baseline = await guard.GetDefaultRateAsync(customer.Id, CancellationToken.None);
-        var act = () => guard.EnsureCanOverrideAsync(customer.Id, county.Rate, baseline, CancellationToken.None);
+        var act = () => guard.EnsureCanOverrideAsync(
+            customer.Id, county.Rate, baseline, TaxOverrideReason.Resale, null, "quote", CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>();
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Should().ContainSingle(e => e.ErrorCode == TaxOverrideGuard.CertificateRequiredCode);
     }
 }

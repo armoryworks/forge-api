@@ -8,6 +8,7 @@ using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.Freight;
 using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Features.SalesTax;
+using Forge.Api.Services;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -38,7 +39,10 @@ public record CreateInvoiceCommand(
     string? InvoiceNumber = null,
     int? SalesTaxRateId = null,
     int? PaymentTermsId = null,
-    bool ApplyCustomerDeposits = true) : IRequest<InvoiceListItemModel>;
+    bool ApplyCustomerDeposits = true,
+    TaxOverrideReason? TaxOverrideReason = null,
+    string? TaxOverrideNote = null,
+    bool EnforceTaxOverride = false) : IRequest<InvoiceListItemModel>;
 
 public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
 {
@@ -94,7 +98,8 @@ public class CreateInvoiceHandler(
     // identifier registry records the number for resolution/history. DI supplies both.
     ISystemSettingRepository? systemSettings = null,
     IBusinessIdentifierService? identifiers = null,
-    IPublisher? publisher = null)
+    IPublisher? publisher = null,
+    TaxOverrideGuard? taxGuard = null)
     : IRequestHandler<CreateInvoiceCommand, InvoiceListItemModel>
 {
     // System setting that gates caller-supplied invoice numbers. Stored as "true"/"false".
@@ -115,12 +120,13 @@ public class CreateInvoiceHandler(
         CreditTerms? salesOrderTerms = null;
         int? salesOrderTermsId = null;
         int? salesOrderCurrencyId = null;
+        (decimal Rate, TaxOverrideReason? Reason, string? Note)? salesOrderTax = null;
         var currencies = new DocumentCurrencyResolver(db);
         if (request.SalesOrderId is int linkedSoId)
         {
             var salesOrder = await db.SalesOrders.AsNoTracking()
                 .Where(so => so.Id == linkedSoId)
-                .Select(so => new { so.OrderNumber, so.CustomerId, so.CustomerPO, so.CreditTerms, so.PaymentTermsId, so.CurrencyId })
+                .Select(so => new { so.OrderNumber, so.CustomerId, so.CustomerPO, so.CreditTerms, so.PaymentTermsId, so.CurrencyId, so.TaxRate, so.TaxOverrideReason, so.TaxOverrideNote })
                 .FirstOrDefaultAsync(cancellationToken)
                 ?? throw new KeyNotFoundException($"Sales order {linkedSoId} not found");
 
@@ -131,6 +137,7 @@ public class CreateInvoiceHandler(
             salesOrderCustomerPo = salesOrder.CustomerPO;
             salesOrderTerms = salesOrder.CreditTerms;
             salesOrderTermsId = salesOrder.PaymentTermsId;
+            salesOrderTax = (salesOrder.TaxRate, salesOrder.TaxOverrideReason, salesOrder.TaxOverrideNote);
             salesOrderCurrencyId = await currencies.EffectiveCurrencyIdAsync(salesOrder.CurrencyId, cancellationToken);
             if (request.CurrencyId is int requestedCurrencyId && requestedCurrencyId != salesOrderCurrencyId)
                 throw DocumentCurrencyResolver.Failure("CurrencyId", DocumentCurrencyResolver.InvoiceSoCurrencyMismatchCode,
@@ -291,6 +298,21 @@ public class CreateInvoiceHandler(
         var customerExempt = customer.IsTaxExemptOn(invoiceDay);
         var jurisdiction = await ResolveJurisdictionAsync(request, cancellationToken);
 
+        TaxOverrideStamp? taxOverride = null;
+        var taxOverrideIsNew = false;
+        if (!customerExempt && salesOrderTax is { } orderTax && !TaxOverrideGuard.IsOverride(request.TaxRate, orderTax.Rate))
+        {
+            taxOverride = orderTax.Reason is { } orderReason ? new TaxOverrideStamp(orderReason, orderTax.Note, null) : null;
+        }
+        else if (!customerExempt && request.EnforceTaxOverride && taxGuard is not null)
+        {
+            var computed = await GetTaxRateForCustomerHandler.ResolveAsync(db, request.CustomerId, request.InvoiceDate, cancellationToken);
+            taxOverride = await taxGuard.EnsureCanOverrideAsync(
+                request.CustomerId, request.TaxRate, computed?.Rate ?? 0m,
+                request.TaxOverrideReason, request.TaxOverrideNote, "invoice", cancellationToken);
+            taxOverrideIsNew = taxOverride is not null;
+        }
+
         var invoice = new Invoice
         {
             InvoiceNumber = invoiceNumber,
@@ -304,6 +326,8 @@ public class CreateInvoiceHandler(
             CreditTerms = creditTerms,
             TaxRate = customerExempt ? 0m : request.TaxRate,
             SalesTaxRateId = jurisdiction?.Id,
+            TaxOverrideReason = taxOverride?.Reason,
+            TaxOverrideNote = taxOverride?.Note,
             Notes = request.Notes,
             CustomerPO = customerPo,
         };
@@ -341,6 +365,8 @@ public class CreateInvoiceHandler(
         await repo.SaveChangesAsync(cancellationToken);
 
         db.LogActivityAt("created", $"Created invoice {invoice.InvoiceNumber} for {customer.Name}", ("Invoice", invoice.Id));
+        if (taxOverrideIsNew)
+            db.LogActivityAt("tax-override", TaxOverrideActivity.Describe(invoice.TaxRate, taxOverride!), ("Invoice", invoice.Id));
         await db.SaveChangesAsync(cancellationToken);
 
         // Record the number in the identifier registry (history + resolution).

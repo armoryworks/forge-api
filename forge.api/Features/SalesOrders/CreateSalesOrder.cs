@@ -29,7 +29,9 @@ public record CreateSalesOrderCommand(
     int? CurrencyId = null,
     decimal? FxRate = null,
     FreightTerms? FreightTerms = null,
-    int? PaymentTermsId = null) : IRequest<SalesOrderListItemModel>;
+    int? PaymentTermsId = null,
+    TaxOverrideReason? TaxOverrideReason = null,
+    string? TaxOverrideNote = null) : IRequest<SalesOrderListItemModel>;
 
 public class CreateSalesOrderValidator : AbstractValidator<CreateSalesOrderCommand>
 {
@@ -86,11 +88,13 @@ public class CreateSalesOrderHandler(
         // gate that Phase 1 found missing.
         ActiveCheck.EnsureActive(customer, "Customer", "customerId", request.CustomerId);
 
+        Forge.Api.Services.TaxOverrideStamp? taxOverride = null;
         if (taxGuard is not null)
         {
             var defaultRate = await taxGuard.GetDefaultRateAsync(request.CustomerId, cancellationToken);
-            await taxGuard.EnsureCanOverrideAsync(
-                request.CustomerId, request.TaxRate, defaultRate, cancellationToken);
+            taxOverride = await taxGuard.EnsureCanOverrideAsync(
+                request.CustomerId, request.TaxRate, defaultRate,
+                request.TaxOverrideReason, request.TaxOverrideNote, "sales_order", cancellationToken);
         }
 
         var orderNumber = await ResolveOrderNumberAsync(request, cancellationToken);
@@ -135,6 +139,8 @@ public class CreateSalesOrderHandler(
             CustomerPO = request.CustomerPO,
             Notes = request.Notes,
             TaxRate = request.TaxRate,
+            TaxOverrideReason = taxOverride?.Reason,
+            TaxOverrideNote = taxOverride?.Note,
             FreightTerms = request.FreightTerms ?? customer.FreightTerms,
         };
 

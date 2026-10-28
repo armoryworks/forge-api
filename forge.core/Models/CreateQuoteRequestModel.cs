@@ -15,7 +15,9 @@ public record CreateQuoteRequestModel(
     string? QuoteNumber = null,
     int? AssignedToId = null,
     int? CurrencyId = null,
-    decimal? FxRate = null);
+    decimal? FxRate = null,
+    TaxOverrideReason? TaxOverrideReason = null,
+    string? TaxOverrideNote = null);
 
 public record CreateQuoteLineModel(
     int? PartId,

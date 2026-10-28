@@ -1,8 +1,8 @@
 namespace Forge.Core.Models;
 
 /// <summary>
-/// S1 — whether a quote's tax rate may be overridden for this customer.
-/// Editable only when a Verified, unexpired CustomerTaxDocument is on file.
+/// Whether the caller may override a document's tax rate for this customer, and the Verified,
+/// unexpired CustomerTaxDocument on file (if any) that the certificate-backed exemption reasons need.
 /// </summary>
 public record CustomerTaxEditabilityResponseModel(
     bool CanEditTax,

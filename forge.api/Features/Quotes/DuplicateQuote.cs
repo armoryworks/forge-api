@@ -62,8 +62,9 @@ public class DuplicateQuoteHandler(
         }
 
         var defaultRate = await taxGuard.GetDefaultRateAsync(source.CustomerId, cancellationToken);
-        var taxDocumentId = await taxGuard.EnsureCanOverrideAsync(
-            source.CustomerId, source.TaxRate, defaultRate, cancellationToken);
+        var taxOverride = taxGuard.EnsureCanCopyOverride(
+            source.CustomerId, source.TaxRate, defaultRate,
+            source.TaxOverrideReason, source.TaxOverrideNote, source.TaxDocumentId, "quote");
 
         var copy = new Quote
         {
@@ -78,7 +79,9 @@ public class DuplicateQuoteHandler(
             TaxRate = source.TaxRate,
             CurrencyId = source.CurrencyId,
             FxRate = source.FxRate,
-            TaxDocumentId = taxDocumentId,
+            TaxDocumentId = TaxOverrideGuard.IsOverride(source.TaxRate, defaultRate) ? source.TaxDocumentId : null,
+            TaxOverrideReason = taxOverride?.Reason,
+            TaxOverrideNote = taxOverride?.Note,
             CustomerPO = request.AsRevision ? source.CustomerPO : null,
             AssignedToId = request.AsRevision ? source.AssignedToId ?? db.CurrentUserId : db.CurrentUserId,
         };

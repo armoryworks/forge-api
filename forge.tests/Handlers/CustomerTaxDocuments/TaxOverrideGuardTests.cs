@@ -1,9 +1,11 @@
 using FluentAssertions;
+using FluentValidation;
 using MediatR;
 using Moq;
 
 using Forge.Api.Features.Quotes;
 using Forge.Api.Features.SalesTax;
+using Forge.Api.Middleware;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -19,8 +21,8 @@ public class TaxOverrideGuardTests
 
     private readonly Mock<IMediator> _mediator = new();
 
-    private TaxOverrideGuard Guard(Forge.Data.Context.AppDbContext db)
-        => new(db, _mediator.Object, new FixedClock(Now));
+    private TaxOverrideGuard Guard(Forge.Data.Context.AppDbContext db, params string[] roles)
+        => new(db, _mediator.Object, new FixedClock(Now), TestCaller.As(7, roles.Length == 0 ? ["Controller"] : roles));
 
     private static CustomerTaxDocument Document(
         TaxDocumentStatus status = TaxDocumentStatus.Verified,
@@ -37,82 +39,136 @@ public class TaxOverrideGuardTests
         ExpirationDate = expires,
     };
 
-    // ── EnsureCanOverrideAsync ────────────────────────────────────────────────
+    private static async Task<string> FailureCode(Func<Task> act)
+        => (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Single().ErrorCode;
 
     [Fact]
-    public async Task Matching_default_rate_needs_no_certificate_and_returns_null()
+    public async Task Matching_default_rate_needs_no_reason_and_returns_null()
     {
         using var db = TestDbContextFactory.Create();
 
-        var result = await Guard(db).EnsureCanOverrideAsync(2, 0.0725m, 0.0725m, CancellationToken.None);
+        var result = await Guard(db, "PM").EnsureCanOverrideAsync(2, 0.0725m, 0.0725m, null, null, "invoice", CancellationToken.None);
 
         result.Should().BeNull();
         db.AuditLogEntries.Should().BeEmpty("no override happened, so nothing to audit");
     }
 
+    [Theory]
+    [InlineData("PM")]
+    [InlineData("Engineer")]
+    [InlineData("Procurement")]
+    public async Task A_role_outside_tax_management_cannot_override(string role)
+    {
+        using var db = TestDbContextFactory.Create();
+
+        var act = () => Guard(db, role).EnsureCanOverrideAsync(
+            2, 0m, 0.0725m, TaxOverrideReason.OutOfJurisdiction, null, "invoice", CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ForbiddenException>()).Which.Code.Should().Be(TaxOverrideGuard.ForbiddenCode);
+    }
+
     [Fact]
-    public async Task Deviation_without_verified_document_throws()
+    public async Task An_override_without_a_reason_is_refused()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        var code = await FailureCode(() => Guard(db).EnsureCanOverrideAsync(2, 0m, 0.0725m, null, null, "invoice", CancellationToken.None));
+
+        code.Should().Be(TaxOverrideGuard.ReasonRequiredCode);
+    }
+
+    [Fact]
+    public async Task Other_needs_a_note()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        var code = await FailureCode(() => Guard(db).EnsureCanOverrideAsync(
+            2, 0m, 0.0725m, TaxOverrideReason.Other, "  ", "invoice", CancellationToken.None));
+
+        code.Should().Be(TaxOverrideGuard.NoteRequiredCode);
+    }
+
+    [Theory]
+    [InlineData(TaxOverrideReason.Resale)]
+    [InlineData(TaxOverrideReason.ExemptOrganization)]
+    [InlineData(TaxOverrideReason.Government)]
+    public async Task A_certificate_reason_needs_a_verified_certificate(TaxOverrideReason reason)
     {
         using var db = TestDbContextFactory.Create();
         db.CustomerTaxDocuments.Add(Document(status: TaxDocumentStatus.Pending));
         await db.SaveChangesAsync();
 
-        var act = () => Guard(db).EnsureCanOverrideAsync(2, 0m, 0.0725m, CancellationToken.None);
+        var code = await FailureCode(() => Guard(db).EnsureCanOverrideAsync(2, 0m, 0.0725m, reason, null, "invoice", CancellationToken.None));
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage(
-            "Editing the tax rate requires a verified state tax certificate on file for this customer.");
+        code.Should().Be(TaxOverrideGuard.CertificateRequiredCode);
     }
 
     [Fact]
-    public async Task Deviation_with_verified_document_returns_document_id_and_audits()
-    {
-        using var db = TestDbContextFactory.Create();
-        db.CustomerTaxDocuments.Add(Document(expires: Now.AddYears(1)));
-        await db.SaveChangesAsync();
-        // Set the actor AFTER seeding so the seed's auto-captured audit rows
-        // (CaptureAuditEntries skips null-user operations) don't pollute the assert.
-        db.CurrentUserId = 7;
-
-        var result = await Guard(db).EnsureCanOverrideAsync(2, 0m, 0.0725m, CancellationToken.None);
-
-        result.Should().Be(5);
-
-        await db.SaveChangesAsync();
-        var audit = db.AuditLogEntries.Single(a => a.Action == "quote.tax_override");
-        audit.UserId.Should().Be(7);
-        audit.EntityType.Should().Be("Customer");
-        audit.EntityId.Should().Be(2);
-        audit.Details.Should().Contain("\"taxDocumentId\":5").And.Contain("\"newRate\":0");
-    }
-
-    [Fact]
-    public async Task Expired_verified_document_does_not_qualify()
+    public async Task Expired_or_rejected_certificates_do_not_qualify()
     {
         using var db = TestDbContextFactory.Create();
         db.CustomerTaxDocuments.Add(Document(expires: Now.AddDays(-1)));
         await db.SaveChangesAsync();
 
-        var act = () => Guard(db).EnsureCanOverrideAsync(2, 0m, 0.0725m, CancellationToken.None);
+        var code = await FailureCode(() => Guard(db).EnsureCanOverrideAsync(
+            2, 0m, 0.0725m, TaxOverrideReason.Resale, null, "invoice", CancellationToken.None));
 
-        await act.Should().ThrowAsync<InvalidOperationException>();
+        code.Should().Be(TaxOverrideGuard.CertificateRequiredCode);
     }
 
     [Fact]
-    public async Task Rejected_document_does_not_qualify()
+    public async Task Out_of_jurisdiction_needs_no_certificate_and_is_audited_with_its_reason()
     {
         using var db = TestDbContextFactory.Create();
-        db.CustomerTaxDocuments.Add(Document(status: TaxDocumentStatus.Rejected));
+        db.CurrentUserId = 7;
+
+        var stamp = await Guard(db, "OfficeManager").EnsureCanOverrideAsync(
+            2, 0m, 0.0725m, TaxOverrideReason.OutOfJurisdiction, " shipped to Oregon ", "invoice", CancellationToken.None);
+
+        stamp.Should().Be(new TaxOverrideStamp(TaxOverrideReason.OutOfJurisdiction, "shipped to Oregon", null));
         await db.SaveChangesAsync();
-
-        var act = () => Guard(db).EnsureCanOverrideAsync(2, 0m, 0.0725m, CancellationToken.None);
-
-        await act.Should().ThrowAsync<InvalidOperationException>();
+        var audit = db.AuditLogEntries.Single(a => a.Action == "invoice.tax_override");
+        audit.UserId.Should().Be(7);
+        audit.EntityType.Should().Be("Customer");
+        audit.EntityId.Should().Be(2);
+        audit.Details.Should().Contain("\"reason\":\"OutOfJurisdiction\"").And.Contain("\"newRate\":0").And.Contain("shipped to Oregon");
     }
 
-    // ── Wiring into CreateQuoteHandler ────────────────────────────────────────
+    [Fact]
+    public async Task A_certificate_reason_with_a_verified_certificate_stamps_the_certificate()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.CustomerTaxDocuments.Add(Document(expires: Now.AddYears(1)));
+        await db.SaveChangesAsync();
+
+        var stamp = await Guard(db, "Admin").EnsureCanOverrideAsync(
+            2, 0m, 0.0725m, TaxOverrideReason.Resale, null, "quote", CancellationToken.None);
+
+        stamp!.TaxDocumentId.Should().Be(5);
+        stamp.Reason.Should().Be(TaxOverrideReason.Resale);
+    }
 
     [Fact]
-    public async Task CreateQuote_with_override_and_verified_document_stamps_TaxDocumentId()
+    public void Copying_an_override_needs_the_role_but_not_the_reason_again()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        var copy = Guard(db).EnsureCanCopyOverride(2, 0m, 0.0725m, TaxOverrideReason.Resale, "cert R-1", 5, "quote");
+        var denied = () => Guard(db, "PM").EnsureCanCopyOverride(2, 0m, 0.0725m, TaxOverrideReason.Resale, "cert R-1", 5, "quote");
+
+        copy.Should().Be(new TaxOverrideStamp(TaxOverrideReason.Resale, "cert R-1", 5));
+        denied.Should().Throw<ForbiddenException>();
+    }
+
+    [Fact]
+    public void The_override_roles_are_the_customer_tax_roles_plus_the_controller()
+    {
+        TaxOverrideGuard.OverrideRoles.Should().BeEquivalentTo(
+            Forge.Api.Controllers.CustomersController.CommercialTermsRoles.Append("Controller"));
+    }
+
+    [Fact]
+    public async Task CreateQuote_with_a_certificate_reason_stamps_the_quote()
     {
         using var db = TestDbContextFactory.Create();
         db.CustomerTaxDocuments.Add(Document(expires: Now.AddYears(1)));
@@ -122,14 +178,14 @@ public class TaxOverrideGuardTests
         Quote? added = null;
         var handler = QuoteHandler(db, q => added = q);
 
-        await handler.Handle(Command(taxRate: 0m), CancellationToken.None);
+        await handler.Handle(Command(taxRate: 0m, TaxOverrideReason.Resale), CancellationToken.None);
 
-        added.Should().NotBeNull();
         added!.TaxDocumentId.Should().Be(5);
+        added.TaxOverrideReason.Should().Be(TaxOverrideReason.Resale);
     }
 
     [Fact]
-    public async Task CreateQuote_matching_default_rate_leaves_TaxDocumentId_null()
+    public async Task CreateQuote_matching_default_rate_leaves_the_override_empty()
     {
         using var db = TestDbContextFactory.Create();
         SetupDefaultRate(0.0725m);
@@ -139,22 +195,21 @@ public class TaxOverrideGuardTests
 
         await handler.Handle(Command(taxRate: 0.0725m), CancellationToken.None);
 
-        added.Should().NotBeNull();
         added!.TaxDocumentId.Should().BeNull();
+        added.TaxOverrideReason.Should().BeNull();
     }
 
     [Fact]
-    public async Task CreateQuote_with_override_but_no_certificate_throws()
+    public async Task CreateQuote_with_an_override_but_no_reason_is_refused()
     {
         using var db = TestDbContextFactory.Create();
         SetupDefaultRate(0.0725m);
 
         var handler = QuoteHandler(db, _ => { });
 
-        var act = () => handler.Handle(Command(taxRate: 0m), CancellationToken.None);
+        var code = await FailureCode(() => handler.Handle(Command(taxRate: 0m), CancellationToken.None));
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*verified state tax certificate*");
+        code.Should().Be(TaxOverrideGuard.ReasonRequiredCode);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
@@ -186,8 +241,8 @@ public class TaxOverrideGuardTests
             quoteRepo.Object, customerRepo.Object, partRepo.Object, null, Guard(db));
     }
 
-    private static CreateQuoteCommand Command(decimal taxRate) =>
-        new(2, null, null, null, taxRate, [new CreateQuoteLineModel(null, "Widget", 1, 10m, null)]);
+    private static CreateQuoteCommand Command(decimal taxRate, TaxOverrideReason? reason = null) =>
+        new(2, null, null, null, taxRate, [new CreateQuoteLineModel(null, "Widget", 1, 10m, null)], TaxOverrideReason: reason);
 
     private sealed class FixedClock(DateTimeOffset now) : IClock
     {

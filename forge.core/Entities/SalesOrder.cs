@@ -92,6 +92,12 @@ public class SalesOrder : BaseAuditableEntity, IConcurrencyVersioned
     public string? Notes { get; set; }
     public decimal TaxRate { get; set; }
 
+    /// <summary>Why <see cref="TaxRate"/> differs from the customer's computed rate. Null = the computed rate applies.</summary>
+    public TaxOverrideReason? TaxOverrideReason { get; set; }
+
+    /// <summary>The note recorded with <see cref="TaxOverrideReason"/>.</summary>
+    public string? TaxOverrideNote { get; set; }
+
     /// <summary>Currency the order is denominated in. Null on rows from before multi-currency = the functional currency.</summary>
     public int? CurrencyId { get; set; }
 

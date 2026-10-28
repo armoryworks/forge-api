@@ -65,6 +65,8 @@ public class CreateAddendumOrderHandler(AppDbContext db, IBusinessIdentifierServ
             ShippingAddressId = parent.ShippingAddressId,
             BillingAddressId = parent.BillingAddressId,
             TaxRate = parent.TaxRate,
+            TaxOverrideReason = parent.TaxOverrideReason,
+            TaxOverrideNote = parent.TaxOverrideNote,
             CurrencyId = parent.CurrencyId,
             FxRate = parent.FxRate,
             CustomerPO = parent.CustomerPO,

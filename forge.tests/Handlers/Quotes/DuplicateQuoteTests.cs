@@ -42,12 +42,12 @@ public class DuplicateQuoteTests
             .Setup(m => m.Send(It.IsAny<GetTaxRateForCustomerQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SalesTaxRateResponseModel(1, "UT", "UT", "UT", rate, Now.AddYears(-1), null, true, true, null));
 
-    private DuplicateQuoteHandler Handler()
+    private DuplicateQuoteHandler Handler(string role = "Manager")
     {
         var clock = new Mock<IClock>();
         clock.Setup(c => c.UtcNow).Returns(Now);
         return new DuplicateQuoteHandler(
-            _db, _repo, _mediator.Object, new TaxOverrideGuard(_db, _taxMediator.Object, clock.Object), _identifiers.Object);
+            _db, _repo, _mediator.Object, new TaxOverrideGuard(_db, _taxMediator.Object, clock.Object, TestCaller.As(7, role)), _identifiers.Object);
     }
 
     private async Task<Quote> SeedAsync(QuoteStatus status = QuoteStatus.Accepted, decimal taxRate = 0.07m)
@@ -139,13 +139,29 @@ public class DuplicateQuoteTests
     }
 
     [Fact]
-    public async Task Tax_rate_off_the_default_needs_a_verified_certificate()
+    public async Task A_tax_override_copies_with_its_reason_for_a_tax_role()
+    {
+        var source = await SeedAsync(taxRate: 0m);
+        source.TaxOverrideReason = TaxOverrideReason.OutOfJurisdiction;
+        source.TaxOverrideNote = "Ships to Idaho";
+        await _db.SaveChangesAsync();
+
+        var result = await Handler().Handle(new DuplicateQuoteCommand(5), CancellationToken.None);
+
+        var copy = _db.Quotes.Single(q => q.Id == result.Id);
+        copy.TaxRate.Should().Be(0m);
+        copy.TaxOverrideReason.Should().Be(TaxOverrideReason.OutOfJurisdiction);
+        copy.TaxOverrideNote.Should().Be("Ships to Idaho");
+    }
+
+    [Fact]
+    public async Task A_tax_override_cannot_be_copied_by_a_role_outside_tax_management()
     {
         await SeedAsync(taxRate: 0m);
 
-        var act = () => Handler().Handle(new DuplicateQuoteCommand(5), CancellationToken.None);
+        var act = () => Handler("PM").Handle(new DuplicateQuoteCommand(5), CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*verified state tax certificate*");
+        await act.Should().ThrowAsync<Forge.Api.Middleware.ForbiddenException>();
         _db.Quotes.Should().ContainSingle();
     }
 

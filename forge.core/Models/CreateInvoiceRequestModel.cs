@@ -21,7 +21,9 @@ public record CreateInvoiceRequestModel(
     // invoices.allow_manual_numbers setting is on; otherwise auto-generated.
     string? InvoiceNumber = null,
     int? SalesTaxRateId = null,
-    int? PaymentTermsId = null);
+    int? PaymentTermsId = null,
+    TaxOverrideReason? TaxOverrideReason = null,
+    string? TaxOverrideNote = null);
 
 public record CreateInvoiceLineModel(
     int? PartId,

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Services;
 using Forge.Api.Services.Fx;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -31,7 +32,9 @@ public record UpdateSalesOrderCommand(
     decimal? FxRate = null,
     FreightTerms? FreightTerms = null,
     bool? ClearFreightTerms = null,
-    int? PaymentTermsId = null) : IRequest;
+    int? PaymentTermsId = null,
+    TaxOverrideReason? TaxOverrideReason = null,
+    string? TaxOverrideNote = null) : IRequest;
 
 public class UpdateSalesOrderValidator : AbstractValidator<UpdateSalesOrderCommand>
 {
@@ -146,11 +149,17 @@ public class UpdateSalesOrderHandler(
         if (request.Notes != null) order.Notes = request.Notes;
         if (request.TaxRate.HasValue)
         {
-            if (taxGuard is not null && decimal.Round(request.TaxRate.Value, 6) != decimal.Round(order.TaxRate, 6))
+            var rateChanged = TaxOverrideGuard.IsOverride(request.TaxRate.Value, order.TaxRate);
+            if (taxGuard is not null && (rateChanged || request.TaxOverrideReason is not null))
             {
                 var defaultRate = await taxGuard.GetDefaultRateAsync(order.CustomerId, cancellationToken);
-                await taxGuard.EnsureCanOverrideAsync(
-                    order.CustomerId, request.TaxRate.Value, defaultRate, cancellationToken);
+                var taxOverride = await taxGuard.EnsureCanOverrideAsync(
+                    order.CustomerId, request.TaxRate.Value, defaultRate,
+                    request.TaxOverrideReason, request.TaxOverrideNote, "sales_order", cancellationToken);
+                order.TaxOverrideReason = taxOverride?.Reason;
+                order.TaxOverrideNote = taxOverride?.Note;
+                if (taxOverride is not null)
+                    db.LogActivityAt("tax-override", TaxOverrideActivity.Describe(request.TaxRate.Value, taxOverride), ("SalesOrder", order.Id));
             }
             order.TaxRate = request.TaxRate.Value;
         }

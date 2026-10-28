@@ -35,7 +35,7 @@ public class SalesOrderTaxGuardTests
                 1, "CA State", "CA", "CA", DefaultRate, Now.AddYears(-1), null, false, true, null));
     }
 
-    private TaxOverrideGuard Guard() => new(_db, _mediator.Object, _clock.Object);
+    private TaxOverrideGuard Guard(string role = "Manager") => new(_db, _mediator.Object, _clock.Object, TestCaller.As(7, role));
 
     private async Task SeedTaxDocumentAsync(TaxDocumentStatus status, DateTimeOffset? expires)
     {
@@ -55,9 +55,9 @@ public class SalesOrderTaxGuardTests
     }
 
     private IQueryable<AuditLogEntry> OverrideAudits() =>
-        _db.AuditLogEntries.Where(a => a.Action == "quote.tax_override");
+        _db.AuditLogEntries.Where(a => a.Action == "sales_order.tax_override");
 
-    private CreateSalesOrderHandler CreateHandler(Action<SalesOrder> onAdd)
+    private CreateSalesOrderHandler CreateHandler(Action<SalesOrder> onAdd, string role = "Manager")
     {
         var repo = new Mock<ISalesOrderRepository>();
         repo.Setup(r => r.GenerateNextOrderNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("SO-00001");
@@ -77,12 +77,12 @@ public class SalesOrderTaxGuardTests
 
         return new CreateSalesOrderHandler(
             repo.Object, customers.Object, Mock.Of<IPartRepository>(), Mock.Of<IBarcodeService>(),
-            addresses.Object, taxGuard: Guard());
+            addresses.Object, taxGuard: Guard(role));
     }
 
-    private static CreateSalesOrderCommand CreateCommand(decimal taxRate) =>
+    private static CreateSalesOrderCommand CreateCommand(decimal taxRate, TaxOverrideReason? reason = null, string? note = null) =>
         new(CustomerId, null, null, null, null, null, null, null, taxRate,
-            [new CreateSalesOrderLineModel(null, "Widget", 1, 10m, null)]);
+            [new CreateSalesOrderLineModel(null, "Widget", 1, 10m, null)], TaxOverrideReason: reason, TaxOverrideNote: note);
 
     private (UpdateSalesOrderHandler Handler, SalesOrder Order) UpdateHandler(decimal currentRate)
     {
@@ -107,8 +107,8 @@ public class SalesOrderTaxGuardTests
         return (handler, order);
     }
 
-    private static UpdateSalesOrderCommand UpdateTaxRate(int id, decimal rate) =>
-        new(id, null, null, null, null, null, null, rate);
+    private static UpdateSalesOrderCommand UpdateTaxRate(int id, decimal rate, TaxOverrideReason? reason = null) =>
+        new(id, null, null, null, null, null, null, rate, TaxOverrideReason: reason);
 
     [Fact]
     public async Task Create_with_the_customer_default_rate_passes_without_an_override_audit()
@@ -123,14 +123,37 @@ public class SalesOrderTaxGuardTests
     }
 
     [Fact]
-    public async Task Create_with_a_different_rate_and_no_certificate_is_refused()
+    public async Task Create_with_a_different_rate_and_no_reason_is_refused()
     {
         SalesOrder? added = null;
 
         var act = () => CreateHandler(o => added = o).Handle(CreateCommand(0m), CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*verified state tax certificate*");
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Should().ContainSingle(e => e.ErrorCode == TaxOverrideGuard.ReasonRequiredCode);
         added.Should().BeNull("a refused override must not create the order");
+    }
+
+    [Fact]
+    public async Task Create_with_a_different_rate_by_a_project_manager_is_forbidden()
+    {
+        var act = () => CreateHandler(_ => { }, "PM").Handle(
+            CreateCommand(0m, TaxOverrideReason.OutOfJurisdiction), CancellationToken.None);
+
+        await act.Should().ThrowAsync<Forge.Api.Middleware.ForbiddenException>();
+    }
+
+    [Fact]
+    public async Task Create_with_an_out_of_jurisdiction_reason_stamps_the_order()
+    {
+        SalesOrder? added = null;
+
+        await CreateHandler(o => added = o).Handle(
+            CreateCommand(0m, TaxOverrideReason.OutOfJurisdiction, "Ships to Nevada"), CancellationToken.None);
+
+        added!.TaxOverrideReason.Should().Be(TaxOverrideReason.OutOfJurisdiction);
+        added.TaxOverrideNote.Should().Be("Ships to Nevada");
+        OverrideAudits().Should().ContainSingle();
     }
 
     [Fact]
@@ -138,9 +161,9 @@ public class SalesOrderTaxGuardTests
     {
         await SeedTaxDocumentAsync(TaxDocumentStatus.Verified, Now.AddDays(-1));
 
-        var act = () => CreateHandler(_ => { }).Handle(CreateCommand(0m), CancellationToken.None);
+        var act = () => CreateHandler(_ => { }).Handle(CreateCommand(0m, TaxOverrideReason.Resale), CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>();
+        await act.Should().ThrowAsync<FluentValidation.ValidationException>();
     }
 
     [Fact]
@@ -149,7 +172,7 @@ public class SalesOrderTaxGuardTests
         await SeedTaxDocumentAsync(TaxDocumentStatus.Verified, Now.AddYears(1));
         SalesOrder? added = null;
 
-        await CreateHandler(o => added = o).Handle(CreateCommand(0m), CancellationToken.None);
+        await CreateHandler(o => added = o).Handle(CreateCommand(0m, TaxOverrideReason.Resale), CancellationToken.None);
 
         added!.TaxRate.Should().Be(0m);
         var audit = OverrideAudits().Should().ContainSingle().Subject;
@@ -163,9 +186,9 @@ public class SalesOrderTaxGuardTests
     {
         var (handler, order) = UpdateHandler(DefaultRate);
 
-        var act = () => handler.Handle(UpdateTaxRate(order.Id, 0m), CancellationToken.None);
+        var act = () => handler.Handle(UpdateTaxRate(order.Id, 0m, TaxOverrideReason.Resale), CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*verified state tax certificate*");
+        await act.Should().ThrowAsync<FluentValidation.ValidationException>();
         order.TaxRate.Should().Be(DefaultRate);
     }
 
@@ -175,9 +198,10 @@ public class SalesOrderTaxGuardTests
         await SeedTaxDocumentAsync(TaxDocumentStatus.Verified, null);
         var (handler, order) = UpdateHandler(DefaultRate);
 
-        await handler.Handle(UpdateTaxRate(order.Id, 0m), CancellationToken.None);
+        await handler.Handle(UpdateTaxRate(order.Id, 0m, TaxOverrideReason.Resale), CancellationToken.None);
 
         order.TaxRate.Should().Be(0m);
+        order.TaxOverrideReason.Should().Be(TaxOverrideReason.Resale);
         OverrideAudits().Should().ContainSingle();
     }
 

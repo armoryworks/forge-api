@@ -73,6 +73,8 @@ public class GetInvoiceByIdHandler(IInvoiceRepository repo, AppDbContext? db = n
                 .Select(a => new CreditMemoApplicationModel(
                     a.Id, a.CreditMemoId, a.CreditMemo?.CreditMemoNumber, a.InvoiceId, invoice.InvoiceNumber,
                     a.Amount, a.AppliedAt, a.ReversedAt))
-                .ToList());
+                .ToList(),
+            invoice.TaxOverrideReason,
+            invoice.TaxOverrideNote);
     }
 }

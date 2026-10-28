@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Activity;
 using Forge.Api.Features.Expenses;
@@ -13,7 +14,7 @@ namespace Forge.Api.Controllers;
 [Route("api/v1/expenses")]
 [Authorize]
 [RequiresCapability("CAP-ACCT-EXPENSES")]
-public class ExpensesController(IMediator mediator) : ControllerBase
+public class ExpensesController(IMediator mediator, IEntityAccessResolver access) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<List<ExpenseResponseModel>>> GetExpenses(
@@ -26,7 +27,6 @@ public class ExpensesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Manager,Engineer,OfficeManager")]
     public async Task<ActionResult<ExpenseResponseModel>> CreateExpense([FromBody] CreateExpenseRequestModel request)
     {
         var result = await mediator.Send(new CreateExpenseCommand(request));
@@ -34,7 +34,6 @@ public class ExpensesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [Authorize(Roles = "Admin,Manager,Engineer,OfficeManager")]
     public async Task<ActionResult<ExpenseResponseModel>> UpdateExpense(int id, [FromBody] UpdateExpenseRequestModel request)
     {
         var result = await mediator.Send(new UpdateExpenseCommand(id, request));
@@ -68,12 +67,14 @@ public class ExpensesController(IMediator mediator) : ControllerBase
     [HttpGet("{id:int}/activity")]
     public async Task<ActionResult<List<ActivityResponseModel>>> GetExpenseActivity(int id)
     {
+        if (!await access.CanAccessAsync("Expense", id, User, forWrite: false, HttpContext.RequestAborted))
+            return Forbid();
+
         var result = await mediator.Send(new GetEntityActivityQuery("Expense", id));
         return Ok(result);
     }
 
     [HttpPost("receipts")]
-    [Authorize(Roles = "Admin,Manager,Engineer,OfficeManager")]
     [RequestSizeLimit(52_428_800)]
     public async Task<ActionResult<FileAttachmentResponseModel>> UploadReceipt(IFormFile file)
     {

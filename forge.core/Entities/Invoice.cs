@@ -41,6 +41,12 @@ public class Invoice : BaseAuditableEntity, IConcurrencyVersioned
     public DateTimeOffset? DiscountDueDate { get; set; }
     public decimal TaxRate { get; set; }
 
+    /// <summary>Why <see cref="TaxRate"/> differs from the customer's computed rate. Null = the computed rate applies.</summary>
+    public TaxOverrideReason? TaxOverrideReason { get; set; }
+
+    /// <summary>The note recorded with <see cref="TaxOverrideReason"/>.</summary>
+    public string? TaxOverrideNote { get; set; }
+
     /// <summary>The sales-tax jurisdiction <see cref="TaxRate"/> came from, when known. Decides whether freight starts taxable.</summary>
     public int? SalesTaxRateId { get; set; }
     public string? Notes { get; set; }

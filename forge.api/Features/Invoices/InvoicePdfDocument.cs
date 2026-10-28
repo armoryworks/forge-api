@@ -158,6 +158,13 @@ public class InvoicePdfDocument : IDocument
                     });
                 }
 
+                if (_invoice.TaxOverrideReason is { } taxOverrideReason)
+                {
+                    totals.Item().Text(
+                        $"Tax exemption: {TaxOverrideActivity.ReasonLabel(taxOverrideReason)}{(_invoice.TaxOverrideNote is null ? string.Empty : $" ({_invoice.TaxOverrideNote})")}")
+                        .FontSize(8).FontColor(Colors.Grey.Darken1);
+                }
+
                 totals.Item().PaddingTop(4).LineHorizontal(1);
 
                 totals.Item().PaddingTop(4).Row(row =>

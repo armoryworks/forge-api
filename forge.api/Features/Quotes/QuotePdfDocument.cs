@@ -162,6 +162,13 @@ public class QuotePdfDocument : IDocument
                     });
                 }
 
+                if (_quote.TaxOverrideReason is { } taxOverrideReason)
+                {
+                    totals.Item().Text(
+                        $"Tax exemption: {TaxOverrideActivity.ReasonLabel(taxOverrideReason)}{(_quote.TaxOverrideNote is null ? string.Empty : $" ({_quote.TaxOverrideNote})")}")
+                        .FontSize(8).FontColor(Colors.Grey.Darken1);
+                }
+
                 totals.Item().PaddingTop(4).LineHorizontal(1);
 
                 totals.Item().PaddingTop(4).Row(row =>

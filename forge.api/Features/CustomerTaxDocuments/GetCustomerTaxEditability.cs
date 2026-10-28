@@ -1,5 +1,7 @@
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Services;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -10,11 +12,12 @@ namespace Forge.Api.Features.CustomerTaxDocuments;
 public record GetCustomerTaxEditabilityQuery(int CustomerId) : IRequest<CustomerTaxEditabilityResponseModel>;
 
 /// <summary>
-/// S1 — read-side twin of <see cref="Forge.Api.Services.TaxOverrideGuard"/>:
-/// tells the quote dialog whether the tax-rate field should be editable for
-/// this customer. Editable iff a Verified, unexpired CustomerTaxDocument exists.
+/// Read-side twin of <see cref="TaxOverrideGuard"/>: tells the quote, sales-order and invoice
+/// screens whether the caller may change a document's tax rate for this customer (only the
+/// <see cref="TaxOverrideGuard.OverrideRoles"/>), and which verified, unexpired certificate is on
+/// file for the certificate-backed exemption reasons.
 /// </summary>
-public class GetCustomerTaxEditabilityHandler(AppDbContext db, IClock clock)
+public class GetCustomerTaxEditabilityHandler(AppDbContext db, IClock clock, IHttpContextAccessor? httpContext = null)
     : IRequestHandler<GetCustomerTaxEditabilityQuery, CustomerTaxEditabilityResponseModel>
 {
     public async Task<CustomerTaxEditabilityResponseModel> Handle(
@@ -30,20 +33,12 @@ public class GetCustomerTaxEditabilityHandler(AppDbContext db, IClock clock)
             .Select(d => new { d.Id, d.StateCode, d.ExpirationDate })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (active is not null)
-            return new CustomerTaxEditabilityResponseModel(
-                true, null, active.Id, active.StateCode, active.ExpirationDate);
+        var canEdit = httpContext?.HttpContext?.User is { } user && TaxOverrideGuard.OverrideRoles.Any(user.IsInRole);
+        var reason = canEdit
+            ? null
+            : "Only an Admin, Manager, Office Manager or Controller can change the tax rate from the customer's rate.";
 
-        // Distinguish "expired" from "never verified" for a more useful reason.
-        var hasExpired = await db.CustomerTaxDocuments.AsNoTracking()
-            .AnyAsync(d => d.CustomerId == request.CustomerId
-                && d.Status == TaxDocumentStatus.Verified
-                && d.ExpirationDate != null && d.ExpirationDate <= now, cancellationToken);
-
-        var reason = hasExpired
-            ? "The customer's verified state tax certificate has expired."
-            : "No verified state tax certificate is on file for this customer.";
-
-        return new CustomerTaxEditabilityResponseModel(false, reason, null, null, null);
+        return new CustomerTaxEditabilityResponseModel(
+            canEdit, reason, active?.Id, active?.StateCode, active?.ExpirationDate);
     }
 }

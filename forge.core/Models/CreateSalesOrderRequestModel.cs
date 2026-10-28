@@ -19,7 +19,9 @@ public record CreateSalesOrderRequestModel(
     int? CurrencyId = null,
     decimal? FxRate = null,
     FreightTerms? FreightTerms = null,
-    int? PaymentTermsId = null);
+    int? PaymentTermsId = null,
+    TaxOverrideReason? TaxOverrideReason = null,
+    string? TaxOverrideNote = null);
 
 // Phase 3 / WU-10 / F8-partial — Quantity is decimal (was int). UoM-aware shops
 // need fractional quantities — material-by-weight, by-time, by-volume.

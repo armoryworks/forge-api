@@ -29,7 +29,9 @@ public record CreateQuoteCommand(
     string? QuoteNumber = null,
     int? AssignedToId = null,
     int? CurrencyId = null,
-    decimal? FxRate = null) : IRequest<QuoteListItemModel>;
+    decimal? FxRate = null,
+    TaxOverrideReason? TaxOverrideReason = null,
+    string? TaxOverrideNote = null) : IRequest<QuoteListItemModel>;
 
 public class CreateQuoteValidator : AbstractValidator<CreateQuoteCommand>
 {
@@ -84,14 +86,13 @@ public class CreateQuoteHandler(
         // Phase 3 H2 / WU-12: customer-active check on quote create.
         ActiveCheck.EnsureActive(customer, "Customer", "customerId", request.CustomerId);
 
-        // S1: a tax rate deviating from the customer's computed default requires
-        // a verified tax certificate — the qualifying doc is stamped on the quote.
-        int? taxDocumentId = null;
+        Forge.Api.Services.TaxOverrideStamp? taxOverride = null;
         if (taxGuard is not null)
         {
             var defaultRate = await taxGuard.GetDefaultRateAsync(request.CustomerId, cancellationToken);
-            taxDocumentId = await taxGuard.EnsureCanOverrideAsync(
-                request.CustomerId, request.TaxRate, defaultRate, cancellationToken);
+            taxOverride = await taxGuard.EnsureCanOverrideAsync(
+                request.CustomerId, request.TaxRate, defaultRate,
+                request.TaxOverrideReason, request.TaxOverrideNote, "quote", cancellationToken);
         }
 
         if (request.AssignedToId is int assigneeId && db is not null
@@ -109,7 +110,9 @@ public class CreateQuoteHandler(
             ExpirationDate = request.ExpirationDate,
             Notes = request.Notes,
             TaxRate = request.TaxRate,
-            TaxDocumentId = taxDocumentId,
+            TaxDocumentId = taxOverride?.TaxDocumentId,
+            TaxOverrideReason = taxOverride?.Reason,
+            TaxOverrideNote = taxOverride?.Note,
             CustomerPO = string.IsNullOrWhiteSpace(request.CustomerPO) ? null : request.CustomerPO.Trim(),
             AssignedToId = request.AssignedToId ?? ActingUserId(),
         };

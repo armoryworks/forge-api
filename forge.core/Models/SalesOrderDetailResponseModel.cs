@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record SalesOrderDetailResponseModel(
@@ -31,4 +33,6 @@ public record SalesOrderDetailResponseModel(
     string? FreightTerms = null,
     decimal FreightSubtotal = 0m,
     int? PaymentTermsId = null,
-    PaymentTermsModel? PaymentTerms = null);
+    PaymentTermsModel? PaymentTerms = null,
+    TaxOverrideReason? TaxOverrideReason = null,
+    string? TaxOverrideNote = null);

@@ -70,7 +70,9 @@ public class GetQuoteByIdHandler(IQuoteRepository repo, IStandardCostResolver? c
                 ? await db.Currencies.AsNoTracking().Where(c => c.Id == currencyId).Select(c => c.Code).FirstOrDefaultAsync(cancellationToken)
                 : null,
             FxRate: quote.FxRate,
-            FreightSubtotal: quote.FreightSubtotal);
+            FreightSubtotal: quote.FreightSubtotal,
+            TaxOverrideReason: quote.TaxOverrideReason,
+            TaxOverrideNote: quote.TaxOverrideNote);
     }
 
     private static QuoteLineCostBreakdownModel? CostBreakdownFor(

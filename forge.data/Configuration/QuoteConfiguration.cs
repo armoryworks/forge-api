@@ -31,6 +31,7 @@ public class QuoteConfiguration : IEntityTypeConfiguration<Quote>
         // Quote-specific
         builder.Property(e => e.QuoteNumber).HasMaxLength(20);
         builder.Property(e => e.TaxRate).HasPrecision(8, 6);
+        builder.Property(e => e.TaxOverrideNote).HasMaxLength(500);
         builder.Property(e => e.ExternalId).HasMaxLength(100);
         builder.Property(e => e.ExternalRef).HasMaxLength(100);
         builder.Property(e => e.Provider).HasMaxLength(50);
