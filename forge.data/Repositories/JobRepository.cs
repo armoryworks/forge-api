@@ -58,7 +58,7 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
     }
 
     public async Task<PagedResponse<JobListResponseModel>> GetPagedJobsAsync(
-        JobListQuery query, bool operationTracking, CancellationToken ct)
+        JobListQuery query, bool operationTracking, JobListFieldAccess access, CancellationToken ct)
     {
         // Phase 3 F7-broad / WU-22 — standardised paged-list contract for the
         // jobs table and, with sort=board, the board.
@@ -80,17 +80,18 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
         if (query.AssigneeId.HasValue)
             q = q.Where(j => j.AssigneeId == query.AssigneeId.Value);
 
-        if (query.CustomerId.HasValue)
+        if (query.CustomerId.HasValue && access.Customer)
             q = q.Where(j => j.CustomerId == query.CustomerId.Value);
 
         if (!string.IsNullOrWhiteSpace(query.Q))
         {
             var term = query.Q.Trim().ToLower();
+            var searchCustomer = access.Customer;
             q = q.Where(j =>
                 j.Title.ToLower().Contains(term) ||
                 j.JobNumber.ToLower().Contains(term) ||
                 (j.Part != null && j.Part.PartNumber.ToLower().Contains(term)) ||
-                (j.Customer != null && j.Customer.Name.ToLower().Contains(term)));
+                (searchCustomer && j.Customer != null && j.Customer.Name.ToLower().Contains(term)));
         }
 
         if (query.ActiveOnly)
@@ -118,6 +119,15 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
         if (query.TeamId is int teamId)
             q = q.Where(operationTracking ? CurrentOperationAtTeam(teamId) : RoutingVisitsTeam(teamId));
 
+        var fields = new JobListExpressions(db, new DateTimeOffset(clock.UtcNow.UtcDateTime.Date, TimeSpan.Zero));
+        foreach (var raw in query.Filter ?? [])
+        {
+            if (JobListFilter.Parse(raw, out _) is not { } filter || !access.Allows(filter.Field.Gate))
+                continue;
+            if (fields.Filter(filter) is { } predicate)
+                q = q.Where(predicate);
+        }
+
         // — Count BEFORE paging —
         var totalCount = await q.CountAsync(ct);
 
@@ -139,6 +149,8 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
             "createdat"   => desc ? q.OrderByDescending(j => j.CreatedAt)          : q.OrderBy(j => j.CreatedAt),
             "updatedat"   => desc ? q.OrderByDescending(j => j.UpdatedAt)          : q.OrderBy(j => j.UpdatedAt),
             "id"          => desc ? q.OrderByDescending(j => j.Id)                 : q.OrderBy(j => j.Id),
+            _ when JobListFields.Find(sortKey) is { Sortable: true } field && access.Allows(field.Gate)
+                && fields.Sort(q, field.Key, desc) is { } bySortField => bySortField,
             _ when !string.IsNullOrWhiteSpace(query.Q) => OrderByJobRelevance(q, query.Q.Trim().ToLower()),
             _ => q.OrderByDescending(j => j.CreatedAt),
         };
@@ -154,9 +166,10 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
             .Include(j => j.ChildJobs)
             .Include(j => j.ParentJob)
             .Include(j => j.CoverPhotoFile)
+            .Include(j => j.TrackType)
             .ToListAsync(ct);
 
-        var items = await ToListModelsAsync(jobs, ct);
+        var items = (await ToListModelsAsync(jobs, ct)).Select(item => Restrict(item, access)).ToList();
 
         return new PagedResponse<JobListResponseModel>(
             items,
@@ -164,6 +177,19 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
             query.EffectivePage,
             query.EffectivePageSize);
     }
+
+    private static JobListResponseModel Restrict(JobListResponseModel item, JobListFieldAccess access) => item with
+    {
+        CustomerName = access.Customer ? item.CustomerName : null,
+        CustomerId = access.Customer ? item.CustomerId : null,
+        SalesOrderId = access.SalesOrder ? item.SalesOrderId : null,
+        SalesOrderNumber = access.SalesOrder ? item.SalesOrderNumber : null,
+        BillingStatus = access.Billing ? item.BillingStatus : null,
+        ExternalRef = access.Billing ? item.ExternalRef : null,
+        AccountingDocumentType = access.Billing ? item.AccountingDocumentType : null,
+        EstimatedTotalCost = access.Cost ? item.EstimatedTotalCost : null,
+        QuotedPrice = access.Cost ? item.QuotedPrice : null,
+    };
 
     private static IOrderedQueryable<Job> OrderByJobRelevance(IQueryable<Job> q, string term) =>
         q.OrderBy(j =>
@@ -295,7 +321,16 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
                 making?.PartNumber,
                 making?.Quantity,
                 CreatedAt: j.CreatedAt,
-                TargetQuantity: j.TargetQuantity);
+                TargetQuantity: j.TargetQuantity,
+                CurrentStageId: j.CurrentStageId,
+                TrackTypeId: j.TrackTypeId,
+                TrackTypeName: j.TrackType?.Name,
+                AssigneeName: assignee is null ? null : $"{assignee.LastName}, {assignee.FirstName}".Trim(' ', ','),
+                StartDate: j.StartDate,
+                CompletedDate: j.CompletedDate,
+                UpdatedAt: j.UpdatedAt,
+                EstimatedTotalCost: j.EstimatedTotalCost,
+                QuotedPrice: j.QuotedPrice);
         }).ToList();
     }
 

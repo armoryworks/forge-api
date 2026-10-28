@@ -128,7 +128,7 @@ public sealed class PickerSearchQueryTests(PostgresFixture fixture)
         await db.SaveChangesAsync();
 
         var page = await new JobRepository(db, new FixedClock(now)).GetPagedJobsAsync(
-            new JobListQuery { Q = t, PageSize = 10 }, false, CancellationToken.None);
+            new JobListQuery { Q = t, PageSize = 10 }, false, JobListFieldAccess.Full, CancellationToken.None);
 
         page.TotalCount.Should().Be(13);
         page.Items.First().Title.Should().Be("exact");
@@ -150,8 +150,8 @@ public sealed class PickerSearchQueryTests(PostgresFixture fixture)
         await db.SaveChangesAsync();
         var repo = new JobRepository(db, new FixedClock(DateTimeOffset.UtcNow));
 
-        var standard = await repo.GetPagedJobsAsync(new JobListQuery { TrackTypeId = track.Id }, false, CancellationToken.None);
-        var all = await repo.GetPagedJobsAsync(new JobListQuery { TrackTypeId = track.Id, IncludeArchived = true }, false, CancellationToken.None);
+        var standard = await repo.GetPagedJobsAsync(new JobListQuery { TrackTypeId = track.Id }, false, JobListFieldAccess.Full, CancellationToken.None);
+        var all = await repo.GetPagedJobsAsync(new JobListQuery { TrackTypeId = track.Id, IncludeArchived = true }, false, JobListFieldAccess.Full, CancellationToken.None);
 
         standard.Items.Select(j => j.Title).Should().Equal("live");
         all.Items.Select(j => j.Title).Should().BeEquivalentTo("live", "archived");

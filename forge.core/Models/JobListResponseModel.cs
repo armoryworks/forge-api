@@ -36,4 +36,13 @@ public record JobListResponseModel(
     int? RunningTimerCount = null,
     decimal? EstimatedRemainingMinutes = null,
     DateTimeOffset? CreatedAt = null,
-    decimal? TargetQuantity = null);
+    decimal? TargetQuantity = null,
+    int CurrentStageId = 0,
+    int TrackTypeId = 0,
+    string? TrackTypeName = null,
+    string? AssigneeName = null,
+    DateTimeOffset? StartDate = null,
+    DateTimeOffset? CompletedDate = null,
+    DateTimeOffset? UpdatedAt = null,
+    decimal? EstimatedTotalCost = null,
+    decimal? QuotedPrice = null);

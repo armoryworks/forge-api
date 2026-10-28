@@ -14,10 +14,12 @@ namespace Forge.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/jobs")]
-[Authorize(Roles = "Admin,Manager,Engineer,PM,Controller,OfficeManager")]
+[Authorize(Roles = ReadRoles)]
 [RequiresCapability("CAP-MFG-WO-RELEASE")]
 public class JobCostSummaryController(IMediator mediator) : ControllerBase
 {
+    public const string ReadRoles = "Admin,Manager,Engineer,PM,Controller,OfficeManager";
+
     [HttpGet("{id:int}/cost-summary")]
     public async Task<ActionResult<JobCostSummaryModel>> GetCostSummary(int id, CancellationToken ct)
         => Ok(await mediator.Send(new GetJobCostSummaryQuery(id), ct));

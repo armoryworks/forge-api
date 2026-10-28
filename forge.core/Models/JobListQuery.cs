@@ -7,7 +7,9 @@ namespace Forge.Core.Models;
 /// Governs the jobs table and, with <c>sort=board</c>, the kanban board. The
 /// calendar export remains on its own specialised query semantics.
 /// <see cref="PagedQuery.Q"/> matches job number, title, part number and
-/// customer name.
+/// customer name. <see cref="PagedQuery.Sort"/> takes any sortable key of
+/// <see cref="JobListFields"/> (plus the aliases <c>name</c>, <c>stage</c>,
+/// <c>priority</c> and <c>board</c>); an unknown key falls back to the default order.
 /// </summary>
 public record JobListQuery : PagedQuery
 {
@@ -40,4 +42,10 @@ public record JobListQuery : PagedQuery
 
     /// <summary>Restrict to jobs with an active hold.</summary>
     public bool OnHoldOnly { get; init; }
+
+    /// <summary>
+    /// Per-column filters, one <c>filter=field:operator:value</c> per entry, ANDed together. Fields come from
+    /// <see cref="JobListFields"/>; the syntax is <see cref="JobListFilter"/>.
+    /// </summary>
+    public List<string>? Filter { get; init; }
 }

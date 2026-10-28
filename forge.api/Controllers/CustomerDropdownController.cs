@@ -16,10 +16,12 @@ namespace Forge.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/customers")]
-[Authorize(Roles = "Admin,Manager,OfficeManager,PM,Engineer,ProductionWorker," + PlanningRoles.Planner)]
+[Authorize(Roles = ReadRoles)]
 [RequiresCapability("CAP-MD-CUSTOMERS")]
 public class CustomerDropdownController(IMediator mediator) : ControllerBase
 {
+    public const string ReadRoles = "Admin,Manager,OfficeManager,PM,Engineer,ProductionWorker," + PlanningRoles.Planner;
+
     [HttpGet("dropdown")]
     public async Task<ActionResult<List<CustomerResponseModel>>> GetCustomerDropdown()
     {

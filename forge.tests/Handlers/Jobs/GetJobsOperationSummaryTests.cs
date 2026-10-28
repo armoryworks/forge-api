@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Moq;
 
 using Forge.Api.Features.Jobs;
@@ -21,9 +22,9 @@ public class GetJobsOperationSummaryTests
 
     private async Task<JobListResponseModel> GetAsync(Job job)
     {
-        _repo.Setup(r => r.GetPagedJobsAsync(It.IsAny<JobListQuery>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+        _repo.Setup(r => r.GetPagedJobsAsync(It.IsAny<JobListQuery>(), It.IsAny<bool>(), It.IsAny<JobListFieldAccess>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PagedResponse<JobListResponseModel>([ListItem(job)], 1, 1, 200));
-        var page = await new GetJobsHandler(_repo.Object, _h.Operations)
+        var page = await new GetJobsHandler(_repo.Object, _h.Operations, new HttpContextAccessor())
             .Handle(new GetJobsQuery(new JobListQuery()), CancellationToken.None);
         return page.Items.Single();
     }

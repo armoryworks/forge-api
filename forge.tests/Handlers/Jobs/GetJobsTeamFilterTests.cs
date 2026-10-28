@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Moq;
 
 using Forge.Api.Features.Jobs;
@@ -19,12 +20,12 @@ public class GetJobsTeamFilterTests
     {
         _h.TrackingEnabled = tracking;
         var query = new JobListQuery { TrackTypeId = 3, TeamId = 7 };
-        _repo.Setup(r => r.GetPagedJobsAsync(query, tracking, It.IsAny<CancellationToken>()))
+        _repo.Setup(r => r.GetPagedJobsAsync(query, tracking, JobListFieldAccess.Full, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PagedResponse<JobListResponseModel>([], 0, 1, 25));
 
-        await new GetJobsHandler(_repo.Object, _h.Operations)
+        await new GetJobsHandler(_repo.Object, _h.Operations, new HttpContextAccessor())
             .Handle(new GetJobsQuery(query), CancellationToken.None);
 
-        _repo.Verify(r => r.GetPagedJobsAsync(query, tracking, It.IsAny<CancellationToken>()), Times.Once);
+        _repo.Verify(r => r.GetPagedJobsAsync(query, tracking, JobListFieldAccess.Full, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

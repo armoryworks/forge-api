@@ -94,6 +94,7 @@ public sealed class JobRepositoryTeamFilterTests(PostgresFixture fixture)
         var page = await repo.GetPagedJobsAsync(
             new JobListQuery { TrackTypeId = seed.TrackTypeId, TeamId = teamId, Sort = "title", PageSize = 200 },
             tracking,
+            JobListFieldAccess.Full,
             CancellationToken.None);
         page.TotalCount.Should().Be(page.Items.Count);
         return page.Items.Select(j => j.Title).ToList();
@@ -155,7 +156,7 @@ public sealed class JobRepositoryTeamFilterTests(PostgresFixture fixture)
         var repo = new JobRepository(db, new FixedClock(DateTimeOffset.UtcNow));
 
         var page = await repo.GetPagedJobsAsync(
-            new JobListQuery { TrackTypeId = seed.TrackTypeId, PageSize = 200 }, true, CancellationToken.None);
+            new JobListQuery { TrackTypeId = seed.TrackTypeId, PageSize = 200 }, true, JobListFieldAccess.Full, CancellationToken.None);
 
         page.Items.Should().HaveCount(7);
     }

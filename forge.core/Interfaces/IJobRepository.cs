@@ -18,9 +18,10 @@ public interface IJobRepository
     /// list endpoints (kanban, calendar) remain on the legacy unpaged path.
     /// <paramref name="operationTracking"/> decides how <see cref="JobListQuery.TeamId"/>
     /// reads a job's current operation: from its job operations when on, from
-    /// its part routing when off.
+    /// its part routing when off. Fields outside <paramref name="access"/> come back null and their
+    /// sorts and filters are not applied.
     /// </summary>
-    Task<PagedResponse<JobListResponseModel>> GetPagedJobsAsync(JobListQuery query, bool operationTracking, CancellationToken ct);
+    Task<PagedResponse<JobListResponseModel>> GetPagedJobsAsync(JobListQuery query, bool operationTracking, JobListFieldAccess access, CancellationToken ct);
 
     Task<JobDetailResponseModel?> GetDetailAsync(int id, CancellationToken ct);
     Task<Job?> FindAsync(int id, CancellationToken ct);
