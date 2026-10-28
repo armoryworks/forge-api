@@ -26,7 +26,8 @@ public static class ProductionRunTooling
     }
 
     /// <summary>The tool a new run defaults to: the part's tooling, else the tooling asset on the part's first
-    /// routing step at the run's work center (or on any step when the work center is unknown).</summary>
+    /// routing step at the run's work center (or on any step when the work center is unknown), else the one
+    /// tooling asset in service at the run's work center (none when that work center holds several).</summary>
     public static async Task<int?> DefaultToolingAsync(
         AppDbContext db, Part part, int? workCenterId, CancellationToken ct)
     {
@@ -34,7 +35,7 @@ public static class ProductionRunTooling
             && await db.Assets.AsNoTracking().AnyAsync(a => a.Id == partTool && a.AssetType == AssetType.Tooling, ct))
             return partTool;
 
-        return await db.Operations.AsNoTracking()
+        var routingTool = await db.Operations.AsNoTracking()
             .Where(o => o.PartId == part.Id
                 && o.AssetId != null
                 && o.Asset!.AssetType == AssetType.Tooling
@@ -43,6 +44,18 @@ public static class ProductionRunTooling
             .ThenBy(o => o.Id)
             .Select(o => o.AssetId)
             .FirstOrDefaultAsync(ct);
+        if (routingTool is not null || workCenterId is null)
+            return routingTool;
+
+        var stationTools = await db.Assets.AsNoTracking()
+            .Where(a => a.WorkCenterId == workCenterId
+                && a.AssetType == AssetType.Tooling
+                && a.Status != AssetStatus.Retired
+                && a.Status != AssetStatus.OutOfService)
+            .Select(a => a.Id)
+            .Take(2)
+            .ToListAsync(ct);
+        return stationTools.Count == 1 ? stationTools[0] : null;
     }
 
     /// <summary>Loads the tooling asset and refuses anything that is not tooling.</summary>

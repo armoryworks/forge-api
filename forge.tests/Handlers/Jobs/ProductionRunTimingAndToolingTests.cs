@@ -122,6 +122,40 @@ public class ProductionRunTimingAndToolingTests
     }
 
     [Fact]
+    public async Task A_run_with_no_part_or_routing_tooling_takes_the_one_mold_in_service_at_its_work_center()
+    {
+        var (job, part, press) = await SeedAsync();
+        var mold = new Asset { Name = "Mold T", AssetType = AssetType.Tooling, CavityCount = 4, WorkCenterId = press.Id };
+        var retired = new Asset { Name = "Old mold", AssetType = AssetType.Tooling, Status = AssetStatus.Retired, WorkCenterId = press.Id };
+        var machine = new Asset { Name = "Press 1", AssetType = AssetType.Machine, WorkCenterId = press.Id };
+        _db.Assets.AddRange(mold, retired, machine);
+        await _db.SaveChangesAsync();
+
+        var created = await new CreateProductionRunHandler(_db, _clock.Object)
+            .Handle(new CreateProductionRunCommand(job.Id, part.Id, 2000, null, null), CancellationToken.None);
+        created.ToolingAssetId.Should().Be(mold.Id);
+
+        await new UpdateProductionRunHandler(_db, _clock.Object)
+            .Handle(new UpdateProductionRunCommand(job.Id, created.Id, 1940, 60, "Completed", null, null, null), CancellationToken.None);
+        mold.CurrentShotCount.Should().Be(500);
+    }
+
+    [Fact]
+    public async Task A_run_takes_no_station_mold_when_its_work_center_holds_several()
+    {
+        var (job, part, press) = await SeedAsync();
+        _db.Assets.AddRange(
+            new Asset { Name = "Mold A", AssetType = AssetType.Tooling, WorkCenterId = press.Id },
+            new Asset { Name = "Mold B", AssetType = AssetType.Tooling, WorkCenterId = press.Id });
+        await _db.SaveChangesAsync();
+
+        var created = await new CreateProductionRunHandler(_db, _clock.Object)
+            .Handle(new CreateProductionRunCommand(job.Id, part.Id, 100, null, null), CancellationToken.None);
+
+        created.ToolingAssetId.Should().BeNull();
+    }
+
+    [Fact]
     public async Task A_machine_cannot_be_chosen_as_a_runs_tooling()
     {
         var (job, part, _) = await SeedAsync();
