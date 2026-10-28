@@ -78,20 +78,21 @@ public class VoidVendorPaymentHandler(
     /// reopen with their balances (and any discount taken) restored, the cash-disbursement and settlement
     /// journals reverse at their booked rates on the return date, open transmissions are cancelled and the
     /// payment is voided with the return code on its audit trail. The transmitted-money hard stop does not
-    /// apply: the money came back. Returns false, changing nothing, when the payment is already voided.
+    /// apply: the money came back. A return dated in a closed period reverses on the first day of the first Open
+    /// period after it; the trail keeps the actual return date. Returns the date the journals reversed on, or
+    /// null when nothing was posted to reverse (or the payment is already voided, which changes nothing).
     /// </summary>
-    public async Task<bool> ReverseBankReturnAsync(
+    public async Task<DateOnly?> ReverseBankReturnAsync(
         int vendorPaymentId, VendorPaymentBankReturn bankReturn, int userId, CancellationToken cancellationToken)
     {
         var payment = await repo.FindWithDetailsAsync(vendorPaymentId, cancellationToken);
         if (payment is null)
-            return false;
+            return null;
 
-        await ReverseAsync(payment, $"ACH return {bankReturn.Reason}", userId, bankReturn, cancellationToken);
-        return true;
+        return await ReverseAsync(payment, $"ACH return {bankReturn.Reason}", userId, bankReturn, cancellationToken);
     }
 
-    private async Task ReverseAsync(
+    private async Task<DateOnly?> ReverseAsync(
         VendorPayment payment, string reason, int userId, VendorPaymentBankReturn? bankReturn,
         CancellationToken cancellationToken)
     {
@@ -116,8 +117,9 @@ public class VoidVendorPaymentHandler(
 
         // GL reversal of the origination entry (Dr AP / Cr CASH-or-CIT + FX plug), FULLGL-respecting:
         // the posting service self-gates and no-ops when nothing was posted.
-        if (cashPosting is not null)
-            await cashPosting.ReverseVendorPaymentCreatedAsync(
+        var reversedOn = cashPosting is null
+            ? null
+            : await cashPosting.ReverseVendorPaymentCreatedAsync(
                 payment.Id, reason, userId, bankReturn?.ReturnDate, cancellationToken);
 
         var deductedCredits = await db.VendorCreditMemoApplications
@@ -147,7 +149,10 @@ public class VoidVendorPaymentHandler(
         var voidedText = bankReturn is null
             ? $"Vendor payment {payment.PaymentNumber} voided: {reason}"
             : $"Vendor payment {payment.PaymentNumber} returned by the bank ({bankReturn.Reason}, trace "
-              + $"{bankReturn.TraceNumber}, returned {bankReturn.ReturnDate:yyyy-MM-dd}) and reversed";
+              + $"{bankReturn.TraceNumber}, returned {bankReturn.ReturnDate:yyyy-MM-dd}) and reversed"
+              + (reversedOn is DateOnly postedOn && postedOn != bankReturn.ReturnDate
+                  ? $" on {postedOn:yyyy-MM-dd}, the first open period, because the return date's period is closed"
+                  : string.Empty);
         db.LogActivityAt(
             "voided",
             appliedTo.Length == 0 ? voidedText : $"{voidedText}. It was applied to {appliedTo}.",
@@ -184,5 +189,6 @@ public class VoidVendorPaymentHandler(
             await db.SaveChangesAsync(cancellationToken);
 
         await tx.CommitAsync(cancellationToken);
+        return reversedOn;
     }
 }

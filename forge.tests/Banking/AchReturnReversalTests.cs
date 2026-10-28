@@ -285,6 +285,64 @@ public class AchReturnReversalTests
             a.EntityType == "VendorBill" && a.EntityId == bill.Id && a.Action == "payment-voided" && a.Description.Contains("R01"));
     }
 
+    [Theory]
+    [InlineData(FiscalPeriodStatus.HardClosed)]
+    [InlineData(FiscalPeriodStatus.SoftClosed)]
+    public async Task Return_dated_in_a_closed_period_reverses_on_the_first_day_of_the_first_open_period(FiscalPeriodStatus closed)
+    {
+        using var db = await SeedAsync();
+        var october = await db.Set<FiscalPeriod>().SingleAsync(p => p.Id == 1000);
+        october.EndDate = new DateOnly(2026, 10, 31);
+        db.Set<FiscalPeriod>().AddRange(
+            new FiscalPeriod
+            {
+                Id = 1001, FiscalYearId = 10, PeriodNumber = 2, Name = "Nov 2026",
+                StartDate = new DateOnly(2026, 11, 1), EndDate = new DateOnly(2026, 11, 30), Status = FiscalPeriodStatus.SoftClosed,
+            },
+            new FiscalPeriod
+            {
+                Id = 1002, FiscalYearId = 10, PeriodNumber = 3, Name = "Dec 2026",
+                StartDate = new DateOnly(2026, 12, 1), EndDate = new DateOnly(2026, 12, 31), Status = FiscalPeriodStatus.Open,
+            });
+        await db.SaveChangesAsync();
+        var bill = await AddBillAsync(db, 250m);
+        var payment = await PayAndSettleAsync(db, bill, 250m, "061000220000009");
+        october.Status = closed;
+        await db.SaveChangesAsync();
+
+        var result = await Returns(db).ApplyAsync(ReturnFile("061000220000009", "R01", 250m, ReturnDate), actorUserId: 1);
+
+        result.PaymentsReturned.Should().Be(1);
+        var firstOpenDay = new DateOnly(2026, 12, 1);
+        var entries = await db.JournalEntries.IgnoreQueryFilters().ToListAsync();
+        var reversalIds = entries.Where(e => e.ReversedByEntryId != null).Select(e => e.ReversedByEntryId!.Value).ToHashSet();
+        entries.Where(e => reversalIds.Contains(e.Id))
+            .Should().HaveCount(2).And.OnlyContain(e => e.EntryDate == firstOpenDay && e.FiscalPeriodId == 1002);
+        (await db.Set<FiscalPeriod>().SingleAsync(p => p.Id == 1000)).Status.Should().Be(closed);
+        (await NetByAccountAsync(db))[CashId].Should().Be(0m);
+        (await ReloadBillAsync(db, bill.Id)).Status.Should().Be(VendorBillStatus.Approved);
+
+        var transmission = await db.PaymentTransmissions.SingleAsync(t => t.SourceId == payment.Id);
+        transmission.Status.Should().Be(PaymentTransmissionStatus.Cancelled);
+        transmission.LastError.Should().Contain("R01").And.Contain("returned 2026-10-20").And.Contain("reversed on 2026-12-01");
+        db.ActivityLogs.Should().Contain(a =>
+            a.EntityType == "VendorPayment" && a.EntityId == payment.Id && a.Action == "voided"
+            && a.Description.Contains("returned 2026-10-20") && a.Description.Contains("on 2026-12-01"));
+    }
+
+    [Fact]
+    public async Task Return_in_an_open_period_keeps_the_return_date_out_of_the_period_note()
+    {
+        using var db = await SeedAsync();
+        var bill = await AddBillAsync(db, 90m);
+        var payment = await PayAndSettleAsync(db, bill, 90m, "061000220000010");
+
+        await Returns(db).ApplyAsync(ReturnFile("061000220000010", "R01", 90m, ReturnDate), actorUserId: 1);
+
+        var transmission = await db.PaymentTransmissions.SingleAsync(t => t.SourceId == payment.Id);
+        transmission.LastError.Should().Contain("returned 2026-10-20").And.NotContain("reversed on");
+    }
+
     [Fact]
     public async Task Duplicate_return_file_changes_nothing()
     {

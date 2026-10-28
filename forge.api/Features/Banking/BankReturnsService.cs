@@ -22,7 +22,8 @@ namespace Forge.Api.Features.Banking;
 ///   <item><b>Payment return (R-code):</b> the credit came back, so the payment is reversed through
 ///         the void unwind (<see cref="VoidVendorPaymentHandler.ReverseBankReturnAsync"/>): its bills
 ///         reopen with their balances and any discount restored, the disbursement and settlement
-///         journals reverse at their booked rates on the return date, the transmission is cancelled
+///         journals reverse at their booked rates on the return date (on the first day of the first Open period
+///         when the return date's period is soft- or hard-closed), the transmission is cancelled
 ///         with the return reason kept, and the payment is voided with the return code on its audit
 ///         trail. The payment creator gets a critical notification to fix the account and pay again.</item>
 ///   <item><b>Prenote return:</b> the bank rejected the account — it flips to Disabled (numbers
@@ -126,12 +127,14 @@ public sealed class BankReturnsService(
                 .OrderByDescending(t => t.Id)
                 .FirstOrDefaultAsync(ct);
 
+            var returnDate = entry.ReturnDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
             paymentsReturned++;
             if (transmission is not null)
             {
                 transmission.Status = PaymentTransmissionStatus.Cancelled;
                 transmission.NextAttemptAt = null;
-                transmission.LastError = $"ACH RETURNED by the bank: {reason} (trace {entry.OriginalTraceNumber})";
+                transmission.LastError = $"ACH RETURNED by the bank: {reason} (trace {entry.OriginalTraceNumber}, "
+                    + $"returned {returnDate:yyyy-MM-dd})";
             }
 
             db.LogActivityAt(
@@ -144,9 +147,11 @@ public sealed class BankReturnsService(
                 entry.ReasonCode,
                 NachaReturnParser.Describe(entry.ReasonCode),
                 entry.OriginalTraceNumber,
-                entry.ReturnDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime));
-            await new VoidVendorPaymentHandler(payments, db, clock, cashPosting, creditPosting: creditPosting)
+                returnDate);
+            var reversedOn = await new VoidVendorPaymentHandler(payments, db, clock, cashPosting, creditPosting: creditPosting)
                 .ReverseBankReturnAsync(paymentId, bankReturn, actorUserId ?? transmission?.CreatedByUserId ?? 0, ct);
+            if (transmission is not null && reversedOn is DateOnly postedOn && postedOn != returnDate)
+                transmission.LastError += $"; reversed on {postedOn:yyyy-MM-dd}, the first open period";
 
             // Best-effort critical notification to whoever released/created the transmission.
             try

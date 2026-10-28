@@ -49,11 +49,13 @@ public interface IVendorPaymentCashPostingService
     /// Reverses the posted cash-disbursement journal for a vendor payment being voided or returned by the bank
     /// (equal-and-opposite entry — including any discount and realized-FX plug lines — original flipped to
     /// Reversed), and the bank-settlement entry too when one was posted, so a returned ACH payment nets to
-    /// Dr cash / Cr AP. Dated <paramref name="reversalDate"/> (the return date), else today. A no-op while
-    /// CAP-ACCT-FULLGL is off, when nothing is posted for the payment (created while the capability was
-    /// off), or when the origination is already reversed.
+    /// Dr cash / Cr AP. Dated <paramref name="reversalDate"/> (the return date), else today. A return dated in a
+    /// soft- or hard-closed period posts on the first day of the first Open period after it
+    /// (<see cref="OpenPeriodDate"/>); the closed period is never reopened. Returns the date the reversal posted
+    /// on, or null (a no-op) while CAP-ACCT-FULLGL is off, when nothing is posted for the payment (created while
+    /// the capability was off), or when the origination is already reversed.
     /// </summary>
-    Task ReverseVendorPaymentCreatedAsync(
+    Task<DateOnly?> ReverseVendorPaymentCreatedAsync(
         int vendorPaymentId, string reason, int reversedByUserId, DateOnly? reversalDate = null,
         CancellationToken ct = default);
 }
@@ -93,20 +95,20 @@ public sealed class VendorPaymentCashPostingService(
         await PostCoreAsync(vendorPaymentId, createdByUserId, ct);
     }
 
-    public async Task ReverseVendorPaymentCreatedAsync(
+    public async Task<DateOnly?> ReverseVendorPaymentCreatedAsync(
         int vendorPaymentId, string reason, int reversedByUserId, DateOnly? reversalDate = null,
         CancellationToken ct = default)
     {
         // ── GATE (dark by default) ──
         if (!capabilities.IsEnabled(FullGlCapability))
-            return;
+            return null;
 
         var book = await db.Books.AsNoTracking()
             .Where(b => b.IsActive)
             .OrderBy(b => b.Id)
             .FirstOrDefaultAsync(ct);
         if (book is null)
-            return; // No GL configured — nothing was ever posted for this payment.
+            return null; // No GL configured — nothing was ever posted for this payment.
 
         // The origination entry, located by its idempotency key. Skip if none is currently posted —
         // the payment may have been created while FULLGL was off, or the entry was already reversed.
@@ -115,7 +117,7 @@ public sealed class VendorPaymentCashPostingService(
             .FirstOrDefaultAsync(e => e.BookId == book.Id && e.IdempotencyKey == idempotencyKey, ct);
 
         if (entry is null || entry.Status != JournalEntryStatus.Posted || entry.ReversedByEntryId is not null)
-            return;
+            return null;
 
         // ── AP open items (AP-001): restore each applied bill's item by the same booking-rate relief
         // the origination applied (the reversal un-relieves AP_CONTROL by exactly that amount).
@@ -150,7 +152,9 @@ public sealed class VendorPaymentCashPostingService(
 
         // Reverse on the VOID date (today) — the original period may differ; the engine guards closed
         // periods. ReverseAsync flips the WHOLE entry, including any realized-FX plug lines.
-        var onDate = reversalDate ?? DateOnly.FromDateTime((clock?.UtcNow ?? DateTimeOffset.UtcNow).UtcDateTime);
+        var onDate = reversalDate is DateOnly returnedOn
+            ? await OpenPeriodDate.FirstOpenOnOrAfterAsync(db, book.Id, returnedOn, ct)
+            : DateOnly.FromDateTime((clock?.UtcNow ?? DateTimeOffset.UtcNow).UtcDateTime);
         await postingEngine.ReverseAsSystemAsync(
             entry.Id, onDate, $"Vendor payment {vendorPaymentId} voided: {reason}", reversedByUserId, ct);
 
@@ -160,6 +164,7 @@ public sealed class VendorPaymentCashPostingService(
         if (settlement is { Status: JournalEntryStatus.Posted, ReversedByEntryId: null })
             await postingEngine.ReverseAsSystemAsync(
                 settlement.Id, onDate, $"Vendor payment {vendorPaymentId} returned: {reason}", reversedByUserId, ct);
+        return onDate;
     }
 
     private async Task PostCoreAsync(int vendorPaymentId, int createdByUserId, CancellationToken ct)
