@@ -206,6 +206,24 @@ END $$;");
     }
 
     [Fact]
+    public async Task A_quantity_closed_short_is_not_open_to_buy()
+    {
+        await using var db = fixture.CreateContext();
+        await ResetAsync(db);
+        var seed = await SeedOrderAsync(db);
+        var line = await db.SalesOrderLines.SingleAsync(l => l.Id == seed.LineId);
+        line.ShortClosedQuantity = 2m;
+        line.ShortCloseReason = SalesOrderLine.WithinToleranceReason;
+        await db.SaveChangesAsync();
+
+        var over = () => DropShip(db, Mediator(db)).CreateDropShipPurchaseOrderAsync(
+            seed.LineId, new CreateDropShipRequestModel { VendorId = seed.VendorId, Quantity = 4m }, CancellationToken.None);
+
+        await over.Should().ThrowAsync<InvalidOperationException>().WithMessage("*needs only 3*");
+        (await db.PurchaseOrders.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
     public async Task Confirming_a_drop_ship_ships_the_line_without_moving_stock_and_posts_cogs()
     {
         await using var db = fixture.CreateContext();

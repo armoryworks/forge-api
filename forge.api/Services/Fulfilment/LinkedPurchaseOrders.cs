@@ -112,7 +112,7 @@ public sealed class LinkedPurchaseOrders(AppDbContext db, ISender sender, IClock
         return po;
     }
 
-    /// <summary>The quantity of the line not yet shipped, on a live standard shipment, or covered by live linked POs.</summary>
+    /// <summary>The quantity of the line not yet shipped, closed short, on a live standard shipment, or covered by live linked POs.</summary>
     public async Task<decimal> OpenToBuyAsync(SalesOrderLine line, CancellationToken ct)
     {
         var onStandardShipments = await db.ShipmentLines.AsNoTracking()
@@ -123,7 +123,7 @@ public sealed class LinkedPurchaseOrders(AppDbContext db, ISender sender, IClock
         var covered = await db.PurchaseOrderLines.AsNoTracking()
             .Where(l => l.SalesOrderLineId == line.Id && l.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled)
             .SumAsync(l => (decimal?)(l.OrderedQuantity - l.CancelledShortCloseQuantity), ct) ?? 0m;
-        return Math.Max(0m, line.Quantity - onStandardShipments - covered);
+        return Math.Max(0m, line.Quantity - line.ShortClosedQuantity - onStandardShipments - covered);
     }
 
     private async Task<int?> PreferredVendorAsync(SalesOrderLine line, CancellationToken ct)
