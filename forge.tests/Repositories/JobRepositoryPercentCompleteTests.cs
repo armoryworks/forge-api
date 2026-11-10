@@ -177,6 +177,18 @@ public sealed class JobRepositoryPercentCompleteTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Lot_minutes_that_do_not_divide_by_the_quantity_still_reach_100()
+    {
+        await using var db = fixture.CreateContext();
+        var seed = await SeedAsync(db);
+        var job = await AddJobAsync(db, seed, "lot-share", seed.Routed, quantity: 3m);
+        await AddRowAsync(db, job, seed.Saw, JobOperationStatus.InProgress, good: 3m);
+        await AddRowAsync(db, job, seed.Mill, JobOperationStatus.Complete, good: 3m);
+
+        (await PercentByTitleAsync(db, seed))["lot-share"].Should().Be(100m);
+    }
+
+    [Fact]
     public async Task Without_standard_minutes_it_is_the_share_of_closed_steps()
     {
         await using var db = fixture.CreateContext();

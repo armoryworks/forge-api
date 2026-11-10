@@ -36,11 +36,14 @@ public class JobListFilterParsingTests
     [InlineData("currentStageId:in:three")]
     [InlineData("priorityName:in:Critical")]
     [InlineData("priorityName:in:1")]
+    [InlineData("priorityName:in:Normal,High")]
+    [InlineData("disposition:in:Scrap,AddToInventory")]
     [InlineData("billingStatus:in:Paid")]
     [InlineData("isOverdue:in:yes")]
     [InlineData("dueDate:range:2026-01-01")]
     [InlineData("dueDate:range:..")]
     [InlineData("dueDate:range:soon..later")]
+    [InlineData("dueDate:range:..9999-12-31")]
     [InlineData("quantity:contains:5")]
     public void Refuses_unknown_fields_bad_operators_and_bad_values(string raw)
     {

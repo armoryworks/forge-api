@@ -24,8 +24,8 @@ public static class JobListFilterValues
         if (entries.Count == 0) return false;
         return key switch
         {
-            "priorityName" => entries.All(e => Enum.TryParse<JobPriority>(e, true, out _) && !int.TryParse(e, out _)),
-            "disposition" => entries.All(e => Enum.TryParse<JobDisposition>(e, true, out _) && !int.TryParse(e, out _)),
+            "priorityName" => entries.All(IsName<JobPriority>),
+            "disposition" => entries.All(IsName<JobDisposition>),
             "billingStatus" => entries.All(e => BillingStatuses.Contains(e, StringComparer.OrdinalIgnoreCase)),
             _ => Ids(value) is not null,
         };
@@ -88,11 +88,14 @@ public static class JobListFilterValues
         }
         if (high.Length > 0)
         {
-            if (!TryParseDay(high, out var day)) return null;
+            if (!TryParseDay(high, out var day) || day.UtcDateTime.Date == DateTime.MaxValue.Date) return null;
             to = day.AddDays(1);
         }
         return (from, to);
     }
+
+    private static bool IsName<TEnum>(string entry) where TEnum : struct, Enum =>
+        Enum.GetNames<TEnum>().Contains(entry, StringComparer.OrdinalIgnoreCase);
 
     private static bool SplitRange(string value, out string low, out string high)
     {

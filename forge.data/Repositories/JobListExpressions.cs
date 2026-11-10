@@ -59,8 +59,8 @@ internal sealed class JobListExpressions(AppDbContext db, DateTimeOffset startOf
                         100m * steps.Sum(s => s.Status == Complete || s.Status == Skipped
                             ? s.SetupMinutes + s.LotMinutes + s.EachMinutes * s.JobQuantity
                             : (s.Started ? s.SetupMinutes : 0m)
-                                + (s.EachMinutes + s.LotMinutes / s.JobQuantity)
-                                    * (s.GoodQuantity < s.JobQuantity ? s.GoodQuantity : s.JobQuantity))
+                                + s.EachMinutes * (s.GoodQuantity < s.JobQuantity ? s.GoodQuantity : s.JobQuantity)
+                                + s.LotMinutes * (s.GoodQuantity < s.JobQuantity ? s.GoodQuantity : s.JobQuantity) / s.JobQuantity)
                         / steps.Sum(s => s.SetupMinutes + s.LotMinutes + s.EachMinutes * s.JobQuantity))))
                     : Math.Floor(100m * steps.Count(s => s.Status == Complete || s.Status == Skipped) / steps.Count()));
 
