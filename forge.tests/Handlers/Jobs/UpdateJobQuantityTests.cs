@@ -291,6 +291,22 @@ public class UpdateJobQuantityTests
     }
 
     [Fact]
+    public async Task Clearing_extra_pieces_on_a_stock_job_makes_the_build_quantity_the_target_again()
+    {
+        var job = await SeedJobAsync(quantity: 114m);
+        job.TargetQuantity = 100m;
+        job.ExtraPieces = 14;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(Extras(null, clear: true), CancellationToken.None);
+        await _handler.Handle(Update(80m), CancellationToken.None);
+
+        job.ExtraPieces.Should().BeNull();
+        job.TargetQuantity.Should().BeNull();
+        (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(80m);
+    }
+
+    [Fact]
     public async Task Unchanged_extra_pieces_log_nothing()
     {
         var job = await SeedJobAsync(quantity: 114m);
@@ -301,6 +317,47 @@ public class UpdateJobQuantityTests
         await _handler.Handle(Extras(14), CancellationToken.None);
 
         _logged.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("exploded")]
+    [InlineData("completed")]
+    public async Task Resending_the_order_quantity_of_a_locked_job_with_extra_pieces_is_not_refused(string state)
+    {
+        var job = await SeedLockedJobWithExtrasAsync(state);
+
+        await _handler.Handle(Update(100m), CancellationToken.None);
+
+        _logged.Should().BeEmpty();
+        job.TargetQuantity.Should().Be(100m);
+        (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(114m);
+    }
+
+    [Theory]
+    [InlineData("exploded", UpdateJobHandler.QuantityExplodedMessage)]
+    [InlineData("completed", UpdateJobHandler.QuantityLockedMessage)]
+    public async Task A_locked_job_with_extra_pieces_keeps_its_order_quantity(string state, string message)
+    {
+        var job = await SeedLockedJobWithExtrasAsync(state);
+
+        var act = () => _handler.Handle(Update(200m), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Be(message);
+        job.TargetQuantity.Should().Be(100m);
+        (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(114m);
+    }
+
+    private async Task<Job> SeedLockedJobWithExtrasAsync(string state)
+    {
+        var job = await SeedJobAsync(quantity: 114m);
+        job.TargetQuantity = 100m;
+        job.ExtraPieces = 14;
+        if (state == "completed")
+            job.CompletedDate = DateTimeOffset.UtcNow;
+        else
+            _db.Jobs.Add(new Job { Id = 2, JobNumber = "J-2", Title = "Sub", TrackTypeId = 1, CurrentStageId = 1, ParentJobId = 1 });
+        await _db.SaveChangesAsync();
+        return job;
     }
 
     [Fact]

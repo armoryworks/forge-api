@@ -106,7 +106,9 @@ public class UpdateJobHandler(
             : null;
 
         if (request.Quantity.HasValue)
-            await CheckQuantityChangeAsync(job, newPart, request.Quantity.Value, cancellationToken);
+            await CheckQuantityChangeAsync(
+                job, newPart, request.Quantity.Value,
+                job.ExtraPieces is not null || request.ExtraPieces is not null, cancellationToken);
 
         // User-settable job number — only while the job is still open (not disposed),
         // manual numbers enabled, and unique (excluding this job). The DB sequence is
@@ -362,11 +364,14 @@ public class UpdateJobHandler(
     private static decimal CarriedQuantity(decimal carried, decimal? lineQuantity) =>
         carried > 1m ? carried : lineQuantity ?? carried;
 
-    private async Task CheckQuantityChangeAsync(Job job, Part? newPart, decimal quantity, CancellationToken ct)
+    private async Task CheckQuantityChangeAsync(
+        Job job, Part? newPart, decimal quantity, bool quantityIsOrderQuantity, CancellationToken ct)
     {
         if (job.PartId is null && newPart is null)
             throw new ValidationException(
                 [new ValidationFailure(nameof(UpdateJobCommand.Quantity), CreateJobCommandValidator.QuantityNeedsPartMessage)]);
+        if (newPart is null && quantityIsOrderQuantity)
+            return;
         if (newPart is null
             && await db.JobParts.AnyAsync(jp => jp.JobId == job.Id && jp.PartId == job.PartId && jp.Quantity == quantity, ct))
             return;
@@ -428,6 +433,9 @@ public class UpdateJobHandler(
             });
             job.TargetQuantity = order;
         }
+
+        if (extraAfter is null && !ProductionQuantityPlan.PlansForDemand(job))
+            job.TargetQuantity = null;
 
         if (extraAfter != extraBefore)
         {
