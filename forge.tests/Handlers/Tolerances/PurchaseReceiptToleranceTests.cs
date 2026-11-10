@@ -124,6 +124,83 @@ public class PurchaseReceiptToleranceTests
     }
 
     [Fact]
+    public async Task LateReceiptAfterAToleranceClose_IsBookedOnAReceivedOrder()
+    {
+        var (po, _) = await SeedAsync(vendorOver: 10m, vendorUnder: 10m);
+        await ReceiveAsync(po, 90m);
+        (await _db.PurchaseOrders.AsNoTracking().SingleAsync()).Status.Should().Be(PurchaseOrderStatus.Received);
+
+        await ReceiveAsync(po, 6m);
+
+        var line = await LineAsync(po.Lines.First().Id);
+        line.ReceivedQuantity.Should().Be(96m);
+        line.CancelledShortCloseQuantity.Should().Be(4m);
+        (await _db.PurchaseOrders.AsNoTracking().SingleAsync()).Status.Should().Be(PurchaseOrderStatus.Received);
+        (await _db.ReceivingRecords.AsNoTracking().CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ExtraInsideTheOverBand_IsBookedOnAReceivedOrder()
+    {
+        var (po, _) = await SeedAsync(vendorOver: 10m);
+        await ReceiveAsync(po, 100m);
+
+        await ReceiveAsync(po, 5m);
+
+        (await LineAsync(po.Lines.First().Id)).ReceivedQuantity.Should().Be(105m);
+        (await _db.PurchaseOrders.AsNoTracking().SingleAsync()).Status.Should().Be(PurchaseOrderStatus.Received);
+    }
+
+    [Fact]
+    public async Task AReceivedOrderWithNoRoomLeft_StillRefusesAReceipt()
+    {
+        var (po, _) = await SeedAsync(vendorOver: 10m);
+        await ReceiveAsync(po, 110m);
+
+        var act = () => ReceiveAsync(po, 1m, confirm: true, reason: "Vendor sent more", roles: ["Manager"]);
+
+        (await act.Should().ThrowAsync<InvalidOperationException>()).WithMessage("*in status Received*");
+        (await LineAsync(po.Lines.First().Id)).ReceivedQuantity.Should().Be(110m);
+    }
+
+    [Fact]
+    public async Task InventoryReceive_BooksALateReceiptOnAReceivedOrder()
+    {
+        var (po, _) = await SeedAsync(vendorOver: 10m, vendorUnder: 10m);
+        var bin = new StorageLocation { Name = "A1", LocationType = LocationType.Bin, IsActive = true };
+        _db.StorageLocations.Add(bin);
+        await _db.SaveChangesAsync();
+        await ReceiveAsync(po, 90m);
+        var handler = new ReceivePurchaseOrderHandler(
+            new PurchaseOrderRepository(_db), new InventoryRepository(_db), TestCaller.As(1), _clock, _db);
+
+        await handler.Handle(new ReceivePurchaseOrderCommand(
+            new ReceivePurchaseOrderRequestModel(po.Lines.First().Id, 6m, bin.Id, null, null)), CancellationToken.None);
+
+        var line = await LineAsync(po.Lines.First().Id);
+        line.ReceivedQuantity.Should().Be(96m);
+        line.CancelledShortCloseQuantity.Should().Be(4m);
+    }
+
+    [Theory]
+    [InlineData("overReceiptTolerancePct", 1000)]
+    [InlineData("overReceiptTolerancePct", -1)]
+    [InlineData("underReceiptTolerancePct", 100.5)]
+    public async Task TheVendorWizard_RefusesATolerancePercentOutOfRange(string field, double value)
+    {
+        var adapter = new Forge.Api.Workflows.VendorWorkflowAdapter(
+            _db, Mock.Of<IVendorRepository>(), Mock.Of<IBusinessIdentifierService>(), Mock.Of<ISystemSettingRepository>());
+        var data = System.Text.Json.JsonSerializer.SerializeToElement(
+            new Dictionary<string, object> { ["companyName"] = "Molder", [field] = value });
+
+        var act = () => adapter.CreateDraftAsync(data, CancellationToken.None);
+
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Single().PropertyName.Should().Be(field);
+        (await _db.Vendors.AsNoTracking().AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task OverInsideTolerance_IsAcceptedWithoutAnOverride()
     {
         var (po, _) = await SeedAsync(vendorOver: 10m, vendorUnder: 10m);

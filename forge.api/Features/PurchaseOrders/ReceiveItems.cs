@@ -73,11 +73,25 @@ public class ReceiveItemsHandler(
 {
     public async Task<ReceiveItemsResult> Handle(ReceiveItemsCommand request, CancellationToken cancellationToken)
     {
+        // One transaction: the receiving records + PO-status flip AND the inline inventory / GRNI posting
+        // commit (or roll back) together — the locked inline model (§2). The engine's SaveChanges joins
+        // this transaction; the handler commits once, so a posting failure unwinds the receipt too. On
+        // Npgsql this is a real transaction; on the in-memory test provider it's an ignored no-op (and db
+        // is null in the mock-based handler tests, so no transaction is opened there at all).
+        await using var tx = db is not null && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        if (db is not null)
+            await PurchaseOrderSubmission.LockForReceiptAsync(db, request.PurchaseOrderId, cancellationToken);
+
         var po = await repo.FindWithDetailsAsync(request.PurchaseOrderId, cancellationToken)
             ?? throw new KeyNotFoundException($"Purchase order {request.PurchaseOrderId} not found");
 
+        var toleranceFor = await QuantityTolerances.ForVendorAsync(db, po.VendorId, cancellationToken);
+
         // F-033: source-state whitelist — Draft POs haven't been sent to vendor
-        PurchaseOrderSubmission.EnsureReceivable(po);
+        PurchaseOrderSubmission.EnsureReceivable(
+            po, po.Lines.Where(l => request.Lines.Any(r => r.LineId == l.Id)), toleranceFor);
 
         var dropShip = po.FulfilmentType == FulfilmentType.DropShip;
         if (dropShip && !request.DropShipDelivery)
@@ -111,7 +125,6 @@ public class ReceiveItemsHandler(
         var receivedBy = user?.DisplayName();
 
         var assignedLots = new List<string>();
-        var toleranceFor = await QuantityTolerances.ForVendorAsync(db, po.VendorId, cancellationToken);
         var toleranceCloses = new List<(PurchaseOrderLine line, decimal closed)>();
 
         // Pre-compute per-line allocation. ByExtendedValue / ByQuantity
@@ -255,15 +268,6 @@ public class ReceiveItemsHandler(
         {
             po.Status = PurchaseOrderStatus.PartiallyReceived;
         }
-
-        // One transaction: the receiving records + PO-status flip AND the inline inventory / GRNI posting
-        // commit (or roll back) together — the locked inline model (§2). The engine's SaveChanges joins
-        // this transaction; the handler commits once, so a posting failure unwinds the receipt too. On
-        // Npgsql this is a real transaction; on the in-memory test provider it's an ignored no-op (and db
-        // is null in the mock-based handler tests, so no transaction is opened there at all).
-        await using var tx = db is not null && db.Database.CurrentTransaction is null
-            ? await db.Database.BeginTransactionAsync(cancellationToken)
-            : null;
 
         db?.LogActivityAt(
             "items-received",

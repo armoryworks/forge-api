@@ -3,6 +3,7 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Extensions;
@@ -61,12 +62,24 @@ public class ReceivePurchaseOrderHandler(
     {
         var data = request.Data;
 
+        // One transaction: the receiving record + stock-in AND the inline inventory/GRNI posting commit
+        // (or roll back) together — same locked inline model as ReceiveItems. db is null only in
+        // mock-based handler tests, where no transaction is opened.
+        await using var tx = db is not null && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        if (db is not null
+            && await db.PurchaseOrderLines
+                .Where(l => l.Id == data.PurchaseOrderLineId)
+                .Select(l => (int?)l.PurchaseOrderId)
+                .FirstOrDefaultAsync(cancellationToken) is int purchaseOrderId)
+            await PurchaseOrderSubmission.LockForReceiptAsync(db, purchaseOrderId, cancellationToken);
+
         var line = await poRepo.FindLineAsync(data.PurchaseOrderLineId, cancellationToken)
             ?? throw new KeyNotFoundException($"Purchase order line {data.PurchaseOrderLineId} not found");
 
-        PurchaseOrderSubmission.EnsureReceivable(line.PurchaseOrder);
-
         var tolerance = await QuantityTolerances.ForPurchaseLineAsync(db, line, line.PurchaseOrder.VendorId, cancellationToken);
+        PurchaseOrderSubmission.EnsureReceivable(line.PurchaseOrder, [line], _ => tolerance);
         var overReason = QuantityToleranceGuard.EnsureAccepted(
             PurchaseLineTolerance.Kind, line.Id, PurchaseLineTolerance.OrderedBasis(line), line.ReceivedQuantity,
             data.QuantityReceived, tolerance, data.ConfirmOverTolerance, data.OverToleranceReason,
@@ -176,13 +189,6 @@ public class ReceivePurchaseOrderHandler(
                 po.Status = PurchaseOrderStatus.PartiallyReceived;
             }
         }
-
-        // One transaction: the receiving record + stock-in AND the inline inventory/GRNI posting commit
-        // (or roll back) together — same locked inline model as ReceiveItems. db is null only in
-        // mock-based handler tests, where no transaction is opened.
-        await using var tx = db is not null
-            ? await db.Database.BeginTransactionAsync(cancellationToken)
-            : null;
 
         if (closedWithinTolerance > 0m)
             db?.LogActivityAt(

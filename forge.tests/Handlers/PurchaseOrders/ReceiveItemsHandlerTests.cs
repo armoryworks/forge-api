@@ -254,6 +254,8 @@ public class ReceiveItemsHandlerTests
     {
         var po = PoWith(estimatedFreight: null, (1, 10, qty: 5m, unitPrice: 10m));
         po.Status = status;
+        if (status == PurchaseOrderStatus.Received)
+            po.Lines.Single().ReceivedQuantity = 5m;
         _repo.Setup(r => r.FindWithDetailsAsync(po.Id, It.IsAny<CancellationToken>())).ReturnsAsync(po);
 
         var act = () => _handler.Handle(new ReceiveItemsCommand(

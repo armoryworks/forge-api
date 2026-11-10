@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 using FluentValidation;
@@ -8,6 +9,7 @@ using Forge.Api.Features.PaymentTerms;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Core.Settings;
 using Forge.Data.Context;
 
 namespace Forge.Api.Workflows;
@@ -85,8 +87,10 @@ public class VendorWorkflowAdapter(
             Is1099 = ReadBoolOrDefault(initialData, "is1099") ?? false,
             TaxId = ReadStringOrDefault(initialData, "taxId")?.Trim().NullIfEmpty(),
             OffTierVariancePct = ReadDecimalOrDefault(initialData, "offTierVariancePct"),
-            OverReceiptTolerancePct = ReadDecimalOrDefault(initialData, "overReceiptTolerancePct"),
-            UnderReceiptTolerancePct = ReadDecimalOrDefault(initialData, "underReceiptTolerancePct"),
+            OverReceiptTolerancePct = TolerancePercent(
+                ReadDecimalOrDefault(initialData, "overReceiptTolerancePct"), "overReceiptTolerancePct", ToleranceSettings.MaxOverPercent),
+            UnderReceiptTolerancePct = TolerancePercent(
+                ReadDecimalOrDefault(initialData, "underReceiptTolerancePct"), "underReceiptTolerancePct", ToleranceSettings.MaxUnderPercent),
             MinOrderAmount = ReadDecimalOrDefault(initialData, "minOrderAmount"),
             AutoPoMode = ReadNullableEnum<AutoPoMode>(initialData, "autoPoMode"),
             IsActive = true,
@@ -185,9 +189,9 @@ public class VendorWorkflowAdapter(
         if (TryReadDecimal(fields, "offTierVariancePct", out var pct))
             vendor.OffTierVariancePct = pct;
         if (TryReadDecimal(fields, "overReceiptTolerancePct", out var overReceipt))
-            vendor.OverReceiptTolerancePct = overReceipt;
+            vendor.OverReceiptTolerancePct = TolerancePercent(overReceipt, "overReceiptTolerancePct", ToleranceSettings.MaxOverPercent);
         if (TryReadDecimal(fields, "underReceiptTolerancePct", out var underReceipt))
-            vendor.UnderReceiptTolerancePct = underReceipt;
+            vendor.UnderReceiptTolerancePct = TolerancePercent(underReceipt, "underReceiptTolerancePct", ToleranceSettings.MaxUnderPercent);
         if (TryReadDecimal(fields, "minOrderAmount", out var minOrder))
             vendor.MinOrderAmount = minOrder;
         if (TryReadNullableEnum<AutoPoMode>(fields, "autoPoMode", out var autoPo))
@@ -227,6 +231,14 @@ public class VendorWorkflowAdapter(
         if (root is null || root.Value.ValueKind != JsonValueKind.Object) return null;
         if (!root.Value.TryGetProperty(name, out var prop)) return null;
         return prop.ValueKind == JsonValueKind.String ? prop.GetString() : null;
+    }
+
+    private static decimal? TolerancePercent(decimal? value, string field, decimal max)
+    {
+        if (value is null || (value >= 0m && value <= max))
+            return value;
+        var message = $"Tolerance % must be between 0 and {max.ToString("0.##", CultureInfo.InvariantCulture)}.";
+        throw new ValidationException(message, [new ValidationFailure(field, message)]);
     }
 
     private static decimal? ReadDecimalOrDefault(JsonElement? root, string name)
