@@ -37,8 +37,15 @@ public class ShipShipmentHandler(
             ? await db.Database.BeginTransactionAsync(cancellationToken)
             : null;
         if (db is not null)
+        {
             await db.AcquireAdvisoryLockAsync(
                 "shipments.ship", request.Id.ToString(CultureInfo.InvariantCulture), cancellationToken);
+            if (await db.Shipments
+                    .Where(s => s.Id == request.Id)
+                    .Select(s => (int?)s.SalesOrderId)
+                    .FirstOrDefaultAsync(cancellationToken) is int salesOrderId)
+                await SalesOrderShipping.LockAsync(db, salesOrderId, cancellationToken);
+        }
 
         // Load with Lines + each line's SalesOrderLine so relief can resolve PartId; fall back to the lean
         // load when relief isn't wired (keeps the no-relief path identical to before).

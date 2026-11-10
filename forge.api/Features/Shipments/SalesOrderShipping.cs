@@ -1,6 +1,10 @@
+using System.Globalization;
+
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
+using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Shipments;
 
@@ -26,6 +30,13 @@ public static class SalesOrderShipping
     ];
 
     public const string ToleranceKind = "sales-shipment";
+
+    /// <summary>
+    /// Serializes shipment creation and shipping for one sales order within the current transaction. Take it
+    /// before loading the order, so the over-ship check and the shipped totals read what others have committed.
+    /// </summary>
+    public static Task LockAsync(AppDbContext db, int salesOrderId, CancellationToken ct)
+        => db.AcquireAdvisoryLockAsync("sales-orders.ship", salesOrderId.ToString(CultureInfo.InvariantCulture), ct);
 
     /// <summary>
     /// The line quantity not yet on any shipment that is still live (anything but Cancelled), less what was closed

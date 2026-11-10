@@ -70,6 +70,12 @@ public class CreateShipmentHandler(
 
     public async Task<ShipmentListItemModel> Handle(CreateShipmentCommand request, CancellationToken cancellationToken)
     {
+        await using var tx = db is not null && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        if (db is not null)
+            await SalesOrderShipping.LockAsync(db, request.SalesOrderId, cancellationToken);
+
         var order = await orderRepo.FindWithDetailsAsync(request.SalesOrderId, cancellationToken)
             ?? throw new KeyNotFoundException($"Sales order {request.SalesOrderId} not found");
 
@@ -206,6 +212,9 @@ public class CreateShipmentHandler(
         // Record the number in the identifier registry (history + resolution).
         if (identifiers is not null)
             await identifiers.IssueAsync(BusinessEntityType.Shipment, shipment.Id, shipment.ShipmentNumber, cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
         await mediator.Publish(new ShipmentCreatedEvent(shipment.Id, request.SalesOrderId, userId), cancellationToken);
