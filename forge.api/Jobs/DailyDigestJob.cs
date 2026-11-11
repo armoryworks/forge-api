@@ -25,10 +25,13 @@ public class DailyDigestJob(
         var appBaseUrl = configuration[FrontendBaseUrl.SettingKey];
 
         // Get users with email digest enabled
-        var optedOut = await db.UserPreferences
-            .Where(p => p.Key == DigestPreferenceKey && p.ValueJson.Trim() == "false")
+        var optedOut = (await db.UserPreferences
+                .Where(p => p.Key == DigestPreferenceKey)
+                .Select(p => new { p.UserId, p.ValueJson })
+                .ToListAsync(ct))
+            .Where(p => p.ValueJson.Trim() == "false")
             .Select(p => p.UserId)
-            .ToListAsync(ct);
+            .ToList();
 
         var users = await db.Users
             .Where(u => u.IsActive && u.Email != null && !optedOut.Contains(u.Id))
