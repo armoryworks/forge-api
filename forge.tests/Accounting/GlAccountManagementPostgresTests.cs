@@ -19,6 +19,9 @@ public sealed class GlAccountManagementPostgresTests(PostgresFixture fixture)
     private async Task<int> SeedBookAsync(int bookId)
     {
         await using var db = fixture.CreateContext();
+        await db.Database.ExecuteSqlRawAsync(@"
+SELECT setval(pg_get_serial_sequence('currencies', 'id'), (SELECT max(id) FROM currencies));
+SELECT setval(pg_get_serial_sequence('acct_books', 'id'), (SELECT max(id) FROM acct_books));");
         var cur = new Currency { Code = $"U{bookId}", Name = "US Dollar", Symbol = "$" };
         db.Set<Currency>().Add(cur);
         await db.SaveChangesAsync();

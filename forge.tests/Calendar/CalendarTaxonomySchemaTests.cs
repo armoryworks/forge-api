@@ -21,12 +21,12 @@ public sealed class CalendarTaxonomySchemaTests(PostgresFixture fixture)
     public async Task SuperGroup_and_EventType_round_trip_with_fk()
     {
         await using var db = fixture.CreateContext();
-        await db.CalendarEventTypes.ExecuteDeleteAsync();
-        await db.CalendarSuperGroups.ExecuteDeleteAsync();
+        await db.CalendarEventTypes.Where(t => t.Key == "schema-osha-300a").ExecuteDeleteAsync();
+        await db.CalendarSuperGroups.Where(g => g.Key == "schema-compliance-osha").ExecuteDeleteAsync();
 
         var group = new CalendarSuperGroup
         {
-            Key = "compliance-osha",
+            Key = "schema-compliance-osha",
             Name = "OSHA / Safety",
             DefaultVisible = false,
             RequiresTracking = true,
@@ -36,7 +36,7 @@ public sealed class CalendarTaxonomySchemaTests(PostgresFixture fixture)
         var type = new CalendarEventType
         {
             SuperGroup = group,
-            Key = "osha-300a",
+            Key = "schema-osha-300a",
             Name = "OSHA 300A posting",
             RequiresTracking = true,
             SortOrder = 1,
@@ -49,9 +49,9 @@ public sealed class CalendarTaxonomySchemaTests(PostgresFixture fixture)
         await using var verify = fixture.CreateContext();
         var loaded = await verify.CalendarEventTypes
             .Include(t => t.SuperGroup)
-            .SingleAsync(t => t.Key == "osha-300a");
+            .SingleAsync(t => t.Key == "schema-osha-300a");
 
-        loaded.SuperGroup.Key.Should().Be("compliance-osha");
+        loaded.SuperGroup.Key.Should().Be("schema-compliance-osha");
         loaded.SuperGroup.DefaultVisible.Should().BeFalse();
         loaded.RequiresTracking.Should().BeTrue();
     }
@@ -60,14 +60,13 @@ public sealed class CalendarTaxonomySchemaTests(PostgresFixture fixture)
     public async Task SuperGroup_key_is_unique()
     {
         await using var db = fixture.CreateContext();
-        await db.CalendarEventTypes.ExecuteDeleteAsync();
-        await db.CalendarSuperGroups.ExecuteDeleteAsync();
+        await db.CalendarSuperGroups.Where(g => g.Key == "schema-dup").ExecuteDeleteAsync();
 
-        db.CalendarSuperGroups.Add(new CalendarSuperGroup { Key = "dup", Name = "First", SortOrder = 1 });
+        db.CalendarSuperGroups.Add(new CalendarSuperGroup { Key = "schema-dup", Name = "First", SortOrder = 1 });
         await db.SaveChangesAsync();
 
         await using var db2 = fixture.CreateContext();
-        db2.CalendarSuperGroups.Add(new CalendarSuperGroup { Key = "dup", Name = "Second", SortOrder = 2 });
+        db2.CalendarSuperGroups.Add(new CalendarSuperGroup { Key = "schema-dup", Name = "Second", SortOrder = 2 });
         var act = async () => await db2.SaveChangesAsync();
 
         await act.Should().ThrowAsync<DbUpdateException>("ix_calendar_super_groups_key is unique");

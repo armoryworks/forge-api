@@ -296,13 +296,14 @@ public sealed class JobRepositoryListFieldsTests(PostgresFixture fixture)
     {
         await using var db = fixture.CreateContext();
         var seed = await SeedAsync(db);
-        var archived = NewJob(seed, "archived");
+        var title = Unique("archived");
+        var archived = NewJob(seed, title);
         archived.IsArchived = true;
         db.Jobs.AddRange(archived, NewJob(seed, "live"));
         await db.SaveChangesAsync();
 
-        var everyTrack = new JobListQuery { PageSize = 200, Filter = [$"title:equals:archived"] };
+        var everyTrack = new JobListQuery { PageSize = 200, Filter = [$"title:equals:{title}"] };
         (await TitlesAsync(db, everyTrack)).Should().BeEmpty();
-        (await TitlesAsync(db, everyTrack with { IncludeArchived = true })).Should().Equal("archived");
+        (await TitlesAsync(db, everyTrack with { IncludeArchived = true })).Should().Equal(title);
     }
 }

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -106,7 +108,8 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
             var (vendor, part) = await SeedBoughtPartAsync(seed);
             await SeedTierAsync(seed, vendor.Id, part.Id, 2.50m);
 
-            var lastNumber = Random.Shared.Next(60000, 89999);
+            var next = await new PurchaseOrderRepository(seed).GenerateNextPONumberAsync(CancellationToken.None);
+            var lastNumber = long.Parse(next["PO-".Length..], CultureInfo.InvariantCulture) + Random.Shared.Next(100, 999);
             seed.PurchaseOrders.Add(new PurchaseOrder { PONumber = $"PO-{lastNumber:D5}", VendorId = vendor.Id });
             await seed.SaveChangesAsync();
             expectedNumber = $"PO-{lastNumber + 1:D5}";

@@ -72,6 +72,8 @@ public class AdminOrgNotifyEndpointRoleTests(CapabilityTestWebApplicationFactory
     public async Task Only_admins_import_translations()
     {
         var body = new { languageCode = "es", entries = Array.Empty<object>() };
+        (await Client("Admin").PutAsJsonAsync("/api/v1/capabilities/CAP-ADMIN-I18N/enabled", new { enabled = true }))
+            .EnsureSuccessStatusCode();
 
         (await Client("Manager").PostAsJsonAsync("/api/v1/i18n/overrides/import", body)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
         var admin = await Client("Admin").PostAsJsonAsync("/api/v1/i18n/overrides/import", body);
