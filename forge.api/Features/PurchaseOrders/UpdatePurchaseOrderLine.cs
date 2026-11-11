@@ -1,12 +1,15 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 
+using Forge.Api.Features.Tolerances;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Core.Settings;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.PurchaseOrders;
 
@@ -29,7 +32,8 @@ public class UpdatePurchaseOrderLineValidator : AbstractValidator<UpdatePurchase
     }
 }
 
-public class UpdatePurchaseOrderLineHandler(IPurchaseOrderRepository repo, IMediator mediator)
+public class UpdatePurchaseOrderLineHandler(
+    IPurchaseOrderRepository repo, IMediator mediator, AppDbContext? db = null, IHttpContextAccessor? httpContext = null)
     : IRequestHandler<UpdatePurchaseOrderLineCommand, PurchaseOrderDetailResponseModel>
 {
     public async Task<PurchaseOrderDetailResponseModel> Handle(UpdatePurchaseOrderLineCommand request, CancellationToken cancellationToken)
@@ -42,6 +46,11 @@ public class UpdatePurchaseOrderLineHandler(IPurchaseOrderRepository repo, IMedi
 
         var line = po.Lines.FirstOrDefault(l => l.Id == request.LineId)
             ?? throw new KeyNotFoundException($"Purchase order line {request.LineId} not found");
+
+        await ToleranceRaiseGuard.EnsurePurchaseLinesAsync(
+            db, po.VendorId,
+            [(nameof(request.Data.OverTolerancePct), line.OverReceiptTolerancePct, request.Data.OverTolerancePct)],
+            httpContext?.HttpContext?.User, cancellationToken);
 
         line.Description = request.Data.Description;
         line.OrderedQuantity = request.Data.Quantity;

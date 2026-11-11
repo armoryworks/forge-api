@@ -2,11 +2,13 @@ using FluentValidation;
 using MediatR;
 
 using Forge.Api.Features.Freight;
+using Forge.Api.Features.Tolerances;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Core.Settings;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.SalesOrders;
 
@@ -27,7 +29,8 @@ public class UpdateSalesOrderLineValidator : AbstractValidator<UpdateSalesOrderL
     }
 }
 
-public class UpdateSalesOrderLineHandler(ISalesOrderRepository repo, IMediator mediator)
+public class UpdateSalesOrderLineHandler(
+    ISalesOrderRepository repo, IMediator mediator, AppDbContext? db = null, IHttpContextAccessor? httpContext = null)
     : IRequestHandler<UpdateSalesOrderLineCommand, SalesOrderDetailResponseModel>
 {
     public async Task<SalesOrderDetailResponseModel> Handle(UpdateSalesOrderLineCommand request, CancellationToken cancellationToken)
@@ -40,6 +43,11 @@ public class UpdateSalesOrderLineHandler(ISalesOrderRepository repo, IMediator m
 
         var line = order.Lines.FirstOrDefault(l => l.Id == request.LineId)
             ?? throw new KeyNotFoundException($"Sales order line {request.LineId} not found");
+
+        await ToleranceRaiseGuard.EnsureSalesLinesAsync(
+            db, order.CustomerId,
+            [(nameof(request.Data.OverTolerancePct), line.OverShipTolerancePct, request.Data.OverTolerancePct)],
+            httpContext?.HttpContext?.User, cancellationToken);
 
         line.Description = request.Data.Description;
         line.Quantity = request.Data.Quantity;

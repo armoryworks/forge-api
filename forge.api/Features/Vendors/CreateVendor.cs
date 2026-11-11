@@ -1,6 +1,8 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Forge.Api.Features.PaymentTerms;
+using Forge.Api.Features.Tolerances;
 using Forge.Api.Services.Fx;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -57,7 +59,8 @@ public class CreateVendorHandler(
     IVendorRepository repo,
     ISystemSettingRepository systemSettings,
     IBusinessIdentifierService identifiers,
-    AppDbContext? db = null)
+    AppDbContext? db = null,
+    IHttpContextAccessor? httpContext = null)
     : IRequestHandler<CreateVendorCommand, VendorListItemModel>
 {
     // System setting that gates caller-supplied vendor numbers. Stored as "true"/"false".
@@ -65,6 +68,10 @@ public class CreateVendorHandler(
 
     public async Task<VendorListItemModel> Handle(CreateVendorCommand request, CancellationToken cancellationToken)
     {
+        await ToleranceRaiseGuard.EnsureVendorAsync(
+            db, null, request.OverReceiptTolerancePct, nameof(request.OverReceiptTolerancePct),
+            httpContext?.HttpContext?.User, cancellationToken);
+
         var vendorNumber = await ResolveVendorNumberAsync(request, cancellationToken);
 
         var vendor = new Vendor

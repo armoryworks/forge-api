@@ -6,6 +6,7 @@ using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.PaymentTerms;
+using Forge.Api.Features.Tolerances;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -35,7 +36,8 @@ public class VendorWorkflowAdapter(
     AppDbContext db,
     IVendorRepository repo,
     IBusinessIdentifierService identifiers,
-    ISystemSettingRepository systemSettings)
+    ISystemSettingRepository systemSettings,
+    IHttpContextAccessor? httpContext = null)
     : IWorkflowEntityCreator, IWorkflowFieldApplier, IWorkflowEntityPromoter
 {
     // System setting that gates caller-supplied vendor numbers (shared with
@@ -71,6 +73,10 @@ public class VendorWorkflowAdapter(
                 "Vendor requires a company name to materialize.",
                 new[] { new ValidationFailure("companyName", "Company name is required.") });
         }
+
+        await ToleranceRaiseGuard.EnsureVendorAsync(
+            db, null, ReadDecimalOrDefault(initialData, "overReceiptTolerancePct"), "overReceiptTolerancePct",
+            httpContext?.HttpContext?.User, ct);
 
         var vendor = new Vendor
         {
@@ -135,6 +141,10 @@ public class VendorWorkflowAdapter(
     {
         var vendor = await db.Vendors.FirstOrDefaultAsync(v => v.Id == entityId, ct)
             ?? throw new KeyNotFoundException($"Vendor id {entityId} not found.");
+
+        if (TryReadDecimal(fields, "overReceiptTolerancePct", out var requestedOverReceipt))
+            await ToleranceRaiseGuard.EnsureVendorAsync(
+                db, vendor.OverReceiptTolerancePct, requestedOverReceipt, "overReceiptTolerancePct", httpContext?.HttpContext?.User, ct);
 
         // Identity step
         if (TryReadString(fields, "companyName", out var companyName) && companyName is not null)

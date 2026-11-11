@@ -4,6 +4,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Tolerances;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -41,7 +42,8 @@ public class AddPurchaseOrderLineHandler(
     IPurchaseOrderRepository repo,
     IPartRepository partRepo,
     AppDbContext db,
-    IMediator mediator)
+    IMediator mediator,
+    IHttpContextAccessor? httpContext = null)
     : IRequestHandler<AddPurchaseOrderLineCommand, PurchaseOrderDetailResponseModel>
 {
     public async Task<PurchaseOrderDetailResponseModel> Handle(AddPurchaseOrderLineCommand request, CancellationToken cancellationToken)
@@ -53,6 +55,10 @@ public class AddPurchaseOrderLineHandler(
             throw new InvalidOperationException("Lines can only be added to draft purchase orders.");
 
         var data = request.Data;
+        await ToleranceRaiseGuard.EnsurePurchaseLinesAsync(
+            db, po.VendorId, [(nameof(data.OverReceiptTolerancePct), null, data.OverReceiptTolerancePct)],
+            httpContext?.HttpContext?.User, cancellationToken);
+
         Part? part = null;
         if (data.PartId is int partId)
         {

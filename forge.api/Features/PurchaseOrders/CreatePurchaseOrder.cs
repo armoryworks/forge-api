@@ -6,6 +6,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Tolerances;
 using Forge.Api.Services.Fx;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
@@ -109,6 +110,11 @@ public class CreatePurchaseOrderHandler(
 
         if (request.JobId is int jobId)
             await EnsureJobOpenAsync(jobId, cancellationToken);
+
+        await ToleranceRaiseGuard.EnsurePurchaseLinesAsync(
+            db, request.VendorId,
+            request.Lines.Select((l, i) => ($"lines[{i}].overReceiptTolerancePct", (decimal?)null, l.OverReceiptTolerancePct)).ToList(),
+            httpContextAccessor.HttpContext?.User, cancellationToken);
 
         var failures = new List<ValidationFailure>();
         var contact = await PurchaseOrderParties.ResolveContactAsync(

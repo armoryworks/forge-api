@@ -48,14 +48,18 @@ public static class QuantityTolerances
             vendor?.OverReceiptTolerancePct, vendor?.UnderReceiptTolerancePct, defaults);
     }
 
-    public static async Task<Func<SalesOrderLine, QuantityTolerance>> ForSalesOrderAsync(
+    public static Task<Func<SalesOrderLine, QuantityTolerance>> ForSalesOrderAsync(
         AppDbContext? db, SalesOrder order, CancellationToken ct)
+        => ForCustomerAsync(db, order.CustomerId, ct);
+
+    public static async Task<Func<SalesOrderLine, QuantityTolerance>> ForCustomerAsync(
+        AppDbContext? db, int customerId, CancellationToken ct)
     {
         if (db is null)
             return line => Resolve(line.OverShipTolerancePct, line.UnderShipTolerancePct, null, null, QuantityTolerance.None);
 
         var customer = await db.Customers.AsNoTracking()
-            .Where(c => c.Id == order.CustomerId)
+            .Where(c => c.Id == customerId)
             .Select(c => new { c.OverShipTolerancePct, c.UnderShipTolerancePct })
             .FirstOrDefaultAsync(ct);
         var defaults = await SalesDefaultsAsync(db, ct);

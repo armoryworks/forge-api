@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.PaymentTerms;
 using Forge.Api.Features.Freight;
+using Forge.Api.Features.Tolerances;
 using Forge.Api.Services.Fx;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
@@ -78,7 +79,8 @@ public class CreateSalesOrderHandler(
     IBusinessIdentifierService? identifiers = null,
     Forge.Api.Services.TaxOverrideGuard? taxGuard = null,
     AppDbContext? db = null,
-    IClock? clock = null)
+    IClock? clock = null,
+    IHttpContextAccessor? httpContext = null)
     : IRequestHandler<CreateSalesOrderCommand, SalesOrderListItemModel>
 {
     // System setting that gates caller-supplied order numbers. Stored as "true"/"false".
@@ -90,6 +92,11 @@ public class CreateSalesOrderHandler(
         // Phase 3 H2 / WU-12: customer-active check mirrors the vendor → PO
         // gate that Phase 1 found missing.
         ActiveCheck.EnsureActive(customer, "Customer", "customerId", request.CustomerId);
+
+        await ToleranceRaiseGuard.EnsureSalesLinesAsync(
+            db, request.CustomerId,
+            request.Lines.Select((l, i) => ($"lines[{i}].overShipTolerancePct", (decimal?)null, l.OverShipTolerancePct)).ToList(),
+            httpContext?.HttpContext?.User, cancellationToken);
 
         Forge.Api.Services.TaxOverrideStamp? taxOverride = null;
         if (taxGuard is not null)

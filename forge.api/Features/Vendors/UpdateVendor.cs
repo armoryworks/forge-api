@@ -1,7 +1,9 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.PaymentTerms;
+using Forge.Api.Features.Tolerances;
 using Forge.Api.Workflows;
 using Forge.Api.Services.Fx;
 using Forge.Core.Enums;
@@ -76,7 +78,8 @@ public class UpdateVendorHandler(
     IBusinessIdentifierService identifiers,
     AppDbContext db,
     IClock clock,
-    ICapabilitySnapshotProvider capabilities)
+    ICapabilitySnapshotProvider capabilities,
+    IHttpContextAccessor? httpContext = null)
     : IRequestHandler<UpdateVendorCommand>
 {
     private const string AutoPoCapability = "CAP-P2P-AUTOPO";
@@ -88,6 +91,11 @@ public class UpdateVendorHandler(
     {
         var vendor = await repo.FindAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Vendor {request.Id} not found");
+
+        var overReceipt = request.ClearOverReceiptTolerance == true ? null : request.OverReceiptTolerancePct ?? vendor.OverReceiptTolerancePct;
+        await ToleranceRaiseGuard.EnsureVendorAsync(
+            db, vendor.OverReceiptTolerancePct, overReceipt, nameof(request.OverReceiptTolerancePct),
+            httpContext?.HttpContext?.User, cancellationToken);
 
         var changedFields = new List<string>();
 
@@ -181,7 +189,6 @@ public class UpdateVendorHandler(
             vendor.OffTierVariancePct = request.OffTierVariancePct;
             changedFields.Add("offTierVariancePct");
         }
-        var overReceipt = request.ClearOverReceiptTolerance == true ? null : request.OverReceiptTolerancePct ?? vendor.OverReceiptTolerancePct;
         if (overReceipt != vendor.OverReceiptTolerancePct)
         {
             vendor.OverReceiptTolerancePct = overReceipt;

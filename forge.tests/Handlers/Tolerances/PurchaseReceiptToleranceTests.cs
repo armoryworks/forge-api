@@ -189,7 +189,8 @@ public class PurchaseReceiptToleranceTests
     public async Task TheVendorWizard_RefusesATolerancePercentOutOfRange(string field, double value)
     {
         var adapter = new Forge.Api.Workflows.VendorWorkflowAdapter(
-            _db, Mock.Of<IVendorRepository>(), Mock.Of<IBusinessIdentifierService>(), Mock.Of<ISystemSettingRepository>());
+            _db, Mock.Of<IVendorRepository>(), Mock.Of<IBusinessIdentifierService>(), Mock.Of<ISystemSettingRepository>(),
+            TestCaller.As(1, "Admin"));
         var data = System.Text.Json.JsonSerializer.SerializeToElement(
             new Dictionary<string, object> { ["companyName"] = "Molder", [field] = value });
 

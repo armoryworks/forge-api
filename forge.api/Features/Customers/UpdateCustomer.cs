@@ -2,9 +2,11 @@ using System.Globalization;
 
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.PaymentTerms;
+using Forge.Api.Features.Tolerances;
 using Forge.Api.Validation;
 using Forge.Api.Workflows;
 using Forge.Api.Services.Fx;
@@ -110,7 +112,8 @@ public class UpdateCustomerHandler(
     ISystemSettingRepository systemSettings,
     IBusinessIdentifierService identifiers,
     AppDbContext db,
-    IClock clock)
+    IClock clock,
+    IHttpContextAccessor? httpContext = null)
     : IRequestHandler<UpdateCustomerCommand>
 {
     // System setting that gates caller-supplied customer numbers (shared with CreateCustomer).
@@ -120,6 +123,11 @@ public class UpdateCustomerHandler(
     {
         var customer = await repo.FindAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Customer {request.Id} not found");
+
+        var overShip = request.ClearOverShipTolerance == true ? null : request.OverShipTolerancePct ?? customer.OverShipTolerancePct;
+        await ToleranceRaiseGuard.EnsureCustomerAsync(
+            db, customer.OverShipTolerancePct, overShip, nameof(request.OverShipTolerancePct),
+            httpContext?.HttpContext?.User, cancellationToken);
 
         // Rollup rule — collect changed-field markers as we apply patches so
         // one activity row summarises the whole save instead of one per field.
@@ -286,7 +294,6 @@ public class UpdateCustomerHandler(
             customer.IsItarControlled = request.IsItarControlled.Value;
             changedFields.Add($"isItarControlled: {customer.IsItarControlled}");
         }
-        var overShip = request.ClearOverShipTolerance == true ? null : request.OverShipTolerancePct ?? customer.OverShipTolerancePct;
         if (overShip != customer.OverShipTolerancePct)
         {
             customer.OverShipTolerancePct = overShip;

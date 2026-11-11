@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 
 using Forge.Api.Features.Freight;
+using Forge.Api.Features.Tolerances;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -42,7 +43,8 @@ public class AddSalesOrderLineHandler(
     IPartRepository partRepo,
     AppDbContext db,
     IMediator mediator,
-    IClock? clock = null)
+    IClock? clock = null,
+    IHttpContextAccessor? httpContext = null)
     : IRequestHandler<AddSalesOrderLineCommand, SalesOrderDetailResponseModel>
 {
     public async Task<SalesOrderDetailResponseModel> Handle(AddSalesOrderLineCommand request, CancellationToken cancellationToken)
@@ -52,6 +54,10 @@ public class AddSalesOrderLineHandler(
 
         if (order.Status != SalesOrderStatus.Draft)
             throw new InvalidOperationException("Only draft sales orders can have lines added.");
+
+        await ToleranceRaiseGuard.EnsureSalesLinesAsync(
+            db, order.CustomerId, [(nameof(request.Data.OverShipTolerancePct), null, request.Data.OverShipTolerancePct)],
+            httpContext?.HttpContext?.User, cancellationToken);
 
         if (request.Data.PartId is int partId && partId > 0)
         {
