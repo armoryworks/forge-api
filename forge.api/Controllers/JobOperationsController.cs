@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Jobs.Operations;
 using Forge.Core.Models;
@@ -10,7 +11,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1")]
-[Authorize]
+[Authorize(Roles = JobRoles.OperationRead)]
 [RequiresCapability("CAP-MFG-MULTIOP")]
 public class JobOperationsController(IMediator mediator) : ControllerBase
 {
@@ -28,18 +29,21 @@ public class JobOperationsController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new GetJobOperationEventsQuery(jobId, operationId), ct));
 
     [HttpPost("jobs/{jobId:int}/operations/{operationId:int}/timer/start")]
+    [Authorize(Roles = JobRoles.OperationRecord)]
     public async Task<ActionResult<JobOperationTimerResponseModel>> StartTimer(
         int jobId, int operationId, [FromBody] StartJobOperationTimerRequestModel? request, CancellationToken ct)
         => Ok(await mediator.Send(
             new StartJobOperationTimerCommand(jobId, operationId, request ?? new StartJobOperationTimerRequestModel()), ct));
 
     [HttpPost("jobs/{jobId:int}/operations/{operationId:int}/timer/stop")]
+    [Authorize(Roles = JobRoles.OperationRecord)]
     public async Task<ActionResult<JobOperationTimerStopResponseModel>> StopTimer(
         int jobId, int operationId, [FromBody] StopJobOperationTimerRequestModel? request, CancellationToken ct)
         => Ok(await mediator.Send(
             new StopJobOperationTimerCommand(jobId, operationId, request ?? new StopJobOperationTimerRequestModel()), ct));
 
     [HttpPatch("jobs/{jobId:int}/operations/{operationId:int}")]
+    [Authorize(Roles = JobRoles.OperationRecord)]
     public async Task<ActionResult<JobOperationProgressResponseModel>> UpdateProgress(
         int jobId, int operationId, [FromBody] UpdateJobOperationProgressRequestModel request, CancellationToken ct)
         => Ok(await mediator.Send(new UpdateJobOperationProgressCommand(jobId, operationId, request), ct));

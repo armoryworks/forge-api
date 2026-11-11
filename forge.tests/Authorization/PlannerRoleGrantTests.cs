@@ -69,6 +69,7 @@ public sealed class PlannerRoleGrantTests
     [InlineData("GET", "api/v1/jobs")]
     [InlineData("GET", "api/v1/customers/dropdown")]
     [InlineData("GET", "api/v1/jobs/{id:int}")]
+    [InlineData("GET", "api/v1/jobs/{jobId:int}/operations")]
     [InlineData("GET", "api/v1/inventory/parts")]
     [InlineData("GET", "api/v1/inventory/locations")]
     [InlineData("GET", "api/v1/inventory/atp/{partId:int}")]
@@ -109,6 +110,9 @@ public sealed class PlannerRoleGrantTests
     [InlineData("POST", "api/v1/jobs/{id:int}/material-issues")]
     [InlineData("POST", "api/v1/jobs/{id:int}/material-issues/{issueId:int}/return")]
     [InlineData("POST", "api/v1/jobs/{id:int}/production-runs/{runId:int}/receive-to-stock")]
+    [InlineData("POST", "api/v1/jobs/{jobId:int}/operations/{operationId:int}/timer/start")]
+    [InlineData("POST", "api/v1/jobs/{jobId:int}/operations/{operationId:int}/timer/stop")]
+    [InlineData("PATCH", "api/v1/jobs/{jobId:int}/operations/{operationId:int}")]
     public void Planner_is_refused(string verb, string template)
     {
         Actions(verb, template).Should().OnlyContain(a => !Admits(a, Planner), $"{verb} {template}");
