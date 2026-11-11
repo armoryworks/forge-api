@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.Authorization;
 
 using Forge.Api.Authorization;

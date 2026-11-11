@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;

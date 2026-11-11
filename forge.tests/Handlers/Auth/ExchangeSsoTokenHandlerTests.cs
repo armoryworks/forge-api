@@ -1,6 +1,6 @@
 using System.Security.Authentication;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using MediatR;
 using Moq;
 

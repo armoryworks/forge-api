@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;

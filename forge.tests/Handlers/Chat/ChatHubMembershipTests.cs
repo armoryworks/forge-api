@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.SignalR;
 using Moq;
 

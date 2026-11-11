@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using OtpNet;
 
 using Forge.Data.Services;

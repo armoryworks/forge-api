@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Moq;
 using Forge.Api.Features.Inventory;
 using Forge.Core.Enums;

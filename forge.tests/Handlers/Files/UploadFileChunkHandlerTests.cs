@@ -2,7 +2,7 @@ using System.Security.Claims;
 using System.Text;
 
 using Bogus;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;

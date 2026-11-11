@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 
 using Forge.Api.Features.CreditMemos;
 using Forge.Api.Features.Invoices;

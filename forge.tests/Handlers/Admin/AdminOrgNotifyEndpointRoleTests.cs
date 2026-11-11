@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Reflection;
 
-using FluentAssertions;
+using AwesomeAssertions;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Chat;

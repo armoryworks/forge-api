@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

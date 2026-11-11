@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 
 using Forge.Api.Features.Quality;
 using Forge.Core.Entities;

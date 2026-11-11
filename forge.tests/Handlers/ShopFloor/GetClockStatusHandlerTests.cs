@@ -1,5 +1,5 @@
 using Bogus;
-using FluentAssertions;
+using AwesomeAssertions;
 
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

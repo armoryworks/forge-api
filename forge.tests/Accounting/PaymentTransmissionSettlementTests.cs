@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Hangfire;
 using MediatR;
 using Microsoft.EntityFrameworkCore;

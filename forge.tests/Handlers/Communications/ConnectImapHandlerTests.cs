@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using MailKit;
 using MailKit.Security;
 using MimeKit;

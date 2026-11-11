@@ -11,6 +11,11 @@ updates:
       day: "monday"
     target-branch: "main"
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "QuestPDF"
+        versions: [">= 2026.6.0"]
+      - dependency-name: "PDFsharp"
+        versions: [">= 6.5.0"]
     groups:
       microsoft-extensions:
         patterns:
@@ -26,7 +31,7 @@ updates:
         patterns:
           - "xunit*"
           - "Moq"
-          - "FluentAssertions"
+          - "AwesomeAssertions"
           - "Bogus"
           - "Microsoft.NET.Test.Sdk"
         update-types: ["minor", "patch"]

@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using System.Text;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;

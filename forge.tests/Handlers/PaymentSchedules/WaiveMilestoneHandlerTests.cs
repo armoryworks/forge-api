@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Forge.Api.Features.PaymentSchedules;
 using Forge.Core.Entities;
 using Forge.Core.Enums;

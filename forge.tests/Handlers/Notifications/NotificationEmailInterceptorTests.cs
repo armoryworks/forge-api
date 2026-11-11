@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;

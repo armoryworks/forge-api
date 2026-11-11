@@ -1,6 +1,6 @@
 using System.Reflection;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.Authorization;
 
 using Forge.Api.Controllers;

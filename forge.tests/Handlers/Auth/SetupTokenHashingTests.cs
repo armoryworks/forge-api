@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-using FluentAssertions;
+using AwesomeAssertions;
 
 using Forge.Api.Features.Admin;
 

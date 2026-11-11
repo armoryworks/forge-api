@@ -1,5 +1,5 @@
 using Bogus;
-using FluentAssertions;
+using AwesomeAssertions;
 using ValidationException = FluentValidation.ValidationException;
 using Microsoft.AspNetCore.Identity;
 using Moq;

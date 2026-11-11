@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.Json;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using FluentValidation.TestHelper;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging.Abstractions;

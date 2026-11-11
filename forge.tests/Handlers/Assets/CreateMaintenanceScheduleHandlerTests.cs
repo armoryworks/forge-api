@@ -1,5 +1,5 @@
 using Bogus;
-using FluentAssertions;
+using AwesomeAssertions;
 using Forge.Api.Features.Assets;
 using Forge.Core.Entities;
 using Forge.Core.Models;

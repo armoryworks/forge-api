@@ -1,6 +1,6 @@
 using System.Net;
 
-using FluentAssertions;
+using AwesomeAssertions;
 
 using Forge.Tests.Capabilities;
 

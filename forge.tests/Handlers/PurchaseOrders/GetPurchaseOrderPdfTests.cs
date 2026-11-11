@@ -1,6 +1,6 @@
 using System.Text;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using QuestPDF.Fluent;
 using QuestPDF.Infrastructure;
 

@@ -1,6 +1,6 @@
 using System.Reflection;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

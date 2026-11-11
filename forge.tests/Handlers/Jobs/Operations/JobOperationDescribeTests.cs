@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 
 using Forge.Api.Extensions;
 using Forge.Api.Features.Jobs.Operations;

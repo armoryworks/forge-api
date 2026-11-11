@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using MediatR;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;

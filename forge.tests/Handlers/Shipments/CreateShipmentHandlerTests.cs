@@ -1,5 +1,5 @@
 using Bogus;
-using FluentAssertions;
+using AwesomeAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Moq;

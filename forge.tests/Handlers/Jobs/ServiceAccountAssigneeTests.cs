@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.Identity;
 
 using Forge.Api.Features.Jobs;

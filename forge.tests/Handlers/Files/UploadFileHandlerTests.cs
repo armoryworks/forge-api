@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using System.Text;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using Moq;

@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;

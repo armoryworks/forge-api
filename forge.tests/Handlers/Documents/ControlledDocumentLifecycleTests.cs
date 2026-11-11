@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Security.Claims;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 

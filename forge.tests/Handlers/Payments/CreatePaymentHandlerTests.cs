@@ -1,5 +1,5 @@
 using Bogus;
-using FluentAssertions;
+using AwesomeAssertions;
 using Moq;
 using Forge.Api.Features.Payments;
 using Forge.Core.Entities;

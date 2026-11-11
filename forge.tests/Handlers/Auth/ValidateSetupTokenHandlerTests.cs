@@ -1,5 +1,5 @@
 using Bogus;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.Identity;
 using Moq;
 using Forge.Api.Features.Auth;

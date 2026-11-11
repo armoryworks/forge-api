@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using Moq;
 
 using Microsoft.AspNetCore.Http;

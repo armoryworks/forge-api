@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Hangfire;
 using HangfireJob = Hangfire.Common.Job;
 using Hangfire.States;

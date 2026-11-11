@@ -1,5 +1,5 @@
 using Bogus;
-using FluentAssertions;
+using AwesomeAssertions;
 using Forge.Api.Features.Training;
 using Forge.Core.Enums;
 using Forge.Tests.Helpers;

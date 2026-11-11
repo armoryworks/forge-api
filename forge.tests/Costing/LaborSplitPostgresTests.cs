@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;

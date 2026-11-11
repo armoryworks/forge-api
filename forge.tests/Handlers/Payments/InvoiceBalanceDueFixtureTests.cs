@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Forge.Core.Entities;
 
 namespace Forge.Tests.Handlers.Payments;

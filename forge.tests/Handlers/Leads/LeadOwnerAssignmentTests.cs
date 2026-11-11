@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using FluentValidation;
 using Moq;
 using Forge.Api.Features.Leads;

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using MediatR;
 
 using Forge.Api.Behaviors;

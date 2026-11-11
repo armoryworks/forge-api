@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using FluentValidation.TestHelper;
 using Microsoft.AspNetCore.SignalR;
 using Moq;

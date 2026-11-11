@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using MediatR;
 using Moq;
 using Forge.Api.Controllers;

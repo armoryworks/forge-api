@@ -1,6 +1,6 @@
 using System.Text;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Banking;

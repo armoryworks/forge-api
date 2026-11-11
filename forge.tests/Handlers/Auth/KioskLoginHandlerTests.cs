@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
 
 using Bogus;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

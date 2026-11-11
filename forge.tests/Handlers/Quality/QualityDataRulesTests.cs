@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Security.Claims;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;

@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using Bogus;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.Http;
 using Moq;
 using Forge.Api.Features.Accounting;

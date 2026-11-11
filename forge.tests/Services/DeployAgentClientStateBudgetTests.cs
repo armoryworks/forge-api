@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Text;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 

@@ -1,6 +1,6 @@
 using System.Reflection;
 
-using FluentAssertions;
+using AwesomeAssertions;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Controllers;

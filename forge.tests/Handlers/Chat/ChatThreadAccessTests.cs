@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.SignalR;
 using Moq;
 using Forge.Api.Features.Chat;

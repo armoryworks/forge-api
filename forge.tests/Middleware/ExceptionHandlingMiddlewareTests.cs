@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Http;

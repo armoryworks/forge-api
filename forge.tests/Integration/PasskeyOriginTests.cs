@@ -6,7 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;

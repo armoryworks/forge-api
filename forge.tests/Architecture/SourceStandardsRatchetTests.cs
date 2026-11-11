@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-using FluentAssertions;
+using AwesomeAssertions;
 
 namespace Forge.Tests.Architecture;
 

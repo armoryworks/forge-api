@@ -1,6 +1,6 @@
 using System.Reflection;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using Moq;
 
 using Forge.Api.Concurrency;
