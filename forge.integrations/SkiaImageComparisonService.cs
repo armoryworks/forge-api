@@ -94,7 +94,7 @@ public class SkiaImageComparisonService(ILogger<SkiaImageComparisonService> logg
                 0, 0, 0, 1, 0,
             ]),
         };
-        canvas.DrawBitmap(original, 0, 0, paint);
+        canvas.DrawBitmap(original, 0, 0, SKSamplingOptions.Default, paint);
 
         logger.LogDebug("Loaded {Label} image: {Width}x{Height}", label, original.Width, original.Height);
         return gray;
@@ -106,7 +106,7 @@ public class SkiaImageComparisonService(ILogger<SkiaImageComparisonService> logg
         {
             var copy = new SKBitmap(targetWidth, targetHeight, source.ColorType, source.AlphaType);
             using var canvas = new SKCanvas(copy);
-            canvas.DrawBitmap(source, 0, 0);
+            canvas.DrawBitmap(source, 0, 0, SKSamplingOptions.Default);
             return copy;
         }
 

@@ -44,10 +44,8 @@ public sealed class PostgresFixture : IAsyncLifetime
     {
         if (string.IsNullOrWhiteSpace(_externalConnectionString))
         {
-            _container = new PostgreSqlBuilder()
-                // pgvector image — the migration history calls CREATE EXTENSION vector.
-                .WithImage("pgvector/pgvector:pg18")
-                .Build();
+            // pgvector image — the migration history calls CREATE EXTENSION vector.
+            _container = new PostgreSqlBuilder("pgvector/pgvector:pg18").Build();
         }
     }
 

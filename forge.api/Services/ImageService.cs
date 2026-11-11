@@ -52,7 +52,7 @@ public class ImageService : IImageService
         using (var canvas = new SKCanvas(flattened))
         {
             canvas.Clear(SKColors.White);
-            canvas.DrawBitmap(bitmap, 0, 0);
+            canvas.DrawBitmap(bitmap, 0, 0, SKSamplingOptions.Default);
         }
         using var image = SKImage.FromBitmap(flattened);
         using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, quality);

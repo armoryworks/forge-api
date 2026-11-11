@@ -1,3 +1,4 @@
+using MailKit;
 using MailKit.Net.Smtp;
 
 using Microsoft.Extensions.Logging;
@@ -52,7 +53,7 @@ public class SmtpEmailService(ISettingsService settings, ILogger<SmtpEmailServic
         if (!string.IsNullOrEmpty(s.Username))
             await client.AuthenticateAsync(s.Username, s.Password ?? string.Empty, ct);
 
-        await client.SendAsync(mime, ct);
+        await client.SendAsync(new SendRequest(mime), ct);
         await client.DisconnectAsync(true, ct);
 
         logger.LogInformation("Email sent to {To}: {Subject}", message.To, message.Subject);

@@ -26,8 +26,8 @@ public class PasskeyService(
     private static IFido2 CreateFido2(PasskeyRelyingParty relyingParty)
         => new Fido2(new Fido2Configuration
         {
-            ServerDomain = relyingParty.RpId,
-            ServerName = "Forge",
+            RPID = relyingParty.RpId,
+            RPName = "Forge",
             Origins = new HashSet<string>(relyingParty.Origins),
         });
 
