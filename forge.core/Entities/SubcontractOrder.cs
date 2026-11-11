@@ -16,6 +16,7 @@ public class SubcontractOrder : BaseAuditableEntity
     public int? ReceivedById { get; set; }
     public decimal? ReceivedQuantity { get; set; }
     public decimal ScrapQuantity { get; set; }
+    public decimal RejectedQuantity { get; set; }
     public string? OverToleranceReason { get; set; }
     public SubcontractStatus Status { get; set; } = SubcontractStatus.Pending;
     public string? ShippingTrackingNumber { get; set; }

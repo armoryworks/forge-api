@@ -34,6 +34,7 @@ public class GetPendingSubcontractsHandler(AppDbContext db) : IRequestHandler<Ge
                 Quantity = o.Quantity,
                 ReceivedQuantity = o.ReceivedQuantity ?? 0m,
                 ScrapQuantity = o.ScrapQuantity,
+                RejectedQuantity = o.RejectedQuantity,
                 SentAt = o.SentAt,
                 ExpectedReturnDate = o.ExpectedReturnDate,
                 Status = o.Status.ToString(),

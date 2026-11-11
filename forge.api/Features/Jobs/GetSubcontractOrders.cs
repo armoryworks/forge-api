@@ -30,7 +30,8 @@ public class GetSubcontractOrdersHandler(AppDbContext db)
                 o.CreatedAt,
                 o.ScrapQuantity,
                 0m, 0m, 0m, 0m,
-                o.OverToleranceReason))
+                o.OverToleranceReason,
+                o.RejectedQuantity))
             .ToListAsync(ct);
 
         var tolerances = await SubcontractTolerances.ForOrdersAsync(

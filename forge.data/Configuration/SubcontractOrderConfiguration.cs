@@ -13,6 +13,7 @@ public class SubcontractOrderConfiguration : IEntityTypeConfiguration<Subcontrac
         builder.Property(e => e.UnitCost).HasPrecision(18, 4);
         builder.Property(e => e.ReceivedQuantity).HasPrecision(18, 4);
         builder.Property(e => e.ScrapQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
+        builder.Property(e => e.RejectedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
         builder.Property(e => e.OverToleranceReason).HasMaxLength(500);
         builder.Property(e => e.ShippingTrackingNumber).HasMaxLength(200);
         builder.Property(e => e.ReturnTrackingNumber).HasMaxLength(200);

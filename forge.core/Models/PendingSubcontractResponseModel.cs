@@ -12,6 +12,7 @@ public record PendingSubcontractResponseModel
     public decimal Quantity { get; init; }
     public decimal ReceivedQuantity { get; init; }
     public decimal ScrapQuantity { get; init; }
+    public decimal RejectedQuantity { get; init; }
     public DateTimeOffset SentAt { get; init; }
     public DateTimeOffset? ExpectedReturnDate { get; init; }
     public string Status { get; init; } = string.Empty;

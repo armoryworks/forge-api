@@ -51,10 +51,10 @@ public class ReceiveBackSubcontractOperationTests
     }
 
     private Task<SubcontractOrderResponseModel> ReceiveAsync(
-        int orderId, decimal good, decimal scrap = 0m, bool passed = true)
+        int orderId, decimal good, decimal scrap = 0m, bool passed = true, decimal rejected = 0m)
         => Handler().Handle(
             new ReceiveBackSubcontractCommand(orderId,
-                new ReceiveBackRequestModel(good, null, PassedInspection: passed, ScrapQuantity: scrap)),
+                new ReceiveBackRequestModel(good, null, PassedInspection: passed, ScrapQuantity: scrap, RejectedQuantity: rejected)),
             CancellationToken.None);
 
     [Fact]
@@ -198,9 +198,133 @@ public class ReceiveBackSubcontractOperationTests
         var result = await ReceiveAsync(order.Id, good: 10m, passed: false);
 
         result.Status.Should().Be(nameof(SubcontractStatus.Rejected));
+        result.RejectedQuantity.Should().Be(10m);
+        result.ReceivedQuantity.Should().Be(0m);
         var row = await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync();
         row.CompletedQuantity.Should().Be(0m);
         row.Status.Should().Be(JobOperationStatus.NotStarted);
+    }
+
+    [Fact]
+    public async Task PartialFailedInspection_RejectsOnlyThosePiecesAndLeavesTheOrderOpen()
+    {
+        var (_, _, order) = await SeedAsync(withOperationRow: true);
+
+        var first = await ReceiveAsync(order.Id, good: 4m, passed: false);
+
+        first.Status.Should().Be(nameof(SubcontractStatus.PartiallyReceived));
+        first.RejectedQuantity.Should().Be(4m);
+        first.ReceivedQuantity.Should().Be(0m);
+        first.ReceivedAt.Should().BeNull();
+        (await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync()).Status.Should().Be(JobOperationStatus.NotStarted);
+        (await _h.Timers.Db.JobActivityLogs.AsNoTracking().SingleAsync(a => a.FieldName == "Subcontract"))
+            .Description.Should().Contain("0 good, 4 rejected, 0 scrap").And.Contain("4 of 10 back, the rest stays open");
+
+        _h.Timers.Db.ChangeTracker.Clear();
+        var second = await ReceiveAsync(order.Id, good: 6m);
+
+        second.Status.Should().Be(nameof(SubcontractStatus.Complete));
+        second.ReceivedQuantity.Should().Be(6m);
+        second.RejectedQuantity.Should().Be(4m);
+        second.ReceivedAt.Should().Be(_h.Timers.Now);
+        var row = await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync();
+        row.CompletedQuantity.Should().Be(6m);
+        row.Status.Should().Be(JobOperationStatus.InProgress);
+    }
+
+    [Fact]
+    public async Task OneReceipt_TakesGoodRejectedAndScrapTogether()
+    {
+        var (_, _, order) = await SeedAsync(withOperationRow: true);
+
+        var result = await ReceiveAsync(order.Id, good: 5m, scrap: 2m, rejected: 3m);
+
+        result.Status.Should().Be(nameof(SubcontractStatus.Complete));
+        result.ReceivedQuantity.Should().Be(5m);
+        result.RejectedQuantity.Should().Be(3m);
+        result.ScrapQuantity.Should().Be(2m);
+        var row = await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync();
+        row.CompletedQuantity.Should().Be(5m);
+        row.ScrapQuantity.Should().Be(2m);
+        row.Status.Should().Be(JobOperationStatus.InProgress);
+    }
+
+    [Fact]
+    public async Task RejectedPieces_CountTowardTheQuantitySent()
+    {
+        var (_, _, order) = await SeedAsync(withOperationRow: true);
+        await ReceiveAsync(order.Id, good: 0m, rejected: 4m);
+        _h.Timers.Db.ChangeTracker.Clear();
+
+        var act = () => ReceiveAsync(order.Id, good: 7m);
+
+        (await act.Should().ThrowAsync<QuantityToleranceException>()).Which.Violation.AlreadyDone.Should().Be(4m);
+    }
+
+    [Fact]
+    public async Task ScrapOnlyPartialReceipt_LeavesTheOrderOpenAndCountsTheScrapOnTheStep()
+    {
+        var (_, _, order) = await SeedAsync(withOperationRow: true);
+
+        var result = await ReceiveAsync(order.Id, good: 0m, scrap: 4m, passed: false);
+
+        result.Status.Should().Be(nameof(SubcontractStatus.PartiallyReceived));
+        result.ScrapQuantity.Should().Be(4m);
+        result.RejectedQuantity.Should().Be(0m);
+        var row = await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync();
+        row.ScrapQuantity.Should().Be(4m);
+        row.CompletedQuantity.Should().Be(0m);
+        row.Status.Should().Be(JobOperationStatus.InProgress);
+    }
+
+    [Fact]
+    public async Task AnOrderThatClosesWithNothingGood_IsRejected()
+    {
+        var (_, _, order) = await SeedAsync(withOperationRow: true);
+
+        var result = await ReceiveAsync(order.Id, good: 0m, scrap: 3m, rejected: 7m);
+
+        result.Status.Should().Be(nameof(SubcontractStatus.Rejected));
+        result.ReceivedAt.Should().Be(_h.Timers.Now);
+    }
+
+    [Fact]
+    public async Task ReceiveBack_PastTheOverrunLimit_IsRefusedAndChangesNothing()
+    {
+        var (_, _, order) = await SeedAsync(withOperationRow: true);
+        _h.MaxOverrunPercent = "10";
+        var row = await _h.Timers.Db.JobOperations.SingleAsync();
+        row.Status = JobOperationStatus.InProgress;
+        row.CompletedQuantity = 4m;
+        await _h.Timers.Db.SaveChangesAsync();
+        _h.Timers.Db.ChangeTracker.Clear();
+
+        var act = () => ReceiveAsync(order.Id, good: 8m);
+
+        var failure = (await act.Should().ThrowAsync<FluentValidation.ValidationException>()).Which.Errors.Single();
+        failure.ErrorCode.Should().Be(JobOverrun.LimitCode);
+        failure.PropertyName.Should().Be("ReceivedQuantity");
+        failure.FormattedMessagePlaceholderValues["ComparisonValue"].Should().Be(11m);
+        _h.Timers.Db.ChangeTracker.Clear();
+        (await _h.Timers.Db.SubcontractOrders.AsNoTracking().SingleAsync()).Status.Should().Be(SubcontractStatus.Sent);
+        (await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync()).CompletedQuantity.Should().Be(4m);
+    }
+
+    [Fact]
+    public async Task ReceiveBack_InsideTheOverrunLimit_IsTakenAndNoted()
+    {
+        var (_, _, order) = await SeedAsync(withOperationRow: true);
+        _h.MaxOverrunPercent = "10";
+        var row = await _h.Timers.Db.JobOperations.SingleAsync();
+        row.Status = JobOperationStatus.InProgress;
+        row.CompletedQuantity = 4m;
+        await _h.Timers.Db.SaveChangesAsync();
+
+        await ReceiveAsync(order.Id, good: 7m, rejected: 3m);
+
+        (await _h.Timers.Db.JobOperations.AsNoTracking().SingleAsync()).CompletedQuantity.Should().Be(11m);
+        (await _h.Timers.Db.JobActivityLogs.AsNoTracking().SingleAsync(a => a.FieldName == "OperationStatus"))
+            .Description.Should().Contain("Overrun: 1 good over the start quantity of 10.");
     }
 
     [Fact]

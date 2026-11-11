@@ -43,7 +43,7 @@ public class GetSubcontractSpendingHandler(AppDbContext db) : IRequestHandler<Ge
                     ? received.Count(o => o.ExpectedReturnDate.HasValue && o.ReceivedAt <= o.ExpectedReturnDate) / (decimal)received.Count * 100
                     : 0;
                 var accepted = received.Count > 0
-                    ? received.Count(o => o.Status == SubcontractStatus.Complete) / (decimal)received.Count * 100
+                    ? received.Count(o => o.Status == SubcontractStatus.Complete && o.RejectedQuantity == 0m) / (decimal)received.Count * 100
                     : 0;
                 var avgLead = received.Count > 0
                     ? received.Average(o => (o.ReceivedAt!.Value - o.SentAt).TotalDays)

@@ -25,7 +25,7 @@ public class SendOutSubcontractValidator : AbstractValidator<SendOutSubcontractC
     }
 }
 
-public class SendOutSubcontractHandler(AppDbContext db, IMediator mediator, IClock clock)
+public class SendOutSubcontractHandler(AppDbContext db, IMediator mediator, IClock clock, IJobOperationService operations)
     : IRequestHandler<SendOutSubcontractCommand, SubcontractOrderResponseModel>
 {
     public async Task<SubcontractOrderResponseModel> Handle(SendOutSubcontractCommand request, CancellationToken ct)
@@ -40,6 +40,10 @@ public class SendOutSubcontractHandler(AppDbContext db, IMediator mediator, IClo
 
         if (!operation.IsSubcontract || operation.SubcontractVendorId == null)
             throw new InvalidOperationException("Operation is not configured as a subcontract operation.");
+
+        var room = await SubcontractSendLimit.ForJobAsync(db, operations, job, ct);
+        if (room.MaxSendFor(operation.Id) is decimal maxSend && request.Data.Quantity > maxSend)
+            throw SubcontractSendLimit.Exceeded(nameof(request.Data.Quantity), request.Data.Quantity, operation.Id, room);
 
         var vendor = operation.SubcontractVendor
             ?? await db.Vendors.AsNoTracking().FirstAsync(v => v.Id == operation.SubcontractVendorId, ct);

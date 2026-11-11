@@ -27,6 +27,7 @@ public class SendOutSubcontractPoTests : IDisposable
     private readonly AppDbContext _db = TestDbContextFactory.Create();
     private readonly Mock<IMediator> _mediator = new();
     private readonly Mock<IClock> _clock = new();
+    private readonly JobOperationService _operations;
     private readonly SendOutSubcontractHandler _handler;
 
     public SendOutSubcontractPoTests()
@@ -50,7 +51,8 @@ public class SendOutSubcontractPoTests : IDisposable
             .Returns((IRequest<PurchaseOrderListItemModel> command, CancellationToken ct) =>
                 poHandler.Handle((CreatePurchaseOrderCommand)command, ct));
 
-        _handler = new SendOutSubcontractHandler(_db, _mediator.Object, _clock.Object);
+        _operations = new JobOperationService(_db, Mock.Of<ISettingsService>(), _clock.Object);
+        _handler = new SendOutSubcontractHandler(_db, _mediator.Object, _clock.Object, _operations);
     }
 
     public void Dispose() => _db.Dispose();
@@ -229,7 +231,7 @@ public class SendOutSubcontractPoTests : IDisposable
     {
         var (job, operation, vendor) = await SeedAsync(subcontractCost: 1.5m);
 
-        var result = await new GetJobSubcontractOperationsHandler(_db).Handle(
+        var result = await new GetJobSubcontractOperationsHandler(_db, _operations).Handle(
             new GetJobSubcontractOperationsQuery(job.Id), CancellationToken.None);
 
         var row = result.Should().ContainSingle().Subject;
@@ -239,6 +241,8 @@ public class SendOutSubcontractPoTests : IDisposable
         row.SubcontractCost.Should().Be(1.5m);
         row.TurnTimeDays.Should().Be(4m);
         row.JobQuantity.Should().Be(40m);
+        row.RemainingQuantity.Should().Be(40m);
+        row.MaxSendQuantity.Should().BeNull();
     }
 
     private async Task<(Job Job, Operation Operation, Vendor Vendor)> SeedAsync(decimal? subcontractCost)

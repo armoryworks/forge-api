@@ -8,4 +8,5 @@ public record ReceiveBackRequestModel(
     decimal ScrapQuantity = 0,
     bool ConfirmOverTolerance = false,
     string? OverToleranceReason = null,
-    bool CloseShort = false);
+    bool CloseShort = false,
+    decimal RejectedQuantity = 0);

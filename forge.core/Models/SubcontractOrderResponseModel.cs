@@ -13,4 +13,5 @@ public record SubcontractOrderResponseModel(
     decimal UnderTolerancePct = 0m,
     decimal MaxAcceptedQuantity = 0m,
     decimal MinCompleteQuantity = 0m,
-    string? OverToleranceReason = null);
+    string? OverToleranceReason = null,
+    decimal RejectedQuantity = 0m);

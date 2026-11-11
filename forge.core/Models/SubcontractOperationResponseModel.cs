@@ -8,4 +8,7 @@ public record SubcontractOperationResponseModel(
     string VendorName,
     decimal? SubcontractCost,
     decimal? TurnTimeDays,
-    decimal JobQuantity);
+    decimal JobQuantity,
+    decimal CommittedQuantity = 0m,
+    decimal RemainingQuantity = 0m,
+    decimal? MaxSendQuantity = null);
