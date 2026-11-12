@@ -2,25 +2,25 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
-using QuestPDF.Fluent;
-
+using Forge.Core.Interfaces;
+using Forge.Core.Models;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.PurchaseOrders;
 
 public record GetPurchaseOrderPdfQuery(int Id) : IRequest<byte[]>;
 
-public class GetPurchaseOrderPdfHandler(AppDbContext db) : IRequestHandler<GetPurchaseOrderPdfQuery, byte[]>
+public class GetPurchaseOrderPdfHandler(AppDbContext db, IHtmlPdfRenderer renderer) : IRequestHandler<GetPurchaseOrderPdfQuery, byte[]>
 {
     private static readonly string[] CompanyKeys = ["company.name", "company_name", "company.phone", "company.email"];
 
     public async Task<byte[]> Handle(GetPurchaseOrderPdfQuery request, CancellationToken ct)
     {
         var document = await BuildDocumentAsync(request.Id, ct);
-        return document.GeneratePdf();
+        return await renderer.RenderAsync(document, ct);
     }
 
-    public async Task<PurchaseOrderPdfDocument> BuildDocumentAsync(int purchaseOrderId, CancellationToken ct)
+    public async Task<HtmlPdfDocument> BuildDocumentAsync(int purchaseOrderId, CancellationToken ct)
     {
         var po = await db.PurchaseOrders
             .AsNoTracking()
@@ -58,7 +58,7 @@ public class GetPurchaseOrderPdfHandler(AppDbContext db) : IRequestHandler<GetPu
             .ThenBy(l => l.Id)
             .FirstOrDefaultAsync(ct);
 
-        return new PurchaseOrderPdfDocument(
+        return PurchaseOrderPdfDocument.Build(
             po,
             vendorPartNumbers,
             Setting(settings, "company.name") ?? Setting(settings, "company_name"),

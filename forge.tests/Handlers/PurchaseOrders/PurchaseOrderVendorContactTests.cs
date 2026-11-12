@@ -1,7 +1,6 @@
 using AwesomeAssertions;
 using FluentValidation;
 using Moq;
-using QuestPDF.Infrastructure;
 
 using Forge.Api.Features.PurchaseOrders;
 using Forge.Core.Entities;
@@ -15,11 +14,6 @@ namespace Forge.Tests.Handlers.PurchaseOrders;
 
 public class PurchaseOrderVendorContactTests
 {
-    static PurchaseOrderVendorContactTests()
-    {
-        QuestPDF.Settings.License = LicenseType.Community;
-    }
-
     private readonly Mock<IPurchaseOrderRepository> _poRepo = new();
     private readonly Mock<IVendorRepository> _vendorRepo = new();
     private readonly Mock<IPartRepository> _partRepo = new();
@@ -246,13 +240,17 @@ public class PurchaseOrderVendorContactTests
         _db.PurchaseOrders.Add(po);
         await _db.SaveChangesAsync();
 
-        var document = await new GetPurchaseOrderPdfHandler(_db).BuildDocumentAsync(7, CancellationToken.None);
+        var html = (await new GetPurchaseOrderPdfHandler(_db, new FakeHtmlPdfRenderer()).BuildDocumentAsync(7, CancellationToken.None)).Html;
 
-        document.VendorContactLines().Should().Equal(
-            "Attn: Jane Doe", "Phone: 555-0110", "Fax: 555-0111", "Email: jane@example.test");
-        document.VendorAddressLines().Should().Equal("3 Order Ave", "Suite 4", "Gary, IN 46404", "US");
-        document.ShipTo!.Name.Should().Be("North Plant");
-        (await new GetPurchaseOrderPdfHandler(_db).Handle(new GetPurchaseOrderPdfQuery(7), CancellationToken.None))
+        html.Should().ContainAll(
+            "<div class=\"small gap\">Attn: Jane Doe</div>", "<div class=\"small\">Phone: 555-0110</div>",
+            "<div class=\"small\">Fax: 555-0111</div>", "<div class=\"small\">Email: jane@example.test</div>");
+        html.Should().ContainAll(
+            "<div class=\"small\">3 Order Ave</div>", "<div class=\"small\">Suite 4</div>",
+            "<div class=\"small\">Gary, IN 46404</div>", "<div class=\"small\">US</div>");
+        html.Should().NotContain("Front Desk").And.NotContain("555-0109");
+        html.Should().Contain("<div class=\"small\">North Plant</div>").And.Contain("<div class=\"small\">10 North Rd</div>");
+        (await new GetPurchaseOrderPdfHandler(_db, new FakeHtmlPdfRenderer()).Handle(new GetPurchaseOrderPdfQuery(7), CancellationToken.None))
             .Should().NotBeEmpty();
     }
 
@@ -270,10 +268,13 @@ public class PurchaseOrderVendorContactTests
         _db.PurchaseOrders.Add(po);
         await _db.SaveChangesAsync();
 
-        var document = await new GetPurchaseOrderPdfHandler(_db).BuildDocumentAsync(8, CancellationToken.None);
+        var html = (await new GetPurchaseOrderPdfHandler(_db, new FakeHtmlPdfRenderer()).BuildDocumentAsync(8, CancellationToken.None)).Html;
 
-        document.VendorContactLines().Should().Equal("Attn: Pat Buyer", "Phone: 555-0100", "Fax: 555-0199");
-        document.VendorAddressLines().Should().Equal("100 Mill Road", "Gary, IN 46402");
-        document.ShipTo!.Name.Should().Be("Main Plant");
+        html.Should().ContainAll(
+            "<div class=\"small gap\">Attn: Pat Buyer</div>", "<div class=\"small\">Phone: 555-0100</div>", "<div class=\"small\">Fax: 555-0199</div>",
+            "<div class=\"small\">100 Mill Road</div>", "<div class=\"small\">Gary, IN 46402</div>");
+        html.Should().NotContain("Email:");
+        html.Should().Contain("<div class=\"small\">Main Plant</div>").And.Contain("<div class=\"small\">1 Factory Way</div>");
+        html.Should().Contain("<div class=\"watermark\">DRAFT</div>");
     }
 }

@@ -1,28 +1,49 @@
 using System.Globalization;
 
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
-
-using Forge.Api.Services;
+using Forge.Api.Services.Pdf;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Models;
 
 namespace Forge.Api.Features.PurchaseOrders;
 
-public class PurchaseOrderPdfDocument : IDocument
+public static class PurchaseOrderPdfDocument
 {
     private static readonly CultureInfo Format = CultureInfo.InvariantCulture;
 
-    private readonly PurchaseOrder _po;
-    private readonly IReadOnlyDictionary<int, string> _vendorPartNumbers;
-    private readonly string? _companyName;
-    private readonly string? _companyPhone;
-    private readonly string? _companyEmail;
-    private readonly CompanyLocation? _shipTo;
-    private readonly CompanyLocation? _companyLocation;
+    private const string Styles = """
+        @page { margin: 36pt 40pt 50pt; }
+        .watermark { position: fixed; top: 260pt; left: 0; width: 100%; text-align: center; transform: rotate(-35deg); font-size: 140pt; font-weight: 700; color: #eeeeee; z-index: -1; }
+        .issuer { padding-right: 20pt; }
+        .issuer .name { font-size: 16pt; font-weight: 700; }
+        .doc { width: 200pt; flex-shrink: 0; text-align: right; }
+        .doc .title { font-size: 20pt; font-weight: 700; line-height: 1.1; }
+        .doc .number { font-size: 12pt; font-weight: 700; }
+        .heavy-rule { border: 0; border-top: 1.5pt solid #000; margin: 8pt 0; }
+        .boxes { display: flex; justify-content: space-between; align-items: stretch; margin-bottom: 10pt; }
+        .box { width: 48%; border: 0.75pt solid #000; padding: 6pt; }
+        .box .caption { font-size: 8pt; font-weight: 600; }
+        .box .name { font-weight: 700; }
+        .box .gap { padding-top: 3pt; }
+        table.grid { width: 100%; border-collapse: collapse; font-size: 8pt; }
+        table.grid thead { display: table-header-group; }
+        table.grid tr { break-inside: avoid; }
+        table.grid th { background: #eeeeee; border-bottom: 1pt solid #000; padding: 4pt 3pt; font-weight: 600; text-align: left; }
+        table.grid td { border-bottom: 0.5pt solid #9e9e9e; padding: 4pt 3pt; vertical-align: top; }
+        table.grid .num { text-align: right; white-space: nowrap; }
+        table.grid .line-note { font-size: 7pt; font-style: italic; }
+        .totals.sums { width: 230pt; margin-top: 8pt; }
+        .totals.sums .row { padding: 2pt 0 0; }
+        .totals.sums .grand { font-size: 11pt; }
+        .totals.sums .after-rule { margin-top: 3pt; padding-top: 2pt; }
+        .block { font-size: 9pt; break-inside: avoid; }
+        .block .heading { font-weight: 600; }
+        .terms { margin-top: 16pt; }
+        .po-notes { margin-top: 12pt; }
+        .po-notes .body { padding-top: 2pt; white-space: pre-wrap; }
+        """;
 
-    public PurchaseOrderPdfDocument(
+    public static HtmlPdfDocument Build(
         PurchaseOrder po,
         IReadOnlyDictionary<int, string> vendorPartNumbers,
         string? companyName,
@@ -31,38 +52,19 @@ public class PurchaseOrderPdfDocument : IDocument
         CompanyLocation? shipTo,
         CompanyLocation? companyLocation = null)
     {
-        _po = po;
-        _vendorPartNumbers = vendorPartNumbers;
-        _companyName = companyName;
-        _companyPhone = companyPhone;
-        _companyEmail = companyEmail;
-        _shipTo = shipTo;
-        _companyLocation = companyLocation ?? shipTo;
-    }
+        companyLocation ??= shipTo;
 
-    public bool IsDraft => _po.Status is PurchaseOrderStatus.Draft or PurchaseOrderStatus.PendingApproval;
-
-    public CompanyLocation? ShipTo => _shipTo;
-
-    public IReadOnlyList<string> VendorAddressLines()
-    {
-        if (_po.VendorAddress is { } address)
-            return NonBlank(address.Line1, address.Line2, CityLine(address.City, address.State, address.PostalCode), address.Country);
-
-        var vendor = _po.Vendor;
-        return NonBlank(vendor.Address, CityLine(vendor.City, vendor.State, vendor.ZipCode), vendor.Country);
-    }
-
-    public IReadOnlyList<string> VendorContactLines()
-    {
-        var vendor = _po.Vendor;
-        var contact = _po.VendorContact;
-        var name = contact is null ? vendor.ContactName : PurchaseOrderParties.ContactName(contact);
-        return NonBlank(
-            Labelled("Attn", name),
-            Labelled("Phone", FirstNonBlank(contact?.Phone, vendor.Phone)),
-            Labelled("Fax", FirstNonBlank(contact?.Fax, vendor.Fax)),
-            Labelled("Email", FirstNonBlank(contact?.Email, vendor.Email)));
+        var watermark = IsDraft(po) ? Html.Of($"<div class=\"watermark\">DRAFT</div>") : Html.Empty;
+        var body = Html.Of($"""
+            {watermark}
+            {Header(po, companyName, companyPhone, companyEmail, companyLocation)}
+            {Parties(po, companyName, shipTo)}
+            {Lines(po, vendorPartNumbers)}
+            {Totals(po)}
+            {Terms(po)}
+            {Notes(po)}
+            """);
+        return PdfHtml.Document($"Purchase Order {po.PONumber}", body, po.PONumber, styles: Styles);
     }
 
     public static string UomFor(PurchaseOrderLine line) =>
@@ -71,265 +73,189 @@ public class PurchaseOrderPdfDocument : IDocument
         ?? line.Part?.StockUom?.Code
         ?? string.Empty;
 
-    public string VendorPartNumberFor(PurchaseOrderLine line) =>
-        line.PartId.HasValue && _vendorPartNumbers.TryGetValue(line.PartId.Value, out var number)
-            ? number
-            : string.Empty;
-
     public static string Money(decimal amount, string currency) =>
         $"{amount.ToString("#,##0.00", Format)} {currency}";
 
     public static string UnitPrice(decimal amount) => amount.ToString("#,##0.00##", Format);
 
-    public DocumentMetadata GetMetadata() => new()
+    private static bool IsDraft(PurchaseOrder po) => po.Status is PurchaseOrderStatus.Draft or PurchaseOrderStatus.PendingApproval;
+
+    private static IReadOnlyList<string> VendorAddressLines(PurchaseOrder po)
     {
-        Title = $"Purchase Order {_po.PONumber}",
-        Author = _companyName ?? string.Empty,
-    };
+        if (po.VendorAddress is { } address)
+            return NonBlank(address.Line1, address.Line2, CityLine(address.City, address.State, address.PostalCode), address.Country);
 
-    public void Compose(IDocumentContainer container)
-    {
-        container.Page(page =>
-        {
-            page.Size(PageSizes.Letter);
-            page.MarginHorizontal(40);
-            page.MarginVertical(36);
-            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10).FontColor(Colors.Black));
-
-            page.Header().Element(ComposeHeader);
-            page.Content().Element(ComposeContent);
-            page.Footer().Element(ComposeFooter);
-
-            if (IsDraft)
-            {
-                page.Background().AlignCenter().AlignMiddle().Rotate(-35)
-                    .Text("DRAFT").FontSize(140).Bold().FontColor(Colors.Grey.Lighten3);
-            }
-        });
+        var vendor = po.Vendor;
+        return NonBlank(vendor.Address, CityLine(vendor.City, vendor.State, vendor.ZipCode), vendor.Country);
     }
 
-    private void ComposeHeader(IContainer container)
+    private static IReadOnlyList<string> VendorContactLines(PurchaseOrder po)
     {
-        container.Column(col =>
-        {
-            col.Item().Row(row =>
-            {
-                row.RelativeItem().Column(left =>
-                {
-                    if (!string.IsNullOrWhiteSpace(_companyName))
-                        left.Item().Text(_companyName).Bold().FontSize(16);
-                    if (_companyLocation is not null)
-                    {
-                        left.Item().Text(_companyLocation.Line1).FontSize(9);
-                        if (!string.IsNullOrWhiteSpace(_companyLocation.Line2))
-                            left.Item().Text(_companyLocation.Line2).FontSize(9);
-                        left.Item().Text(CityLine(_companyLocation.City, _companyLocation.State, _companyLocation.PostalCode)).FontSize(9);
-                    }
-                    var phone = string.IsNullOrWhiteSpace(_companyPhone) ? _companyLocation?.Phone : _companyPhone;
-                    if (!string.IsNullOrWhiteSpace(phone))
-                        left.Item().Text($"Phone: {phone}").FontSize(9);
-                    if (!string.IsNullOrWhiteSpace(_companyEmail))
-                        left.Item().Text($"Email: {_companyEmail}").FontSize(9);
-                });
-
-                row.ConstantItem(200).AlignRight().Column(right =>
-                {
-                    right.Item().AlignRight().Text("PURCHASE ORDER").Bold().FontSize(20);
-                    right.Item().AlignRight().Text($"PO #: {_po.PONumber}").Bold().FontSize(12);
-                    var orderDate = _po.SubmittedDate ?? _po.CreatedAt;
-                    right.Item().AlignRight().Text($"Date: {orderDate.ToString("MM/dd/yyyy", Format)}");
-                    if (_po.ExpectedDeliveryDate.HasValue)
-                        right.Item().AlignRight().Text(
-                            $"Expected Delivery: {_po.ExpectedDeliveryDate.Value.ToString("MM/dd/yyyy", Format)}");
-                    if (!string.IsNullOrWhiteSpace(_po.Vendor.VendorNumber))
-                        right.Item().AlignRight().Text($"Vendor #: {_po.Vendor.VendorNumber}");
-                    if (_po.IsBlanket)
-                        right.Item().AlignRight().Text("Blanket PO").SemiBold();
-                });
-            });
-
-            col.Item().PaddingTop(8).LineHorizontal(1.5f).LineColor(Colors.Black);
-
-            col.Item().PaddingTop(8).Row(row =>
-            {
-                row.RelativeItem().Element(ComposeVendorBlock);
-                row.ConstantItem(20);
-                row.RelativeItem().Element(ComposeShipToBlock);
-            });
-
-            col.Item().PaddingTop(10);
-        });
+        var vendor = po.Vendor;
+        var contact = po.VendorContact;
+        var name = contact is null ? vendor.ContactName : PurchaseOrderParties.ContactName(contact);
+        return NonBlank(
+            Labelled("Attn", name),
+            Labelled("Phone", FirstNonBlank(contact?.Phone, vendor.Phone)),
+            Labelled("Fax", FirstNonBlank(contact?.Fax, vendor.Fax)),
+            Labelled("Email", FirstNonBlank(contact?.Email, vendor.Email)));
     }
 
-    private void ComposeVendorBlock(IContainer container)
+    private static string VendorPartNumberFor(PurchaseOrderLine line, IReadOnlyDictionary<int, string> vendorPartNumbers) =>
+        line.PartId.HasValue && vendorPartNumbers.TryGetValue(line.PartId.Value, out var number)
+            ? number
+            : string.Empty;
+
+    private static Html Header(
+        PurchaseOrder po, string? companyName, string? companyPhone, string? companyEmail, CompanyLocation? location)
     {
-        container.Border(0.75f).BorderColor(Colors.Black).Padding(6).Column(block =>
-        {
-            block.Item().Text("VENDOR").SemiBold().FontSize(8);
-            block.Item().Text(_po.Vendor.CompanyName).Bold();
-            foreach (var line in VendorAddressLines())
-                block.Item().Text(line).FontSize(9);
-            var contactLines = VendorContactLines();
-            for (var i = 0; i < contactLines.Count; i++)
-                block.Item().PaddingTop(i == 0 ? 3 : 0).Text(contactLines[i]).FontSize(9);
-        });
+        var phone = string.IsNullOrWhiteSpace(companyPhone) ? location?.Phone : companyPhone;
+        var address = location is null
+            ? Html.Empty
+            : Html.Of($"""
+                <div class="small">{location.Line1}</div>
+                {Small(location.Line2)}
+                <div class="small">{CityLine(location.City, location.State, location.PostalCode)}</div>
+                """);
+        var orderDate = po.SubmittedDate ?? po.CreatedAt;
+
+        return Html.Of($"""
+            <div class="head">
+              <div class="issuer">
+                {(string.IsNullOrWhiteSpace(companyName) ? Html.Empty : Html.Of($"<div class=\"name\">{companyName}</div>"))}
+                {address}
+                {(string.IsNullOrWhiteSpace(phone) ? Html.Empty : Html.Of($"<div class=\"small\">Phone: {phone}</div>"))}
+                {(string.IsNullOrWhiteSpace(companyEmail) ? Html.Empty : Html.Of($"<div class=\"small\">Email: {companyEmail}</div>"))}
+              </div>
+              <div class="doc">
+                <div class="title">PURCHASE ORDER</div>
+                <div class="number">PO #: {po.PONumber}</div>
+                <div>Date: {orderDate:MM/dd/yyyy}</div>
+                {(po.ExpectedDeliveryDate.HasValue ? Html.Of($"<div>Expected Delivery: {po.ExpectedDeliveryDate.Value:MM/dd/yyyy}</div>") : Html.Empty)}
+                {(string.IsNullOrWhiteSpace(po.Vendor.VendorNumber) ? Html.Empty : Html.Of($"<div>Vendor #: {po.Vendor.VendorNumber}</div>"))}
+                {(po.IsBlanket ? Html.Of($"<div class=\"strong\">Blanket PO</div>") : Html.Empty)}
+              </div>
+            </div>
+            <hr class="heavy-rule">
+            """);
     }
 
-    private void ComposeShipToBlock(IContainer container)
+    private static Html Parties(PurchaseOrder po, string? companyName, CompanyLocation? shipTo)
     {
-        container.Border(0.75f).BorderColor(Colors.Black).Padding(6).Column(block =>
-        {
-            block.Item().Text("SHIP TO").SemiBold().FontSize(8);
-            if (!string.IsNullOrWhiteSpace(_companyName))
-                block.Item().Text(_companyName).Bold();
-            if (_shipTo is null)
-                return;
-            if (!string.Equals(_shipTo.Name, _companyName, StringComparison.OrdinalIgnoreCase))
-                block.Item().Text(_shipTo.Name).FontSize(9);
-            block.Item().Text(_shipTo.Line1).FontSize(9);
-            if (!string.IsNullOrWhiteSpace(_shipTo.Line2))
-                block.Item().Text(_shipTo.Line2).FontSize(9);
-            block.Item().Text(CityLine(_shipTo.City, _shipTo.State, _shipTo.PostalCode)).FontSize(9);
-            if (!string.IsNullOrWhiteSpace(_shipTo.Country))
-                block.Item().Text(_shipTo.Country).FontSize(9);
-            if (!string.IsNullOrWhiteSpace(_shipTo.Phone))
-                block.Item().Text($"Phone: {_shipTo.Phone}").FontSize(9);
-        });
+        var contact = VendorContactLines(po)
+            .Select((line, i) => Html.Of($"<div class=\"small{(i == 0 ? " gap" : string.Empty)}\">{line}</div>"));
+
+        var shipToLines = shipTo is null
+            ? Html.Empty
+            : Html.Of($"""
+                {(string.Equals(shipTo.Name, companyName, StringComparison.OrdinalIgnoreCase) ? Html.Empty : Html.Of($"<div class=\"small\">{shipTo.Name}</div>"))}
+                <div class="small">{shipTo.Line1}</div>
+                {Small(shipTo.Line2)}
+                <div class="small">{CityLine(shipTo.City, shipTo.State, shipTo.PostalCode)}</div>
+                {Small(shipTo.Country)}
+                {(string.IsNullOrWhiteSpace(shipTo.Phone) ? Html.Empty : Html.Of($"<div class=\"small\">Phone: {shipTo.Phone}</div>"))}
+                """);
+
+        return Html.Of($"""
+            <div class="boxes">
+              <div class="box">
+                <div class="caption">VENDOR</div>
+                <div class="name">{po.Vendor.CompanyName}</div>
+                {VendorAddressLines(po).Select(line => Html.Of($"<div class=\"small\">{line}</div>"))}
+                {contact}
+              </div>
+              <div class="box">
+                <div class="caption">SHIP TO</div>
+                {(string.IsNullOrWhiteSpace(companyName) ? Html.Empty : Html.Of($"<div class=\"name\">{companyName}</div>"))}
+                {shipToLines}
+              </div>
+            </div>
+            """);
     }
 
-    private void ComposeContent(IContainer container)
+    private static Html Lines(PurchaseOrder po, IReadOnlyDictionary<int, string> vendorPartNumbers)
     {
-        var currency = _po.QuoteCurrency;
-        var lines = _po.Lines.OrderBy(l => l.Id).ToList();
-        var subtotal = lines.Sum(l => l.OrderedQuantity * l.UnitPrice);
-        var dueDate = _po.ExpectedDeliveryDate?.ToString("MM/dd/yyyy", Format) ?? string.Empty;
+        var currency = po.QuoteCurrency;
+        var dueDate = po.ExpectedDeliveryDate?.ToString("MM/dd/yyyy", Format) ?? string.Empty;
 
-        container.Column(col =>
+        var rows = po.Lines.OrderBy(l => l.Id).Select((line, i) =>
         {
-            col.Item().Table(table =>
-            {
-                table.ColumnsDefinition(cols =>
-                {
-                    cols.ConstantColumn(18);
-                    cols.ConstantColumn(62);
-                    cols.ConstantColumn(62);
-                    cols.RelativeColumn();
-                    cols.ConstantColumn(40);
-                    cols.ConstantColumn(38);
-                    cols.ConstantColumn(50);
-                    cols.ConstantColumn(56);
-                    cols.ConstantColumn(66);
-                });
+            var description = string.IsNullOrWhiteSpace(line.Description)
+                ? line.Part?.Description ?? string.Empty
+                : line.Description;
+            var note = string.IsNullOrWhiteSpace(line.Notes)
+                ? Html.Empty
+                : Html.Of($"<div class=\"line-note\">{line.Notes}</div>");
 
-                table.Header(header =>
-                {
-                    HeaderCell(header.Cell(), "#");
-                    HeaderCell(header.Cell(), "Part #");
-                    HeaderCell(header.Cell(), "Vendor Part #");
-                    HeaderCell(header.Cell(), "Description");
-                    HeaderCell(header.Cell().AlignRight(), "Qty");
-                    HeaderCell(header.Cell(), "UOM");
-                    HeaderCell(header.Cell().AlignRight(), "Unit Price");
-                    HeaderCell(header.Cell(), "Due");
-                    HeaderCell(header.Cell().AlignRight(), "Total");
-                });
-
-                for (var i = 0; i < lines.Count; i++)
-                {
-                    var line = lines[i];
-                    var description = string.IsNullOrWhiteSpace(line.Description)
-                        ? line.Part?.Description ?? string.Empty
-                        : line.Description;
-
-                    BodyCell(table.Cell()).Text((i + 1).ToString(Format));
-                    BodyCell(table.Cell()).Text(line.Part?.PartNumber ?? string.Empty);
-                    BodyCell(table.Cell()).Text(VendorPartNumberFor(line));
-                    BodyCell(table.Cell()).Column(desc =>
-                    {
-                        desc.Item().Text(description);
-                        if (!string.IsNullOrWhiteSpace(line.Notes))
-                            desc.Item().Text(line.Notes).FontSize(7).Italic();
-                    });
-                    BodyCell(table.Cell()).AlignRight().Text(line.OrderedQuantity.ToString("#,##0.####", Format));
-                    BodyCell(table.Cell()).Text(UomFor(line));
-                    BodyCell(table.Cell()).AlignRight().Text(UnitPrice(line.UnitPrice));
-                    BodyCell(table.Cell()).Text(dueDate);
-                    BodyCell(table.Cell()).AlignRight().Text(Money(line.OrderedQuantity * line.UnitPrice, currency));
-                }
-            });
-
-            col.Item().PaddingTop(8).AlignRight().Width(230).Column(totals =>
-            {
-                TotalRow(totals, "Subtotal:", Money(subtotal, currency), false);
-                if (_po.EstimatedFreight.HasValue)
-                    TotalRow(totals, "Estimated Freight:", Money(_po.EstimatedFreight.Value, currency), false);
-                totals.Item().PaddingTop(3).LineHorizontal(1).LineColor(Colors.Black);
-                TotalRow(totals, "Total:", Money(subtotal + (_po.EstimatedFreight ?? 0m), currency), true);
-            });
-
-            col.Item().PaddingTop(16).Column(terms =>
-            {
-                terms.Item().Text("Terms").SemiBold().FontSize(9);
-                if (!string.IsNullOrWhiteSpace(_po.Vendor.PaymentTerms))
-                    terms.Item().Text($"Payment terms: {_po.Vendor.PaymentTerms}").FontSize(9);
-                terms.Item().Text($"Shipping terms: {_po.Incoterm.ToString().Replace('_', ' ')}").FontSize(9);
-                terms.Item().Text($"Currency: {currency}").FontSize(9);
-                if (_po.IsBlanket && _po.BlanketExpirationDate.HasValue)
-                    terms.Item().Text(
-                        $"Blanket order expires: {_po.BlanketExpirationDate.Value.ToString("MM/dd/yyyy", Format)}").FontSize(9);
-                terms.Item().Text($"Please reference PO {_po.PONumber} on all packing slips and invoices.").FontSize(9);
-            });
-
-            if (!string.IsNullOrWhiteSpace(_po.Notes))
-            {
-                col.Item().PaddingTop(12).Column(notes =>
-                {
-                    notes.Item().Text("Notes").SemiBold().FontSize(9);
-                    notes.Item().PaddingTop(2).Text(_po.Notes).FontSize(9);
-                });
-            }
+            return Html.Of($"""
+                <tr>
+                  <td>{i + 1}</td>
+                  <td>{line.Part?.PartNumber ?? string.Empty}</td>
+                  <td>{VendorPartNumberFor(line, vendorPartNumbers)}</td>
+                  <td><div>{description}</div>{note}</td>
+                  <td class="num">{line.OrderedQuantity:#,##0.####}</td>
+                  <td>{UomFor(line)}</td>
+                  <td class="num">{UnitPrice(line.UnitPrice)}</td>
+                  <td>{dueDate}</td>
+                  <td class="num">{Money(line.OrderedQuantity * line.UnitPrice, currency)}</td>
+                </tr>
+                """);
         });
+
+        return Html.Of($"""
+            <table class="grid">
+              <colgroup><col style="width:18pt"><col style="width:62pt"><col style="width:62pt"><col><col style="width:40pt"><col style="width:38pt"><col style="width:50pt"><col style="width:56pt"><col style="width:66pt"></colgroup>
+              <thead><tr><th>#</th><th>Part #</th><th>Vendor Part #</th><th>Description</th><th class="num">Qty</th><th>UOM</th><th class="num">Unit Price</th><th>Due</th><th class="num">Total</th></tr></thead>
+              <tbody>{rows}</tbody>
+            </table>
+            """);
     }
 
-    private void ComposeFooter(IContainer container)
+    private static Html Totals(PurchaseOrder po)
     {
-        container.AlignCenter().Text(text =>
-        {
-            text.DefaultTextStyle(x => x.FontSize(8));
-            text.Span($"{_po.PONumber}  -  Page ");
-            text.CurrentPageNumber();
-            text.Span(" of ");
-            text.TotalPages();
-        });
+        var currency = po.QuoteCurrency;
+        var subtotal = po.Lines.Sum(l => l.OrderedQuantity * l.UnitPrice);
+
+        return Html.Of($"""
+            <div class="totals sums">
+              {Row("Subtotal:", Money(subtotal, currency), "strong-label")}
+              {(po.EstimatedFreight.HasValue ? Row("Estimated Freight:", Money(po.EstimatedFreight.Value, currency), "strong-label") : Html.Empty)}
+              {Row("Total:", Money(subtotal + (po.EstimatedFreight ?? 0m), currency), "grand after-rule")}
+            </div>
+            """);
     }
 
-    private static void HeaderCell(IContainer cell, string label) =>
-        cell.BorderBottom(1).BorderColor(Colors.Black).Background(Colors.Grey.Lighten3)
-            .PaddingVertical(4).PaddingHorizontal(3)
-            .Text(label).SemiBold().FontSize(8);
-
-    private static IContainer BodyCell(IContainer cell) =>
-        cell.BorderBottom(0.5f).BorderColor(Colors.Grey.Medium)
-            .PaddingVertical(4).PaddingHorizontal(3)
-            .DefaultTextStyle(x => x.FontSize(8));
-
-    private static void TotalRow(ColumnDescriptor totals, string label, string value, bool emphasise)
+    private static Html Terms(PurchaseOrder po)
     {
-        totals.Item().PaddingTop(2).Row(row =>
-        {
-            var labelText = row.RelativeItem().Text(label);
-            var valueText = row.ConstantItem(120).AlignRight().Text(value);
-            if (emphasise)
-            {
-                labelText.Bold().FontSize(11);
-                valueText.Bold().FontSize(11);
-            }
-            else
-            {
-                labelText.SemiBold();
-            }
-        });
+        var paymentTerms = string.IsNullOrWhiteSpace(po.Vendor.PaymentTerms)
+            ? Html.Empty
+            : Html.Of($"<div>Payment terms: {po.Vendor.PaymentTerms}</div>");
+        var expires = po.IsBlanket && po.BlanketExpirationDate.HasValue
+            ? Html.Of($"<div>Blanket order expires: {po.BlanketExpirationDate.Value:MM/dd/yyyy}</div>")
+            : Html.Empty;
+
+        return Html.Of($"""
+            <div class="block terms">
+              <div class="heading">Terms</div>
+              {paymentTerms}
+              <div>Shipping terms: {po.Incoterm.ToString().Replace('_', ' ')}</div>
+              <div>Currency: {po.QuoteCurrency}</div>
+              {expires}
+              <div>Please reference PO {po.PONumber} on all packing slips and invoices.</div>
+            </div>
+            """);
     }
+
+    private static Html Notes(PurchaseOrder po)
+        => string.IsNullOrWhiteSpace(po.Notes)
+            ? Html.Empty
+            : Html.Of($"<div class=\"block po-notes\"><div class=\"heading\">Notes</div><div class=\"body\">{po.Notes}</div></div>");
+
+    private static Html Row(string label, string amount, string style)
+        => Html.Of($"<div class=\"row {style}\"><span>{label}</span><span>{amount}</span></div>");
+
+    private static Html Small(string? text)
+        => string.IsNullOrWhiteSpace(text) ? Html.Empty : Html.Of($"<div class=\"small\">{text}</div>");
 
     private static IReadOnlyList<string> NonBlank(params string?[] values) =>
         values.Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v!).ToList();
