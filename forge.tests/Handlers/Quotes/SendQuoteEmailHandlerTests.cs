@@ -3,7 +3,6 @@ using System.Text.RegularExpressions;
 using AwesomeAssertions;
 using MediatR;
 using Moq;
-using QuestPDF.Infrastructure;
 
 using Forge.Api.Features.Quotes;
 using Forge.Api.Services;
@@ -29,8 +28,6 @@ public class SendQuoteEmailHandlerTests
 
     public SendQuoteEmailHandlerTests()
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         _settings.Setup(s => s.FindByKeyAsync("company.name", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SystemSetting { Key = "company.name", Value = "Northwind Fabrication" });
         _outbox.Setup(o => o.EnqueueEmailAsync(

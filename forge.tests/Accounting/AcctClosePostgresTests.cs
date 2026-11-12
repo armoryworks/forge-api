@@ -3,7 +3,6 @@ using System.Security.Claims;
 using AwesomeAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using QuestPDF.Infrastructure;
 
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Customers;
@@ -160,8 +159,7 @@ END $$;");
 
         (await verify.Invoices.Where(i => i.CustomerId == customerId && i.Status == InvoiceStatus.Sent).Select(i => i.InvoiceNumber).ToListAsync())
             .Should().Contain("OB-1001").And.HaveCount(2);
-        QuestPDF.Settings.License = LicenseType.Community;
-        var pdf = await new GenerateCustomerStatementHandler(verify, new SystemClock())
+        var pdf = await new GenerateCustomerStatementHandler(verify, new SystemClock(), new FakeHtmlPdfRenderer())
             .Handle(new GenerateCustomerStatementQuery(customerId), CancellationToken.None);
         System.Text.Encoding.ASCII.GetString(pdf, 0, 4).Should().Be("%PDF");
 

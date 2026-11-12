@@ -1,244 +1,207 @@
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
+using System.Globalization;
 
 using Forge.Api.Services;
+using Forge.Api.Services.Pdf;
 using Forge.Core.Entities;
+using Forge.Core.Models;
 
 namespace Forge.Api.Features.Customers;
 
-public class CustomerStatementPdfDocument(
-    Customer customer,
-    List<Invoice> invoices,
-    List<Payment> payments,
-    string? companyName,
-    DateTimeOffset statementDate,
-    IReadOnlyDictionary<int, MoneyFormatter>? currencyMoney = null,
-    IReadOnlyDictionary<int, MoneyFormatter>? paymentMoney = null,
-    MoneyFormatter? baseMoney = null,
-    List<CreditMemo>? creditMemos = null,
-    List<CustomerRefund>? refunds = null) : IDocument
+public static class CustomerStatementPdfDocument
 {
-    private readonly MoneyFormatter _baseMoney = baseMoney ?? MoneyFormat.For(null, "USD");
+    private const string Styles = """
+        .statement-head { display: flex; justify-content: space-between; align-items: flex-start; }
+        .statement-head .company { font-size: 18pt; font-weight: 700; padding-right: 20pt; }
+        .statement-head .right { width: 200pt; flex: none; }
+        .statement-head .title { font-size: 14pt; font-weight: 700; }
+        .bill-to { padding-top: 10pt; }
+        .bill-to .caption { font-size: 9pt; font-weight: 700; }
+        .bill-to .name { font-weight: 700; }
+        .statement-rule { border: 0; border-top: 1pt solid #000; margin: 10pt 0 0; }
+        .statement-body { padding-top: 10pt; }
+        .section-title { font-size: 12pt; font-weight: 700; }
+        .section-title.later { padding-top: 15pt; }
+        table.statement { width: 100%; border-collapse: collapse; margin-top: 5pt; font-size: 9pt; }
+        table.statement thead { display: table-header-group; }
+        table.statement thead tr { background: #f0f0f0; }
+        table.statement th { font-weight: 700; padding: 4pt; text-align: left; }
+        table.statement td { padding: 4pt; vertical-align: top; }
+        table.statement tr { break-inside: avoid; }
+        table.statement .num { text-align: right; white-space: nowrap; }
+        .balance { display: flex; justify-content: flex-end; align-items: baseline; padding-top: 4pt; font-weight: 700; break-inside: avoid; }
+        .balance.first { padding-top: 20pt; }
+        .balance .caption { width: 140pt; font-size: 12pt; }
+        .balance .amount { width: 130pt; font-size: 14pt; text-align: right; white-space: nowrap; }
+        """;
 
-    private readonly List<CreditMemo> _creditMemos = creditMemos ?? [];
-
-    private readonly List<CustomerRefund> _refunds = refunds ?? [];
-
-    private MoneyFormatter CurrencyMoney(int currencyId)
-        => currencyMoney is not null && currencyMoney.TryGetValue(currencyId, out var money) ? money : _baseMoney;
-
-    private MoneyFormatter InvoiceMoney(Invoice invoice)
-        => currencyMoney is not null && currencyMoney.TryGetValue(invoice.CurrencyId, out var money) ? money : _baseMoney;
-
-    private MoneyFormatter PaymentMoney(Payment payment)
-        => paymentMoney is not null && paymentMoney.TryGetValue(payment.Id, out var money) ? money : _baseMoney;
-
-    public void Compose(IDocumentContainer container)
+    public static HtmlPdfDocument Build(
+        Customer customer,
+        List<Invoice> invoices,
+        List<Payment> payments,
+        string? companyName,
+        DateTimeOffset statementDate,
+        IReadOnlyDictionary<int, MoneyFormatter>? currencyMoney = null,
+        IReadOnlyDictionary<int, MoneyFormatter>? paymentMoney = null,
+        MoneyFormatter? baseMoney = null,
+        List<CreditMemo>? creditMemos = null,
+        List<CustomerRefund>? refunds = null)
     {
-        container.Page(page =>
+        var fallback = baseMoney ?? MoneyFormat.For(null, "USD");
+        var memos = creditMemos ?? [];
+        var refundList = refunds ?? [];
+
+        MoneyFormatter CurrencyMoney(int currencyId)
+            => currencyMoney is not null && currencyMoney.TryGetValue(currencyId, out var money) ? money : fallback;
+
+        MoneyFormatter PaymentMoney(Payment payment)
+            => paymentMoney is not null && paymentMoney.TryGetValue(payment.Id, out var money) ? money : fallback;
+
+        var openCredits = memos.Where(m => m.OpenAmount > 0m).ToList();
+        var totalsDue = invoices.Select(i => (Money: CurrencyMoney(i.CurrencyId), Amount: i.BalanceDue))
+            .Concat(openCredits.Select(m => (Money: CurrencyMoney(m.CurrencyId), Amount: -m.OpenAmount)))
+            .GroupBy(x => x.Money)
+            .Select(g => g.Key.Format(g.Sum(x => x.Amount)))
+            .DefaultIfEmpty(fallback.Format(0m))
+            .Select((totalDue, i) => Html.Of(
+                $"<div class=\"balance{(i == 0 ? " first" : string.Empty)}\"><div class=\"caption\">Total Balance Due:</div><div class=\"amount\">{totalDue}</div></div>"))
+            .ToList();
+
+        var body = Html.Of($"""
+            {Header(customer, companyName, statementDate)}
+            <div class="statement-body">
+              {Invoices(invoices, CurrencyMoney)}
+              {Payments(payments, PaymentMoney)}
+              {CreditMemos(memos, CurrencyMoney)}
+              {Refunds(refundList, CurrencyMoney)}
+              {totalsDue}
+            </div>
+            """);
+
+        var footerLabel = $"Statement generated {statementDate.ToString("MMMM dd, yyyy", CultureInfo.InvariantCulture)}";
+        return PdfHtml.Document($"Customer Statement {customer.Name}", body, footerLabel, styles: Styles);
+    }
+
+    private static Html Header(Customer customer, string? companyName, DateTimeOffset statementDate)
+        => Html.Of($"""
+            <div class="statement-head">
+              <div class="company">{companyName}</div>
+              <div class="right">
+                <div class="title">CUSTOMER STATEMENT</div>
+                <div class="small">Date: {statementDate:MMM dd, yyyy}</div>
+              </div>
+            </div>
+            <div class="bill-to">
+              <div class="caption">Bill To:</div>
+              <div class="name">{customer.Name}</div>
+              {(string.IsNullOrWhiteSpace(customer.Email) ? Html.Empty : Html.Of($"<div class=\"small\">{customer.Email}</div>"))}
+              {(string.IsNullOrWhiteSpace(customer.Phone) ? Html.Empty : Html.Of($"<div class=\"small\">{customer.Phone}</div>"))}
+            </div>
+            <hr class="statement-rule">
+            """);
+
+    private static Html Invoices(List<Invoice> invoices, Func<int, MoneyFormatter> currencyMoney)
+    {
+        var rows = invoices.OrderByDescending(i => i.InvoiceDate).Select(inv =>
         {
-            page.Size(PageSizes.Letter);
-            page.MarginHorizontal(50);
-            page.MarginVertical(40);
-            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10));
-
-            page.Header().Column(col =>
-            {
-                col.Item().Row(row =>
-                {
-                    var companyCell = row.RelativeItem();
-                    if (companyName is not null)
-                        companyCell.Text(companyName).FontSize(18).Bold();
-                    row.ConstantItem(200).AlignRight().Column(right =>
-                    {
-                        right.Item().Text("CUSTOMER STATEMENT").FontSize(14).Bold();
-                        right.Item().Text($"Date: {statementDate:MMM dd, yyyy}").FontSize(9);
-                    });
-                });
-
-                col.Item().PaddingTop(10).Row(row =>
-                {
-                    row.RelativeItem().Column(left =>
-                    {
-                        left.Item().Text("Bill To:").Bold().FontSize(9);
-                        left.Item().Text(customer.Name).Bold();
-                        if (!string.IsNullOrWhiteSpace(customer.Email))
-                            left.Item().Text(customer.Email).FontSize(9);
-                        if (!string.IsNullOrWhiteSpace(customer.Phone))
-                            left.Item().Text(customer.Phone).FontSize(9);
-                    });
-                });
-
-                col.Item().PaddingTop(10).LineHorizontal(1);
-            });
-
-            page.Content().PaddingTop(10).Column(content =>
-            {
-                content.Item().Text("Invoices").FontSize(12).Bold();
-                content.Item().PaddingTop(5).Table(table =>
-                {
-                    table.ColumnsDefinition(cols =>
-                    {
-                        cols.ConstantColumn(60);
-                        cols.ConstantColumn(60);
-                        cols.ConstantColumn(60);
-                        cols.RelativeColumn();
-                        cols.ConstantColumn(62);
-                        cols.ConstantColumn(62);
-                        cols.ConstantColumn(62);
-                        cols.ConstantColumn(62);
-                    });
-
-                    table.Header(header =>
-                    {
-                        header.Cell().Background("#f0f0f0").Padding(4).Text("Invoice #").Bold().FontSize(9);
-                        header.Cell().Background("#f0f0f0").Padding(4).Text("Date").Bold().FontSize(9);
-                        header.Cell().Background("#f0f0f0").Padding(4).Text("Due Date").Bold().FontSize(9);
-                        header.Cell().Background("#f0f0f0").Padding(4).Text("Status").Bold().FontSize(9);
-                        header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Total").Bold().FontSize(9);
-                        header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Paid").Bold().FontSize(9);
-                        header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Discounts / credits").Bold().FontSize(9);
-                        header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Balance").Bold().FontSize(9);
-                    });
-
-                    foreach (var inv in invoices.OrderByDescending(i => i.InvoiceDate))
-                    {
-                        table.Cell().Padding(4).Text(inv.InvoiceNumber).FontSize(9);
-                        table.Cell().Padding(4).Text(inv.InvoiceDate.ToString("MM/dd/yyyy")).FontSize(9);
-                        table.Cell().Padding(4).Text(inv.DueDate.ToString("MM/dd/yyyy")).FontSize(9);
-                        table.Cell().Padding(4).Text(inv.Status.ToString()).FontSize(9);
-                        var money = InvoiceMoney(inv);
-                        table.Cell().Padding(4).AlignRight().Text(money.Format(inv.Total)).FontSize(9);
-                        table.Cell().Padding(4).AlignRight().Text(money.Format(inv.AmountPaid)).FontSize(9);
-                        table.Cell().Padding(4).AlignRight().Text(money.Format(inv.DiscountsTaken + inv.CreditsApplied)).FontSize(9);
-                        table.Cell().Padding(4).AlignRight().Text(money.Format(inv.BalanceDue)).FontSize(9);
-                    }
-                });
-
-                if (payments.Count > 0)
-                {
-                    content.Item().PaddingTop(15).Text("Payment History").FontSize(12).Bold();
-                    content.Item().PaddingTop(5).Table(table =>
-                    {
-                        table.ColumnsDefinition(cols =>
-                        {
-                            cols.ConstantColumn(100);
-                            cols.ConstantColumn(90);
-                            cols.RelativeColumn();
-                            cols.ConstantColumn(100);
-                        });
-
-                        table.Header(header =>
-                        {
-                            header.Cell().Background("#f0f0f0").Padding(4).Text("Payment #").Bold().FontSize(9);
-                            header.Cell().Background("#f0f0f0").Padding(4).Text("Date").Bold().FontSize(9);
-                            header.Cell().Background("#f0f0f0").Padding(4).Text("Method").Bold().FontSize(9);
-                            header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Amount").Bold().FontSize(9);
-                        });
-
-                        foreach (var pmt in payments.OrderByDescending(p => p.PaymentDate))
-                        {
-                            table.Cell().Padding(4).Text(pmt.PaymentNumber).FontSize(9);
-                            table.Cell().Padding(4).Text(pmt.PaymentDate.ToString("MM/dd/yyyy")).FontSize(9);
-                            table.Cell().Padding(4).Text(pmt.Method.ToString()).FontSize(9);
-                            table.Cell().Padding(4).AlignRight().Text(PaymentMoney(pmt).Format(pmt.Amount)).FontSize(9);
-                        }
-                    });
-                }
-
-                var openCredits = _creditMemos.Where(m => m.OpenAmount > 0m).ToList();
-                if (_creditMemos.Count > 0)
-                {
-                    content.Item().PaddingTop(15).Text("Credit Memos").FontSize(12).Bold();
-                    content.Item().PaddingTop(5).Table(table =>
-                    {
-                        table.ColumnsDefinition(cols =>
-                        {
-                            cols.ConstantColumn(80);
-                            cols.ConstantColumn(70);
-                            cols.RelativeColumn();
-                            cols.ConstantColumn(80);
-                            cols.ConstantColumn(80);
-                        });
-
-                        table.Header(header =>
-                        {
-                            header.Cell().Background("#f0f0f0").Padding(4).Text("Credit #").Bold().FontSize(9);
-                            header.Cell().Background("#f0f0f0").Padding(4).Text("Date").Bold().FontSize(9);
-                            header.Cell().Background("#f0f0f0").Padding(4).Text("Reason").Bold().FontSize(9);
-                            header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Credit").Bold().FontSize(9);
-                            header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Unused").Bold().FontSize(9);
-                        });
-
-                        foreach (var memo in _creditMemos.OrderByDescending(m => m.CreditDate))
-                        {
-                            var money = CurrencyMoney(memo.CurrencyId);
-                            table.Cell().Padding(4).Text(memo.CreditMemoNumber).FontSize(9);
-                            table.Cell().Padding(4).Text(memo.CreditDate.ToString("MM/dd/yyyy")).FontSize(9);
-                            table.Cell().Padding(4).Text(memo.Reason).FontSize(9);
-                            table.Cell().Padding(4).AlignRight().Text(money.Format(memo.Total)).FontSize(9);
-                            table.Cell().Padding(4).AlignRight().Text(money.Format(memo.OpenAmount)).FontSize(9);
-                        }
-                    });
-                }
-
-                if (_refunds.Count > 0)
-                {
-                    content.Item().PaddingTop(15).Text("Refunds").FontSize(12).Bold();
-                    content.Item().PaddingTop(5).Table(table =>
-                    {
-                        table.ColumnsDefinition(cols =>
-                        {
-                            cols.ConstantColumn(100);
-                            cols.ConstantColumn(90);
-                            cols.RelativeColumn();
-                            cols.ConstantColumn(100);
-                        });
-
-                        table.Header(header =>
-                        {
-                            header.Cell().Background("#f0f0f0").Padding(4).Text("Refund #").Bold().FontSize(9);
-                            header.Cell().Background("#f0f0f0").Padding(4).Text("Date").Bold().FontSize(9);
-                            header.Cell().Background("#f0f0f0").Padding(4).Text("Method").Bold().FontSize(9);
-                            header.Cell().Background("#f0f0f0").Padding(4).AlignRight().Text("Amount").Bold().FontSize(9);
-                        });
-
-                        foreach (var refund in _refunds.OrderByDescending(r => r.RefundDate))
-                        {
-                            table.Cell().Padding(4).Text(refund.RefundNumber).FontSize(9);
-                            table.Cell().Padding(4).Text(refund.RefundDate.ToString("MM/dd/yyyy")).FontSize(9);
-                            table.Cell().Padding(4).Text(refund.Method.ToString()).FontSize(9);
-                            table.Cell().Padding(4).AlignRight().Text(CurrencyMoney(refund.CurrencyId).Format(refund.Amount)).FontSize(9);
-                        }
-                    });
-                }
-
-                var totalsDue = invoices.Select(i => (Money: InvoiceMoney(i), Amount: i.BalanceDue))
-                    .Concat(openCredits.Select(m => (Money: CurrencyMoney(m.CurrencyId), Amount: -m.OpenAmount)))
-                    .GroupBy(x => x.Money)
-                    .Select(g => g.Key.Format(g.Sum(x => x.Amount)))
-                    .DefaultIfEmpty(_baseMoney.Format(0m))
-                    .ToList();
-                for (var i = 0; i < totalsDue.Count; i++)
-                {
-                    var totalDue = totalsDue[i];
-                    content.Item().PaddingTop(i == 0 ? 20 : 4).AlignRight().Row(row =>
-                    {
-                        row.ConstantItem(140).Text("Total Balance Due:").Bold().FontSize(12);
-                        row.ConstantItem(130).AlignRight().Text(totalDue).Bold().FontSize(14);
-                    });
-                }
-            });
-
-            page.Footer().AlignCenter().Text(text =>
-            {
-                text.Span($"Statement generated {statementDate:MMMM dd, yyyy}").FontSize(8);
-                text.Span(" | Page ").FontSize(8);
-                text.CurrentPageNumber().FontSize(8);
-                text.Span(" of ").FontSize(8);
-                text.TotalPages().FontSize(8);
-            });
+            var money = currencyMoney(inv.CurrencyId);
+            return Html.Of($"""
+                <tr>
+                  <td>{inv.InvoiceNumber}</td>
+                  <td>{inv.InvoiceDate:MM/dd/yyyy}</td>
+                  <td>{inv.DueDate:MM/dd/yyyy}</td>
+                  <td>{inv.Status}</td>
+                  <td class="num">{money.Format(inv.Total)}</td>
+                  <td class="num">{money.Format(inv.AmountPaid)}</td>
+                  <td class="num">{money.Format(inv.DiscountsTaken + inv.CreditsApplied)}</td>
+                  <td class="num">{money.Format(inv.BalanceDue)}</td>
+                </tr>
+                """);
         });
+
+        return Html.Of($"""
+            <div class="section-title">Invoices</div>
+            <table class="statement">
+              <colgroup><col style="width:60pt"><col style="width:60pt"><col style="width:60pt"><col><col style="width:62pt"><col style="width:62pt"><col style="width:62pt"><col style="width:62pt"></colgroup>
+              <thead><tr><th>Invoice #</th><th>Date</th><th>Due Date</th><th>Status</th><th class="num">Total</th><th class="num">Paid</th><th class="num">Discounts / credits</th><th class="num">Balance</th></tr></thead>
+              <tbody>{rows}</tbody>
+            </table>
+            """);
+    }
+
+    private static Html Payments(List<Payment> payments, Func<Payment, MoneyFormatter> paymentMoney)
+    {
+        if (payments.Count == 0)
+            return Html.Empty;
+
+        var rows = payments.OrderByDescending(p => p.PaymentDate).Select(pmt => Html.Of($"""
+            <tr>
+              <td>{pmt.PaymentNumber}</td>
+              <td>{pmt.PaymentDate:MM/dd/yyyy}</td>
+              <td>{pmt.Method}</td>
+              <td class="num">{paymentMoney(pmt).Format(pmt.Amount)}</td>
+            </tr>
+            """));
+
+        return Html.Of($"""
+            <div class="section-title later">Payment History</div>
+            <table class="statement">
+              <colgroup><col style="width:100pt"><col style="width:90pt"><col><col style="width:100pt"></colgroup>
+              <thead><tr><th>Payment #</th><th>Date</th><th>Method</th><th class="num">Amount</th></tr></thead>
+              <tbody>{rows}</tbody>
+            </table>
+            """);
+    }
+
+    private static Html CreditMemos(List<CreditMemo> memos, Func<int, MoneyFormatter> currencyMoney)
+    {
+        if (memos.Count == 0)
+            return Html.Empty;
+
+        var rows = memos.OrderByDescending(m => m.CreditDate).Select(memo =>
+        {
+            var money = currencyMoney(memo.CurrencyId);
+            return Html.Of($"""
+                <tr>
+                  <td>{memo.CreditMemoNumber}</td>
+                  <td>{memo.CreditDate:MM/dd/yyyy}</td>
+                  <td>{memo.Reason}</td>
+                  <td class="num">{money.Format(memo.Total)}</td>
+                  <td class="num">{money.Format(memo.OpenAmount)}</td>
+                </tr>
+                """);
+        });
+
+        return Html.Of($"""
+            <div class="section-title later">Credit Memos</div>
+            <table class="statement">
+              <colgroup><col style="width:80pt"><col style="width:70pt"><col><col style="width:80pt"><col style="width:80pt"></colgroup>
+              <thead><tr><th>Credit #</th><th>Date</th><th>Reason</th><th class="num">Credit</th><th class="num">Unused</th></tr></thead>
+              <tbody>{rows}</tbody>
+            </table>
+            """);
+    }
+
+    private static Html Refunds(List<CustomerRefund> refunds, Func<int, MoneyFormatter> currencyMoney)
+    {
+        if (refunds.Count == 0)
+            return Html.Empty;
+
+        var rows = refunds.OrderByDescending(r => r.RefundDate).Select(refund => Html.Of($"""
+            <tr>
+              <td>{refund.RefundNumber}</td>
+              <td>{refund.RefundDate:MM/dd/yyyy}</td>
+              <td>{refund.Method}</td>
+              <td class="num">{currencyMoney(refund.CurrencyId).Format(refund.Amount)}</td>
+            </tr>
+            """));
+
+        return Html.Of($"""
+            <div class="section-title later">Refunds</div>
+            <table class="statement">
+              <colgroup><col style="width:100pt"><col style="width:90pt"><col><col style="width:100pt"></colgroup>
+              <thead><tr><th>Refund #</th><th>Date</th><th>Method</th><th class="num">Amount</th></tr></thead>
+              <tbody>{rows}</tbody>
+            </table>
+            """);
     }
 }

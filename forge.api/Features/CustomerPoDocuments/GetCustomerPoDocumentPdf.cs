@@ -2,8 +2,6 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
-using QuestPDF.Fluent;
-
 using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -19,7 +17,8 @@ public record GetCustomerPoDocumentPdfQuery(int SalesOrderId) : IRequest<byte[]>
 /// </summary>
 public class GetCustomerPoDocumentPdfHandler(
     AppDbContext db,
-    ISystemSettingRepository settings) : IRequestHandler<GetCustomerPoDocumentPdfQuery, byte[]>
+    ISystemSettingRepository settings,
+    IHtmlPdfRenderer renderer) : IRequestHandler<GetCustomerPoDocumentPdfQuery, byte[]>
 {
     public async Task<byte[]> Handle(GetCustomerPoDocumentPdfQuery request, CancellationToken ct)
     {
@@ -36,7 +35,6 @@ public class GetCustomerPoDocumentPdfHandler(
         var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct);
 
         var money = await MoneyFormat.ForBaseCurrencyAsync(db, settings, ct);
-        var pdf = new CustomerPoPdfDocument(document, companyName, money);
-        return pdf.GeneratePdf();
+        return await renderer.RenderAsync(CustomerPoPdfDocument.Build(document, companyName, money), ct);
     }
 }

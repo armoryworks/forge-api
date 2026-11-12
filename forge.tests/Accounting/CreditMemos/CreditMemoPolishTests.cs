@@ -1,14 +1,15 @@
+using System.Net;
+
 using AwesomeAssertions;
 using FluentValidation;
 using MediatR;
 using Moq;
-using QuestPDF.Infrastructure;
-using UglyToad.PdfPig;
 
 using Forge.Api.Features.CreditMemos;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
+using Forge.Tests.Helpers;
 using static Forge.Tests.Accounting.CreditMemos.CreditMemoTestContext;
 
 namespace Forge.Tests.Accounting.CreditMemos;
@@ -19,11 +20,6 @@ namespace Forge.Tests.Accounting.CreditMemos;
 /// </summary>
 public class CreditMemoPolishTests
 {
-    static CreditMemoPolishTests()
-    {
-        QuestPDF.Settings.License = LicenseType.Community;
-    }
-
     private static IMediator Mediator(CreditMemoTestContext ctx)
     {
         var mediator = new Mock<IMediator>();
@@ -115,25 +111,46 @@ public class CreditMemoPolishTests
         var memo = await CreateAsync(ctx, new CreateCreditMemoRequestModel(customer.Id, null, CreditMemoReasonType.Other,
             "Ajuste", null, [new CreditMemoLineRequestModel(CreditMemoLineType.Item, null, null, "Ajuste", 1m, 10m)]));
         var settings = new Mock<Forge.Core.Interfaces.ISystemSettingRepository>();
-        var handler = new GenerateCreditMemoPdfHandler(ctx.Db, settings.Object);
+        var renderer = new FakeHtmlPdfRenderer();
+        var handler = new GenerateCreditMemoPdfHandler(ctx.Db, settings.Object, renderer);
+        async Task<string> Text(GenerateCreditMemoPdfQuery query)
+        {
+            var pdf = await handler.Handle(query, CancellationToken.None);
+            pdf.Should().StartWith("%PDF-"u8.ToArray());
+            return WebUtility.HtmlDecode(renderer.Documents[^1].Html);
+        }
 
-        var english = Text(await handler.Handle(new GenerateCreditMemoPdfQuery(memo.Id), CancellationToken.None));
-        var spanish = Text(await handler.Handle(new GenerateCreditMemoPdfQuery(memo.Id, "es-US"), CancellationToken.None));
+        var english = await Text(new GenerateCreditMemoPdfQuery(memo.Id));
+        var spanish = await Text(new GenerateCreditMemoPdfQuery(memo.Id, "es-US"));
 
-        english.Should().Contain("CREDIT MEMO").And.Contain("Total credit:");
+        english.Should().Contain("CREDIT MEMO").And.Contain("Total credit:").And.NotContain("translated-footer");
         spanish.Should().Contain("NOTA DE CRÉDITO").And.Contain("Crédito total:").And.NotContain("CREDIT MEMO");
+        spanish.Should().Contain("<div class=\"translated-footer\">" + memo.CreditMemoNumber + " · Página <span class=\"page\"></span> de <span class=\"pages\"></span></div>");
 
         ctx.Db.SupportedLanguages.Add(new SupportedLanguage { Code = "es", Name = "Spanish", NativeName = "Español", IsDefault = true });
         await ctx.Db.SaveChangesAsync();
-        Text(await handler.Handle(new GenerateCreditMemoPdfQuery(memo.Id), CancellationToken.None))
-            .Should().Contain("NOTA DE CRÉDITO");
-        Text(await handler.Handle(new GenerateCreditMemoPdfQuery(memo.Id, "en"), CancellationToken.None))
-            .Should().Contain("CREDIT MEMO");
+        (await Text(new GenerateCreditMemoPdfQuery(memo.Id))).Should().Contain("NOTA DE CRÉDITO");
+        (await Text(new GenerateCreditMemoPdfQuery(memo.Id, "en"))).Should().Contain("CREDIT MEMO");
     }
 
-    private static string Text(byte[] pdf)
+    [Fact]
+    public void The_pdf_encodes_every_value_a_user_typed_and_labels_the_footer_with_the_memo_number()
     {
-        using var document = PdfDocument.Open(pdf);
-        return string.Join(" ", document.GetPages().SelectMany(p => p.GetWords()).Select(w => w.Text));
+        var memo = new CreditMemo
+        {
+            CreditMemoNumber = "CM-2001",
+            Customer = new Customer { Name = "<img src=x onerror=alert(1)>" },
+            Reason = "Damaged <b>box</b>",
+            Notes = "</div><script>fetch('http://internal/')</script>",
+            CreditDate = Today,
+            Lines = [new CreditMemoLine { LineNumber = 1, Description = "Bracket <b>bold</b>", Quantity = 1m, UnitPrice = 5m }],
+        };
+
+        var html = CreditMemoPdfDocument.Build(memo, "Harbor <Gear> Works", Forge.Api.Services.MoneyFormat.For(null, "USD")).Html;
+
+        html.Should().NotContain("<img").And.NotContain("<script").And.NotContain("<b>");
+        html.Should().Contain("&lt;img src=x onerror=alert(1)&gt;").And.Contain("Bracket &lt;b&gt;bold&lt;/b&gt;")
+            .And.Contain("Damaged &lt;b&gt;box&lt;/b&gt;").And.Contain("Harbor &lt;Gear&gt; Works");
+        html.Should().Contain("<div class=\"page-footer\">CM-2001 &middot; Page ");
     }
 }

@@ -1,7 +1,6 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using QuestPDF.Fluent;
 
 using Forge.Api.Services;
 using Forge.Core.Entities;
@@ -34,7 +33,8 @@ public class SendSalesOrderForSignatureValidator : AbstractValidator<SendSalesOr
 }
 
 public class SendSalesOrderForSignatureHandler(
-    AppDbContext db, IDocumentSigningService signing, ISystemSettingRepository settings, IClock clock)
+    AppDbContext db, IDocumentSigningService signing, ISystemSettingRepository settings, IClock clock,
+    IHtmlPdfRenderer renderer)
     : IRequestHandler<SendSalesOrderForSignatureCommand, SendForSignatureResponseModel>
 {
     public async Task<SendForSignatureResponseModel> Handle(SendSalesOrderForSignatureCommand request, CancellationToken cancellationToken)
@@ -50,11 +50,11 @@ public class SendSalesOrderForSignatureHandler(
             .Select(l => new SalesOrderAcceptancePdfDocument.Line(l.Description, l.Quantity, l.UnitPrice))
             .ToList();
 
-        var pdfBytes = new SalesOrderAcceptancePdfDocument(
+        var pdfBytes = await renderer.RenderAsync(SalesOrderAcceptancePdfDocument.Build(
             companyName, order.OrderNumber, order.Customer?.Name ?? "Customer", null, lines,
             order.CurrencyId is int currencyId
                 ? await MoneyFormat.ForCurrencyIdAsync(db, currencyId, await MoneyFormat.BaseCodeAsync(settings, cancellationToken), cancellationToken)
-                : await MoneyFormat.ForBaseCurrencyAsync(db, settings, cancellationToken)).GeneratePdf();
+                : await MoneyFormat.ForBaseCurrencyAsync(db, settings, cancellationToken)), cancellationToken);
 
         var templateId = await signing.CreateTemplateFromPdfAsync($"SO-Acceptance-{order.OrderNumber}", pdfBytes, cancellationToken);
         var submission = await signing.CreateSubmissionAsync(templateId, request.SignerEmail, request.SignerName, cancellationToken);

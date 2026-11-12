@@ -1,7 +1,5 @@
 using AwesomeAssertions;
 using Moq;
-using QuestPDF.Fluent;
-using QuestPDF.Infrastructure;
 
 using Forge.Api.Features.Customers;
 using Forge.Api.Features.Invoices;
@@ -28,7 +26,6 @@ public class InvoiceCompanyNameTests : IDisposable
 
     public InvoiceCompanyNameTests()
     {
-        QuestPDF.Settings.License = LicenseType.Community;
         _settings = new SystemSettingRepository(_db);
         _outbox.Setup(o => o.EnqueueEmailAsync(
                 It.IsAny<string>(), It.IsAny<EmailMessage>(), It.IsAny<string?>(),
@@ -63,8 +60,6 @@ public class InvoiceCompanyNameTests : IDisposable
         await _db.SaveChangesAsync();
         return invoice;
     }
-
-    private static string Svg(IDocument document) => string.Join("\n", document.GenerateSvg());
 
     [Fact]
     public async Task InvoicePdf_HeaderShowsCompanyName_WhenSet()
@@ -104,8 +99,8 @@ public class InvoiceCompanyNameTests : IDisposable
         var customer = new Customer { Name = "Buyer Co" };
         var statementDate = new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero);
 
-        var named = Svg(new CustomerStatementPdfDocument(customer, [], [], CompanyName, statementDate));
-        var unnamed = Svg(new CustomerStatementPdfDocument(customer, [], [], null, statementDate));
+        var named = CustomerStatementPdfDocument.Build(customer, [], [], CompanyName, statementDate).Html;
+        var unnamed = CustomerStatementPdfDocument.Build(customer, [], [], null, statementDate).Html;
 
         named.Should().Contain(CompanyName);
         unnamed.Should().Contain("CUSTOMER STATEMENT");

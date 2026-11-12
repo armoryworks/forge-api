@@ -1,7 +1,7 @@
+using System.Net;
+using System.Text.RegularExpressions;
+
 using AwesomeAssertions;
-using QuestPDF.Fluent;
-using QuestPDF.Infrastructure;
-using UglyToad.PdfPig;
 
 using Forge.Api.Features.Customers;
 using Forge.Core.Entities;
@@ -15,11 +15,6 @@ namespace Forge.Tests.Reports;
 /// </summary>
 public class CustomerStatementColumnsTests
 {
-    static CustomerStatementColumnsTests()
-    {
-        QuestPDF.Settings.License = LicenseType.Community;
-    }
-
     private static Invoice Invoice(string number, decimal amount)
         => new()
         {
@@ -41,12 +36,11 @@ public class CustomerStatementColumnsTests
         credited.PaymentApplications.Add(new PaymentApplication { Amount = 100m });
         credited.CreditApplications.Add(new CreditMemoApplication { Amount = 200m });
 
-        var pdf = new CustomerStatementPdfDocument(
+        var html = CustomerStatementPdfDocument.Build(
             new Customer { Name = "Statement Co" }, [discounted, credited], [], "Shop",
-            new DateTimeOffset(2026, 10, 15, 12, 0, 0, TimeSpan.Zero)).GeneratePdf();
+            new DateTimeOffset(2026, 10, 15, 12, 0, 0, TimeSpan.Zero)).Html;
 
-        using var document = PdfDocument.Open(pdf);
-        var text = string.Join(" ", document.GetPages().SelectMany(p => p.GetWords()).Select(w => w.Text));
+        var text = Regex.Replace(WebUtility.HtmlDecode(Regex.Replace(html, "<[^>]+>", " ")), @"\s+", " ");
 
         text.Should().Contain("Discounts /").And.Contain("credits");
         text.Should().Contain("$1,000.00 $980.00 $20.00 $0.00");

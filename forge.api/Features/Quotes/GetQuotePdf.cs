@@ -1,8 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-using QuestPDF.Fluent;
-
 using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -14,7 +12,8 @@ public record GetQuotePdfQuery(int Id) : IRequest<byte[]>;
 public class GetQuotePdfHandler(
     AppDbContext db,
     ISystemSettingRepository settings,
-    ITermsCompilationService compiler) : IRequestHandler<GetQuotePdfQuery, byte[]>
+    ITermsCompilationService compiler,
+    IHtmlPdfRenderer renderer) : IRequestHandler<GetQuotePdfQuery, byte[]>
 {
     public async Task<byte[]> Handle(GetQuotePdfQuery request, CancellationToken ct)
     {
@@ -37,6 +36,6 @@ public class GetQuotePdfHandler(
         var money = quote.CurrencyId is int currencyId
             ? await MoneyFormat.ForCurrencyIdAsync(db, currencyId, await MoneyFormat.BaseCodeAsync(settings, ct), ct)
             : await MoneyFormat.ForBaseCurrencyAsync(db, settings, ct);
-        return new QuotePdfDocument(quote, companyName, compiled.Sections, money).GeneratePdf();
+        return await renderer.RenderAsync(QuotePdfDocument.Build(quote, companyName, compiled.Sections, money), ct);
     }
 }

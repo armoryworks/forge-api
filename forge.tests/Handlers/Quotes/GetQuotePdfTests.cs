@@ -5,7 +5,6 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Moq;
-using QuestPDF.Infrastructure;
 
 using Forge.Api.Controllers;
 using Forge.Api.Features.Quotes;
@@ -28,8 +27,7 @@ public class GetQuotePdfTests
 
     public GetQuotePdfTests()
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-        _handler = new GetQuotePdfHandler(_db, _settings.Object, new TermsCompilationService(_db, _clock));
+        _handler = new GetQuotePdfHandler(_db, _settings.Object, new TermsCompilationService(_db, _clock), new FakeHtmlPdfRenderer());
     }
 
     private void SetCompanyName(string? value) =>
