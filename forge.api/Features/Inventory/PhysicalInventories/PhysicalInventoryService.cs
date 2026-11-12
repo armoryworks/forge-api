@@ -2,8 +2,6 @@ using System.Globalization;
 
 using Microsoft.EntityFrameworkCore;
 
-using QuestPDF.Fluent;
-
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Scanner;
 using Forge.Core.Entities;
@@ -20,7 +18,8 @@ namespace Forge.Api.Features.Inventory.PhysicalInventories;
 public sealed class PhysicalInventoryService(
     AppDbContext db,
     IInventoryAdjustmentPostingService posting,
-    IClock clock) : IPhysicalInventoryService
+    IClock clock,
+    IHtmlPdfRenderer renderer) : IPhysicalInventoryService
 {
     internal const string TagSourceType = "PhysicalInventoryTag";
 
@@ -468,8 +467,8 @@ public sealed class PhysicalInventoryService(
             .Where(s => s.Key == "company.name" || s.Key == "company_name")
             .Select(s => s.Value)
             .FirstOrDefaultAsync(ct);
-        var document = new PhysicalInventoryCountSheetDocument(detail, hideBook, spanish, companyName);
-        return (document.GeneratePdf(), $"{detail.InventoryNumber}-count-sheets.pdf");
+        var document = PhysicalInventoryCountSheetDocument.Build(detail, hideBook, spanish, companyName);
+        return (await renderer.RenderAsync(document, ct), $"{detail.InventoryNumber}-count-sheets.pdf");
     }
 
     private static void ApplyCount(
