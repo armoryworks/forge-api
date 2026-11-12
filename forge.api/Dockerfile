@@ -1,6 +1,6 @@
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
 # Use Debian-based SDK so pwsh + Playwright install work (Alpine lacks glibc)
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /src
 
 # Copy csproj files and restore (cached layer)
