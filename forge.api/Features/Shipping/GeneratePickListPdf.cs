@@ -2,8 +2,6 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
-using QuestPDF.Fluent;
-
 using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -15,7 +13,8 @@ public record GeneratePickListPdfQuery(int WaveId) : IRequest<byte[]>;
 public class GeneratePickListPdfHandler(
     AppDbContext db,
     ISystemSettingRepository settings,
-    IClock clock) : IRequestHandler<GeneratePickListPdfQuery, byte[]>
+    IClock clock,
+    IHtmlPdfRenderer renderer) : IRequestHandler<GeneratePickListPdfQuery, byte[]>
 {
     public async Task<byte[]> Handle(GeneratePickListPdfQuery request, CancellationToken ct)
     {
@@ -28,7 +27,6 @@ public class GeneratePickListPdfHandler(
 
         var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct);
 
-        var document = new PickListPdfDocument(wave, companyName, clock.UtcNow);
-        return document.GeneratePdf();
+        return await renderer.RenderAsync(PickListPdfDocument.Build(wave, companyName, clock.UtcNow), ct);
     }
 }

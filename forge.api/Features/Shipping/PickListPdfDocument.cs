@@ -1,179 +1,88 @@
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
-
-using Forge.Api.Services;
+using Forge.Api.Services.Pdf;
 using Forge.Core.Entities;
+using Forge.Core.Models;
 
 namespace Forge.Api.Features.Shipping;
 
-public class PickListPdfDocument : IDocument
+public static class PickListPdfDocument
 {
-    private readonly PickWave _wave;
-    private readonly string? _companyName;
-    private readonly DateTimeOffset _generatedAt;
+    private const string Styles = """
+        .summary { margin-top: 20pt; }
+        .summary .lines-count { font-size: 9pt; color: #757575; }
+        .signatures { display: flex; margin-top: 40pt; break-inside: avoid; }
+        .signatures .line { flex: 1; border-top: 1pt solid #9e9e9e; padding-top: 4pt; font-size: 9pt; color: #757575; }
+        .signatures .line + .line { margin-left: 40pt; }
+        """;
 
-    public PickListPdfDocument(PickWave wave, string? companyName, DateTimeOffset generatedAt)
+    public static HtmlPdfDocument Build(PickWave wave, string? companyName, DateTimeOffset generatedAt)
     {
-        _wave = wave;
-        _companyName = companyName;
-        _generatedAt = generatedAt;
+        var body = Html.Of($"{Header(wave, companyName, generatedAt)}{Lines(wave)}{Summary(wave)}{Notes(wave)}{Signatures()}");
+        return PdfHtml.Document($"Pick List {wave.WaveNumber}", body, wave.WaveNumber, styles: Styles);
     }
 
-    public void Compose(IDocumentContainer container)
-    {
-        container.Page(page =>
-        {
-            page.Size(PageSizes.Letter);
-            page.MarginHorizontal(50);
-            page.MarginVertical(40);
-            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10));
+    private static Html Header(PickWave wave, string? companyName, DateTimeOffset generatedAt)
+        => Html.Of($"""
+            <div class="head">
+              <div class="company">{companyName}</div>
+              <div class="right"><div class="title">PICK LIST</div><div class="number">Wave #{wave.WaveNumber}</div></div>
+            </div>
+            <hr class="rule">
+            <div class="parties small">
+              <div>
+                <div>Status: {wave.Status}</div>
+                <div>Strategy: {wave.Strategy}</div>
+                {(wave.ReleasedAt.HasValue ? Html.Of($"<div>Released: {wave.ReleasedAt.Value:MMM dd, yyyy HH:mm}</div>") : Html.Empty)}
+              </div>
+              <div class="right">
+                <div>Total Lines: {wave.TotalLines}</div>
+                <div>Picked: {wave.PickedLines}</div>
+                <div>Date: {generatedAt:MMM dd, yyyy}</div>
+              </div>
+            </div>
+            """);
 
-            page.Header().Element(ComposeHeader);
-            page.Content().Element(ComposeContent);
-            page.Footer().Element(ComposeFooter);
-        });
+    private static Html Lines(PickWave wave)
+    {
+        var rows = wave.Lines
+            .OrderBy(l => l.SortOrder)
+            .Select((line, i) =>
+            {
+                var location = !string.IsNullOrEmpty(line.BinPath) ? line.BinPath : line.FromLocation?.Name ?? "—";
+                return Html.Of($"""
+                    <tr>
+                      <td>{i + 1}</td>
+                      <td>{line.Part?.PartNumber ?? "—"}</td>
+                      <td>{line.Part?.Description ?? "—"}</td>
+                      <td>{location}</td>
+                      <td class="num">{line.RequestedQuantity:G}</td>
+                      <td class="num">{line.PickedQuantity:G}</td>
+                      <td>{line.Status.ToString()}</td>
+                    </tr>
+                    """);
+            });
+
+        return Html.Of($"""
+            <table class="lines">
+              <colgroup><col style="width:35pt"><col style="width:90pt"><col style="width:124pt"><col style="width:83pt"><col style="width:60pt"><col style="width:60pt"><col style="width:60pt"></colgroup>
+              <thead><tr><th>#</th><th>Part #</th><th>Description</th><th>Location</th><th class="num">Req</th><th class="num">Picked</th><th>Status</th></tr></thead>
+              <tbody>{rows}</tbody>
+            </table>
+            """);
     }
 
-    private void ComposeHeader(IContainer container)
-    {
-        container.Column(col =>
-        {
-            col.Item().Row(row =>
-            {
-                row.RelativeItem().Column(left =>
-                {
-                    if (_companyName is not null)
-                        left.Item().Text(_companyName).Bold().FontSize(18);
-                });
+    private static Html Summary(PickWave wave)
+        => Html.Of($"""
+            <div class="summary">
+              <div class="strong">Total Items: {wave.Lines.Sum(l => l.RequestedQuantity):G}</div>
+              <div class="lines-count">Total Lines: {wave.Lines.Count}</div>
+            </div>
+            """);
 
-                row.RelativeItem().AlignRight().Column(right =>
-                {
-                    right.Item().Text("PICK LIST").Bold().FontSize(24).FontColor(Colors.Blue.Darken2);
-                    right.Item().Text($"Wave #{_wave.WaveNumber}").FontSize(12);
-                });
-            });
+    private static Html Notes(PickWave wave)
+        => string.IsNullOrWhiteSpace(wave.Notes)
+            ? Html.Empty
+            : Html.Of($"<div class=\"notes\"><div class=\"label\">Notes</div><div class=\"body\">{wave.Notes}</div></div>");
 
-            col.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
-
-            col.Item().PaddingTop(10).Row(row =>
-            {
-                row.RelativeItem().Column(left =>
-                {
-                    left.Item().Text($"Status: {_wave.Status}").FontSize(9);
-                    left.Item().Text($"Strategy: {_wave.Strategy}").FontSize(9);
-                    if (_wave.ReleasedAt.HasValue)
-                        left.Item().Text($"Released: {_wave.ReleasedAt.Value:MMM dd, yyyy HH:mm}").FontSize(9);
-                });
-
-                row.RelativeItem().AlignRight().Column(right =>
-                {
-                    right.Item().Text($"Total Lines: {_wave.TotalLines}").FontSize(9);
-                    right.Item().Text($"Picked: {_wave.PickedLines}").FontSize(9);
-                    right.Item().Text($"Date: {_generatedAt:MMM dd, yyyy}").FontSize(9);
-                });
-            });
-
-            col.Item().PaddingTop(10);
-        });
-    }
-
-    private void ComposeContent(IContainer container)
-    {
-        container.Column(col =>
-        {
-            col.Item().Table(table =>
-            {
-                table.ColumnsDefinition(cols =>
-                {
-                    cols.ConstantColumn(35);    // #
-                    cols.ConstantColumn(90);    // Part #
-                    cols.RelativeColumn(3);     // Description
-                    cols.RelativeColumn(2);     // Location / Bin
-                    cols.ConstantColumn(60);    // Req Qty
-                    cols.ConstantColumn(60);    // Picked Qty
-                    cols.ConstantColumn(60);    // Status
-                });
-
-                var headerStyle = TextStyle.Default.SemiBold().FontSize(9).FontColor(Colors.White);
-
-                table.Header(header =>
-                {
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text("#").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text("Part #").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text("Description").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text("Location").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).AlignRight().Text("Req").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).AlignRight().Text("Picked").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text("Status").Style(headerStyle);
-                });
-
-                var lines = _wave.Lines.OrderBy(l => l.SortOrder).ToList();
-                for (var i = 0; i < lines.Count; i++)
-                {
-                    var line = lines[i];
-                    var bg = i % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
-                    var location = !string.IsNullOrEmpty(line.BinPath) ? line.BinPath : line.FromLocation?.Name ?? "—";
-
-                    table.Cell().Background(bg).Padding(5).Text((i + 1).ToString());
-                    table.Cell().Background(bg).Padding(5).Text(line.Part?.PartNumber ?? "—");
-                    table.Cell().Background(bg).Padding(5).Text(line.Part?.Description ?? "—");
-                    table.Cell().Background(bg).Padding(5).Text(location);
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.RequestedQuantity.ToString("G"));
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.PickedQuantity.ToString("G"));
-                    table.Cell().Background(bg).Padding(5).Text(line.Status.ToString());
-                }
-            });
-
-            col.Item().PaddingTop(20).Row(row =>
-            {
-                row.RelativeItem().Column(summary =>
-                {
-                    summary.Item().Text($"Total Items: {_wave.Lines.Sum(l => l.RequestedQuantity):G}").SemiBold();
-                    summary.Item().Text($"Total Lines: {_wave.Lines.Count}").FontSize(9).FontColor(Colors.Grey.Darken1);
-                });
-            });
-
-            if (!string.IsNullOrWhiteSpace(_wave.Notes))
-            {
-                col.Item().PaddingTop(20).Column(notes =>
-                {
-                    notes.Item().Text("Notes").SemiBold().FontSize(9).FontColor(Colors.Grey.Darken1);
-                    notes.Item().PaddingTop(4).Text(_wave.Notes);
-                });
-            }
-
-            col.Item().PaddingTop(40).Column(sig =>
-            {
-                sig.Item().Row(row =>
-                {
-                    row.RelativeItem().Column(left =>
-                    {
-                        left.Item().LineHorizontal(1).LineColor(Colors.Grey.Medium);
-                        left.Item().PaddingTop(4).Text("Picked By").FontSize(9).FontColor(Colors.Grey.Darken1);
-                    });
-
-                    row.ConstantItem(40);
-
-                    row.RelativeItem().Column(right =>
-                    {
-                        right.Item().LineHorizontal(1).LineColor(Colors.Grey.Medium);
-                        right.Item().PaddingTop(4).Text("Date").FontSize(9).FontColor(Colors.Grey.Darken1);
-                    });
-                });
-            });
-        });
-    }
-
-    private void ComposeFooter(IContainer container)
-    {
-        container.AlignCenter().Text(text =>
-        {
-            text.DefaultTextStyle(x => x.FontSize(8).FontColor(Colors.Grey.Medium));
-            text.Span("Page ");
-            text.CurrentPageNumber();
-            text.Span(" of ");
-            text.TotalPages();
-        });
-    }
+    private static Html Signatures()
+        => Html.Of($"<div class=\"signatures\"><div class=\"line\">Picked By</div><div class=\"line\">Date</div></div>");
 }
