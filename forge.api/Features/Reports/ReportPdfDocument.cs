@@ -1,100 +1,60 @@
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
-
-using Forge.Api.Services;
+using Forge.Api.Services.Pdf;
 using Forge.Core.Models;
 
 namespace Forge.Api.Features.Reports;
 
-public class ReportPdfDocument : IDocument
+public static class ReportPdfDocument
 {
-    private readonly RunReportResponseModel _result;
-    private readonly string _reportName;
-    private readonly DateTimeOffset _generatedAt;
+    private const string Styles = """
+        @page landscape { margin: 30pt 30pt 44pt; }
+        body { font-size: 8pt; }
+        .head .report-name { font-size: 16pt; font-weight: 700; padding-right: 10pt; }
+        .head .meta { width: 200pt; flex: 0 0 200pt; font-size: 8pt; color: #757575; }
+        .report-rule { border: 0; border-top: 1pt solid #bdbdbd; margin: 6pt 0; }
+        .empty { text-align: center; padding-top: 40pt; font-size: 12pt; color: #757575; }
+        table.lines.report { table-layout: fixed; }
+        table.lines.report thead tr { background: #00796b; }
+        table.lines.report th { font-size: 7pt; padding: 4pt; }
+        table.lines.report td { font-size: 7pt; padding: 4pt; overflow-wrap: break-word; }
+        """;
 
-    public ReportPdfDocument(RunReportResponseModel result, string reportName, DateTimeOffset generatedAt)
+    private const int MaxColumns = 15;
+
+    public static HtmlPdfDocument Build(RunReportResponseModel result, string reportName, DateTimeOffset generatedAt)
     {
-        _result = result;
-        _reportName = reportName;
-        _generatedAt = generatedAt;
+        var body = Html.Of($"{Header(result, reportName, generatedAt)}{Content(result)}");
+        return PdfHtml.Document(reportName, body, reportName, landscape: true, styles: Styles);
     }
 
-    public void Compose(IDocumentContainer container)
+    private static Html Header(RunReportResponseModel result, string reportName, DateTimeOffset generatedAt)
+        => Html.Of($"""
+            <div class="head">
+              <div class="report-name">{reportName}</div>
+              <div class="meta right">
+                <div>Generated: {generatedAt:MMM dd, yyyy HH:mm} UTC</div>
+                <div>{result.TotalCount} records</div>
+              </div>
+            </div>
+            <hr class="report-rule">
+            """);
+
+    private static Html Content(RunReportResponseModel result)
     {
-        container.Page(page =>
-        {
-            page.Size(PageSizes.Letter.Landscape());
-            page.MarginHorizontal(30);
-            page.MarginVertical(30);
-            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(8));
+        if (result.Rows.Count == 0)
+            return Html.Of($"<div class=\"empty\">No data to display.</div>");
 
-            page.Header().Element(ComposeHeader);
-            page.Content().Element(ComposeContent);
-            page.Footer().Element(ComposeFooter);
-        });
-    }
+        var columns = result.Columns.Take(MaxColumns).ToList();
+        var headings = columns.Select(c => Html.Of($"<th>{c}</th>"));
+        var rows = result.Rows.Select(row => Html.Of($"""
+            <tr>{columns.Select(c => Html.Of($"<td>{FormatValue(row.TryGetValue(c, out var v) ? v : null)}</td>"))}</tr>
+            """));
 
-    private void ComposeHeader(IContainer container)
-    {
-        container.Column(col =>
-        {
-            col.Item().Row(row =>
-            {
-                row.RelativeItem().Text(_reportName).Bold().FontSize(16);
-                row.ConstantItem(200).AlignRight().Column(right =>
-                {
-                    right.Item().Text($"Generated: {_generatedAt:MMM dd, yyyy HH:mm} UTC").FontSize(8).FontColor(Colors.Grey.Darken1);
-                    right.Item().Text($"{_result.TotalCount} records").FontSize(8).FontColor(Colors.Grey.Darken1);
-                });
-            });
-            col.Item().PaddingTop(6).LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
-            col.Item().PaddingTop(6);
-        });
-    }
-
-    private void ComposeContent(IContainer container)
-    {
-        if (_result.Rows.Count == 0)
-        {
-            container.AlignCenter().PaddingTop(40).Text("No data to display.").FontSize(12).FontColor(Colors.Grey.Darken1);
-            return;
-        }
-
-        container.Table(table =>
-        {
-            var columns = _result.Columns;
-            var maxColumns = Math.Min(columns.Length, 15);
-
-            table.ColumnsDefinition(cols =>
-            {
-                for (var i = 0; i < maxColumns; i++)
-                    cols.RelativeColumn();
-            });
-
-            var headerStyle = TextStyle.Default.SemiBold().FontSize(7).FontColor(Colors.White);
-
-            table.Header(header =>
-            {
-                for (var i = 0; i < maxColumns; i++)
-                {
-                    header.Cell().Background(Colors.Teal.Darken2).Padding(4).Text(columns[i]).Style(headerStyle);
-                }
-            });
-
-            for (var r = 0; r < _result.Rows.Count; r++)
-            {
-                var row = _result.Rows[r];
-                var bg = r % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
-
-                for (var c = 0; c < maxColumns; c++)
-                {
-                    var value = row.TryGetValue(columns[c], out var v) ? v : null;
-                    var text = FormatValue(value);
-                    table.Cell().Background(bg).Padding(4).Text(text).FontSize(7);
-                }
-            }
-        });
+        return Html.Of($"""
+            <table class="lines report">
+              <thead><tr>{headings}</tr></thead>
+              <tbody>{rows}</tbody>
+            </table>
+            """);
     }
 
     private static string FormatValue(object? value)
@@ -106,17 +66,5 @@ public class ReportPdfDocument : IDocument
         if (value is double dbl) return dbl.ToString("N2");
         if (value is bool b) return b ? "Yes" : "No";
         return value.ToString() ?? "—";
-    }
-
-    private void ComposeFooter(IContainer container)
-    {
-        container.AlignCenter().Text(text =>
-        {
-            text.DefaultTextStyle(x => x.FontSize(8).FontColor(Colors.Grey.Medium));
-            text.Span("Page ");
-            text.CurrentPageNumber();
-            text.Span(" of ");
-            text.TotalPages();
-        });
     }
 }

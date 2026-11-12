@@ -3,8 +3,6 @@ using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-using QuestPDF.Fluent;
-
 using Forge.Api.Features.Files;
 using Forge.Api.Services;
 using Forge.Core.Entities;
@@ -27,7 +25,8 @@ public class CertificateOfAnalysisIssuer(
     AppDbContext db,
     IClock clock,
     IStorageService storage,
-    IOptions<MinioOptions> minioOptions)
+    IOptions<MinioOptions> minioOptions,
+    IHtmlPdfRenderer renderer)
 {
     public const string NonConformingCode = "coa-nonconforming";
     public const string NoResultsCode = "coa-no-results";
@@ -186,8 +185,8 @@ public class CertificateOfAnalysisIssuer(
         var generatedBy = certificate.GeneratedById is int uid
             ? await db.Users.AsNoTracking().Where(u => u.Id == uid).Select(u => u.LastName + ", " + u.FirstName).FirstOrDefaultAsync(ct)
             : null;
-        return new CertificateOfAnalysisPdfDocument(
-            certificate, companyName, generatedBy, CertificateOfAnalysisPdfLabels.For(language)).GeneratePdf();
+        return await renderer.RenderAsync(
+            CertificateOfAnalysisPdfDocument.Build(certificate, companyName, generatedBy, CertificateOfAnalysisPdfLabels.For(language)), ct);
     }
 
     private async Task<string> NextNumberAsync(CancellationToken ct)

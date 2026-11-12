@@ -46,7 +46,6 @@
     "forge.api/Features/ComplianceForms/ComplianceTemplateMapper.cs": 1,
     "forge.api/Features/ComplianceForms/DeleteComplianceTemplate.cs": 1,
     "forge.api/Features/ComplianceForms/DeleteIdentityDocument.cs": 1,
-    "forge.api/Features/ComplianceForms/DownloadSubmissionPdf.cs": 1,
     "forge.api/Features/ComplianceForms/ExtractFormDefinition.cs": 2,
     "forge.api/Features/ComplianceForms/FillAndSubmitFormForSigning.cs": 2,
     "forge.api/Features/ComplianceForms/GetComplianceTemplate.cs": 1,

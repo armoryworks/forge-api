@@ -8,9 +8,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 
-using QuestPDF.Infrastructure;
-using UglyToad.PdfPig;
-
 using Forge.Api.Capabilities;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.DomainEvents.Handlers;
@@ -41,16 +38,17 @@ public sealed class CertificateOfAnalysisPostgresTests(PostgresFixture fixture)
 
     private sealed record Seeded(int UserId, Part Part, LotRecord Lot, Customer Customer, Shipment Shipment);
 
-    private static CertificateOfAnalysisIssuer Issuer(AppDbContext db, MockStorageService? storage = null) => new(
+    private static CertificateOfAnalysisIssuer Issuer(
+        AppDbContext db, MockStorageService? storage = null, FakeHtmlPdfRenderer? renderer = null) => new(
         db,
         new FixedClock(),
         storage ?? new MockStorageService(NullLogger<MockStorageService>.Instance),
-        Options.Create(new MinioOptions()));
+        Options.Create(new MinioOptions()),
+        renderer ?? new FakeHtmlPdfRenderer());
 
     private static async Task<Seeded> SeedAsync(
         AppDbContext db, bool inspectionPasses = true, decimal[]? spcValues = null, bool shipLot = true, bool requiresCoa = false)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
         var tag = Guid.NewGuid().ToString("N")[..8];
         var user = new ApplicationUser
         {
@@ -152,10 +150,12 @@ public sealed class CertificateOfAnalysisPostgresTests(PostgresFixture fixture)
             db, capabilities.Object, mediator.Object, NullLogger<OnShipmentShipped_AttachCertificates>.Instance);
     }
 
-    private static string Text(byte[] pdf)
+    private static async Task<string> PrintedTextAsync(AppDbContext db, int certificateId, string? language)
     {
-        using var document = PdfDocument.Open(pdf);
-        return string.Join(" ", document.GetPages().SelectMany(p => p.GetWords()).Select(w => w.Text));
+        var renderer = new FakeHtmlPdfRenderer();
+        var pdf = await Issuer(db, renderer: renderer).RenderPdfAsync(certificateId, language, default);
+        pdf.Should().StartWith("%PDF-"u8.ToArray());
+        return System.Net.WebUtility.HtmlDecode(renderer.Documents.Should().ContainSingle().Subject.Html);
     }
 
     [Fact]
@@ -270,8 +270,8 @@ public sealed class CertificateOfAnalysisPostgresTests(PostgresFixture fixture)
         var seed = await SeedAsync(db);
         var certificate = await Issuer(db).IssueAsync(seed.Lot.Id, seed.Customer.Id, null, "en", null, seed.UserId, default);
 
-        var spanish = Text(await Issuer(db).RenderPdfAsync(certificate.Id, "es-US", default));
-        var english = Text(await Issuer(db).RenderPdfAsync(certificate.Id, null, default));
+        var spanish = await PrintedTextAsync(db, certificate.Id, "es-US");
+        var english = await PrintedTextAsync(db, certificate.Id, null);
 
         spanish.Should().Contain("CERTIFICADO").And.Contain("ANÁLISIS").And.Contain("Pieza:").And.Contain("Resultado").And.Contain("Cumple");
         spanish.Should().Contain(seed.Lot.LotNumber).And.Contain("Melt");

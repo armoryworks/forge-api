@@ -2,9 +2,6 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using ClosedXML.Excel;
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -20,7 +17,8 @@ public record ExportReportResult(byte[] Content, string ContentType, string File
 public class ExportReportHandler(
     AppDbContext db,
     IMediator mediator,
-    IClock clock) : IRequestHandler<ExportReportQuery, ExportReportResult>
+    IClock clock,
+    IHtmlPdfRenderer renderer) : IRequestHandler<ExportReportQuery, ExportReportResult>
 {
     internal const int ExportPageSize = 1000;
     internal const int MaxExportRows = 50_000;
@@ -71,7 +69,7 @@ public class ExportReportHandler(
         {
             ReportExportFormat.Csv => ExportToCsv(runResult, report.Name),
             ReportExportFormat.Xlsx => ExportToXlsx(runResult, report.Name),
-            ReportExportFormat.Pdf => ExportToPdf(runResult, report.Name, clock.UtcNow),
+            ReportExportFormat.Pdf => await ExportToPdfAsync(runResult, report.Name, clock.UtcNow, cancellationToken),
             _ => throw new InvalidOperationException($"Unsupported export format: {request.Format}"),
         };
     }
@@ -161,11 +159,11 @@ public class ExportReportHandler(
             $"{reportName}.xlsx");
     }
 
-    private static ExportReportResult ExportToPdf(RunReportResponseModel result, string reportName, DateTimeOffset generatedAt)
+    private async Task<ExportReportResult> ExportToPdfAsync(
+        RunReportResponseModel result, string reportName, DateTimeOffset generatedAt, CancellationToken ct)
     {
-        var document = new ReportPdfDocument(result, reportName, generatedAt);
         return new ExportReportResult(
-            document.GeneratePdf(),
+            await renderer.RenderAsync(ReportPdfDocument.Build(result, reportName, generatedAt), ct),
             "application/pdf",
             $"{reportName}.pdf");
     }
