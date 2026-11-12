@@ -8,8 +8,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using UglyToad.PdfPig;
 
 using Forge.Api.Features.Invoices;
+using Forge.Api.Features.Reports;
 using Forge.Api.Services.Pdf;
 using Forge.Core.Entities;
+using Forge.Core.Models;
 using Forge.Integrations;
 
 namespace Forge.Tests.Services.Pdf;
@@ -104,5 +106,37 @@ public sealed class WeasyPrintPdfRendererTests
         using var document = PdfDocument.Open(pdf);
         var page = document.GetPage(1);
         page.Width.Should().BeGreaterThan(page.Height);
+    }
+
+    [Fact]
+    public async Task A_document_in_parts_prints_every_part_and_joins_them_in_order()
+    {
+        if (!Installed)
+            return;
+
+        var rows = Enumerable.Range(1, 130)
+            .Select(i => new Dictionary<string, object?> { ["Name"] = $"row-{i:000}", ["Qty"] = i })
+            .ToList();
+        var parts = ReportPdfDocument.BuildParts(
+            new RunReportResponseModel(["Name", "Qty"], rows, 130, null), "Open jobs", DateTimeOffset.UnixEpoch, cellsPerPart: 100);
+        parts.Should().HaveCount(3);
+
+        using var renderer = new WeasyPrintPdfRenderer(NullLogger<WeasyPrintPdfRenderer>.Instance);
+        var pdf = await renderer.RenderAsync(parts, CancellationToken.None);
+
+        var pages = PageTexts(pdf);
+        pages.Count.Should().BeGreaterThanOrEqualTo(3);
+        pages[0].Should().Contain("Part1of3:records1to50").And.Contain("row-001").And.Contain("Openjobs·Part1of3·Page1of");
+        pages[^1].Should().Contain("row-130").And.Contain("Openjobs·Part3of3·Page");
+        pages.Should().ContainSingle(page => page.Contains("Part2of3:records51to100"))
+            .And.ContainSingle(page => page.Contains("Part3of3:records101to130"));
+        var text = string.Concat(pages);
+        foreach (var i in Enumerable.Range(1, 130))
+            Regex.Matches(text, $"row-{i:000}").Should().ContainSingle();
+        text.IndexOf("row-050", StringComparison.Ordinal).Should().BeLessThan(text.IndexOf("row-051", StringComparison.Ordinal));
+        text.IndexOf("row-100", StringComparison.Ordinal).Should().BeLessThan(text.IndexOf("row-101", StringComparison.Ordinal));
+
+        using var document = PdfDocument.Open(pdf);
+        document.Information.Title.Should().Be("Open jobs");
     }
 }

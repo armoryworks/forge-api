@@ -12,7 +12,6 @@ public static class ReportPdfDocument
         .head .meta { width: 200pt; flex: 0 0 200pt; font-size: 8pt; color: #757575; }
         .report-rule { border: 0; border-top: 1pt solid #bdbdbd; margin: 6pt 0; }
         .empty { text-align: center; padding-top: 40pt; font-size: 12pt; color: #757575; }
-        .shortened { margin-bottom: 6pt; font-size: 9pt; font-weight: 600; }
         table.lines.report { table-layout: fixed; }
         table.lines.report thead tr { background: #00796b; }
         table.lines.report th { font-size: 7pt; padding: 4pt; }
@@ -20,46 +19,58 @@ public static class ReportPdfDocument
         """;
 
     private const int MaxColumns = 15;
-    private const int MaxCells = 12_000;
 
     public static HtmlPdfDocument Build(RunReportResponseModel result, string reportName, DateTimeOffset generatedAt)
+        => BuildParts(result, reportName, generatedAt, int.MaxValue)[0];
+
+    public static IReadOnlyList<HtmlPdfDocument> BuildParts(
+        RunReportResponseModel result, string reportName, DateTimeOffset generatedAt, int cellsPerPart = PdfParts.CellsPerPart)
     {
-        var body = Html.Of($"{Header(result, reportName, generatedAt)}{Content(result)}");
-        return PdfHtml.Document(reportName, body, reportName, landscape: true, styles: Styles);
+        var columns = result.Columns.Take(MaxColumns).ToList();
+        var parts = PdfParts.Split(result.Rows, PdfParts.RowsPerPart(columns.Count, cellsPerPart));
+        var documents = new List<HtmlPdfDocument>(parts.Count);
+        var printed = 0;
+        for (var i = 0; i < parts.Count; i++)
+        {
+            var range = parts.Count == 1
+                ? Html.Empty
+                : Html.Of($"<div>Part {i + 1} of {parts.Count}: records {printed + 1:N0} to {printed + parts[i].Count:N0}</div>");
+            var body = Html.Of($"{Header(result, reportName, generatedAt, range)}{Content(columns, parts[i])}");
+            documents.Add(PdfHtml.Document(
+                reportName, body, PdfParts.Label(reportName, i + 1, parts.Count), landscape: true, styles: Styles));
+            printed += parts[i].Count;
+        }
+
+        return documents;
     }
 
-    private static Html Header(RunReportResponseModel result, string reportName, DateTimeOffset generatedAt)
+    private static Html Header(RunReportResponseModel result, string reportName, DateTimeOffset generatedAt, Html range)
         => Html.Of($"""
             <div class="head">
               <div class="report-name">{reportName}</div>
               <div class="meta right">
                 <div>Generated: {generatedAt:MMM dd, yyyy HH:mm} UTC</div>
                 <div>{result.TotalCount} records</div>
+                {range}
               </div>
             </div>
             <hr class="report-rule">
             """);
 
-    private static Html Content(RunReportResponseModel result)
+    private static Html Content(IReadOnlyList<string> columns, IReadOnlyList<Dictionary<string, object?>> rows)
     {
-        if (result.Rows.Count == 0)
+        if (rows.Count == 0)
             return Html.Of($"<div class=\"empty\">No data to display.</div>");
 
-        var columns = result.Columns.Take(MaxColumns).ToList();
-        var rowLimit = Math.Max(1, MaxCells / Math.Max(1, columns.Count));
         var headings = columns.Select(c => Html.Of($"<th>{c}</th>"));
-        var rows = result.Rows.Take(rowLimit).Select(row => Html.Of($"""
+        var lines = rows.Select(row => Html.Of($"""
             <tr>{columns.Select(c => Html.Of($"<td>{FormatValue(row.TryGetValue(c, out var v) ? v : null)}</td>"))}</tr>
             """));
-        var shortened = result.Rows.Count > rowLimit
-            ? Html.Of($"<div class=\"shortened\">Showing the first {rowLimit:N0} of {Math.Max(result.TotalCount, result.Rows.Count):N0} records. Export to CSV or Excel for the full list.</div>")
-            : Html.Empty;
 
         return Html.Of($"""
-            {shortened}
             <table class="lines report">
               <thead><tr>{headings}</tr></thead>
-              <tbody>{rows}</tbody>
+              <tbody>{lines}</tbody>
             </table>
             """);
     }

@@ -163,7 +163,7 @@ public class ExportReportHandler(
         RunReportResponseModel result, string reportName, DateTimeOffset generatedAt, CancellationToken ct)
     {
         return new ExportReportResult(
-            await renderer.RenderAsync(ReportPdfDocument.Build(result, reportName, generatedAt), ct),
+            await renderer.RenderAsync(ReportPdfDocument.BuildParts(result, reportName, generatedAt), ct),
             "application/pdf",
             $"{reportName}.pdf");
     }

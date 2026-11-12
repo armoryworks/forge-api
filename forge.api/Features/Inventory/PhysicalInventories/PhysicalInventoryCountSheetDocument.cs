@@ -37,29 +37,47 @@ public static class PhysicalInventoryCountSheetDocument
         bool hideBookQuantity,
         bool spanish,
         string? companyName)
+        => BuildParts(inventory, hideBookQuantity, spanish, companyName, int.MaxValue)[0];
+
+    public static IReadOnlyList<HtmlPdfDocument> BuildParts(
+        PhysicalInventoryDetailResponseModel inventory,
+        bool hideBookQuantity,
+        bool spanish,
+        string? companyName,
+        int cellsPerPart = PdfParts.CellsPerPart)
     {
         string L(string english, string spanishText) => spanish ? spanishText : english;
 
-        var body = Html.Of($"""
-            {Header(inventory, hideBookQuantity, companyName, L)}
-            {Table(inventory, hideBookQuantity, L)}
-            <div class="instructions">{L(
-                "Count every item at each location. Write found items that have no tag on the blank rows; they are added as new tags.",
-                "Cuente cada artículo en cada ubicación. Anote en las filas en blanco los artículos encontrados sin etiqueta; se agregan como etiquetas nuevas.")}</div>
-            """);
+        var tags = inventory.Tags.Where(t => t.Status != PhysicalInventoryTagStatus.Void).ToList();
+        var parts = PdfParts.Split(tags, PdfParts.RowsPerPart(hideBookQuantity ? 7 : 8, cellsPerPart));
 
-        return PdfHtml.Document(
-            $"{L("Count sheets", "Hojas de conteo")} {inventory.InventoryNumber}",
-            body,
-            inventory.InventoryNumber,
-            landscape: true,
-            styles: Styles,
-            pageWords: new PdfPageWords($"{L("Page", "Página")} ", " / "),
-            author: companyName);
+        return parts.Select((part, i) =>
+        {
+            var partLabel = parts.Count == 1
+                ? Html.Empty
+                : Html.Of($"<div class=\"strong\">{L("Part", "Parte")} {i + 1} {L("of", "de")} {parts.Count}</div>");
+            var body = Html.Of($"""
+                {Header(inventory, hideBookQuantity, companyName, partLabel, L)}
+                {Table(part, hideBookQuantity, i == parts.Count - 1, L)}
+                <div class="instructions">{L(
+                    "Count every item at each location. Write found items that have no tag on the blank rows; they are added as new tags.",
+                    "Cuente cada artículo en cada ubicación. Anote en las filas en blanco los artículos encontrados sin etiqueta; se agregan como etiquetas nuevas.")}</div>
+                """);
+
+            return PdfHtml.Document(
+                $"{L("Count sheets", "Hojas de conteo")} {inventory.InventoryNumber}",
+                body,
+                PdfParts.Label(inventory.InventoryNumber, i + 1, parts.Count, L("Part", "Parte"), L("of", "de")),
+                landscape: true,
+                styles: Styles,
+                pageWords: new PdfPageWords($"{L("Page", "Página")} ", " / "),
+                author: companyName);
+        }).ToList();
     }
 
     private static Html Header(
-        PhysicalInventoryDetailResponseModel inventory, bool hideBookQuantity, string? companyName, Func<string, string, string> text)
+        PhysicalInventoryDetailResponseModel inventory, bool hideBookQuantity, string? companyName, Html partLabel,
+        Func<string, string, string> text)
         => Html.Of($"""
             <div class="sheet-head">
               <div>
@@ -72,12 +90,15 @@ public static class PhysicalInventoryCountSheetDocument
                 <div>{text("Count date", "Fecha de conteo")}: {inventory.CountDate.ToString("MM/dd/yyyy", Format)}</div>
                 <div>{text("Scope", "Alcance")}: {inventory.ScopeLocationName ?? text("All locations", "Todas las ubicaciones")}</div>
                 {(hideBookQuantity ? Html.Of($"<div class=\"strong\">{text("Blind count — book quantities hidden", "Conteo ciego — cantidades en libros ocultas")}</div>") : Html.Empty)}
+                {partLabel}
               </div>
             </div>
             <hr class="sheet-rule">
             """);
 
-    private static Html Table(PhysicalInventoryDetailResponseModel inventory, bool hideBookQuantity, Func<string, string, string> text)
+    private static Html Table(
+        IReadOnlyList<PhysicalInventoryTagResponseModel> tags, bool hideBookQuantity, bool withBlankRows,
+        Func<string, string, string> text)
     {
         var columns = hideBookQuantity
             ? Html.Of($"<col style=\"width:40pt\"><col style=\"width:131pt\"><col style=\"width:131pt\"><col style=\"width:198pt\"><col style=\"width:92pt\"><col style=\"width:80pt\"><col style=\"width:60pt\">")
@@ -85,8 +106,7 @@ public static class PhysicalInventoryCountSheetDocument
 
         var bookHeading = hideBookQuantity ? Html.Empty : Html.Of($"<th>{text("Book qty", "Cant. libros")}</th>");
 
-        var rows = inventory.Tags
-            .Where(t => t.Status != PhysicalInventoryTagStatus.Void)
+        var rows = tags
             .Select(tag => Html.Of($"""
                 <tr>
                   <td class="tag">{tag.TagNumber.ToString(Format)}</td>
@@ -101,7 +121,7 @@ public static class PhysicalInventoryCountSheetDocument
                 """));
 
         var blankCells = Html.Join(Enumerable.Repeat(Html.Of($"<td></td>"), hideBookQuantity ? 7 : 8));
-        var blankRows = Enumerable.Repeat(Html.Of($"<tr class=\"blank\">{blankCells}</tr>"), BlankRows);
+        var blankRows = Enumerable.Repeat(Html.Of($"<tr class=\"blank\">{blankCells}</tr>"), withBlankRows ? BlankRows : 0);
 
         return Html.Of($"""
             <table class="count">

@@ -15,4 +15,13 @@ public interface IHtmlPdfRenderer
     /// <param name="ct">Cancellation token</param>
     /// <returns>The PDF file</returns>
     Task<byte[]> RenderAsync(HtmlPdfDocument document, CancellationToken ct);
+
+    /// <summary>
+    /// Render a document that was split into parts because it is too long to print in one piece. Each part
+    /// prints as its own document; the result is one PDF file with the parts in order.
+    /// </summary>
+    /// <param name="parts">The parts to print, in order</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>The PDF file</returns>
+    Task<byte[]> RenderAsync(IReadOnlyList<HtmlPdfDocument> parts, CancellationToken ct);
 }

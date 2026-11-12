@@ -196,27 +196,34 @@ public class ExportReportHandlerTests
     }
 
     [Fact]
-    public void A_very_long_report_prints_its_first_rows_and_says_so()
+    public void A_very_long_report_splits_into_parts_that_together_hold_every_row()
     {
         var rows = Enumerable.Range(1, 4001)
             .Select(i => new Dictionary<string, object?> { ["A"] = $"row-{i}", ["B"] = i, ["C"] = "x" })
             .ToList();
-        var html = ReportPdfDocument.Build(
-            new RunReportResponseModel(["A", "B", "C"], rows, 52_000, null), "Long", DateTimeOffset.UnixEpoch).Html;
+        var parts = ReportPdfDocument.BuildParts(
+            new RunReportResponseModel(["A", "B", "C"], rows, 4001, null), "Long", DateTimeOffset.UnixEpoch);
 
-        html.Should().Contain("Showing the first 4,000 of 52,000 records. Export to CSV or Excel for the full list.")
-            .And.Contain("<td>row-4000</td>").And.NotContain("<td>row-4001</td>");
+        parts.Should().HaveCount(2);
+        parts[0].Html.Should().Contain("Part 1 of 2: records 1 to 4,000").And.Contain("<td>row-1</td>")
+            .And.Contain("<td>row-4000</td>").And.NotContain("<td>row-4001</td>")
+            .And.Contain("<div class=\"page-footer\">Long &#183; Part 1 of 2 &middot; Page ");
+        parts[1].Html.Should().Contain("Part 2 of 2: records 4,001 to 4,001").And.Contain("<td>row-4001</td>")
+            .And.NotContain("<td>row-4000</td>").And.Contain("<th>A</th>").And.Contain("4001 records")
+            .And.Contain("<div class=\"page-footer\">Long &#183; Part 2 of 2 &middot; Page ");
     }
 
     [Fact]
-    public void A_report_within_the_limit_prints_every_row_without_a_note()
+    public void A_report_that_fits_is_one_part_and_does_not_mention_parts()
     {
         var rows = Enumerable.Range(1, 4000)
             .Select(i => new Dictionary<string, object?> { ["A"] = $"row-{i}", ["B"] = i, ["C"] = "x" })
             .ToList();
-        var html = ReportPdfDocument.Build(
-            new RunReportResponseModel(["A", "B", "C"], rows, 4000, null), "Long", DateTimeOffset.UnixEpoch).Html;
+        var model = new RunReportResponseModel(["A", "B", "C"], rows, 4000, null);
 
-        html.Should().Contain("<td>row-4000</td>").And.NotContain("Showing the first");
+        var part = ReportPdfDocument.BuildParts(model, "Long", DateTimeOffset.UnixEpoch).Should().ContainSingle().Subject;
+
+        part.Html.Should().Contain("<td>row-4000</td>").And.NotContain("Part 1");
+        part.Html.Should().Be(ReportPdfDocument.Build(model, "Long", DateTimeOffset.UnixEpoch).Html);
     }
 }

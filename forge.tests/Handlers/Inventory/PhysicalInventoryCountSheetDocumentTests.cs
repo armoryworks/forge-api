@@ -62,4 +62,52 @@ public sealed class PhysicalInventoryCountSheetDocumentTests
         html.Should().Contain("<meta name=\"author\" content=\"Acme &amp; Sons\">")
             .And.Contain("PI-0005 &middot; Page <span class=\"page\"></span> / <span class=\"pages\"></span></div>");
     }
+
+    private static PhysicalInventoryDetailResponseModel LongInventory()
+        => new()
+        {
+            InventoryNumber = "PI-0006",
+            CountDate = new DateOnly(2026, 12, 31),
+            Tags = Enumerable.Range(1, 5)
+                .Select(i => new PhysicalInventoryTagResponseModel
+                {
+                    TagNumber = i,
+                    LocationName = "Bin",
+                    PartNumber = $"PART-{i}",
+                    Status = i == 3 ? PhysicalInventoryTagStatus.Void : PhysicalInventoryTagStatus.Open,
+                })
+                .ToList(),
+        };
+
+    [Fact]
+    public void A_long_count_splits_into_parts_with_the_blank_rows_on_the_last()
+    {
+        var parts = PhysicalInventoryCountSheetDocument.BuildParts(LongInventory(), false, false, "Acme", cellsPerPart: 16);
+
+        parts.Should().HaveCount(2);
+        parts[0].Html.Should().Contain(">PART-1<").And.Contain(">PART-2<").And.NotContain(">PART-4<")
+            .And.Contain("<div class=\"strong\">Part 1 of 2</div>").And.NotContain("class=\"blank\"")
+            .And.Contain("<div class=\"page-footer\">PI-0006 &#183; Part 1 of 2 &middot; Page ");
+        parts[1].Html.Should().Contain(">PART-4<").And.Contain(">PART-5<").And.NotContain(">PART-2<")
+            .And.Contain("class=\"blank\"").And.Contain("PHYSICAL INVENTORY COUNT SHEETS");
+        parts.Should().OnlyContain(p => !p.Html.Contains(">PART-3<"));
+    }
+
+    [Fact]
+    public void A_split_spanish_count_names_its_parts_in_spanish()
+    {
+        var parts = PhysicalInventoryCountSheetDocument.BuildParts(LongInventory(), true, true, null, cellsPerPart: 14);
+
+        System.Net.WebUtility.HtmlDecode(parts[1].Html).Should().Contain(">Parte 2 de 2<")
+            .And.Contain("PI-0006 · Parte 2 de 2 · Página ");
+    }
+
+    [Fact]
+    public void A_count_that_fits_is_one_part_identical_to_the_whole_document()
+    {
+        var part = PhysicalInventoryCountSheetDocument.BuildParts(Inventory(), false, false, "Acme").Should().ContainSingle().Subject;
+
+        part.Html.Should().Be(PhysicalInventoryCountSheetDocument.Build(Inventory(), false, false, "Acme").Html);
+        part.Html.Should().NotContain("Part 1");
+    }
 }

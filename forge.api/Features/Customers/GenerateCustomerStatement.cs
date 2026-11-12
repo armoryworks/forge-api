@@ -74,7 +74,7 @@ public class GenerateCustomerStatementHandler(AppDbContext db, IClock clock, IHt
             return applied.Count == 1 ? currencyMoney[applied[0]!.Value] : paymentFallback;
         });
 
-        var document = CustomerStatementPdfDocument.Build(
+        var document = CustomerStatementPdfDocument.BuildParts(
             customer, invoices, payments, companyName, clock.UtcNow, currencyMoney, paymentMoney, baseMoney, creditMemos, refunds);
 
         return await renderer.RenderAsync(document, ct);

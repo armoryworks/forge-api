@@ -467,7 +467,7 @@ public sealed class PhysicalInventoryService(
             .Where(s => s.Key == "company.name" || s.Key == "company_name")
             .Select(s => s.Value)
             .FirstOrDefaultAsync(ct);
-        var document = PhysicalInventoryCountSheetDocument.Build(detail, hideBook, spanish, companyName);
+        var document = PhysicalInventoryCountSheetDocument.BuildParts(detail, hideBook, spanish, companyName);
         return (await renderer.RenderAsync(document, ct), $"{detail.InventoryNumber}-count-sheets.pdf");
     }
 
