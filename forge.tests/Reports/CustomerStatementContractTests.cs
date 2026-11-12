@@ -1,5 +1,4 @@
 using AwesomeAssertions;
-using QuestPDF.Infrastructure;
 
 using Forge.Api.Features.Customers;
 using Forge.Core.Entities;
@@ -26,12 +25,6 @@ namespace Forge.Tests.Reports;
 /// </summary>
 public class CustomerStatementContractTests
 {
-    static CustomerStatementContractTests()
-    {
-        // QuestPDF requires an explicit license declaration in test contexts.
-        QuestPDF.Settings.License = LicenseType.Community;
-    }
-
     [Fact]
     public async Task Statement_generator_produces_non_empty_pdf_with_seeded_invoices()
     {
@@ -90,7 +83,7 @@ public class CustomerStatementContractTests
         await db.SaveChangesAsync();
 
         // Act — invoke the handler exactly as the controller does.
-        var handler = new GenerateCustomerStatementHandler(db, new SystemClock());
+        var handler = new GenerateCustomerStatementHandler(db, new SystemClock(), new FakeHtmlPdfRenderer());
         var pdf = await handler.Handle(
             new GenerateCustomerStatementQuery(customer.Id),
             CancellationToken.None);

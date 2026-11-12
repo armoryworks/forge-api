@@ -2,8 +2,6 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
-using QuestPDF.Fluent;
-
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
@@ -13,7 +11,7 @@ namespace Forge.Api.Features.Customers;
 
 public record GenerateCustomerStatementQuery(int CustomerId) : IRequest<byte[]>;
 
-public class GenerateCustomerStatementHandler(AppDbContext db, IClock clock)
+public class GenerateCustomerStatementHandler(AppDbContext db, IClock clock, IHtmlPdfRenderer renderer)
     : IRequestHandler<GenerateCustomerStatementQuery, byte[]>
 {
     public async Task<byte[]> Handle(GenerateCustomerStatementQuery request, CancellationToken ct)
@@ -76,10 +74,10 @@ public class GenerateCustomerStatementHandler(AppDbContext db, IClock clock)
             return applied.Count == 1 ? currencyMoney[applied[0]!.Value] : paymentFallback;
         });
 
-        var document = new CustomerStatementPdfDocument(
+        var document = CustomerStatementPdfDocument.Build(
             customer, invoices, payments, companyName, clock.UtcNow, currencyMoney, paymentMoney, baseMoney, creditMemos, refunds);
 
-        return document.GeneratePdf();
+        return await renderer.RenderAsync(document, ct);
     }
 
     private async Task<MoneyFormatter> StatementPaymentFallbackAsync(

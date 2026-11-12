@@ -1,227 +1,134 @@
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
-
 using Forge.Api.Services;
+using Forge.Api.Services.Pdf;
 using Forge.Core.Entities;
 using Forge.Core.Models;
 
 namespace Forge.Api.Features.Quotes;
 
 /// <summary>
-/// S3 — the PDF attached to the quote email. Cloned from
+/// S3 — the PDF attached to the quote email. Built like
 /// <see cref="Invoices.InvoicePdfDocument"/> (header / customer / lines /
 /// totals) plus a terms-and-conditions appendix rendering the compiled
 /// sections. Terms bodies are rendered as plain paragraphs (no markdown
 /// package is referenced in this solution — see TermsCompilationService).
 /// </summary>
-public class QuotePdfDocument : IDocument
+public static class QuotePdfDocument
 {
-    private readonly Quote _quote;
-    private readonly string? _companyName;
-    private readonly IReadOnlyList<CompiledTermsSection> _termsSections;
-    private readonly MoneyFormatter _money;
+    private const string Styles = """
+        .terms { margin-top: 20pt; border-top: 1pt solid #bdbdbd; }
+        .terms .heading { margin-top: 8pt; font-size: 13pt; font-weight: 700; color: #1976d2; }
+        .terms .section-title { margin-top: 10pt; font-size: 10pt; font-weight: 600; }
+        .terms .paragraph { margin-top: 3pt; font-size: 8.5pt; color: #424242; white-space: pre-wrap; }
+        """;
 
-    public QuotePdfDocument(
+    public static HtmlPdfDocument Build(
         Quote quote, string? companyName, IReadOnlyList<CompiledTermsSection> termsSections, MoneyFormatter? money = null)
     {
-        _quote = quote;
-        _companyName = companyName;
-        _termsSections = termsSections;
-        _money = money ?? MoneyFormat.For(null, "USD");
+        money ??= MoneyFormat.For(null, "USD");
+        var number = quote.QuoteNumber ?? quote.Id.ToString();
+
+        var body = Html.Of($"{Header(quote, number, companyName)}{Lines(quote, money)}{Totals(quote, money)}{Notes(quote)}{Terms(termsSections)}");
+        return PdfHtml.Document($"Quote {number}", body, number, styles: Styles);
     }
 
-    public void Compose(IDocumentContainer container)
+    private static Html Header(Quote quote, string number, string? companyName)
     {
-        container.Page(page =>
-        {
-            page.Size(PageSizes.Letter);
-            page.MarginHorizontal(50);
-            page.MarginVertical(40);
-            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10));
-
-            page.Header().Element(ComposeHeader);
-            page.Content().Element(ComposeContent);
-            page.Footer().Element(ComposeFooter);
-        });
+        var customer = quote.Customer;
+        return Html.Of($"""
+            <div class="head">
+              <div class="company">{(string.IsNullOrWhiteSpace(companyName) ? null : companyName)}</div>
+              <div class="right"><div class="title">QUOTE</div><div class="number">{number}</div></div>
+            </div>
+            <hr class="rule">
+            <div class="parties">
+              <div>
+                <div class="label">Prepared For:</div>
+                <div class="strong">{customer.CompanyName ?? customer.Name}</div>
+                {(string.IsNullOrEmpty(customer.Email) ? Html.Empty : Html.Of($"<div class=\"small\">{customer.Email}</div>"))}
+                {(string.IsNullOrEmpty(customer.Phone) ? Html.Empty : Html.Of($"<div class=\"small\">{customer.Phone}</div>"))}
+              </div>
+              <div class="right">
+                <div>Quote Date: {quote.CreatedAt:MM/dd/yyyy}</div>
+                {(quote.ExpirationDate.HasValue ? Html.Of($"<div>Valid Until: {quote.ExpirationDate:MM/dd/yyyy}</div>") : Html.Empty)}
+                {(string.IsNullOrEmpty(quote.CustomerPO) ? Html.Empty : Html.Of($"<div>Customer PO: {quote.CustomerPO}</div>"))}
+              </div>
+            </div>
+            """);
     }
 
-    private void ComposeHeader(IContainer container)
+    private static Html Lines(Quote quote, MoneyFormatter money)
     {
-        container.Column(col =>
-        {
-            col.Item().Row(row =>
-            {
-                row.RelativeItem().Column(left =>
-                {
-                    if (!string.IsNullOrWhiteSpace(_companyName))
-                        left.Item().Text(_companyName).Bold().FontSize(18);
-                });
+        var rows = quote.Lines
+            .OrderBy(l => l.IsFreight)
+            .ThenBy(l => l.LineNumber)
+            .Select(line => Html.Of($"""
+                <tr>
+                  <td>{line.LineNumber}</td>
+                  <td>{line.Description}</td>
+                  <td>{line.Part?.PartNumber ?? "—"}</td>
+                  <td class="num">{MoneyFormat.Quantity(line.Quantity)}</td>
+                  <td class="num">{money.Format(line.UnitPrice)}</td>
+                  <td class="num">{money.Format(line.LineTotal)}</td>
+                </tr>
+                """));
 
-                row.RelativeItem().AlignRight().Column(right =>
-                {
-                    right.Item().Text("QUOTE").Bold().FontSize(24).FontColor(Colors.Blue.Darken2);
-                    right.Item().Text(_quote.QuoteNumber ?? _quote.Id.ToString()).FontSize(12);
-                });
-            });
-
-            col.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
-
-            col.Item().PaddingTop(10).Row(row =>
-            {
-                row.RelativeItem().Column(left =>
-                {
-                    left.Item().Text("Prepared For:").SemiBold().FontSize(9).FontColor(Colors.Grey.Darken1);
-                    left.Item().Text(_quote.Customer.CompanyName ?? _quote.Customer.Name).SemiBold();
-                    if (!string.IsNullOrEmpty(_quote.Customer.Email))
-                        left.Item().Text(_quote.Customer.Email).FontSize(9);
-                    if (!string.IsNullOrEmpty(_quote.Customer.Phone))
-                        left.Item().Text(_quote.Customer.Phone).FontSize(9);
-                });
-
-                row.RelativeItem().AlignRight().Column(right =>
-                {
-                    right.Item().Text($"Quote Date: {_quote.CreatedAt:MM/dd/yyyy}");
-                    if (_quote.ExpirationDate.HasValue)
-                        right.Item().Text($"Valid Until: {_quote.ExpirationDate:MM/dd/yyyy}");
-                    if (!string.IsNullOrEmpty(_quote.CustomerPO))
-                        right.Item().Text($"Customer PO: {_quote.CustomerPO}");
-                });
-            });
-
-            col.Item().PaddingTop(10);
-        });
+        return Html.Of($"""
+            <table class="lines">
+              <colgroup><col style="width:40pt"><col><col style="width:80pt"><col style="width:60pt"><col style="width:80pt"><col style="width:90pt"></colgroup>
+              <thead><tr><th>#</th><th>Description</th><th>Part #</th><th class="num">Qty</th><th class="num">Unit Price</th><th class="num">Total</th></tr></thead>
+              <tbody>{rows}</tbody>
+            </table>
+            """);
     }
 
-    private void ComposeContent(IContainer container)
+    private static Html Totals(Quote quote, MoneyFormatter money)
     {
-        container.Column(col =>
+        var rows = new List<Html>
         {
-            col.Item().Table(table =>
-            {
-                table.ColumnsDefinition(cols =>
-                {
-                    cols.ConstantColumn(40);    // #
-                    cols.RelativeColumn(3);     // Description
-                    cols.ConstantColumn(80);    // Part #
-                    cols.ConstantColumn(60);    // Qty
-                    cols.ConstantColumn(80);    // Unit Price
-                    cols.ConstantColumn(90);    // Total
-                });
+            Row("Subtotal:", money.Format(quote.Subtotal - quote.FreightSubtotal), "strong-label"),
+        };
+        if (quote.Lines.Any(l => l.IsFreight))
+            rows.Add(Row("Freight:", money.Format(quote.FreightSubtotal), "strong-label"));
+        if (quote.TaxRate > 0)
+            rows.Add(Row($"Tax ({MoneyFormat.Percent(quote.TaxRate)}):", money.Format(quote.TaxAmount), "strong-label"));
+        if (quote.TaxOverrideReason is { } taxOverrideReason)
+        {
+            rows.Add(Html.Of(
+                $"<div class=\"note\">Tax exemption: {TaxOverrideActivity.ReasonLabel(taxOverrideReason)}{(quote.TaxOverrideNote is null ? string.Empty : $" ({quote.TaxOverrideNote})")}</div>"));
+        }
 
-                table.Header(header =>
-                {
-                    var headerStyle = TextStyle.Default.SemiBold().FontSize(9).FontColor(Colors.White);
+        rows.Add(Row("Total:", money.Format(quote.Total), "grand after-rule"));
 
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text("#").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text("Description").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text("Part #").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).AlignRight().Text("Qty").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).AlignRight().Text("Unit Price").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).AlignRight().Text("Total").Style(headerStyle);
-                });
-
-                var lines = _quote.Lines.OrderBy(l => l.IsFreight).ThenBy(l => l.LineNumber).ToList();
-                for (var i = 0; i < lines.Count; i++)
-                {
-                    var line = lines[i];
-                    var bg = i % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
-
-                    table.Cell().Background(bg).Padding(5).Text(line.LineNumber.ToString());
-                    table.Cell().Background(bg).Padding(5).Text(line.Description);
-                    table.Cell().Background(bg).Padding(5).Text(line.Part?.PartNumber ?? "—");
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(MoneyFormat.Quantity(line.Quantity));
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(_money.Format(line.UnitPrice));
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(_money.Format(line.LineTotal));
-                }
-            });
-
-            col.Item().PaddingTop(10).AlignRight().Width(200).Column(totals =>
-            {
-                totals.Item().Row(row =>
-                {
-                    row.RelativeItem().Text("Subtotal:").SemiBold();
-                    row.ConstantItem(100).AlignRight().Text(_money.Format(_quote.Subtotal - _quote.FreightSubtotal));
-                });
-
-                if (_quote.Lines.Any(l => l.IsFreight))
-                {
-                    totals.Item().Row(row =>
-                    {
-                        row.RelativeItem().Text("Freight:").SemiBold();
-                        row.ConstantItem(100).AlignRight().Text(_money.Format(_quote.FreightSubtotal));
-                    });
-                }
-
-                if (_quote.TaxRate > 0)
-                {
-                    totals.Item().Row(row =>
-                    {
-                        row.RelativeItem().Text($"Tax ({MoneyFormat.Percent(_quote.TaxRate)}):").SemiBold();
-                        row.ConstantItem(100).AlignRight().Text(_money.Format(_quote.TaxAmount));
-                    });
-                }
-
-                if (_quote.TaxOverrideReason is { } taxOverrideReason)
-                {
-                    totals.Item().Text(
-                        $"Tax exemption: {TaxOverrideActivity.ReasonLabel(taxOverrideReason)}{(_quote.TaxOverrideNote is null ? string.Empty : $" ({_quote.TaxOverrideNote})")}")
-                        .FontSize(8).FontColor(Colors.Grey.Darken1);
-                }
-
-                totals.Item().PaddingTop(4).LineHorizontal(1);
-
-                totals.Item().PaddingTop(4).Row(row =>
-                {
-                    row.RelativeItem().Text("Total:").Bold().FontSize(12);
-                    row.ConstantItem(100).AlignRight().Text(_money.Format(_quote.Total)).Bold().FontSize(12);
-                });
-            });
-
-            if (!string.IsNullOrWhiteSpace(_quote.Notes))
-            {
-                col.Item().PaddingTop(20).Column(notes =>
-                {
-                    notes.Item().Text("Notes").SemiBold().FontSize(9).FontColor(Colors.Grey.Darken1);
-                    notes.Item().PaddingTop(4).Text(_quote.Notes);
-                });
-            }
-
-            if (_termsSections.Count > 0)
-                col.Item().PaddingTop(20).Element(ComposeTermsAppendix);
-        });
+        return Html.Of($"<div class=\"totals\">{rows}</div>");
     }
 
-    private void ComposeTermsAppendix(IContainer container)
-    {
-        container.Column(col =>
-        {
-            col.Item().LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
-            col.Item().PaddingTop(8).Text("Terms & Conditions")
-                .Bold().FontSize(13).FontColor(Colors.Blue.Darken2);
+    private static Html Row(string label, string amount, string style)
+        => Html.Of($"<div class=\"row {style}\"><span>{label}</span><span>{amount}</span></div>");
 
-            foreach (var section in _termsSections)
-            {
-                col.Item().PaddingTop(10).Text(section.Title).SemiBold().FontSize(10);
-                foreach (var paragraph in SplitParagraphs(section.BodyMarkdown))
-                    col.Item().PaddingTop(3).Text(paragraph).FontSize(8.5f).FontColor(Colors.Grey.Darken3);
-            }
-        });
+    private static Html Notes(Quote quote)
+        => string.IsNullOrWhiteSpace(quote.Notes)
+            ? Html.Empty
+            : Html.Of($"<div class=\"notes\"><div class=\"label\">Notes</div><div class=\"body\">{quote.Notes}</div></div>");
+
+    private static Html Terms(IReadOnlyList<CompiledTermsSection> termsSections)
+    {
+        if (termsSections.Count == 0)
+            return Html.Empty;
+
+        var sections = termsSections.Select(section => Html.Of($"""
+            <div class="section-title">{section.Title}</div>
+            {SplitParagraphs(section.BodyMarkdown).Select(paragraph => Html.Of($"<div class=\"paragraph\">{paragraph}</div>"))}
+            """));
+
+        return Html.Of($"""
+            <div class="terms">
+              <div class="heading">Terms &amp; Conditions</div>
+              {sections}
+            </div>
+            """);
     }
 
     private static IEnumerable<string> SplitParagraphs(string markdown) =>
         markdown.Replace("\r\n", "\n")
             .Split("\n\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-    private void ComposeFooter(IContainer container)
-    {
-        container.AlignCenter().Text(text =>
-        {
-            text.DefaultTextStyle(x => x.FontSize(8).FontColor(Colors.Grey.Medium));
-            text.Span("Page ");
-            text.CurrentPageNumber();
-            text.Span(" of ");
-            text.TotalPages();
-        });
-    }
 }

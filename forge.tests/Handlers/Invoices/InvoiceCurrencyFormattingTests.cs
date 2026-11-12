@@ -1,7 +1,5 @@
 using AwesomeAssertions;
 using Microsoft.EntityFrameworkCore;
-using QuestPDF.Fluent;
-using QuestPDF.Infrastructure;
 
 using Forge.Api.Features.Customers;
 using Forge.Api.Features.Invoices;
@@ -26,14 +24,11 @@ public class InvoiceCurrencyFormattingTests : IDisposable
 
     public InvoiceCurrencyFormattingTests()
     {
-        QuestPDF.Settings.License = LicenseType.Community;
         _db.Currencies.AddRange(_usd, _cad);
         _db.SaveChanges();
     }
 
     public void Dispose() => _db.Dispose();
-
-    private static string Svg(IDocument document) => string.Join("\n", document.GenerateSvg());
 
     private async Task<Invoice> SeedInvoiceAsync(Customer customer, Currency currency, string number, decimal unitPrice)
     {
@@ -143,12 +138,59 @@ public class InvoiceCurrencyFormattingTests : IDisposable
             Lines = { new QuoteLine { LineNumber = 1, Description = "Bracket", Quantity = 1940m, UnitPrice = 1m } },
         };
 
-        var svg = Svg(new QuotePdfDocument(quote, "Harbor Gear Works", [], MoneyFormat.For(_usd, "USD")));
+        var html = QuotePdfDocument.Build(quote, "Harbor Gear Works", [], MoneyFormat.For(_usd, "USD")).Html;
 
-        svg.Should().Contain("7.25%");
-        svg.Should().Contain("$1,940.00");
-        svg.Should().NotContain("#Q-0042");
-        svg.Should().NotContain("¤");
+        html.Should().Contain("7.25%");
+        html.Should().Contain("$1,940.00");
+        html.Should().NotContain("#Q-0042");
+        html.Should().NotContain("¤");
+    }
+
+    [Fact]
+    public void QuotePdf_EncodesEveryValueAUserTyped_AndLabelsTheFooterWithTheQuoteNumber()
+    {
+        var quote = new Quote
+        {
+            QuoteNumber = "Q-0043",
+            Customer = new Customer { Name = "<img src=x onerror=alert(1)>" },
+            Notes = "</div><script>fetch('http://internal/')</script>",
+            Lines = { new QuoteLine { LineNumber = 1, Description = "Bracket <b>bold</b>", Quantity = 1m, UnitPrice = 1m } },
+        };
+        var terms = new List<CompiledTermsSection>
+        {
+            new(1, "Company", 1, "Warranty <b>terms</b>", "Warranty", "First <script>x</script> paragraph\n\nSecond paragraph"),
+        };
+
+        var html = QuotePdfDocument.Build(quote, "Harbor <Gear> Works", terms, MoneyFormat.For(_usd, "USD")).Html;
+
+        html.Should().NotContain("<img").And.NotContain("<script").And.NotContain("<b>");
+        html.Should().Contain("&lt;img src=x onerror=alert(1)&gt;").And.Contain("Bracket &lt;b&gt;bold&lt;/b&gt;")
+            .And.Contain("Harbor &lt;Gear&gt; Works").And.Contain("Warranty &lt;b&gt;terms&lt;/b&gt;");
+        html.Should().Contain("Terms &amp; Conditions").And.Contain(">Second paragraph</div>");
+        html.Should().Contain("<div class=\"page-footer\">Q-0043 &middot; Page ");
+    }
+
+    [Fact]
+    public async Task GetQuotePdf_PrintsTheQuoteThroughTheRenderer()
+    {
+        var customer = await SeedCustomerAsync();
+        var quote = new Quote
+        {
+            QuoteNumber = "Q-0044",
+            CustomerId = customer.Id,
+            CurrencyId = _cad.Id,
+            Lines = { new QuoteLine { LineNumber = 1, Description = "Bracket", Quantity = 2m, UnitPrice = 5m } },
+        };
+        _db.Quotes.Add(quote);
+        await _db.SaveChangesAsync();
+        var renderer = new FakeHtmlPdfRenderer();
+
+        var pdf = await new GetQuotePdfHandler(_db, new SystemSettingRepository(_db), new TermsCompilationService(_db, new SystemClock()), renderer)
+            .Handle(new GetQuotePdfQuery(quote.Id), CancellationToken.None);
+
+        var printed = renderer.Documents.Should().ContainSingle().Subject;
+        printed.Html.Should().Contain("Q-0044").And.Contain("Quote Date:").And.Contain("Total:").And.Contain("CAD");
+        pdf.Should().StartWith("%PDF-"u8.ToArray());
     }
 
     [Fact]
@@ -158,9 +200,11 @@ public class InvoiceCurrencyFormattingTests : IDisposable
         await SeedInvoiceAsync(customer, _usd, "INV-5200", 1m);
         await SeedInvoiceAsync(customer, _cad, "INV-5201", 2m);
 
-        var pdf = await new GenerateCustomerStatementHandler(_db, new SystemClock())
+        var renderer = new FakeHtmlPdfRenderer();
+        var pdf = await new GenerateCustomerStatementHandler(_db, new SystemClock(), renderer)
             .Handle(new GenerateCustomerStatementQuery(customer.Id), CancellationToken.None);
-        pdf.Should().NotBeEmpty();
+        pdf.Should().StartWith("%PDF-"u8.ToArray());
+        renderer.Documents.Should().ContainSingle().Which.Html.Should().Contain("INV-5200").And.Contain("INV-5201");
 
         var invoices = await _db.Invoices.Include(i => i.Lines).Include(i => i.PaymentApplications).ToListAsync();
         var currencyMoney = new Dictionary<int, MoneyFormatter>
@@ -168,13 +212,37 @@ public class InvoiceCurrencyFormattingTests : IDisposable
             [_usd.Id] = MoneyFormat.For(_usd, "USD"),
             [_cad.Id] = MoneyFormat.For(_cad, "USD"),
         };
-        var svg = Svg(new CustomerStatementPdfDocument(
-            customer, invoices, [], null, DateTimeOffset.UnixEpoch, currencyMoney, null, currencyMoney[_usd.Id]));
+        var html = CustomerStatementPdfDocument.Build(
+            customer, invoices, [], null, DateTimeOffset.UnixEpoch, currencyMoney, null, currencyMoney[_usd.Id]).Html;
 
-        svg.Should().Contain("$2,080.65");
-        svg.Should().Contain("$4,161.30 CAD");
-        svg.Should().NotContain("$6,241.95");
-        svg.Should().NotContain("¤");
+        html.Should().Contain("$2,080.65");
+        html.Should().Contain("$4,161.30 CAD");
+        html.Should().NotContain("$6,241.95");
+        html.Should().NotContain("¤");
+    }
+
+    [Fact]
+    public void StatementPdf_EncodesEveryValueAUserTyped_AndLabelsTheFooterWithTheStatementDate()
+    {
+        var customer = new Customer { Name = "<img src=x onerror=alert(1)>", Email = "<script>alert(1)</script>" };
+        var invoice = new Invoice
+        {
+            InvoiceNumber = "INV-<b>5202</b>",
+            Status = InvoiceStatus.Sent,
+            InvoiceDate = new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero),
+            DueDate = new DateTimeOffset(2026, 10, 31, 0, 0, 0, TimeSpan.Zero),
+            Lines = { new InvoiceLine { LineNumber = 1, Description = "Bracket", Quantity = 1m, UnitPrice = 1m } },
+        };
+        var memo = new CreditMemo { CreditMemoNumber = "CM-1", Reason = "Damaged <b>box</b>", CreditDate = invoice.InvoiceDate };
+
+        var html = CustomerStatementPdfDocument.Build(
+            customer, [invoice], [], "Harbor <Gear> Works", new DateTimeOffset(2026, 10, 15, 0, 0, 0, TimeSpan.Zero),
+            creditMemos: [memo]).Html;
+
+        html.Should().NotContain("<img").And.NotContain("<script").And.NotContain("<b>");
+        html.Should().Contain("&lt;img src=x onerror=alert(1)&gt;").And.Contain("INV-&lt;b&gt;5202&lt;/b&gt;")
+            .And.Contain("Damaged &lt;b&gt;box&lt;/b&gt;").And.Contain("Harbor &lt;Gear&gt; Works");
+        html.Should().Contain("<div class=\"page-footer\">Statement generated October 15, 2026 &middot; Page ");
     }
 
     [Fact]
