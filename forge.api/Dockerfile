@@ -25,6 +25,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     fonts-liberation \
+    fonts-lato \
     fonts-noto-cjk \
     fonts-noto-color-emoji \
     fonts-hosny-amiri \
@@ -39,6 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpangocairo-1.0-0 \
     libgtk-3-0 \
     ffmpeg \
+    weasyprint \
     wget \
     && rm -rf /var/lib/apt/lists/*
 

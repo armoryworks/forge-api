@@ -102,6 +102,9 @@ jobs:
         run: dotnet restore
       - name: Build (warnings-as-errors)
         run: dotnet build --no-restore --configuration Release -warnaserror
+      - name: Install WeasyPrint
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends weasyprint fonts-lato
+
       - name: Unit + integration tests
         run: dotnet test --no-build --configuration Release
 

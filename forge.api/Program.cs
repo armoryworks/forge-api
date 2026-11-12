@@ -1249,6 +1249,8 @@ try
 
     }
     builder.Services.AddScoped<IGitHubIssueService, GitHubIssueService>();
+    builder.Services.AddSingleton<IHtmlPdfRenderer, WeasyPrintPdfRenderer>();
+    builder.Services.AddHostedService<Forge.Api.Services.Pdf.PrintWarmup>();
 
     // ── Cloud storage substrate (always-on; not gated by MockIntegrations) ──
     // Per the Pro Services rollout D9 / Artifact 4. Handlers throughout the
