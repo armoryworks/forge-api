@@ -1,6 +1,5 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using QuestPDF.Fluent;
 
 using Forge.Api.Features.VendorCredits;
 using Forge.Api.Services;
@@ -11,7 +10,7 @@ namespace Forge.Api.Features.VendorReturns;
 
 public record GenerateVendorReturnPdfQuery(int Id, string? Language = null) : IRequest<byte[]>;
 
-public class GenerateVendorReturnPdfHandler(AppDbContext db, ISystemSettingRepository settings)
+public class GenerateVendorReturnPdfHandler(AppDbContext db, ISystemSettingRepository settings, IHtmlPdfRenderer renderer)
     : IRequestHandler<GenerateVendorReturnPdfQuery, byte[]>
 {
     public async Task<byte[]> Handle(GenerateVendorReturnPdfQuery request, CancellationToken ct)
@@ -28,6 +27,7 @@ public class GenerateVendorReturnPdfHandler(AppDbContext db, ISystemSettingRepos
 
         var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct);
         var money = await MoneyFormat.ForCurrencyIdAsync(db, rtv.CurrencyId, await MoneyFormat.BaseCodeAsync(settings, ct), ct);
-        return new VendorReturnPdfDocument(rtv, companyName, money, VendorDocumentPdfLabels.For(request.Language)).GeneratePdf();
+        return await renderer.RenderAsync(
+            VendorReturnPdfDocument.Build(rtv, companyName, money, VendorDocumentPdfLabels.For(request.Language)), ct);
     }
 }

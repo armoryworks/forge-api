@@ -1,8 +1,6 @@
 using System.Text;
 
 using AwesomeAssertions;
-using QuestPDF.Fluent;
-using QuestPDF.Infrastructure;
 
 using Forge.Api.Features.PurchaseOrders;
 using Forge.Core.Entities;
@@ -14,11 +12,6 @@ namespace Forge.Tests.Handlers.PurchaseOrders;
 
 public class GetPurchaseOrderPdfTests
 {
-    static GetPurchaseOrderPdfTests()
-    {
-        QuestPDF.Settings.License = LicenseType.Community;
-    }
-
     private readonly AppDbContext _db = TestDbContextFactory.Create();
 
     private async Task<PurchaseOrder> SeedAsync(PurchaseOrderStatus status)
@@ -65,7 +58,9 @@ public class GetPurchaseOrderPdfTests
         return po;
     }
 
-    private GetPurchaseOrderPdfHandler Handler() => new(_db);
+    private readonly FakeHtmlPdfRenderer _renderer = new();
+
+    private GetPurchaseOrderPdfHandler Handler() => new(_db, _renderer);
 
     [Fact]
     public async Task Renders_a_pdf_for_a_draft_po()
@@ -82,14 +77,13 @@ public class GetPurchaseOrderPdfTests
     {
         await SeedAsync(PurchaseOrderStatus.Draft);
         var draft = await Handler().BuildDocumentAsync(40, CancellationToken.None);
-        draft.IsDraft.Should().BeTrue();
+        draft.Html.Should().Contain("<div class=\"watermark\">DRAFT</div>");
 
         var po = await _db.PurchaseOrders.FindAsync(40);
         po!.Status = PurchaseOrderStatus.Submitted;
         await _db.SaveChangesAsync();
         var submitted = await Handler().BuildDocumentAsync(40, CancellationToken.None);
-        submitted.IsDraft.Should().BeFalse();
-        submitted.GeneratePdf().Should().NotBeEmpty();
+        submitted.Html.Should().NotContain("class=\"watermark\"");
     }
 
     [Fact]
@@ -99,12 +93,17 @@ public class GetPurchaseOrderPdfTests
         var document = await Handler().BuildDocumentAsync(40, CancellationToken.None);
         var lines = (await _db.PurchaseOrders.FindAsync(40))!.Lines.OrderBy(l => l.Id).ToList();
 
-        document.VendorPartNumberFor(lines[0]).Should().Be("MSS-1018-12");
-        document.VendorPartNumberFor(lines[1]).Should().BeEmpty("the only vendor part number on file belongs to another vendor");
-        document.VendorPartNumberFor(lines[2]).Should().BeEmpty();
+        document.Html.Should().Contain("<td>MSS-1018-12</td>");
+        document.Html.Should().NotContain("OTHER-VENDOR", "the only vendor part number on file for the bolt belongs to another vendor");
         PurchaseOrderPdfDocument.UomFor(lines[0]).Should().Be("EA", "a line without a purchase unit is ordered in the stock unit, whatever the part's purchase UOM says");
         PurchaseOrderPdfDocument.UomFor(lines[1]).Should().Be("Box of 100");
         PurchaseOrderPdfDocument.UomFor(lines[2]).Should().BeEmpty();
+        document.Html.Should().Contain("<td>Box of 100</td>");
+        document.Html.Should().Contain("<td class=\"num\">120.5</td>").And.Contain("<td class=\"num\">1.2345</td>").And.Contain("148.76 USD");
+        document.Html.Should().Contain("<div class=\"line-note\">Zinc plated</div>");
+        document.Html.Should().Contain("Expected Delivery: 10/20/2026").And.Contain("Vendor #: VEND-00010");
+        document.Html.Should().Contain("Estimated Freight:").And.Contain("Payment terms: Net 30").And.Contain("Please reference PO PO-00040 on all packing slips and invoices.");
+        document.Html.Should().Contain("Deliver to receiving dock B.");
     }
 
     [Fact]
@@ -125,7 +124,7 @@ public class GetPurchaseOrderPdfTests
 
         var document = await Handler().BuildDocumentAsync(40, CancellationToken.None);
 
-        document.GetMetadata().Author.Should().Be("Current Name");
+        document.Html.Should().Contain("<div class=\"name\">Current Name</div>").And.NotContain("Legacy Name");
     }
 
     [Fact]
@@ -134,13 +133,13 @@ public class GetPurchaseOrderPdfTests
         await SeedAsync(PurchaseOrderStatus.Submitted);
 
         var unnamed = await Handler().BuildDocumentAsync(40, CancellationToken.None);
-        unnamed.GetMetadata().Author.Should().BeEmpty();
-        unnamed.GeneratePdf().Should().NotBeEmpty();
+        unnamed.Html.Should().NotContain("<div class=\"name\">Legacy Name</div>");
+        unnamed.Html.Should().Contain("PURCHASE ORDER");
 
         _db.SystemSettings.Add(new SystemSetting { Key = "company_name", Value = "Legacy Name" });
         await _db.SaveChangesAsync();
         var legacy = await Handler().BuildDocumentAsync(40, CancellationToken.None);
-        legacy.GetMetadata().Author.Should().Be("Legacy Name");
+        legacy.Html.Should().Contain("<div class=\"name\">Legacy Name</div>");
     }
 
     [Fact]
@@ -160,6 +159,37 @@ public class GetPurchaseOrderPdfTests
         var pdf = await Handler().Handle(new GetPurchaseOrderPdfQuery(41), CancellationToken.None);
 
         Encoding.ASCII.GetString(pdf, 0, 4).Should().Be("%PDF");
+        var html = _renderer.Documents.Should().ContainSingle().Subject.Html;
+        html.Should().Contain("<div class=\"name\">Cash Vendor</div>").And.Contain("<div class=\"small\">Main Plant</div>");
+        html.Should().Contain("<div class=\"small\">Phone: 555-0199</div>").And.Contain("300.00 CAD").And.Contain("Currency: CAD");
+    }
+
+    [Fact]
+    public async Task Text_a_user_typed_is_encoded_and_adds_no_tags()
+    {
+        var po = await SeedAsync(PurchaseOrderStatus.Submitted);
+        var vendor = await _db.Vendors.FindAsync(10);
+        vendor!.CompanyName = "Steel <b>Supply</b>";
+        po.Notes = "</div><script>alert(1)</script>";
+        po.Lines.First(l => l.Id == 2).Notes = "Zinc <b>plated</b> & sealed";
+        await _db.SaveChangesAsync();
+
+        var html = (await Handler().BuildDocumentAsync(40, CancellationToken.None)).Html;
+
+        html.Should().NotContain("<script").And.NotContain("<b>");
+        html.Should().Contain("Steel &lt;b&gt;Supply&lt;/b&gt;").And.Contain("&lt;/div&gt;&lt;script&gt;alert(1)&lt;/script&gt;");
+        html.Should().Contain("Zinc &lt;b&gt;plated&lt;/b&gt; &amp; sealed");
+    }
+
+    [Fact]
+    public async Task Footer_carries_the_po_number()
+    {
+        await SeedAsync(PurchaseOrderStatus.Submitted);
+
+        var document = await Handler().BuildDocumentAsync(40, CancellationToken.None);
+
+        document.Html.Should().Contain("<div class=\"page-footer\">PO-00040 &middot; Page ");
+        document.Html.Should().Contain("<title>Purchase Order PO-00040</title>");
     }
 
     [Fact]

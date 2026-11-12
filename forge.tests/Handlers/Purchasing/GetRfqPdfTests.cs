@@ -4,8 +4,6 @@ using AwesomeAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
-using QuestPDF.Fluent;
-using QuestPDF.Infrastructure;
 
 using Forge.Api.Controllers;
 using Forge.Api.Features.Purchasing;
@@ -18,11 +16,6 @@ namespace Forge.Tests.Handlers.Purchasing;
 
 public class GetRfqPdfTests
 {
-    static GetRfqPdfTests()
-    {
-        QuestPDF.Settings.License = LicenseType.Community;
-    }
-
     private readonly AppDbContext _db = TestDbContextFactory.Create();
 
     private async Task SeedAsync()
@@ -62,7 +55,9 @@ public class GetRfqPdfTests
         await _db.SaveChangesAsync();
     }
 
-    private GetRfqPdfHandler Handler() => new(_db);
+    private readonly FakeHtmlPdfRenderer _renderer = new();
+
+    private GetRfqPdfHandler Handler() => new(_db, _renderer);
 
     [Fact]
     public async Task Renders_a_pdf_for_the_rfq()
@@ -82,13 +77,17 @@ public class GetRfqPdfTests
         var unaddressed = await Handler().BuildDocumentAsync(7, null, CancellationToken.None);
         var addressed = await Handler().BuildDocumentAsync(7, 10, CancellationToken.None);
 
-        unaddressed.AddressedTo.Should().BeNull();
-        addressed.AddressedTo!.CompanyName.Should().Be("Midwest Steel Supply");
-        addressed.LineDescription.Should().Be("Formed steel bracket");
-        addressed.Uom.Should().Be("EA");
-        addressed.GetMetadata().Title.Should().Be("Request for Quote RFQ-00007");
-        addressed.GetMetadata().Author.Should().Be("Forge Test Works");
-        addressed.GeneratePdf().Should().NotBeEmpty();
+        unaddressed.Html.Should().NotContain("Midwest Steel Supply").And.NotContain("<div class=\"caption\">TO</div>");
+        addressed.Html.Should().Contain("<div class=\"caption\">TO</div>").And.Contain("<div class=\"name\">Midwest Steel Supply</div>");
+        addressed.Html.Should().ContainAll(
+            "<div class=\"small\">100 Mill Road</div>", "<div class=\"small\">Gary, IN 46402</div>",
+            "<div class=\"small gap\">Attn: Pat Buyer</div>", "<div>Vendor #: VEND-00010</div>");
+        addressed.Html.Should().Contain("<td>Formed steel bracket</td>").And.Contain("<td>EA</td>").And.Contain("<td class=\"num\">250</td>");
+        addressed.Html.Should().Contain("<title>Request for Quote RFQ-00007</title>");
+        addressed.Html.Should().Contain("<div class=\"name\">Forge Test Works</div>");
+        addressed.Html.Should().ContainAll(
+            "Response Due: 10/20/2026", "Required By: 11/30/2026", "Annual bracket buy", "Quote with and without powder coat.",
+            "Responses are due by 10/20/2026.", "Please reference RFQ RFQ-00007 on your quotation.");
     }
 
     [Fact]
@@ -100,9 +99,37 @@ public class GetRfqPdfTests
 
         var document = await Handler().BuildDocumentAsync(8, null, CancellationToken.None);
 
-        document.LineDescription.Should().Be("Misc part");
-        document.Uom.Should().BeEmpty();
-        document.GeneratePdf().Should().NotBeEmpty();
+        document.Html.Should().Contain("<td>Misc part</td>").And.Contain("<td></td>");
+        document.Html.Should().NotContain("Response Due:").And.NotContain("Special Instructions").And.NotContain("class=\"name\"");
+    }
+
+    [Fact]
+    public async Task Text_a_user_typed_is_encoded_and_adds_no_tags()
+    {
+        await SeedAsync();
+        var vendor = await _db.Vendors.FindAsync(10);
+        vendor!.CompanyName = "Steel <b>Supply</b>";
+        var rfq = await _db.RequestForQuotes.FindAsync(7);
+        rfq!.SpecialInstructions = "</div><script>alert(1)</script>";
+        rfq.Description = "Brackets & <b>braces</b>";
+        await _db.SaveChangesAsync();
+
+        var html = (await Handler().BuildDocumentAsync(7, 10, CancellationToken.None)).Html;
+
+        html.Should().NotContain("<script").And.NotContain("<b>");
+        html.Should().Contain("Steel &lt;b&gt;Supply&lt;/b&gt;").And.Contain("&lt;/div&gt;&lt;script&gt;alert(1)&lt;/script&gt;");
+        html.Should().Contain("Brackets &amp; &lt;b&gt;braces&lt;/b&gt;");
+    }
+
+    [Fact]
+    public async Task Prints_through_the_renderer_with_the_rfq_number_in_the_footer()
+    {
+        await SeedAsync();
+
+        await Handler().Handle(new GetRfqPdfQuery(7, 10), CancellationToken.None);
+
+        _renderer.Documents.Should().ContainSingle().Which.Html
+            .Should().Contain("<div class=\"page-footer\">RFQ-00007 &middot; Page ");
     }
 
     [Fact]

@@ -2,25 +2,25 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
-using QuestPDF.Fluent;
-
+using Forge.Core.Interfaces;
+using Forge.Core.Models;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Purchasing;
 
 public record GetRfqPdfQuery(int Id, int? VendorId = null) : IRequest<byte[]>;
 
-public class GetRfqPdfHandler(AppDbContext db) : IRequestHandler<GetRfqPdfQuery, byte[]>
+public class GetRfqPdfHandler(AppDbContext db, IHtmlPdfRenderer renderer) : IRequestHandler<GetRfqPdfQuery, byte[]>
 {
     private static readonly string[] CompanyKeys = ["company.name", "company_name", "company.phone", "company.email"];
 
     public async Task<byte[]> Handle(GetRfqPdfQuery request, CancellationToken ct)
     {
         var document = await BuildDocumentAsync(request.Id, request.VendorId, ct);
-        return document.GeneratePdf();
+        return await renderer.RenderAsync(document, ct);
     }
 
-    public async Task<RfqPdfDocument> BuildDocumentAsync(int rfqId, int? vendorId, CancellationToken ct)
+    public async Task<HtmlPdfDocument> BuildDocumentAsync(int rfqId, int? vendorId, CancellationToken ct)
     {
         var rfq = await db.RequestForQuotes
             .AsNoTracking()
@@ -45,7 +45,7 @@ public class GetRfqPdfHandler(AppDbContext db) : IRequestHandler<GetRfqPdfQuery,
             .ThenBy(l => l.Id)
             .FirstOrDefaultAsync(ct);
 
-        return new RfqPdfDocument(
+        return RfqPdfDocument.Build(
             rfq,
             vendor,
             Setting(settings, "company.name") ?? Setting(settings, "company_name"),
