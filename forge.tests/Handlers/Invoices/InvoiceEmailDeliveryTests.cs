@@ -66,7 +66,7 @@ public class InvoiceEmailDeliveryTests : IDisposable
     }
 
     private SendInvoiceEmailHandler Handler()
-        => new(_db, new SystemSettingRepository(_db), _outbox.Object, _clock.Object);
+        => new(_db, new SystemSettingRepository(_db), _outbox.Object, _clock.Object, new FakeHtmlPdfRenderer());
 
     [Fact]
     public async Task Recipient_PrefersTheBillingContact_ByTheRoleLabel()

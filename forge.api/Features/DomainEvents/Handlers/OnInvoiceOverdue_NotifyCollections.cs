@@ -23,7 +23,8 @@ public class OnInvoiceOverdue_NotifyCollections(
     IIntegrationOutboxService outbox,
     IHubContext<NotificationHub> notificationHub,
     ILogger<OnInvoiceOverdue_NotifyCollections> logger,
-    IClock clock)
+    IClock clock,
+    IHtmlPdfRenderer renderer)
     : INotificationHandler<InvoiceOverdueEvent>
 {
     public async Task Handle(InvoiceOverdueEvent notification, CancellationToken ct)
@@ -68,7 +69,7 @@ public class OnInvoiceOverdue_NotifyCollections(
                 .SendAsync("notificationReceived", new { type = "invoice_overdue", invoiceId = invoice.Id }, ct);
         }
 
-        var queued = await InvoiceDunning.EnqueueReminderAsync(db, outbox, invoice.Id, InvoiceDunning.BucketDue, clock.UtcNow, ct);
+        var queued = await InvoiceDunning.EnqueueReminderAsync(db, outbox, renderer, invoice.Id, InvoiceDunning.BucketDue, clock.UtcNow, ct);
         logger.LogInformation(
             "Invoice {InvoiceNumber} overdue: notified {Count} users, reminder queued: {Queued}",
             invoice.InvoiceNumber, userIds.Count, queued);

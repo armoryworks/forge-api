@@ -3,8 +3,6 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
-using QuestPDF.Fluent;
-
 using Forge.Api.Services;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -37,7 +35,8 @@ public class SendInvoiceEmailHandler(
     AppDbContext db,
     ISystemSettingRepository settings,
     IIntegrationOutboxService outbox,
-    IClock clock) : IRequestHandler<SendInvoiceEmailCommand>
+    IClock clock,
+    IHtmlPdfRenderer renderer) : IRequestHandler<SendInvoiceEmailCommand>
 {
     public async Task Handle(SendInvoiceEmailCommand request, CancellationToken ct)
     {
@@ -69,8 +68,8 @@ public class SendInvoiceEmailHandler(
 
         var money = await MoneyFormat.ForCurrencyIdAsync(
             db, invoice.CurrencyId, await MoneyFormat.BaseCodeAsync(settings, ct), ct);
-        var pdfDoc = new InvoicePdfDocument(invoice, companyName, money, await InvoiceDiscountOffer.ForAsync(db, invoice, clock.UtcNow, ct));
-        var pdfBytes = pdfDoc.GeneratePdf();
+        var pdfBytes = await renderer.RenderAsync(
+            InvoicePdfDocument.Build(invoice, companyName, money, await InvoiceDiscountOffer.ForAsync(db, invoice, clock.UtcNow, ct)), ct);
 
         var customerName = invoice.Customer.CompanyName ?? invoice.Customer.Name;
         var total = money.Format(invoice.Total);

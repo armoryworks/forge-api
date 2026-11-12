@@ -16,7 +16,8 @@ public class OnInvoicePastDue_SendReminder(
     AppDbContext db,
     ICapabilitySnapshotProvider capabilities,
     IIntegrationOutboxService outbox,
-    IClock clock)
+    IClock clock,
+    IHtmlPdfRenderer renderer)
     : INotificationHandler<InvoicePastDueEvent>
 {
     public async Task Handle(InvoicePastDueEvent notification, CancellationToken ct)
@@ -25,6 +26,6 @@ public class OnInvoicePastDue_SendReminder(
             return;
 
         await InvoiceDunning.EnqueueReminderAsync(
-            db, outbox, notification.InvoiceId, InvoiceDunning.BucketFor(notification.DaysOverdue), clock.UtcNow, ct);
+            db, outbox, renderer, notification.InvoiceId, InvoiceDunning.BucketFor(notification.DaysOverdue), clock.UtcNow, ct);
     }
 }

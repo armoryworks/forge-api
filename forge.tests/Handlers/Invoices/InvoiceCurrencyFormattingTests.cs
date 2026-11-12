@@ -67,14 +67,14 @@ public class InvoiceCurrencyFormattingTests : IDisposable
         var invoice = await SeedInvoiceAsync(await SeedCustomerAsync(), _cad, "INV-5100", 10m);
         var money = await MoneyFormat.ForCurrencyIdAsync(_db, invoice.CurrencyId, CancellationToken.None);
 
-        var svg = Svg(new InvoicePdfDocument(invoice, "Harbor Gear Works", money));
+        var html = InvoicePdfDocument.Build(invoice, "Harbor Gear Works", money).Html;
 
-        svg.Should().Contain("$19,400.00 CAD");
-        svg.Should().Contain("7.25%");
-        svg.Should().Contain("1,940");
-        svg.Should().NotContain("1940.0000");
-        svg.Should().NotContain("¤");
-        svg.Should().NotContain("#INV-5100");
+        html.Should().Contain("$19,400.00 CAD");
+        html.Should().Contain("7.25%");
+        html.Should().Contain("1,940");
+        html.Should().NotContain("1940.0000");
+        html.Should().NotContain("¤");
+        html.Should().NotContain("#INV-5100");
     }
 
     [Fact]
@@ -85,9 +85,40 @@ public class InvoiceCurrencyFormattingTests : IDisposable
         await _db.SaveChangesAsync();
         var invoice = await SeedInvoiceAsync(customer, _usd, "INV-5102", 1m);
 
-        var pdf = new InvoicePdfDocument(invoice, "Harbor Gear Works").GeneratePdf();
+        var html = InvoicePdfDocument.Build(invoice, "Harbor Gear Works").Html;
 
-        pdf.Should().NotBeEmpty();
+        System.Net.WebUtility.HtmlDecode(html).Should().Contain("株式会社東京製作所 شركة الخليج 🔧");
+    }
+
+    [Fact]
+    public async Task InvoicePdf_EncodesEveryValueAUserTyped()
+    {
+        var customer = new Customer { Name = "<img src=x onerror=alert(1)>", Email = "ap@buyer.test" };
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync();
+        var invoice = await SeedInvoiceAsync(customer, _usd, "INV-5103", 1m);
+        invoice.Notes = "</div><script>fetch('http://internal/')</script>";
+        invoice.Lines.First().Description = "Bracket <b>bold</b>";
+
+        var document = InvoicePdfDocument.Build(invoice, "Harbor <Gear> Works");
+
+        document.Html.Should().NotContain("<img").And.NotContain("<script").And.NotContain("<b>bold");
+        document.Html.Should().Contain("&lt;img src=x onerror=alert(1)&gt;").And.Contain("Bracket &lt;b&gt;bold&lt;/b&gt;").And.Contain("Harbor &lt;Gear&gt; Works");
+        document.Html.Should().Contain("<div class=\"page-footer\">INV-5103 &middot; Page ");
+    }
+
+    [Fact]
+    public async Task GenerateInvoicePdf_PrintsTheInvoiceThroughTheRenderer()
+    {
+        var invoice = await SeedInvoiceAsync(await SeedCustomerAsync(), _cad, "INV-5104", 10m);
+        var renderer = new FakeHtmlPdfRenderer();
+
+        var pdf = await new GenerateInvoicePdfHandler(_db, new SystemSettingRepository(_db), renderer)
+            .Handle(new GenerateInvoicePdfQuery(invoice.Id), CancellationToken.None);
+
+        var printed = renderer.Documents.Should().ContainSingle().Subject;
+        printed.Html.Should().Contain("INV-5104").And.Contain("Invoice Date:").And.Contain("Total:").And.Contain("CAD");
+        pdf.Should().StartWith("%PDF-"u8.ToArray());
     }
 
     [Fact]
@@ -95,7 +126,7 @@ public class InvoiceCurrencyFormattingTests : IDisposable
     {
         var invoice = await SeedInvoiceAsync(await SeedCustomerAsync(), _cad, "INV-5101", 10m);
 
-        var pdf = await new GenerateInvoicePdfHandler(_db, new SystemSettingRepository(_db))
+        var pdf = await new GenerateInvoicePdfHandler(_db, new SystemSettingRepository(_db), new FakeHtmlPdfRenderer())
             .Handle(new GenerateInvoicePdfQuery(invoice.Id), CancellationToken.None);
 
         pdf.Should().NotBeEmpty();

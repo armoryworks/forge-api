@@ -1,237 +1,116 @@
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
-
 using Forge.Api.Services;
+using Forge.Api.Services.Pdf;
 using Forge.Core.Entities;
+using Forge.Core.Models;
 
 namespace Forge.Api.Features.Invoices;
 
-public class InvoicePdfDocument : IDocument
+public static class InvoicePdfDocument
 {
-    private readonly Invoice _invoice;
-    private readonly string? _companyName;
-    private readonly MoneyFormatter _money;
-    private readonly InvoiceDiscountOffer _offer;
-
-    public InvoicePdfDocument(Invoice invoice, string? companyName, MoneyFormatter? money = null, InvoiceDiscountOffer? offer = null)
+    public static HtmlPdfDocument Build(Invoice invoice, string? companyName, MoneyFormatter? money = null, InvoiceDiscountOffer? offer = null)
     {
-        _invoice = invoice;
-        _companyName = companyName;
-        _money = money ?? MoneyFormat.For(null, "USD");
-        _offer = offer ?? InvoiceDiscountOffer.None;
+        money ??= MoneyFormat.For(null, "USD");
+        offer ??= InvoiceDiscountOffer.None;
+
+        var body = Html.Of($"{Header(invoice, companyName, money, offer)}{Lines(invoice, money)}{Totals(invoice, money)}{Notes(invoice)}");
+        return PdfHtml.Document($"Invoice {invoice.InvoiceNumber}", body, invoice.InvoiceNumber);
     }
 
-    public void Compose(IDocumentContainer container)
+    private static Html Header(Invoice invoice, string? companyName, MoneyFormatter money, InvoiceDiscountOffer offer)
     {
-        container.Page(page =>
+        var customer = invoice.Customer;
+        var terms = offer.TermsName is { Length: > 0 } termsName ? termsName
+            : invoice.CreditTerms.HasValue ? FormatCreditTerms(invoice.CreditTerms.Value)
+            : null;
+
+        return Html.Of($"""
+            <div class="head">
+              <div class="company">{companyName}</div>
+              <div class="right"><div class="title">INVOICE</div><div class="number">{invoice.InvoiceNumber}</div></div>
+            </div>
+            <hr class="rule">
+            <div class="parties">
+              <div>
+                <div class="label">Bill To:</div>
+                <div class="strong">{customer.CompanyName ?? customer.Name}</div>
+                {(string.IsNullOrEmpty(customer.Email) ? Html.Empty : Html.Of($"<div class=\"small\">{customer.Email}</div>"))}
+                {(string.IsNullOrEmpty(customer.Phone) ? Html.Empty : Html.Of($"<div class=\"small\">{customer.Phone}</div>"))}
+              </div>
+              <div class="right">
+                <div>Invoice Date: {invoice.InvoiceDate:MMM dd, yyyy}</div>
+                <div>Due Date: {invoice.DueDate:MMM dd, yyyy}</div>
+                {(terms is null ? Html.Empty : Html.Of($"<div>Terms: {terms}</div>"))}
+                {(offer.HasDiscount ? Html.Of($"<div class=\"strong\">Pay {money.Format(offer.PayAmount)} by {offer.Deadline:MM/dd/yyyy} to take the discount.</div>") : Html.Empty)}
+                {(string.IsNullOrEmpty(invoice.SalesOrder?.OrderNumber) ? Html.Empty : Html.Of($"<div>SO #: {invoice.SalesOrder.OrderNumber}</div>"))}
+              </div>
+            </div>
+            """);
+    }
+
+    private static Html Lines(Invoice invoice, MoneyFormatter money)
+    {
+        var rows = invoice.Lines
+            .OrderBy(l => l.IsFreight)
+            .ThenBy(l => l.LineNumber)
+            .Select(line => Html.Of($"""
+                <tr>
+                  <td>{line.LineNumber}</td>
+                  <td>{line.Description}</td>
+                  <td>{line.Part?.PartNumber ?? "—"}</td>
+                  <td class="num">{MoneyFormat.Quantity(line.Quantity)}</td>
+                  <td class="num">{money.Format(line.UnitPrice)}</td>
+                  <td class="num">{money.Format(line.LineTotal)}</td>
+                </tr>
+                """));
+
+        return Html.Of($"""
+            <table class="lines">
+              <colgroup><col style="width:40pt"><col><col style="width:80pt"><col style="width:60pt"><col style="width:80pt"><col style="width:90pt"></colgroup>
+              <thead><tr><th>#</th><th>Description</th><th>Part #</th><th class="num">Qty</th><th class="num">Unit Price</th><th class="num">Total</th></tr></thead>
+              <tbody>{rows}</tbody>
+            </table>
+            """);
+    }
+
+    private static Html Totals(Invoice invoice, MoneyFormatter money)
+    {
+        var rows = new List<Html>
         {
-            page.Size(PageSizes.Letter);
-            page.MarginHorizontal(50);
-            page.MarginVertical(40);
-            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10));
-
-            page.Header().Element(ComposeHeader);
-            page.Content().Element(ComposeContent);
-            page.Footer().Element(ComposeFooter);
-        });
-    }
-
-    private void ComposeHeader(IContainer container)
-    {
-        container.Column(col =>
+            Row("Subtotal:", money.Format(invoice.Subtotal - invoice.FreightSubtotal), "strong-label"),
+        };
+        if (invoice.Lines.Any(l => l.IsFreight))
+            rows.Add(Row("Freight:", money.Format(invoice.FreightSubtotal), "strong-label"));
+        if (invoice.TaxRate > 0)
+            rows.Add(Row($"Tax ({MoneyFormat.Percent(invoice.TaxRate)}):", money.Format(invoice.TaxAmount), "strong-label"));
+        if (invoice.TaxOverrideReason is { } taxOverrideReason)
         {
-            col.Item().Row(row =>
-            {
-                row.RelativeItem().Column(left =>
-                {
-                    if (_companyName is not null)
-                        left.Item().Text(_companyName).Bold().FontSize(18);
-                });
+            rows.Add(Html.Of(
+                $"<div class=\"note\">Tax exemption: {TaxOverrideActivity.ReasonLabel(taxOverrideReason)}{(invoice.TaxOverrideNote is null ? string.Empty : $" ({invoice.TaxOverrideNote})")}</div>"));
+        }
 
-                row.RelativeItem().AlignRight().Column(right =>
-                {
-                    right.Item().Text("INVOICE").Bold().FontSize(24).FontColor(Colors.Blue.Darken2);
-                    right.Item().Text(_invoice.InvoiceNumber).FontSize(12);
-                });
-            });
+        rows.Add(Row("Total:", money.Format(invoice.Total), "grand after-rule"));
 
-            col.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
-
-            col.Item().PaddingTop(10).Row(row =>
-            {
-                row.RelativeItem().Column(left =>
-                {
-                    left.Item().Text("Bill To:").SemiBold().FontSize(9).FontColor(Colors.Grey.Darken1);
-                    left.Item().Text(_invoice.Customer.CompanyName ?? _invoice.Customer.Name).SemiBold();
-                    if (!string.IsNullOrEmpty(_invoice.Customer.Email))
-                        left.Item().Text(_invoice.Customer.Email).FontSize(9);
-                    if (!string.IsNullOrEmpty(_invoice.Customer.Phone))
-                        left.Item().Text(_invoice.Customer.Phone).FontSize(9);
-                });
-
-                row.RelativeItem().AlignRight().Column(right =>
-                {
-                    right.Item().Text($"Invoice Date: {_invoice.InvoiceDate:MMM dd, yyyy}");
-                    right.Item().Text($"Due Date: {_invoice.DueDate:MMM dd, yyyy}");
-                    if (_offer.TermsName is { Length: > 0 } termsName)
-                        right.Item().Text($"Terms: {termsName}");
-                    else if (_invoice.CreditTerms.HasValue)
-                        right.Item().Text($"Terms: {FormatCreditTerms(_invoice.CreditTerms.Value)}");
-                    if (_offer.HasDiscount)
-                        right.Item().Text($"Pay {_money.Format(_offer.PayAmount)} by {_offer.Deadline:MM/dd/yyyy} to take the discount.").SemiBold();
-                    if (!string.IsNullOrEmpty(_invoice.SalesOrder?.OrderNumber))
-                        right.Item().Text($"SO #: {_invoice.SalesOrder.OrderNumber}");
-                });
-            });
-
-            col.Item().PaddingTop(10);
-        });
-    }
-
-    private void ComposeContent(IContainer container)
-    {
-        container.Column(col =>
+        if (invoice.AmountPaid > 0 || invoice.CreditsApplied > 0)
         {
-            col.Item().Table(table =>
-            {
-                table.ColumnsDefinition(cols =>
-                {
-                    cols.ConstantColumn(40);    // #
-                    cols.RelativeColumn(3);     // Description
-                    cols.ConstantColumn(80);    // Part #
-                    cols.ConstantColumn(60);    // Qty
-                    cols.ConstantColumn(80);    // Unit Price
-                    cols.ConstantColumn(90);    // Total
-                });
+            if (invoice.AmountPaid > 0)
+                rows.Add(Row("Paid:", $"({money.Format(invoice.AmountPaid)})", "credit"));
+            if (invoice.CreditsApplied > 0)
+                rows.Add(Row("Credits applied:", $"({money.Format(invoice.CreditsApplied)})", "credit"));
+            if (invoice.DiscountsTaken > 0)
+                rows.Add(Row("Early-payment discount:", $"({money.Format(invoice.DiscountsTaken)})", "credit"));
+            rows.Add(Row("Balance Due:", money.Format(invoice.BalanceDue), "grand"));
+        }
 
-                table.Header(header =>
-                {
-                    var headerStyle = TextStyle.Default.SemiBold().FontSize(9).FontColor(Colors.White);
-
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text("#").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text("Description").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text("Part #").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).AlignRight().Text("Qty").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).AlignRight().Text("Unit Price").Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).AlignRight().Text("Total").Style(headerStyle);
-                });
-
-                var lines = _invoice.Lines.OrderBy(l => l.IsFreight).ThenBy(l => l.LineNumber).ToList();
-                for (var i = 0; i < lines.Count; i++)
-                {
-                    var line = lines[i];
-                    var bg = i % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
-
-                    table.Cell().Background(bg).Padding(5).Text(line.LineNumber.ToString());
-                    table.Cell().Background(bg).Padding(5).Text(line.Description);
-                    table.Cell().Background(bg).Padding(5).Text(line.Part?.PartNumber ?? "—");
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(MoneyFormat.Quantity(line.Quantity));
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(_money.Format(line.UnitPrice));
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(_money.Format(line.LineTotal));
-                }
-            });
-
-            col.Item().PaddingTop(10).AlignRight().Width(200).Column(totals =>
-            {
-                totals.Item().Row(row =>
-                {
-                    row.RelativeItem().Text("Subtotal:").SemiBold();
-                    row.ConstantItem(100).AlignRight().Text(_money.Format(_invoice.Subtotal - _invoice.FreightSubtotal));
-                });
-
-                if (_invoice.Lines.Any(l => l.IsFreight))
-                {
-                    totals.Item().Row(row =>
-                    {
-                        row.RelativeItem().Text("Freight:").SemiBold();
-                        row.ConstantItem(100).AlignRight().Text(_money.Format(_invoice.FreightSubtotal));
-                    });
-                }
-
-                if (_invoice.TaxRate > 0)
-                {
-                    totals.Item().Row(row =>
-                    {
-                        row.RelativeItem().Text($"Tax ({MoneyFormat.Percent(_invoice.TaxRate)}):").SemiBold();
-                        row.ConstantItem(100).AlignRight().Text(_money.Format(_invoice.TaxAmount));
-                    });
-                }
-
-                if (_invoice.TaxOverrideReason is { } taxOverrideReason)
-                {
-                    totals.Item().Text(
-                        $"Tax exemption: {TaxOverrideActivity.ReasonLabel(taxOverrideReason)}{(_invoice.TaxOverrideNote is null ? string.Empty : $" ({_invoice.TaxOverrideNote})")}")
-                        .FontSize(8).FontColor(Colors.Grey.Darken1);
-                }
-
-                totals.Item().PaddingTop(4).LineHorizontal(1);
-
-                totals.Item().PaddingTop(4).Row(row =>
-                {
-                    row.RelativeItem().Text("Total:").Bold().FontSize(12);
-                    row.ConstantItem(100).AlignRight().Text(_money.Format(_invoice.Total)).Bold().FontSize(12);
-                });
-
-                if (_invoice.AmountPaid > 0 || _invoice.CreditsApplied > 0)
-                {
-                    if (_invoice.AmountPaid > 0)
-                    {
-                        totals.Item().Row(row =>
-                        {
-                            row.RelativeItem().Text("Paid:").FontColor(Colors.Green.Darken2);
-                            row.ConstantItem(100).AlignRight().Text($"({_money.Format(_invoice.AmountPaid)})").FontColor(Colors.Green.Darken2);
-                        });
-                    }
-
-                    if (_invoice.CreditsApplied > 0)
-                    {
-                        totals.Item().Row(row =>
-                        {
-                            row.RelativeItem().Text("Credits applied:").FontColor(Colors.Green.Darken2);
-                            row.ConstantItem(100).AlignRight().Text($"({_money.Format(_invoice.CreditsApplied)})").FontColor(Colors.Green.Darken2);
-                        });
-                    }
-
-                    if (_invoice.DiscountsTaken > 0)
-                    {
-                        totals.Item().Row(row =>
-                        {
-                            row.RelativeItem().Text("Early-payment discount:").FontColor(Colors.Green.Darken2);
-                            row.ConstantItem(100).AlignRight().Text($"({_money.Format(_invoice.DiscountsTaken)})").FontColor(Colors.Green.Darken2);
-                        });
-                    }
-
-                    totals.Item().PaddingTop(4).Row(row =>
-                    {
-                        row.RelativeItem().Text("Balance Due:").Bold().FontSize(12);
-                        row.ConstantItem(100).AlignRight().Text(_money.Format(_invoice.BalanceDue)).Bold().FontSize(12);
-                    });
-                }
-            });
-
-            if (!string.IsNullOrWhiteSpace(_invoice.Notes))
-            {
-                col.Item().PaddingTop(20).Column(notes =>
-                {
-                    notes.Item().Text("Notes").SemiBold().FontSize(9).FontColor(Colors.Grey.Darken1);
-                    notes.Item().PaddingTop(4).Text(_invoice.Notes);
-                });
-            }
-        });
+        return Html.Of($"<div class=\"totals\">{rows}</div>");
     }
 
-    private void ComposeFooter(IContainer container)
-    {
-        container.AlignCenter().Text(text =>
-        {
-            text.DefaultTextStyle(x => x.FontSize(8).FontColor(Colors.Grey.Medium));
-            text.Span("Page ");
-            text.CurrentPageNumber();
-            text.Span(" of ");
-            text.TotalPages();
-        });
-    }
+    private static Html Row(string label, string amount, string style)
+        => Html.Of($"<div class=\"row {style}\"><span>{label}</span><span>{amount}</span></div>");
+
+    private static Html Notes(Invoice invoice)
+        => string.IsNullOrWhiteSpace(invoice.Notes)
+            ? Html.Empty
+            : Html.Of($"<div class=\"notes\"><div class=\"label\">Notes</div><div class=\"body\">{invoice.Notes}</div></div>");
 
     private static string FormatCreditTerms(Core.Enums.CreditTerms terms) => terms switch
     {

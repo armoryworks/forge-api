@@ -92,7 +92,7 @@ public class InvoiceCollectionsTests : IDisposable
     }
 
     private OnInvoiceOverdue_NotifyCollections OverdueHandler(bool on)
-        => new(_db, new FakeCapabilities(on), _outbox.Object, _hub.Object, NullLogger<OnInvoiceOverdue_NotifyCollections>.Instance, _clock.Object);
+        => new(_db, new FakeCapabilities(on), _outbox.Object, _hub.Object, NullLogger<OnInvoiceOverdue_NotifyCollections>.Instance, _clock.Object, new FakeHtmlPdfRenderer());
 
     [Fact]
     public async Task OverdueFlip_RingsTheBell_AndQueuesTheFirstReminder()
@@ -116,7 +116,7 @@ public class InvoiceCollectionsTests : IDisposable
         var invoice = await SeedAsync(InvoiceStatus.Overdue);
 
         await OverdueHandler(on: false).Handle(new InvoiceOverdueEvent(invoice.Id, invoice.CustomerId), CancellationToken.None);
-        await new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(false), _outbox.Object, _clock.Object)
+        await new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(false), _outbox.Object, _clock.Object, new FakeHtmlPdfRenderer())
             .Handle(new InvoicePastDueEvent(invoice.Id, invoice.CustomerId, 31), CancellationToken.None);
 
         (await _db.Notifications.AnyAsync()).Should().BeFalse();
@@ -127,7 +127,7 @@ public class InvoiceCollectionsTests : IDisposable
     public async Task BucketReminders_AreOnePerBucket()
     {
         var invoice = await SeedAsync(InvoiceStatus.Overdue, daysOverdue: 0);
-        var handler = new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(true), _outbox.Object, _clock.Object);
+        var handler = new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(true), _outbox.Object, _clock.Object, new FakeHtmlPdfRenderer());
 
         foreach (var days in new[] { 30, 31, 45, 60, 75, 95, 96 })
         {
@@ -145,7 +145,7 @@ public class InvoiceCollectionsTests : IDisposable
     public async Task BucketReachedLongAgo_GetsNoReminder()
     {
         var invoice = await SeedAsync(InvoiceStatus.Overdue, daysOverdue: 200);
-        var handler = new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(true), _outbox.Object, _clock.Object);
+        var handler = new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(true), _outbox.Object, _clock.Object, new FakeHtmlPdfRenderer());
 
         await handler.Handle(new InvoicePastDueEvent(invoice.Id, invoice.CustomerId, 200), CancellationToken.None);
 
@@ -167,7 +167,7 @@ public class InvoiceCollectionsTests : IDisposable
     public async Task ConversionOpeningBalance_GetsNoReminder()
     {
         var invoice = await SeedAsync(InvoiceStatus.Overdue, daysOverdue: 1, provider: "Conversion");
-        var handler = new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(true), _outbox.Object, _clock.Object);
+        var handler = new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(true), _outbox.Object, _clock.Object, new FakeHtmlPdfRenderer());
 
         await OverdueHandler(on: true).Handle(new InvoiceOverdueEvent(invoice.Id, invoice.CustomerId), CancellationToken.None);
         await handler.Handle(new InvoicePastDueEvent(invoice.Id, invoice.CustomerId, 31), CancellationToken.None);
@@ -180,7 +180,7 @@ public class InvoiceCollectionsTests : IDisposable
     {
         var invoice = await SeedAsync(InvoiceStatus.Paid);
 
-        await new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(true), _outbox.Object, _clock.Object)
+        await new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(true), _outbox.Object, _clock.Object, new FakeHtmlPdfRenderer())
             .Handle(new InvoicePastDueEvent(invoice.Id, invoice.CustomerId, 31), CancellationToken.None);
 
         _keys.Should().BeEmpty();

@@ -72,15 +72,15 @@ public class InvoiceCompanyNameTests : IDisposable
         await SetCompanyNameAsync(CompanyName);
         var invoice = await SeedInvoiceAsync();
 
-        var pdf = await new GenerateInvoicePdfHandler(_db, _settings)
+        var pdf = await new GenerateInvoicePdfHandler(_db, _settings, new FakeHtmlPdfRenderer())
             .Handle(new GenerateInvoicePdfQuery(invoice.Id), CancellationToken.None);
         pdf.Should().NotBeEmpty();
 
         var resolved = await CompanyIdentity.GetCompanyNameAsync(_settings, CancellationToken.None);
-        var svg = Svg(new InvoicePdfDocument(invoice, resolved));
+        var html = InvoicePdfDocument.Build(invoice, resolved).Html;
 
-        svg.Should().Contain(CompanyName);
-        svg.Should().NotContain(LegacyBrand);
+        html.Should().Contain(CompanyName);
+        html.Should().NotContain(LegacyBrand);
     }
 
     [Fact]
@@ -88,14 +88,14 @@ public class InvoiceCompanyNameTests : IDisposable
     {
         var invoice = await SeedInvoiceAsync();
 
-        var pdf = await new GenerateInvoicePdfHandler(_db, _settings)
+        var pdf = await new GenerateInvoicePdfHandler(_db, _settings, new FakeHtmlPdfRenderer())
             .Handle(new GenerateInvoicePdfQuery(invoice.Id), CancellationToken.None);
         pdf.Should().NotBeEmpty();
 
-        var svg = Svg(new InvoicePdfDocument(invoice, null));
+        var html = InvoicePdfDocument.Build(invoice, null).Html;
 
-        svg.Should().Contain("INVOICE");
-        svg.Should().NotContain(LegacyBrand);
+        html.Should().Contain("INVOICE");
+        html.Should().NotContain(LegacyBrand);
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public class InvoiceCompanyNameTests : IDisposable
     {
         await SetCompanyNameAsync("  ");
         var invoice = await SeedInvoiceAsync();
-        var handler = new SendInvoiceEmailHandler(_db, _settings, _outbox.Object, new SystemClock());
+        var handler = new SendInvoiceEmailHandler(_db, _settings, _outbox.Object, new SystemClock(), new FakeHtmlPdfRenderer());
 
         var act = () => handler.Handle(
             new SendInvoiceEmailCommand(invoice.Id, "ap@buyer.test"), CancellationToken.None);
@@ -134,7 +134,7 @@ public class InvoiceCompanyNameTests : IDisposable
     {
         await SetCompanyNameAsync(CompanyName);
         var invoice = await SeedInvoiceAsync();
-        var handler = new SendInvoiceEmailHandler(_db, _settings, _outbox.Object, new SystemClock());
+        var handler = new SendInvoiceEmailHandler(_db, _settings, _outbox.Object, new SystemClock(), new FakeHtmlPdfRenderer());
 
         await handler.Handle(
             new SendInvoiceEmailCommand(invoice.Id, "ap@buyer.test"), CancellationToken.None);
