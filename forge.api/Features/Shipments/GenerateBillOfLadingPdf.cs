@@ -2,8 +2,6 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
-using QuestPDF.Fluent;
-
 using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -14,7 +12,8 @@ public record GenerateBillOfLadingPdfQuery(int Id) : IRequest<byte[]>;
 
 public class GenerateBillOfLadingPdfHandler(
     AppDbContext db,
-    ISystemSettingRepository settings) : IRequestHandler<GenerateBillOfLadingPdfQuery, byte[]>
+    ISystemSettingRepository settings,
+    IHtmlPdfRenderer renderer) : IRequestHandler<GenerateBillOfLadingPdfQuery, byte[]>
 {
     public async Task<byte[]> Handle(GenerateBillOfLadingPdfQuery request, CancellationToken ct)
     {
@@ -38,7 +37,7 @@ public class GenerateBillOfLadingPdfHandler(
 
         var customs = await ShipmentCustoms.LoadAsync(db, shipment, ct);
 
-        var document = new BillOfLadingPdfDocument(shipment, companyName, companyAddress, companyPhone, customs);
-        return document.GeneratePdf();
+        return await renderer.RenderAsync(
+            BillOfLadingPdfDocument.Build(shipment, companyName, companyAddress, companyPhone, customs), ct);
     }
 }

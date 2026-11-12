@@ -1,264 +1,165 @@
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
-
 using Forge.Api.Services;
+using Forge.Api.Services.Pdf;
 using Forge.Core.Entities;
+using Forge.Core.Models;
 
 namespace Forge.Api.Features.Shipments;
 
-public class PackingSlipPdfDocument : IDocument
+public static class PackingSlipPdfDocument
 {
-    private readonly Shipment _shipment;
-    private readonly string? _companyName;
-    private readonly ShipmentCustoms? _customs;
+    private const string Styles = """
+        .head .title { color: #00796b; }
+        .head .id { display: flex; align-items: flex-start; }
+        .head .id .right { padding-right: 10pt; }
+        .master-qr { width: 82pt; }
+        .master-qr img { display: block; width: 78pt; height: 78pt; }
+        .qr-caption { font-size: 7pt; color: #757575; text-align: center; }
+        table.lines thead tr { background: #00796b; }
+        .hazmat { font-weight: 700; color: #d32f2f; }
+        .customs-note { margin-top: 6pt; font-size: 8pt; color: #757575; }
+        .summary { margin-top: 20pt; }
+        .summary .lines-count { font-size: 9pt; color: #757575; }
+        .scan-codes { margin-top: 16pt; break-inside: avoid; }
+        .scan-codes .codes { display: flex; margin-top: 4pt; }
+        .scan-codes .code { width: 90pt; }
+        .scan-codes .code img { display: block; width: 70pt; height: 70pt; }
+        .signatures { display: flex; margin-top: 40pt; break-inside: avoid; }
+        .signatures .line { flex: 1; border-top: 1pt solid #9e9e9e; padding-top: 4pt; font-size: 9pt; color: #757575; }
+        .signatures .line + .line { margin-left: 40pt; }
+        """;
 
-    public PackingSlipPdfDocument(Shipment shipment, string? companyName, ShipmentCustoms? customs = null)
+    public static HtmlPdfDocument Build(Shipment shipment, string? companyName, ShipmentCustoms? customs = null)
     {
-        _shipment = shipment;
-        _companyName = companyName;
-        _customs = customs;
+        var body = Html.Of($"{Header(shipment, companyName)}{Lines(shipment, customs)}{Summary(shipment, customs)}{ScanCodes(shipment)}{Notes(shipment)}{Signatures()}");
+        return PdfHtml.Document($"Packing Slip {shipment.ShipmentNumber}", body, shipment.ShipmentNumber, styles: Styles);
     }
 
-    public void Compose(IDocumentContainer container)
+    private static Html Header(Shipment shipment, string? companyName)
     {
-        container.Page(page =>
-        {
-            page.Size(PageSizes.Letter);
-            page.MarginHorizontal(50);
-            page.MarginVertical(40);
-            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10));
+        var master = shipment.ScanCode
+            ?? ShipmentScanCode.Compute(shipment.ShipmentNumber, shipment.Lines);
+        var customer = shipment.SalesOrder.Customer;
+        var addr = shipment.ShippingAddress;
+        var address = addr is null
+            ? Html.Empty
+            : Html.Of($"""
+                <div>{addr.Line1}</div>
+                {(string.IsNullOrEmpty(addr.Line2) ? Html.Empty : Html.Of($"<div>{addr.Line2}</div>"))}
+                <div>{addr.City}, {addr.State} {addr.PostalCode}</div>
+                <div>{addr.Country}</div>
+                """);
 
-            page.Header().Element(ComposeHeader);
-            page.Content().Element(ComposeContent);
-            page.Footer().Element(ComposeFooter);
-        });
+        return Html.Of($"""
+            <div class="head">
+              <div class="company">{companyName}</div>
+              <div class="id">
+                <div class="right"><div class="title">PACKING SLIP</div><div class="number">#{shipment.ShipmentNumber}</div></div>
+                <div class="master-qr">{Html.Image(QrCodeRenderer.Png(master), cssClass: "qr")}<div class="qr-caption">SCAN TO SHIP</div></div>
+              </div>
+            </div>
+            <hr class="rule">
+            <div class="parties">
+              <div>
+                <div class="label">Ship To:</div>
+                <div class="strong">{customer.CompanyName ?? customer.Name}</div>
+                {address}
+              </div>
+              <div class="right">
+                <div>SO #: {shipment.SalesOrder.OrderNumber}</div>
+                {(shipment.ShippedDate.HasValue ? Html.Of($"<div>Ship Date: {shipment.ShippedDate.Value:MMM dd, yyyy}</div>") : Html.Empty)}
+                {(string.IsNullOrEmpty(shipment.Carrier) ? Html.Empty : Html.Of($"<div>Carrier: {shipment.Carrier}</div>"))}
+                {(string.IsNullOrEmpty(shipment.TrackingNumber) ? Html.Empty : Html.Of($"<div>Tracking: {shipment.TrackingNumber}</div>"))}
+                {(shipment.Weight.HasValue ? Html.Of($"<div>Weight: {shipment.Weight.Value:F1} lbs</div>") : Html.Empty)}
+              </div>
+            </div>
+            """);
     }
 
-    private void ComposeHeader(IContainer container)
+    private static Html Lines(Shipment shipment, ShipmentCustoms? customs)
     {
-        container.Column(col =>
-        {
-            col.Item().Row(row =>
+        var rows = shipment.Lines
+            .OrderBy(l => l.Id)
+            .Select((line, i) =>
             {
-                row.RelativeItem().Column(left =>
+                var description = line.SalesOrderLine?.Description ?? line.Part?.Description ?? "—";
+                var partNumber = line.SalesOrderLine?.Part?.PartNumber ?? line.Part?.PartNumber ?? "—";
+                var hazmatClass = ShipmentLineHazmat.ClassFor(line);
+                var customsCells = Html.Empty;
+                if (customs is not null)
                 {
-                    if (_companyName is not null)
-                        left.Item().Text(_companyName).Bold().FontSize(18);
-                });
-
-                row.RelativeItem().AlignRight().PaddingRight(10).Column(right =>
-                {
-                    right.Item().Text("PACKING SLIP").Bold().FontSize(24).FontColor(Colors.Teal.Darken2);
-                    right.Item().Text($"#{_shipment.ShipmentNumber}").FontSize(12);
-                });
-
-                // Master QR — the coverage-bound ScanCode the worker scans to mark the
-                // shipment shipped. Always present; falls back to a fresh compute for a
-                // legacy shipment created before scan codes existed.
-                var master = _shipment.ScanCode
-                    ?? ShipmentScanCode.Compute(_shipment.ShipmentNumber, _shipment.Lines);
-                row.ConstantItem(82).Column(qr =>
-                {
-                    qr.Item().Width(78).Image(QrCodeRenderer.Png(master));
-                    qr.Item().AlignCenter().Text("SCAN TO SHIP").FontSize(7).FontColor(Colors.Grey.Darken1);
-                });
-            });
-
-            col.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
-
-            col.Item().PaddingTop(10).Row(row =>
-            {
-                row.RelativeItem().Column(left =>
-                {
-                    left.Item().Text("Ship To:").SemiBold().FontSize(9).FontColor(Colors.Grey.Darken1);
-                    if (_shipment.ShippingAddress != null)
-                    {
-                        var addr = _shipment.ShippingAddress;
-                        left.Item().Text(_shipment.SalesOrder.Customer.CompanyName
-                            ?? _shipment.SalesOrder.Customer.Name).SemiBold();
-                        left.Item().Text(addr.Line1);
-                        if (!string.IsNullOrEmpty(addr.Line2))
-                            left.Item().Text(addr.Line2);
-                        left.Item().Text($"{addr.City}, {addr.State} {addr.PostalCode}");
-                        left.Item().Text(addr.Country);
-                    }
-                    else
-                    {
-                        left.Item().Text(_shipment.SalesOrder.Customer.CompanyName
-                            ?? _shipment.SalesOrder.Customer.Name).SemiBold();
-                    }
-                });
-
-                row.RelativeItem().AlignRight().Column(right =>
-                {
-                    right.Item().Text($"SO #: {_shipment.SalesOrder.OrderNumber}");
-                    if (_shipment.ShippedDate.HasValue)
-                        right.Item().Text($"Ship Date: {_shipment.ShippedDate.Value:MMM dd, yyyy}");
-                    if (!string.IsNullOrEmpty(_shipment.Carrier))
-                        right.Item().Text($"Carrier: {_shipment.Carrier}");
-                    if (!string.IsNullOrEmpty(_shipment.TrackingNumber))
-                        right.Item().Text($"Tracking: {_shipment.TrackingNumber}");
-                    if (_shipment.Weight.HasValue)
-                        right.Item().Text($"Weight: {_shipment.Weight.Value:F1} lbs");
-                });
-            });
-
-            col.Item().PaddingTop(10);
-        });
-    }
-
-    private void ComposeContent(IContainer container)
-    {
-        container.Column(col =>
-        {
-            col.Item().Table(table =>
-            {
-                table.ColumnsDefinition(cols =>
-                {
-                    cols.ConstantColumn(40);    // #
-                    cols.RelativeColumn(4);     // Description
-                    cols.ConstantColumn(80);    // Part #
-                    if (_customs is not null)
-                    {
-                        cols.ConstantColumn(75);
-                        cols.ConstantColumn(45);
-                    }
-                    cols.ConstantColumn(60);    // Qty
-                });
-
-                table.Header(header =>
-                {
-                    var headerStyle = TextStyle.Default.SemiBold().FontSize(9).FontColor(Colors.White);
-
-                    header.Cell().Background(Colors.Teal.Darken2).Padding(5).Text("#").Style(headerStyle);
-                    header.Cell().Background(Colors.Teal.Darken2).Padding(5).Text("Description").Style(headerStyle);
-                    header.Cell().Background(Colors.Teal.Darken2).Padding(5).Text("Part #").Style(headerStyle);
-                    if (_customs is not null)
-                    {
-                        header.Cell().Background(Colors.Teal.Darken2).Padding(5).Text("HTS Code").Style(headerStyle);
-                        header.Cell().Background(Colors.Teal.Darken2).Padding(5).Text("Origin").Style(headerStyle);
-                    }
-                    header.Cell().Background(Colors.Teal.Darken2).Padding(5).AlignRight().Text("Qty").Style(headerStyle);
-                });
-
-                var lines = _shipment.Lines.OrderBy(l => l.Id).ToList();
-                for (var i = 0; i < lines.Count; i++)
-                {
-                    var line = lines[i];
-                    var bg = i % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
-                    var description = line.SalesOrderLine?.Description ?? line.Part?.Description ?? "—";
-                    var partNumber = line.SalesOrderLine?.Part?.PartNumber ?? line.Part?.PartNumber ?? "—";
-                    var hazmatClass = ShipmentLineHazmat.ClassFor(line);
-
-                    table.Cell().Background(bg).Padding(5).Text((i + 1).ToString());
-                    table.Cell().Background(bg).Padding(5).Column(desc =>
-                    {
-                        desc.Item().Text(description);
-                        if (hazmatClass is not null)
-                            desc.Item().Text($"HAZMAT class {hazmatClass}").Bold().FontColor(Colors.Red.Darken2);
-                    });
-                    table.Cell().Background(bg).Padding(5).Text(partNumber);
-                    if (_customs is not null)
-                    {
-                        var customs = _customs.For(line);
-                        table.Cell().Background(bg).Padding(5).Text(ShipmentCustoms.Display(customs.HtsCode));
-                        table.Cell().Background(bg).Padding(5).Text(ShipmentCustoms.Display(customs.CountryOfOrigin));
-                    }
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.Quantity.ToString());
+                    var info = customs.For(line);
+                    customsCells = Html.Of($"<td>{ShipmentCustoms.Display(info.HtsCode)}</td><td>{ShipmentCustoms.Display(info.CountryOfOrigin)}</td>");
                 }
+
+                return Html.Of($"""
+                    <tr>
+                      <td>{i + 1}</td>
+                      <td><div>{description}</div>{(hazmatClass is null ? Html.Empty : Html.Of($"<div class=\"hazmat\">HAZMAT class {hazmatClass}</div>"))}</td>
+                      <td>{partNumber}</td>
+                      {customsCells}
+                      <td class="num">{line.Quantity}</td>
+                    </tr>
+                    """);
             });
 
-            if (_customs is not null)
-                col.Item().PaddingTop(6)
-                    .Text($"International shipment {_customs.ShipFromCountry} to {_customs.ShipToCountry}: HTS code and country of origin per line.")
-                    .FontSize(8).FontColor(Colors.Grey.Darken1);
+        var customsCols = customs is null ? Html.Empty : Html.Of($"<col style=\"width:75pt\"><col style=\"width:45pt\">");
+        var customsHeads = customs is null ? Html.Empty : Html.Of($"<th>HTS Code</th><th>Origin</th>");
 
-            col.Item().PaddingTop(20).Row(row =>
-            {
-                row.RelativeItem().Column(summary =>
-                {
-                    summary.Item().Text($"Total Items: {_shipment.Lines.Sum(l => l.Quantity)}").SemiBold();
-                    summary.Item().Text($"Total Lines: {_shipment.Lines.Count}").FontSize(9).FontColor(Colors.Grey.Darken1);
-                });
-            });
-
-            ComposeScanCodes(col);
-
-            if (!string.IsNullOrWhiteSpace(_shipment.Notes))
-            {
-                col.Item().PaddingTop(20).Column(notes =>
-                {
-                    notes.Item().Text("Notes").SemiBold().FontSize(9).FontColor(Colors.Grey.Darken1);
-                    notes.Item().PaddingTop(4).Text(_shipment.Notes);
-                });
-            }
-
-            col.Item().PaddingTop(40).Column(sig =>
-            {
-                sig.Item().Row(row =>
-                {
-                    row.RelativeItem().Column(left =>
-                    {
-                        left.Item().LineHorizontal(1).LineColor(Colors.Grey.Medium);
-                        left.Item().PaddingTop(4).Text("Received By").FontSize(9).FontColor(Colors.Grey.Darken1);
-                    });
-
-                    row.ConstantItem(40);
-
-                    row.RelativeItem().Column(right =>
-                    {
-                        right.Item().LineHorizontal(1).LineColor(Colors.Grey.Medium);
-                        right.Item().PaddingTop(4).Text("Date").FontSize(9).FontColor(Colors.Grey.Darken1);
-                    });
-                });
-            });
-        });
+        return Html.Of($"""
+            <table class="lines">
+              <colgroup><col style="width:40pt"><col><col style="width:80pt">{customsCols}<col style="width:60pt"></colgroup>
+              <thead><tr><th>#</th><th>Description</th><th>Part #</th>{customsHeads}<th class="num">Qty</th></tr></thead>
+              <tbody>{rows}</tbody>
+            </table>
+            """);
     }
 
-    // Per-sales-order QR codes — one per distinct SO covered by the shipment. Each encodes a scoped,
-    // coverage-bound code for that order's slice, so a mixed (multi-order) shipment can be scanned down
-    // to a single order. A single-order shipment renders exactly one. Grouped by the line's SO (the
-    // header SO today; future multi-order shipments fan out here automatically).
-    private void ComposeScanCodes(ColumnDescriptor col)
+    private static Html Summary(Shipment shipment, ShipmentCustoms? customs)
     {
-        var groups = _shipment.Lines
-            .GroupBy(l => l.SalesOrderLine?.SalesOrderId ?? _shipment.SalesOrderId)
+        var customsNote = customs is null
+            ? Html.Empty
+            : Html.Of($"<div class=\"customs-note\">International shipment {customs.ShipFromCountry} to {customs.ShipToCountry}: HTS code and country of origin per line.</div>");
+
+        return Html.Of($"""
+            {customsNote}
+            <div class="summary">
+              <div class="strong">Total Items: {shipment.Lines.Sum(l => l.Quantity)}</div>
+              <div class="lines-count">Total Lines: {shipment.Lines.Count}</div>
+            </div>
+            """);
+    }
+
+    private static Html ScanCodes(Shipment shipment)
+    {
+        var groups = shipment.Lines
+            .GroupBy(l => l.SalesOrderLine?.SalesOrderId ?? shipment.SalesOrderId)
             .OrderBy(g => g.Key)
             .ToList();
-        if (groups.Count == 0) return;
+        if (groups.Count == 0)
+            return Html.Empty;
 
-        col.Item().PaddingTop(16).Column(scan =>
+        var codes = groups.Select(group =>
         {
-            scan.Item().Text("Order scan codes").SemiBold().FontSize(9).FontColor(Colors.Grey.Darken1);
-            scan.Item().PaddingTop(4).Row(row =>
-            {
-                foreach (var group in groups)
-                {
-                    var label = group.Key == _shipment.SalesOrderId
-                        ? _shipment.SalesOrder.OrderNumber
-                        : $"SO #{group.Key}";
-                    var code = ShipmentScanCode.ComputeForScope(
-                        _shipment.ShipmentNumber, $"S{group.Key}", group);
-                    row.ConstantItem(90).Column(qr =>
-                    {
-                        qr.Item().Width(70).Image(QrCodeRenderer.Png(code));
-                        qr.Item().AlignCenter().Text(label).FontSize(7).FontColor(Colors.Grey.Darken1);
-                    });
-                }
-            });
+            var label = group.Key == shipment.SalesOrderId
+                ? shipment.SalesOrder.OrderNumber
+                : $"SO #{group.Key}";
+            var code = ShipmentScanCode.ComputeForScope(shipment.ShipmentNumber, $"S{group.Key}", group);
+            return Html.Of($"<div class=\"code\">{Html.Image(QrCodeRenderer.Png(code), cssClass: "qr")}<div class=\"qr-caption\">{label}</div></div>");
         });
+
+        return Html.Of($"""
+            <div class="scan-codes">
+              <div class="label">Order scan codes</div>
+              <div class="codes">{codes}</div>
+            </div>
+            """);
     }
 
-    private void ComposeFooter(IContainer container)
-    {
-        container.AlignCenter().Text(text =>
-        {
-            text.DefaultTextStyle(x => x.FontSize(8).FontColor(Colors.Grey.Medium));
-            text.Span("Page ");
-            text.CurrentPageNumber();
-            text.Span(" of ");
-            text.TotalPages();
-        });
-    }
+    private static Html Notes(Shipment shipment)
+        => string.IsNullOrWhiteSpace(shipment.Notes)
+            ? Html.Empty
+            : Html.Of($"<div class=\"notes\"><div class=\"label\">Notes</div><div class=\"body\">{shipment.Notes}</div></div>");
+
+    private static Html Signatures()
+        => Html.Of($"<div class=\"signatures\"><div class=\"line\">Received By</div><div class=\"line\">Date</div></div>");
 }

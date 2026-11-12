@@ -2,7 +2,6 @@ using System.Text;
 
 using AwesomeAssertions;
 using Moq;
-using QuestPDF.Infrastructure;
 
 using Forge.Api.Features.Shipments;
 using Forge.Core.Entities;
@@ -14,11 +13,6 @@ namespace Forge.Tests.Handlers.Shipments;
 
 public class ShipmentHazmatDocumentTests : IDisposable
 {
-    static ShipmentHazmatDocumentTests()
-    {
-        QuestPDF.Settings.License = LicenseType.Community;
-    }
-
     private readonly AppDbContext _db = TestDbContextFactory.Create();
 
     public void Dispose() => _db.Dispose();
@@ -64,12 +58,17 @@ public class ShipmentHazmatDocumentTests : IDisposable
         _db.ChangeTracker.Clear();
         var settings = new Mock<ISystemSettingRepository>();
 
-        var slip = await new GeneratePackingSlipPdfHandler(_db, settings.Object)
+        var renderer = new FakeHtmlPdfRenderer();
+
+        var slip = await new GeneratePackingSlipPdfHandler(_db, settings.Object, renderer)
             .Handle(new GeneratePackingSlipPdfQuery(shipment.Id), CancellationToken.None);
-        var bol = await new GenerateBillOfLadingPdfHandler(_db, settings.Object)
+        var bol = await new GenerateBillOfLadingPdfHandler(_db, settings.Object, renderer)
             .Handle(new GenerateBillOfLadingPdfQuery(shipment.Id), CancellationToken.None);
 
         Encoding.ASCII.GetString(slip, 0, 4).Should().Be("%PDF");
         Encoding.ASCII.GetString(bol, 0, 4).Should().Be("%PDF");
+        renderer.Documents.Should().HaveCount(2);
+        renderer.Documents[0].Html.Should().Contain("HAZMAT class 3");
+        renderer.Documents[1].Html.Should().Contain("CONTAINS HAZARDOUS MATERIALS").And.Contain("HAZMAT class 3");
     }
 }

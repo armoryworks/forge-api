@@ -2,8 +2,6 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
-using QuestPDF.Fluent;
-
 using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -14,7 +12,8 @@ public record GeneratePackingSlipPdfQuery(int Id) : IRequest<byte[]>;
 
 public class GeneratePackingSlipPdfHandler(
     AppDbContext db,
-    ISystemSettingRepository settings) : IRequestHandler<GeneratePackingSlipPdfQuery, byte[]>
+    ISystemSettingRepository settings,
+    IHtmlPdfRenderer renderer) : IRequestHandler<GeneratePackingSlipPdfQuery, byte[]>
 {
     public async Task<byte[]> Handle(GeneratePackingSlipPdfQuery request, CancellationToken ct)
     {
@@ -34,7 +33,6 @@ public class GeneratePackingSlipPdfHandler(
 
         var customs = await ShipmentCustoms.LoadAsync(db, shipment, ct);
 
-        var document = new PackingSlipPdfDocument(shipment, companyName, customs);
-        return document.GeneratePdf();
+        return await renderer.RenderAsync(PackingSlipPdfDocument.Build(shipment, companyName, customs), ct);
     }
 }
