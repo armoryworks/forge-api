@@ -1,7 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 
-using QuestPDF.Fluent;
-
 using Forge.Api.Features.Documents;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -12,7 +10,8 @@ namespace Forge.Api.Features.Shipments;
 /// Builds the wrapped ship-document PDF for a shipment and the set of entities it should be linked to
 /// (Shipment, Sales Order, Job(s), Invoice). Shared by the get + regenerate handlers.
 /// </summary>
-public class ShipDocumentComposer(AppDbContext db, IStorageService storage, ISystemSettingRepository settings)
+public class ShipDocumentComposer(
+    AppDbContext db, IStorageService storage, ISystemSettingRepository settings, IHtmlPdfRenderer renderer)
 {
     public const string Kind = "ship-label";
 
@@ -63,8 +62,9 @@ public class ShipDocumentComposer(AppDbContext db, IStorageService storage, ISys
         var companyPhone = (await settings.FindByKeyAsync("company_phone", ct))?.Value;
 
         var customs = await ShipmentCustoms.LoadAsync(db, shipment, ct);
-        var pdf = new ShipDocumentPdfDocument(
-            shipment, labelPng, companyName, companyAddress, companyPhone, CarrierBadge.For(carrierKey), customs).GeneratePdf();
+        var pdf = await renderer.RenderAsync(
+            ShipDocumentPdfDocument.Build(
+                shipment, labelPng, companyName, companyAddress, companyPhone, CarrierBadge.For(carrierKey), customs), ct);
 
         // Link the document to the shipment + its sales order + any jobs + the invoice (when present).
         var links = new List<DocumentLinkTarget> { new("SalesOrder", shipment.SalesOrderId) };

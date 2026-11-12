@@ -36,7 +36,7 @@ SELECT setval(pg_get_serial_sequence('currencies', 'id'), (SELECT max(id) FROM c
     private sealed record Seeded(int PartId, int OtherPartId, int ParentId, int ChildId, int OutsideId, int ChildBinId, int OutsideBinId);
 
     private static PhysicalInventoryService Service(AppDbContext db)
-        => new(db, InventoryLedgerTestBook.AdjustmentPosting(db), new SystemClock());
+        => new(db, InventoryLedgerTestBook.AdjustmentPosting(db), new SystemClock(), new FakeHtmlPdfRenderer());
 
     private static Task ResetAsync(AppDbContext db)
         => db.Database.ExecuteSqlRawAsync(@"

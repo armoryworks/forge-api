@@ -3,7 +3,6 @@ using System.Text;
 using AwesomeAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using QuestPDF.Infrastructure;
 using SkiaSharp;
 
 using Forge.Api.Features.Shipments;
@@ -20,13 +19,9 @@ namespace Forge.Tests.Handlers.Shipments;
 
 public class ShippingLabelImageTests : IDisposable
 {
-    static ShippingLabelImageTests()
-    {
-        QuestPDF.Settings.License = LicenseType.Community;
-    }
-
     private readonly AppDbContext _db = TestDbContextFactory.Create();
     private readonly MockStorageService _storage = new(NullLogger<MockStorageService>.Instance);
+    private readonly FakeHtmlPdfRenderer _renderer = new();
 
     public void Dispose() => _db.Dispose();
 
@@ -70,7 +65,7 @@ public class ShippingLabelImageTests : IDisposable
     private ShipDocumentComposer Composer()
     {
         var settings = new Mock<ISystemSettingRepository>();
-        return new ShipDocumentComposer(_db, _storage, settings.Object);
+        return new ShipDocumentComposer(_db, _storage, settings.Object, _renderer);
     }
 
     [Fact]
@@ -96,6 +91,8 @@ public class ShippingLabelImageTests : IDisposable
         var composed = await Composer().ComposeAsync(shipment.Id, CancellationToken.None);
 
         Encoding.ASCII.GetString(composed.Pdf, 0, 4).Should().Be("%PDF");
+        _renderer.Documents.Should().ContainSingle().Which.Html
+            .Should().Contain("src=\"data:image/png;base64,").And.Contain("SH-0001").And.Contain("UPS");
     }
 
     [Fact]

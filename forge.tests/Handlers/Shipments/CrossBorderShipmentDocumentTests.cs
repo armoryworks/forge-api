@@ -1,8 +1,5 @@
 using AwesomeAssertions;
 using Moq;
-using QuestPDF.Fluent;
-using QuestPDF.Infrastructure;
-using UglyToad.PdfPig;
 
 using Forge.Api.Features.Shipments;
 using Forge.Api.Services;
@@ -16,11 +13,6 @@ namespace Forge.Tests.Handlers.Shipments;
 
 public class CrossBorderShipmentDocumentTests : IDisposable
 {
-    static CrossBorderShipmentDocumentTests()
-    {
-        QuestPDF.Settings.License = LicenseType.Community;
-    }
-
     private readonly AppDbContext _db = TestDbContextFactory.Create();
     private readonly ISystemSettingRepository _settings = Mock.Of<ISystemSettingRepository>();
 
@@ -66,10 +58,18 @@ public class CrossBorderShipmentDocumentTests : IDisposable
         return shipment.Id;
     }
 
-    private static string Text(byte[] pdf)
+    private async Task<string> PackingSlipAsync(int id)
     {
-        using var document = PdfDocument.Open(pdf);
-        return string.Join(" ", document.GetPages().SelectMany(p => p.GetWords()).Select(w => w.Text));
+        var renderer = new FakeHtmlPdfRenderer();
+        await new GeneratePackingSlipPdfHandler(_db, _settings, renderer).Handle(new GeneratePackingSlipPdfQuery(id), default);
+        return renderer.Documents.Should().ContainSingle().Subject.Html;
+    }
+
+    private async Task<string> BillOfLadingAsync(int id)
+    {
+        var renderer = new FakeHtmlPdfRenderer();
+        await new GenerateBillOfLadingPdfHandler(_db, _settings, renderer).Handle(new GenerateBillOfLadingPdfQuery(id), default);
+        return renderer.Documents.Should().ContainSingle().Subject.Html;
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public class CrossBorderShipmentDocumentTests : IDisposable
     {
         var id = await SeedShipmentAsync("CA");
 
-        var text = Text(await new GeneratePackingSlipPdfHandler(_db, _settings).Handle(new GeneratePackingSlipPdfQuery(id), default));
+        var text = await PackingSlipAsync(id);
 
         text.Should().Contain("8481.90.9040").And.Contain("4016.93.5020").And.Contain("CN").And.Contain("Origin");
     }
@@ -87,7 +87,7 @@ public class CrossBorderShipmentDocumentTests : IDisposable
     {
         var id = await SeedShipmentAsync("Canada");
 
-        var text = Text(await new GenerateBillOfLadingPdfHandler(_db, _settings).Handle(new GenerateBillOfLadingPdfQuery(id), default));
+        var text = await BillOfLadingAsync(id);
 
         text.Should().Contain("8481.90.9040").And.Contain("4016.93.5020").And.Contain("INTERNATIONAL");
     }
@@ -104,13 +104,13 @@ public class CrossBorderShipmentDocumentTests : IDisposable
             _db.Entry(line).Reference(l => l.Part).Load();
         var customs = await ShipmentCustoms.LoadAsync(_db, shipment, default);
 
-        var pdf = new ShipDocumentPdfDocument(
-            shipment, QrCodeRenderer.Png("label"), "Plant", null, null, CarrierBadge.For("ups"), customs).GeneratePdf();
+        var html = ShipDocumentPdfDocument.Build(
+            shipment, QrCodeRenderer.Png("label"), "Plant", null, null, CarrierBadge.For("ups"), customs).Html;
 
         customs.Should().NotBeNull();
         customs!.ShipFromCountry.Should().Be("US");
         customs.ShipToCountry.Should().Be("CA");
-        Text(pdf).Should().Contain("8481.90.9040").And.Contain("4016.93.5020").And.Contain("SP-KIT-01");
+        html.Should().Contain("8481.90.9040").And.Contain("4016.93.5020").And.Contain("SP-KIT-01");
     }
 
     [Fact]
@@ -118,8 +118,8 @@ public class CrossBorderShipmentDocumentTests : IDisposable
     {
         var id = await SeedShipmentAsync("USA");
 
-        var slip = Text(await new GeneratePackingSlipPdfHandler(_db, _settings).Handle(new GeneratePackingSlipPdfQuery(id), default));
-        var bol = Text(await new GenerateBillOfLadingPdfHandler(_db, _settings).Handle(new GenerateBillOfLadingPdfQuery(id), default));
+        var slip = await PackingSlipAsync(id);
+        var bol = await BillOfLadingAsync(id);
 
         slip.Should().NotContain("8481.90.9040");
         bol.Should().NotContain("8481.90.9040").And.NotContain("INTERNATIONAL");

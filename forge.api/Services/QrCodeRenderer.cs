@@ -5,8 +5,8 @@ namespace Forge.Api.Services;
 /// <summary>
 /// Renders a QR code to PNG bytes for embedding in server-generated PDFs (packing slips, labels).
 /// Uses QRCoder's <see cref="PngByteQRCode"/> — pure managed code with no System.Drawing / libgdiplus
-/// dependency, so it works in the Linux API container. The bytes drop straight into QuestPDF's
-/// <c>.Image(byte[])</c>.
+/// dependency, so it works in the Linux API container. A printed document embeds the bytes with
+/// <see cref="Pdf.Html.Image"/>.
 /// </summary>
 public static class QrCodeRenderer
 {
