@@ -1,26 +1,38 @@
-using System.Globalization;
-
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
-
-using Forge.Api.Services;
+using Forge.Api.Services.Pdf;
 using Forge.Core.Entities;
+using Forge.Core.Models;
 
 namespace Forge.Api.Features.Purchasing;
 
-public class RfqPdfDocument : IDocument
+public static class RfqPdfDocument
 {
-    private static readonly CultureInfo Format = CultureInfo.InvariantCulture;
+    private const string Styles = """
+        @page { margin: 36pt 40pt 50pt; }
+        .issuer { padding-right: 20pt; }
+        .issuer .name { font-size: 16pt; font-weight: 700; }
+        .doc { width: 220pt; flex-shrink: 0; text-align: right; }
+        .doc .title { font-size: 18pt; font-weight: 700; line-height: 1.1; }
+        .doc .number { font-size: 12pt; font-weight: 700; }
+        .heavy-rule { border: 0; border-top: 1.5pt solid #000; margin: 8pt 0; }
+        .box { width: 260pt; border: 0.75pt solid #000; padding: 6pt; margin-bottom: 10pt; }
+        .box .caption { font-size: 8pt; font-weight: 600; }
+        .box .name { font-weight: 700; }
+        .box .gap { padding-top: 3pt; }
+        .after-head { margin-top: 10pt; }
+        table.grid { width: 100%; border-collapse: collapse; font-size: 8pt; }
+        table.grid thead { display: table-header-group; }
+        table.grid tr { break-inside: avoid; }
+        table.grid th { background: #eeeeee; border-bottom: 1pt solid #000; padding: 4pt 3pt; font-weight: 600; text-align: left; }
+        table.grid td { border-bottom: 0.5pt solid #9e9e9e; padding: 4pt 3pt; vertical-align: top; }
+        table.grid .num { text-align: right; white-space: nowrap; }
+        .block { font-size: 9pt; break-inside: avoid; }
+        .block .heading { font-weight: 600; }
+        .section { margin-top: 12pt; }
+        .section .body { padding-top: 2pt; white-space: pre-wrap; }
+        .response { margin-top: 16pt; }
+        """;
 
-    private readonly RequestForQuote _rfq;
-    private readonly Vendor? _vendor;
-    private readonly string? _companyName;
-    private readonly string? _companyPhone;
-    private readonly string? _companyEmail;
-    private readonly CompanyLocation? _location;
-
-    public RfqPdfDocument(
+    public static HtmlPdfDocument Build(
         RequestForQuote rfq,
         Vendor? vendor,
         string? companyName,
@@ -28,192 +40,114 @@ public class RfqPdfDocument : IDocument
         string? companyEmail,
         CompanyLocation? location)
     {
-        _rfq = rfq;
-        _vendor = vendor;
-        _companyName = companyName;
-        _companyPhone = companyPhone;
-        _companyEmail = companyEmail;
-        _location = location;
+        var body = Html.Of($"""
+            {Header(rfq, vendor, companyName, companyPhone, companyEmail, location)}
+            {VendorBlock(vendor)}
+            {Lines(rfq)}
+            {Section("Description", rfq.Description)}
+            {Section("Special Instructions", rfq.SpecialInstructions)}
+            {Response(rfq)}
+            """);
+        return PdfHtml.Document($"Request for Quote {rfq.RfqNumber}", body, rfq.RfqNumber, styles: Styles);
     }
 
-    public Vendor? AddressedTo => _vendor;
+    private static string LineDescription(RequestForQuote rfq) =>
+        string.IsNullOrWhiteSpace(rfq.Part.Description) ? rfq.Part.Name : rfq.Part.Description;
 
-    public string LineDescription =>
-        string.IsNullOrWhiteSpace(_rfq.Part.Description) ? _rfq.Part.Name : _rfq.Part.Description;
+    private static string Uom(RequestForQuote rfq) => rfq.Part.StockUom?.Code ?? string.Empty;
 
-    public string Uom => _rfq.Part.StockUom?.Code ?? string.Empty;
-
-    public DocumentMetadata GetMetadata() => new()
+    private static Html Header(
+        RequestForQuote rfq, Vendor? vendor, string? companyName, string? companyPhone, string? companyEmail, CompanyLocation? location)
     {
-        Title = $"Request for Quote {_rfq.RfqNumber}",
-        Author = _companyName ?? string.Empty,
-    };
+        var phone = string.IsNullOrWhiteSpace(companyPhone) ? location?.Phone : companyPhone;
+        var address = location is null
+            ? Html.Empty
+            : Html.Of($"""
+                <div class="small">{location.Line1}</div>
+                {Small(location.Line2)}
+                <div class="small">{CityLine(location.City, location.State, location.PostalCode)}</div>
+                """);
+        var issued = rfq.SentAt ?? rfq.CreatedAt;
 
-    public void Compose(IDocumentContainer container)
-    {
-        container.Page(page =>
-        {
-            page.Size(PageSizes.Letter);
-            page.MarginHorizontal(40);
-            page.MarginVertical(36);
-            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10).FontColor(Colors.Black));
-
-            page.Header().Element(ComposeHeader);
-            page.Content().Element(ComposeContent);
-            page.Footer().Element(ComposeFooter);
-        });
+        return Html.Of($"""
+            <div class="head">
+              <div class="issuer">
+                {(string.IsNullOrWhiteSpace(companyName) ? Html.Empty : Html.Of($"<div class=\"name\">{companyName}</div>"))}
+                {address}
+                {(string.IsNullOrWhiteSpace(phone) ? Html.Empty : Html.Of($"<div class=\"small\">Phone: {phone}</div>"))}
+                {(string.IsNullOrWhiteSpace(companyEmail) ? Html.Empty : Html.Of($"<div class=\"small\">Email: {companyEmail}</div>"))}
+              </div>
+              <div class="doc">
+                <div class="title">REQUEST FOR QUOTE</div>
+                <div class="number">RFQ #: {rfq.RfqNumber}</div>
+                <div>Date: {issued:MM/dd/yyyy}</div>
+                {(rfq.ResponseDeadline.HasValue ? Html.Of($"<div class=\"strong\">Response Due: {rfq.ResponseDeadline.Value:MM/dd/yyyy}</div>") : Html.Empty)}
+                <div>Required By: {rfq.RequiredDate:MM/dd/yyyy}</div>
+                {(string.IsNullOrWhiteSpace(vendor?.VendorNumber) ? Html.Empty : Html.Of($"<div>Vendor #: {vendor.VendorNumber}</div>"))}
+              </div>
+            </div>
+            <hr class="heavy-rule">
+            """);
     }
 
-    private void ComposeHeader(IContainer container)
+    private static Html VendorBlock(Vendor? vendor)
     {
-        container.Column(col =>
-        {
-            col.Item().Row(row =>
-            {
-                row.RelativeItem().Column(left =>
-                {
-                    if (!string.IsNullOrWhiteSpace(_companyName))
-                        left.Item().Text(_companyName).Bold().FontSize(16);
-                    if (_location is not null)
-                    {
-                        left.Item().Text(_location.Line1).FontSize(9);
-                        if (!string.IsNullOrWhiteSpace(_location.Line2))
-                            left.Item().Text(_location.Line2).FontSize(9);
-                        left.Item().Text(CityLine(_location.City, _location.State, _location.PostalCode)).FontSize(9);
-                    }
-                    var phone = string.IsNullOrWhiteSpace(_companyPhone) ? _location?.Phone : _companyPhone;
-                    if (!string.IsNullOrWhiteSpace(phone))
-                        left.Item().Text($"Phone: {phone}").FontSize(9);
-                    if (!string.IsNullOrWhiteSpace(_companyEmail))
-                        left.Item().Text($"Email: {_companyEmail}").FontSize(9);
-                });
+        if (vendor is null)
+            return Html.Of($"<div class=\"after-head\"></div>");
 
-                row.ConstantItem(220).AlignRight().Column(right =>
-                {
-                    right.Item().AlignRight().Text("REQUEST FOR QUOTE").Bold().FontSize(18);
-                    right.Item().AlignRight().Text($"RFQ #: {_rfq.RfqNumber}").Bold().FontSize(12);
-                    var issued = _rfq.SentAt ?? _rfq.CreatedAt;
-                    right.Item().AlignRight().Text($"Date: {issued.ToString("MM/dd/yyyy", Format)}");
-                    if (_rfq.ResponseDeadline.HasValue)
-                        right.Item().AlignRight().Text(
-                            $"Response Due: {_rfq.ResponseDeadline.Value.ToString("MM/dd/yyyy", Format)}").SemiBold();
-                    right.Item().AlignRight().Text($"Required By: {_rfq.RequiredDate.ToString("MM/dd/yyyy", Format)}");
-                    if (!string.IsNullOrWhiteSpace(_vendor?.VendorNumber))
-                        right.Item().AlignRight().Text($"Vendor #: {_vendor.VendorNumber}");
-                });
-            });
-
-            col.Item().PaddingTop(8).LineHorizontal(1.5f).LineColor(Colors.Black);
-
-            if (_vendor is not null)
-                col.Item().PaddingTop(8).Width(260).Element(ComposeVendorBlock);
-
-            col.Item().PaddingTop(10);
-        });
+        return Html.Of($"""
+            <div class="box">
+              <div class="caption">TO</div>
+              <div class="name">{vendor.CompanyName}</div>
+              {Small(vendor.Address)}
+              {Small(CityLine(vendor.City, vendor.State, vendor.ZipCode))}
+              {Small(vendor.Country)}
+              {(string.IsNullOrWhiteSpace(vendor.ContactName) ? Html.Empty : Html.Of($"<div class=\"small gap\">Attn: {vendor.ContactName}</div>"))}
+              {(string.IsNullOrWhiteSpace(vendor.Phone) ? Html.Empty : Html.Of($"<div class=\"small\">Phone: {vendor.Phone}</div>"))}
+              {(string.IsNullOrWhiteSpace(vendor.Email) ? Html.Empty : Html.Of($"<div class=\"small\">Email: {vendor.Email}</div>"))}
+            </div>
+            """);
     }
 
-    private void ComposeVendorBlock(IContainer container)
+    private static Html Lines(RequestForQuote rfq) => Html.Of($"""
+        <table class="grid">
+          <colgroup><col style="width:18pt"><col style="width:90pt"><col><col style="width:60pt"><col style="width:44pt"></colgroup>
+          <thead><tr><th>#</th><th>Part #</th><th>Description</th><th class="num">Qty</th><th>UOM</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>{rfq.Part.PartNumber}</td>
+              <td>{LineDescription(rfq)}</td>
+              <td class="num">{rfq.Quantity:#,##0.####}</td>
+              <td>{Uom(rfq)}</td>
+            </tr>
+          </tbody>
+        </table>
+        """);
+
+    private static Html Section(string title, string? body)
+        => string.IsNullOrWhiteSpace(body)
+            ? Html.Empty
+            : Html.Of($"<div class=\"block section\"><div class=\"heading\">{title}</div><div class=\"body\">{body}</div></div>");
+
+    private static Html Response(RequestForQuote rfq)
     {
-        var vendor = _vendor!;
-        container.Border(0.75f).BorderColor(Colors.Black).Padding(6).Column(block =>
-        {
-            block.Item().Text("TO").SemiBold().FontSize(8);
-            block.Item().Text(vendor.CompanyName).Bold();
-            if (!string.IsNullOrWhiteSpace(vendor.Address))
-                block.Item().Text(vendor.Address).FontSize(9);
-            var cityLine = CityLine(vendor.City, vendor.State, vendor.ZipCode);
-            if (!string.IsNullOrWhiteSpace(cityLine))
-                block.Item().Text(cityLine).FontSize(9);
-            if (!string.IsNullOrWhiteSpace(vendor.Country))
-                block.Item().Text(vendor.Country).FontSize(9);
-            if (!string.IsNullOrWhiteSpace(vendor.ContactName))
-                block.Item().PaddingTop(3).Text($"Attn: {vendor.ContactName}").FontSize(9);
-            if (!string.IsNullOrWhiteSpace(vendor.Phone))
-                block.Item().Text($"Phone: {vendor.Phone}").FontSize(9);
-            if (!string.IsNullOrWhiteSpace(vendor.Email))
-                block.Item().Text($"Email: {vendor.Email}").FontSize(9);
-        });
+        var due = rfq.ResponseDeadline.HasValue
+            ? Html.Of($"<div>Responses are due by {rfq.ResponseDeadline.Value:MM/dd/yyyy}.</div>")
+            : Html.Empty;
+
+        return Html.Of($"""
+            <div class="block response">
+              <div class="heading">Response</div>
+              <div>Please quote unit price, lead time, minimum order quantity and any tooling cost.</div>
+              {due}
+              <div>Please reference RFQ {rfq.RfqNumber} on your quotation.</div>
+            </div>
+            """);
     }
 
-    private void ComposeContent(IContainer container)
-    {
-        container.Column(col =>
-        {
-            col.Item().Table(table =>
-            {
-                table.ColumnsDefinition(cols =>
-                {
-                    cols.ConstantColumn(18);
-                    cols.ConstantColumn(90);
-                    cols.RelativeColumn();
-                    cols.ConstantColumn(60);
-                    cols.ConstantColumn(44);
-                });
-
-                table.Header(header =>
-                {
-                    HeaderCell(header.Cell(), "#");
-                    HeaderCell(header.Cell(), "Part #");
-                    HeaderCell(header.Cell(), "Description");
-                    HeaderCell(header.Cell().AlignRight(), "Qty");
-                    HeaderCell(header.Cell(), "UOM");
-                });
-
-                BodyCell(table.Cell()).Text("1");
-                BodyCell(table.Cell()).Text(_rfq.Part.PartNumber);
-                BodyCell(table.Cell()).Text(LineDescription);
-                BodyCell(table.Cell()).AlignRight().Text(_rfq.Quantity.ToString("#,##0.####", Format));
-                BodyCell(table.Cell()).Text(Uom);
-            });
-
-            if (!string.IsNullOrWhiteSpace(_rfq.Description))
-                Section(col, "Description", _rfq.Description);
-
-            if (!string.IsNullOrWhiteSpace(_rfq.SpecialInstructions))
-                Section(col, "Special Instructions", _rfq.SpecialInstructions);
-
-            col.Item().PaddingTop(16).Column(terms =>
-            {
-                terms.Item().Text("Response").SemiBold().FontSize(9);
-                terms.Item().Text("Please quote unit price, lead time, minimum order quantity and any tooling cost.").FontSize(9);
-                if (_rfq.ResponseDeadline.HasValue)
-                    terms.Item().Text(
-                        $"Responses are due by {_rfq.ResponseDeadline.Value.ToString("MM/dd/yyyy", Format)}.").FontSize(9);
-                terms.Item().Text($"Please reference RFQ {_rfq.RfqNumber} on your quotation.").FontSize(9);
-            });
-        });
-    }
-
-    private static void Section(ColumnDescriptor col, string title, string body)
-    {
-        col.Item().PaddingTop(12).Column(section =>
-        {
-            section.Item().Text(title).SemiBold().FontSize(9);
-            section.Item().PaddingTop(2).Text(body).FontSize(9);
-        });
-    }
-
-    private void ComposeFooter(IContainer container)
-    {
-        container.AlignCenter().Text(text =>
-        {
-            text.DefaultTextStyle(x => x.FontSize(8));
-            text.Span($"RFQ {_rfq.RfqNumber}  -  Page ");
-            text.CurrentPageNumber();
-            text.Span(" of ");
-            text.TotalPages();
-        });
-    }
-
-    private static void HeaderCell(IContainer cell, string label) =>
-        cell.BorderBottom(1).BorderColor(Colors.Black).Background(Colors.Grey.Lighten3)
-            .PaddingVertical(4).PaddingHorizontal(3)
-            .Text(label).SemiBold().FontSize(8);
-
-    private static IContainer BodyCell(IContainer cell) =>
-        cell.BorderBottom(0.5f).BorderColor(Colors.Grey.Medium)
-            .PaddingVertical(4).PaddingHorizontal(3)
-            .DefaultTextStyle(x => x.FontSize(8));
+    private static Html Small(string? text)
+        => string.IsNullOrWhiteSpace(text) ? Html.Empty : Html.Of($"<div class=\"small\">{text}</div>");
 
     private static string CityLine(string? city, string? state, string? postalCode)
     {
