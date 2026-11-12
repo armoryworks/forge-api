@@ -16,7 +16,7 @@ RUN dotnet publish forge.api/forge.api.csproj -c Release -o /app/publish \
     /p:UseAppHost=false
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS runtime
 
 # Install Chromium (PuppeteerSharp fallback) + ffmpeg (AI video muxing).
 # wget is required by the HEALTHCHECK below — the aspnet base image doesn't
