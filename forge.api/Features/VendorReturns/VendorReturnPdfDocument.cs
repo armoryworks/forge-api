@@ -1,151 +1,97 @@
 using System.Globalization;
 
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
-
 using Forge.Api.Features.VendorCredits;
 using Forge.Api.Services;
+using Forge.Api.Services.Pdf;
 using Forge.Core.Entities;
+using Forge.Core.Models;
 
 namespace Forge.Api.Features.VendorReturns;
 
 /// <summary>The return-to-vendor packing document: what goes back, from which lot and bin, and the credit expected.</summary>
-public class VendorReturnPdfDocument(
-    VendorReturn rtv, string? companyName, MoneyFormatter money, VendorDocumentPdfLabels labels) : IDocument
+public static class VendorReturnPdfDocument
 {
-    public void Compose(IDocumentContainer container)
-    {
-        container.Page(page =>
-        {
-            page.Size(PageSizes.Letter);
-            page.MarginHorizontal(50);
-            page.MarginVertical(40);
-            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10));
+    private const string Styles = """
+        .head .title { font-size: 20pt; }
+        .totals.expected { width: 240pt; }
+        .totals.expected .row { font-weight: 700; }
+        .signatures { break-inside: avoid; }
+        .signatures .packed { margin-top: 40pt; }
+        .signatures .received { margin-top: 20pt; }
+        """;
 
-            page.Header().Element(ComposeHeader);
-            page.Content().Element(ComposeContent);
-            page.Footer().AlignCenter().Text(text =>
-            {
-                text.DefaultTextStyle(x => x.FontSize(8).FontColor(Colors.Grey.Medium));
-                text.Span($"{labels["page"]} ");
-                text.CurrentPageNumber();
-                text.Span($" {labels["of"]} ");
-                text.TotalPages();
-            });
-        });
+    public static HtmlPdfDocument Build(VendorReturn rtv, string? companyName, MoneyFormatter money, VendorDocumentPdfLabels labels)
+    {
+        var body = Html.Of($"{Header(rtv, companyName, labels)}{Lines(rtv, money, labels)}{ExpectedCredit(rtv, money, labels)}{Notes(rtv, labels)}{Signatures(labels)}");
+        return PdfHtml.Document($"{labels["rtv"]} {rtv.ReturnNumber}", body, rtv.ReturnNumber, styles: Styles);
     }
 
-    private void ComposeHeader(IContainer container)
+    private static Html Header(VendorReturn rtv, string? companyName, VendorDocumentPdfLabels labels)
     {
-        container.Column(col =>
-        {
-            col.Item().Row(row =>
-            {
-                row.RelativeItem().Column(left =>
-                {
-                    if (companyName is not null)
-                        left.Item().Text(companyName).Bold().FontSize(18);
-                });
-                row.RelativeItem().AlignRight().Column(right =>
-                {
-                    right.Item().Text(labels["rtv"]).Bold().FontSize(20).FontColor(Colors.Blue.Darken2);
-                    right.Item().Text(rtv.ReturnNumber).FontSize(12);
-                });
-            });
+        var shipDate = rtv.ShipDate is { } date
+            ? Html.Of($"<div>{labels["shipDate"]} {date.ToString(labels.DateFormat, CultureInfo.InvariantCulture)}</div>")
+            : Html.Empty;
 
-            col.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
-
-            col.Item().PaddingTop(10).Row(row =>
-            {
-                row.RelativeItem().Column(left =>
-                {
-                    left.Item().Text(labels["shipTo"]).SemiBold().FontSize(9).FontColor(Colors.Grey.Darken1);
-                    left.Item().Text(rtv.Vendor.CompanyName).SemiBold();
-                    if (!string.IsNullOrWhiteSpace(rtv.Vendor.Address))
-                        left.Item().Text(rtv.Vendor.Address).FontSize(9);
-                });
-                row.RelativeItem().AlignRight().Column(right =>
-                {
-                    if (rtv.NonConformance is not null)
-                        right.Item().Text($"{labels["ncr"]} {rtv.NonConformance.NcrNumber}");
-                    if (rtv.PurchaseOrder is not null)
-                        right.Item().Text($"{labels["po"]} {rtv.PurchaseOrder.PONumber}");
-                    if (!string.IsNullOrWhiteSpace(rtv.RmaNumber))
-                        right.Item().Text($"{labels["rma"]} {rtv.RmaNumber}");
-                    if (rtv.ShipDate is { } shipDate)
-                        right.Item().Text($"{labels["shipDate"]} {shipDate.ToString(labels.DateFormat, CultureInfo.InvariantCulture)}");
-                    if (!string.IsNullOrWhiteSpace(rtv.Carrier))
-                        right.Item().Text($"{labels["carrier"]} {rtv.Carrier}");
-                    if (!string.IsNullOrWhiteSpace(rtv.TrackingNumber))
-                        right.Item().Text($"{labels["tracking"]} {rtv.TrackingNumber}");
-                });
-            });
-
-            col.Item().PaddingTop(10);
-        });
+        return Html.Of($"""
+            <div class="head">
+              <div class="company">{companyName}</div>
+              <div class="right"><div class="title">{labels["rtv"]}</div><div class="number">{rtv.ReturnNumber}</div></div>
+            </div>
+            <hr class="rule">
+            <div class="parties">
+              <div>
+                <div class="label">{labels["shipTo"]}</div>
+                <div class="strong">{rtv.Vendor.CompanyName}</div>
+                {(string.IsNullOrWhiteSpace(rtv.Vendor.Address) ? Html.Empty : Html.Of($"<div class=\"small\">{rtv.Vendor.Address}</div>"))}
+              </div>
+              <div class="right">
+                {(rtv.NonConformance is null ? Html.Empty : Html.Of($"<div>{labels["ncr"]} {rtv.NonConformance.NcrNumber}</div>"))}
+                {(rtv.PurchaseOrder is null ? Html.Empty : Html.Of($"<div>{labels["po"]} {rtv.PurchaseOrder.PONumber}</div>"))}
+                {(string.IsNullOrWhiteSpace(rtv.RmaNumber) ? Html.Empty : Html.Of($"<div>{labels["rma"]} {rtv.RmaNumber}</div>"))}
+                {shipDate}
+                {(string.IsNullOrWhiteSpace(rtv.Carrier) ? Html.Empty : Html.Of($"<div>{labels["carrier"]} {rtv.Carrier}</div>"))}
+                {(string.IsNullOrWhiteSpace(rtv.TrackingNumber) ? Html.Empty : Html.Of($"<div>{labels["tracking"]} {rtv.TrackingNumber}</div>"))}
+              </div>
+            </div>
+            """);
     }
 
-    private void ComposeContent(IContainer container)
+    private static Html Lines(VendorReturn rtv, MoneyFormatter money, VendorDocumentPdfLabels labels)
     {
-        container.Column(col =>
-        {
-            col.Item().Table(table =>
-            {
-                table.ColumnsDefinition(cols =>
-                {
-                    cols.ConstantColumn(30);
-                    cols.RelativeColumn(2);
-                    cols.RelativeColumn(1);
-                    cols.RelativeColumn(1);
-                    cols.ConstantColumn(55);
-                    cols.ConstantColumn(75);
-                });
+        var rows = rtv.Lines
+            .OrderBy(l => l.LineNumber)
+            .Select(line => Html.Of($"""
+                <tr>
+                  <td>{line.LineNumber}</td>
+                  <td>{(line.Part.Description is { Length: > 0 } d ? $"{line.Part.PartNumber} — {d}" : line.Part.PartNumber)}</td>
+                  <td>{line.LotNumber ?? string.Empty}</td>
+                  <td>{line.Location?.Name ?? string.Empty}</td>
+                  <td class="num">{MoneyFormat.Quantity(line.Quantity)}</td>
+                  <td class="num">{money.Format(line.UnitPrice)}</td>
+                </tr>
+                """));
 
-                table.Header(header =>
-                {
-                    var headerStyle = TextStyle.Default.SemiBold().FontSize(9).FontColor(Colors.White);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text(labels["number"]).Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text(labels["part"]).Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text(labels["lot"]).Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).Text(labels["location"]).Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).AlignRight().Text(labels["qty"]).Style(headerStyle);
-                    header.Cell().Background(Colors.Blue.Darken2).Padding(5).AlignRight().Text(labels["unitPrice"]).Style(headerStyle);
-                });
-
-                var lines = rtv.Lines.OrderBy(l => l.LineNumber).ToList();
-                for (var i = 0; i < lines.Count; i++)
-                {
-                    var line = lines[i];
-                    var bg = i % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
-                    table.Cell().Background(bg).Padding(5).Text(line.LineNumber.ToString(CultureInfo.InvariantCulture));
-                    table.Cell().Background(bg).Padding(5).Text(line.Part.Description is { Length: > 0 } d
-                        ? $"{line.Part.PartNumber} — {d}"
-                        : line.Part.PartNumber);
-                    table.Cell().Background(bg).Padding(5).Text(line.LotNumber ?? string.Empty);
-                    table.Cell().Background(bg).Padding(5).Text(line.Location?.Name ?? string.Empty);
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(MoneyFormat.Quantity(line.Quantity));
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(money.Format(line.UnitPrice));
-                }
-            });
-
-            col.Item().PaddingTop(10).AlignRight().Width(240).Row(row =>
-            {
-                row.RelativeItem().Text(labels["expectedCredit"]).Bold();
-                row.ConstantItem(100).AlignRight().Text(money.Format(rtv.ExpectedCredit)).Bold();
-            });
-
-            if (!string.IsNullOrWhiteSpace(rtv.Notes))
-            {
-                col.Item().PaddingTop(20).Column(notes =>
-                {
-                    notes.Item().Text(labels["notes"]).SemiBold().FontSize(9).FontColor(Colors.Grey.Darken1);
-                    notes.Item().PaddingTop(4).Text(rtv.Notes);
-                });
-            }
-
-            col.Item().PaddingTop(40).Text(labels["packedBy"]);
-            col.Item().PaddingTop(20).Text(labels["receivedBy"]);
-        });
+        return Html.Of($"""
+            <table class="lines">
+              <colgroup><col style="width:30pt"><col style="width:176pt"><col style="width:88pt"><col style="width:88pt"><col style="width:55pt"><col style="width:75pt"></colgroup>
+              <thead><tr><th>{labels["number"]}</th><th>{labels["part"]}</th><th>{labels["lot"]}</th><th>{labels["location"]}</th><th class="num">{labels["qty"]}</th><th class="num">{labels["unitPrice"]}</th></tr></thead>
+              <tbody>{rows}</tbody>
+            </table>
+            """);
     }
+
+    private static Html ExpectedCredit(VendorReturn rtv, MoneyFormatter money, VendorDocumentPdfLabels labels)
+        => Html.Of($"<div class=\"totals expected\"><div class=\"row\"><span>{labels["expectedCredit"]}</span><span>{money.Format(rtv.ExpectedCredit)}</span></div></div>");
+
+    private static Html Notes(VendorReturn rtv, VendorDocumentPdfLabels labels)
+        => string.IsNullOrWhiteSpace(rtv.Notes)
+            ? Html.Empty
+            : Html.Of($"<div class=\"notes\"><div class=\"label\">{labels["notes"]}</div><div class=\"body\">{rtv.Notes}</div></div>");
+
+    private static Html Signatures(VendorDocumentPdfLabels labels) => Html.Of($"""
+        <div class="signatures">
+          <div class="packed">{labels["packedBy"]}</div>
+          <div class="received">{labels["receivedBy"]}</div>
+        </div>
+        """);
 }
