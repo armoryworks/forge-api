@@ -25,7 +25,7 @@ public sealed class DocumentNumberSequenceTests(PostgresFixture fixture)
         return customer.Id;
     }
 
-    private static int Suffix(string number) => int.Parse(number[(number.IndexOf('-') + 1)..]);
+    private static long Suffix(string number) => long.Parse(number[(number.IndexOf('-') + 1)..]);
 
     private static Invoice NewInvoice(int customerId, int currencyId, string number) => new()
     {
