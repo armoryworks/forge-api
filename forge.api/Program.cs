@@ -35,7 +35,6 @@ using Forge.Api.Features.AutoPo;
 using Forge.Api.Features.CustomerPortal;
 using Forge.Api.Features.Terminology;
 using Forge.Api.Jobs;
-using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Forge.Api.HealthChecks;
@@ -45,8 +44,6 @@ using Forge.Api.Validation;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
-
-QuestPDF.Settings.License = LicenseType.Community;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()

@@ -1,7 +1,6 @@
 using AwesomeAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
-using QuestPDF.Infrastructure;
 
 using Forge.Api.Features.Invoices;
 using Forge.Core.Entities;
@@ -26,7 +25,6 @@ public class InvoiceEmailDeliveryTests : IDisposable
 
     public InvoiceEmailDeliveryTests()
     {
-        QuestPDF.Settings.License = LicenseType.Community;
         _clock.SetupGet(c => c.UtcNow).Returns(new DateTimeOffset(2026, 10, 5, 9, 0, 0, TimeSpan.Zero));
         _outbox.Setup(o => o.EnqueueEmailAsync(
                 It.IsAny<string>(), It.IsAny<EmailMessage>(), It.IsAny<string?>(),

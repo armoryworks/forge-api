@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using QuestPDF.Infrastructure;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.DomainEvents;
@@ -39,7 +38,6 @@ public class InvoiceCollectionsTests : IDisposable
 
     public InvoiceCollectionsTests()
     {
-        QuestPDF.Settings.License = LicenseType.Community;
         _clock.SetupGet(c => c.UtcNow).Returns(Now);
         var clients = new Mock<IHubClients>();
         clients.Setup(c => c.Group(It.IsAny<string>())).Returns(_proxy.Object);

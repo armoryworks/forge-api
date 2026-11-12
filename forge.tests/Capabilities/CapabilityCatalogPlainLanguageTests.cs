@@ -9,7 +9,7 @@ namespace Forge.Tests.Capabilities;
 public class CapabilityCatalogPlainLanguageTests
 {
     private static readonly Regex BuildNote = new(
-        @"\bCAP-|\bPhase[ -]?\d|\bWU-\d|\b[A-Z]{2,}-\d{3}\b|§|mock-only|QuestPDF|Puppeteer|Default (OFF|ON)\b|CLAUDE\.md",
+        @"\bCAP-|\bPhase[ -]?\d|\bWU-\d|\b[A-Z]{2,}-\d{3}\b|§|mock-only|QuestPDF|WeasyPrint|Puppeteer|Default (OFF|ON)\b|CLAUDE\.md",
         RegexOptions.Compiled);
 
     public static TheoryData<string> CapabilityCodes()
