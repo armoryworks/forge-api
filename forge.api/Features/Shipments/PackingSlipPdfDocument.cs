@@ -9,8 +9,8 @@ public static class PackingSlipPdfDocument
 {
     private const string Styles = """
         .head .title { color: #00796b; }
-        .head .id { display: flex; align-items: flex-start; }
-        .head .id .right { padding-right: 10pt; }
+        .head .company { flex: 1; }
+        .head .slip { flex: none; padding-right: 10pt; }
         .master-qr { width: 82pt; }
         .master-qr img { display: block; width: 78pt; height: 78pt; }
         .qr-caption { font-size: 7pt; color: #757575; text-align: center; }
@@ -24,8 +24,8 @@ public static class PackingSlipPdfDocument
         .scan-codes .code { width: 90pt; }
         .scan-codes .code img { display: block; width: 70pt; height: 70pt; }
         .signatures { display: flex; margin-top: 40pt; break-inside: avoid; }
-        .signatures .line { flex: 1; border-top: 1pt solid #9e9e9e; padding-top: 4pt; font-size: 9pt; color: #757575; }
-        .signatures .line + .line { margin-left: 40pt; }
+        .signatures .line { flex: none; width: 46%; border-top: 1pt solid #9e9e9e; padding-top: 4pt; font-size: 9pt; color: #757575; }
+        .signatures .line + .line { margin-left: 8%; }
         """;
 
     public static HtmlPdfDocument Build(Shipment shipment, string? companyName, ShipmentCustoms? customs = null)
@@ -52,10 +52,8 @@ public static class PackingSlipPdfDocument
         return Html.Of($"""
             <div class="head">
               <div class="company">{companyName}</div>
-              <div class="id">
-                <div class="right"><div class="title">PACKING SLIP</div><div class="number">#{shipment.ShipmentNumber}</div></div>
-                <div class="master-qr">{Html.Image(QrCodeRenderer.Png(master), cssClass: "qr")}<div class="qr-caption">SCAN TO SHIP</div></div>
-              </div>
+              <div class="slip right"><div class="title">PACKING SLIP</div><div class="number">#{shipment.ShipmentNumber}</div></div>
+              <div class="master-qr">{Html.Image(QrCodeRenderer.Png(master), cssClass: "qr")}<div class="qr-caption">SCAN TO SHIP</div></div>
             </div>
             <hr class="rule">
             <div class="parties">

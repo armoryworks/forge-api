@@ -16,7 +16,7 @@ public static class BillOfLadingPdfDocument
         .field-label { font-size: 8pt; font-weight: 700; color: #616161; }
         .parties-boxes { display: flex; align-items: stretch; }
         .parties-boxes .box { flex: 1; }
-        .parties-boxes .box + .box { margin-left: 1pt; }
+        .parties-boxes .box + .box { margin-left: -1pt; }
         .box { border: 1pt solid #000; padding: 8pt; }
         .box .first { margin-top: 4pt; }
         .fields { display: flex; margin-top: 4pt; }
@@ -41,8 +41,8 @@ public static class BillOfLadingPdfDocument
         .signatures { display: flex; break-inside: avoid; }
         .signatures.first-row { margin-top: 30pt; }
         .signatures.second-row { margin-top: 20pt; }
-        .signatures .sig { flex: 1; }
-        .signatures .sig + .sig { margin-left: 30pt; }
+        .signatures .sig { flex: none; width: 47%; }
+        .signatures .sig + .sig { margin-left: 6%; }
         .signatures .caption { font-size: 8pt; color: #616161; }
         .signatures .line { margin-top: 20pt; border-top: 1pt solid #9e9e9e; padding-top: 4pt; font-size: 8pt; color: #9e9e9e; }
         .page-footer { border-top: 1pt solid #bdbdbd; padding-top: 4pt; }

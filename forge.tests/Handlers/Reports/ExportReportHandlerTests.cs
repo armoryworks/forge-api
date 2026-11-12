@@ -194,4 +194,29 @@ public class ExportReportHandlerTests
         html.Should().Contain("<th>C15</th>").And.NotContain("<th>C16</th>");
         html.IndexOf("<th>C2</th>", StringComparison.Ordinal).Should().BeLessThan(html.IndexOf("<th>C10</th>", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void A_very_long_report_prints_its_first_rows_and_says_so()
+    {
+        var rows = Enumerable.Range(1, 4001)
+            .Select(i => new Dictionary<string, object?> { ["A"] = $"row-{i}", ["B"] = i, ["C"] = "x" })
+            .ToList();
+        var html = ReportPdfDocument.Build(
+            new RunReportResponseModel(["A", "B", "C"], rows, 52_000, null), "Long", DateTimeOffset.UnixEpoch).Html;
+
+        html.Should().Contain("Showing the first 4,000 of 52,000 records. Export to CSV or Excel for the full list.")
+            .And.Contain("<td>row-4000</td>").And.NotContain("<td>row-4001</td>");
+    }
+
+    [Fact]
+    public void A_report_within_the_limit_prints_every_row_without_a_note()
+    {
+        var rows = Enumerable.Range(1, 4000)
+            .Select(i => new Dictionary<string, object?> { ["A"] = $"row-{i}", ["B"] = i, ["C"] = "x" })
+            .ToList();
+        var html = ReportPdfDocument.Build(
+            new RunReportResponseModel(["A", "B", "C"], rows, 4000, null), "Long", DateTimeOffset.UnixEpoch).Html;
+
+        html.Should().Contain("<td>row-4000</td>").And.NotContain("Showing the first");
+    }
 }

@@ -21,11 +21,11 @@ public static class PhysicalInventoryCountSheetDocument
         .sheet-head .meta { width: 240pt; text-align: right; }
         .sheet-head .number { font-size: 13pt; font-weight: 700; }
         .sheet-rule { border: 0; border-top: 1.2pt solid #000; margin: 6pt 0; }
-        table.count { width: 100%; border-collapse: collapse; }
+        table.count { width: 100%; border-collapse: collapse; table-layout: fixed; }
         table.count thead { display: table-header-group; }
         table.count tr { break-inside: avoid; }
         table.count th { border-bottom: 1pt solid #000; padding: 3pt 2pt; font-weight: 600; text-align: left; }
-        table.count td { border-bottom: 0.5pt solid #9e9e9e; padding: 4pt 2pt; vertical-align: top; }
+        table.count td { border-bottom: 0.5pt solid #9e9e9e; padding: 4pt 2pt; vertical-align: top; overflow-wrap: break-word; }
         table.count .tag { font-weight: 700; }
         table.count .num { text-align: right; }
         table.count tr.blank td { height: 26pt; }

@@ -30,6 +30,7 @@ public static class PdfHtml
         .page-footer .pages::after { content: counter(pages); }
         .page-footer .footer-note { margin-bottom: 2pt; }
         .head, .parties { display: flex; justify-content: space-between; align-items: flex-start; }
+        .head > div:last-child { flex: none; max-width: 62%; }
         .head .company { font-size: 18pt; font-weight: 700; padding-right: 20pt; }
         .head .title { font-size: 24pt; font-weight: 700; color: #1976d2; line-height: 1.1; }
         .head .number { font-size: 12pt; }

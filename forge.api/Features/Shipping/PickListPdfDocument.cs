@@ -10,8 +10,8 @@ public static class PickListPdfDocument
         .summary { margin-top: 20pt; }
         .summary .lines-count { font-size: 9pt; color: #757575; }
         .signatures { display: flex; margin-top: 40pt; break-inside: avoid; }
-        .signatures .line { flex: 1; border-top: 1pt solid #9e9e9e; padding-top: 4pt; font-size: 9pt; color: #757575; }
-        .signatures .line + .line { margin-left: 40pt; }
+        .signatures .line { flex: none; width: 46%; border-top: 1pt solid #9e9e9e; padding-top: 4pt; font-size: 9pt; color: #757575; }
+        .signatures .line + .line { margin-left: 8%; }
         """;
 
     public static HtmlPdfDocument Build(PickWave wave, string? companyName, DateTimeOffset generatedAt)

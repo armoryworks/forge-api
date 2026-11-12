@@ -74,7 +74,7 @@ public class HtmlTests
             author: "Acme \"Tools\" & Co");
 
         document.Html.Should().Contain(
-                "<div class=\"page-footer\"><div class=\"footer-note\">Uso &lt;interno&gt;</div>PI-9 &middot; Página <span class=\"page\"></span> de <span class=\"pages\"></span></div>")
+                "<div class=\"page-footer\"><div class=\"footer-note\">Uso &lt;interno&gt;</div>PI-9 &middot; P&#225;gina <span class=\"page\"></span> de <span class=\"pages\"></span></div>")
             .And.Contain("<meta name=\"author\" content=\"Acme &quot;Tools&quot; &amp; Co\">");
     }
 

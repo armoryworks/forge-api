@@ -17,11 +17,12 @@ public static class PurchaseOrderPdfDocument
         .issuer { padding-right: 20pt; }
         .issuer .name { font-size: 16pt; font-weight: 700; }
         .doc { width: 200pt; flex-shrink: 0; text-align: right; }
-        .doc .title { font-size: 20pt; font-weight: 700; line-height: 1.1; }
+        .doc .title { font-size: 20pt; font-weight: 700; line-height: 1.1; color: #000; }
         .doc .number { font-size: 12pt; font-weight: 700; }
         .heavy-rule { border: 0; border-top: 1.5pt solid #000; margin: 8pt 0; }
-        .boxes { display: flex; justify-content: space-between; align-items: stretch; margin-bottom: 10pt; }
-        .box { width: 48%; border: 0.75pt solid #000; padding: 6pt; }
+        .boxes { display: table; width: 100%; table-layout: fixed; margin-bottom: 10pt; }
+        .box { display: table-cell; vertical-align: top; border: 0.75pt solid #000; padding: 6pt; }
+        .box-gap { display: table-cell; width: 20pt; }
         .box .caption { font-size: 8pt; font-weight: 600; }
         .box .name { font-weight: 700; }
         .box .gap { padding-top: 3pt; }
@@ -164,6 +165,7 @@ public static class PurchaseOrderPdfDocument
                 {VendorAddressLines(po).Select(line => Html.Of($"<div class=\"small\">{line}</div>"))}
                 {contact}
               </div>
+              <div class="box-gap"></div>
               <div class="box">
                 <div class="caption">SHIP TO</div>
                 {(string.IsNullOrWhiteSpace(companyName) ? Html.Empty : Html.Of($"<div class=\"name\">{companyName}</div>"))}

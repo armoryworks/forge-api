@@ -11,7 +11,7 @@ public static class RfqPdfDocument
         .issuer { padding-right: 20pt; }
         .issuer .name { font-size: 16pt; font-weight: 700; }
         .doc { width: 220pt; flex-shrink: 0; text-align: right; }
-        .doc .title { font-size: 18pt; font-weight: 700; line-height: 1.1; }
+        .doc .title { font-size: 18pt; font-weight: 700; line-height: 1.1; color: #000; }
         .doc .number { font-size: 12pt; font-weight: 700; }
         .heavy-rule { border: 0; border-top: 1.5pt solid #000; margin: 8pt 0; }
         .box { width: 260pt; border: 0.75pt solid #000; padding: 6pt; margin-bottom: 10pt; }
