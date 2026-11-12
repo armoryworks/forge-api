@@ -16,6 +16,8 @@ updates:
         versions: [">= 2026.6.0"]
       - dependency-name: "PDFsharp"
         versions: [">= 6.5.0"]
+      - dependency-name: "MediatR"
+        versions: [">= 13.0.0"]
     groups:
       microsoft-extensions:
         patterns:
