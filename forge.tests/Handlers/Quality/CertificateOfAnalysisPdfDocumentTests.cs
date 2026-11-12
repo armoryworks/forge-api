@@ -49,6 +49,7 @@ public class CertificateOfAnalysisPdfDocumentTests
 
         html.Should().Contain("CERTIFICADO DE ANÁLISIS").And.Contain("Pieza:").And.Contain("Resultado").And.Contain("Cumple");
         html.Should().NotContain("Pass/Fail");
+        html.Should().Contain("Página <span class=\"page\"></span> de <span class=\"pages\"></span></div>").And.NotContain("Page <span");
     }
 
     [Fact]

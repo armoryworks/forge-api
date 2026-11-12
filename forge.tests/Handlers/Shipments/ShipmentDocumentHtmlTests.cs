@@ -68,7 +68,8 @@ public class ShipmentDocumentHtmlTests
     {
         var html = BillOfLadingPdfDocument.Build(Shipment(), "Acme").Html;
 
-        html.Should().Contain("<div class=\"page-footer\">BOL-SHP-0011 &middot; Page ");
+        html.Should().Contain("<div class=\"page-footer\"><div class=\"footer-note\">This is to certify that the above-named materials are properly classified")
+            .And.Contain("in proper condition for transportation.</div>BOL-SHP-0011 &middot; Page ");
         System.Net.WebUtility.HtmlDecode(html).Should().Contain("BILL OF LADING").And.Contain("SPECIAL INSTRUCTIONS:").And.Contain("12.5 lbs")
             .And.Contain("10 × 8 × 6 in").And.Contain("This is to certify");
     }

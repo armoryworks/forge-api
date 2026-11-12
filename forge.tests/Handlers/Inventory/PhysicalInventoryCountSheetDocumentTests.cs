@@ -51,5 +51,15 @@ public sealed class PhysicalInventoryCountSheetDocumentTests
         html.Should().Contain("HOJAS DE CONTEO DE INVENTARIO FÍSICO").And.Contain("Conteo ciego — cantidades en libros ocultas")
             .And.Contain("Hojas de conteo PI-0005").And.Contain("Ubicación");
         html.Should().NotContain("Cant. libros").And.NotContain("12.5");
+        html.Should().Contain("PI-0005 · Página <span class=\"page\"></span> / <span class=\"pages\"></span></div>");
+    }
+
+    [Fact]
+    public void The_company_is_the_author_of_the_file()
+    {
+        var html = PhysicalInventoryCountSheetDocument.Build(Inventory(), false, false, "Acme & Sons").Html;
+
+        html.Should().Contain("<meta name=\"author\" content=\"Acme &amp; Sons\">")
+            .And.Contain("PI-0005 &middot; Page <span class=\"page\"></span> / <span class=\"pages\"></span></div>");
     }
 }

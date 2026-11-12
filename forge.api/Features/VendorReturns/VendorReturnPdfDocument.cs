@@ -23,7 +23,9 @@ public static class VendorReturnPdfDocument
     public static HtmlPdfDocument Build(VendorReturn rtv, string? companyName, MoneyFormatter money, VendorDocumentPdfLabels labels)
     {
         var body = Html.Of($"{Header(rtv, companyName, labels)}{Lines(rtv, money, labels)}{ExpectedCredit(rtv, money, labels)}{Notes(rtv, labels)}{Signatures(labels)}");
-        return PdfHtml.Document($"{labels["rtv"]} {rtv.ReturnNumber}", body, rtv.ReturnNumber, styles: Styles);
+        return PdfHtml.Document(
+            $"{labels["rtv"]} {rtv.ReturnNumber}", body, rtv.ReturnNumber, styles: Styles,
+            pageWords: new PdfPageWords($"{labels["page"]} ", $" {labels["of"]} "));
     }
 
     private static Html Header(VendorReturn rtv, string? companyName, VendorDocumentPdfLabels labels)

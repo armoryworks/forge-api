@@ -65,6 +65,28 @@ public class HtmlTests
     }
 
     [Fact]
+    public void A_document_translates_its_page_count_and_carries_a_footer_note_and_author()
+    {
+        var document = PdfHtml.Document(
+            "Hojas", Html.Empty, "PI-9",
+            pageWords: new PdfPageWords("Página ", " de "),
+            footerNote: Html.Of($"{"Uso <interno>"}"),
+            author: "Acme \"Tools\" & Co");
+
+        document.Html.Should().Contain(
+                "<div class=\"page-footer\"><div class=\"footer-note\">Uso &lt;interno&gt;</div>PI-9 &middot; Página <span class=\"page\"></span> de <span class=\"pages\"></span></div>")
+            .And.Contain("<meta name=\"author\" content=\"Acme &quot;Tools&quot; &amp; Co\">");
+    }
+
+    [Fact]
+    public void A_document_without_an_author_or_note_adds_neither()
+    {
+        var document = PdfHtml.Document("Plain", Html.Empty, "X-1", author: " ");
+
+        document.Html.Should().NotContain("name=\"author\"").And.NotContain("footer-note\">");
+    }
+
+    [Fact]
     public void Text_and_the_default_value_are_safe()
     {
         Html.Text("5 > 3").Value.Should().Be("5 &gt; 3");

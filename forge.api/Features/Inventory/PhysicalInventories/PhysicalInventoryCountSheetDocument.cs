@@ -53,7 +53,9 @@ public static class PhysicalInventoryCountSheetDocument
             body,
             inventory.InventoryNumber,
             landscape: true,
-            styles: Styles);
+            styles: Styles,
+            pageWords: new PdfPageWords($"{L("Page", "Página")} ", " / "),
+            author: companyName);
     }
 
     private static Html Header(

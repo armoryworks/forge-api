@@ -45,7 +45,8 @@ public static class BillOfLadingPdfDocument
         .signatures .sig + .sig { margin-left: 30pt; }
         .signatures .caption { font-size: 8pt; color: #616161; }
         .signatures .line { margin-top: 20pt; border-top: 1pt solid #9e9e9e; padding-top: 4pt; font-size: 8pt; color: #9e9e9e; }
-        .certification { margin-top: 20pt; border-top: 1pt solid #bdbdbd; padding-top: 4pt; font-size: 7pt; color: #9e9e9e; text-align: center; break-inside: avoid; }
+        .page-footer { border-top: 1pt solid #bdbdbd; padding-top: 4pt; }
+        .page-footer .footer-note { font-size: 7pt; margin-bottom: 4pt; }
         """;
 
     public static HtmlPdfDocument Build(
@@ -66,10 +67,11 @@ public static class BillOfLadingPdfDocument
             {TotalsBox(shipment)}
             {Instructions(shipment)}
             {Signatures()}
-            <div class="certification">This is to certify that the above-named materials are properly classified, described, packaged, marked, and labeled, and are in proper condition for transportation. </div>
             """);
         var number = $"BOL-{shipment.ShipmentNumber}";
-        return PdfHtml.Document($"Bill of Lading {number}", body, number, styles: Styles);
+        return PdfHtml.Document(
+            $"Bill of Lading {number}", body, number, styles: Styles,
+            footerNote: Html.Of($"This is to certify that the above-named materials are properly classified, described, packaged, marked, and labeled, and are in proper condition for transportation."));
     }
 
     private static Html Header()

@@ -15,27 +15,16 @@ public static class CreditMemoPdfDocument
         .voided { font-weight: 700; color: #d32f2f; }
         """;
 
-    private const string TranslatedFooterStyles = """
-        @page { @bottom-center { content: element(translated-footer); } }
-        .translated-footer { position: running(translated-footer); font-size: 8pt; color: #9e9e9e; text-align: center; }
-        .translated-footer .page::after { content: counter(page); }
-        .translated-footer .pages::after { content: counter(pages); }
-        """;
-
     public static HtmlPdfDocument Build(
         CreditMemo memo, string? companyName, MoneyFormatter money, CreditMemoPdfLabels? labels = null)
     {
         labels ??= CreditMemoPdfLabels.English;
-        var translatedFooter = labels.Page != CreditMemoPdfLabels.English.Page || labels.Of != CreditMemoPdfLabels.English.Of;
 
-        var body = Html.Of($"{(translatedFooter ? TranslatedFooter(memo, labels) : Html.Empty)}{Header(memo, companyName, labels)}{Lines(memo, money, labels)}{Totals(memo, money, labels)}{Notes(memo, labels)}");
+        var body = Html.Of($"{Header(memo, companyName, labels)}{Lines(memo, money, labels)}{Totals(memo, money, labels)}{Notes(memo, labels)}");
         return PdfHtml.Document(
-            $"{labels.Title} {memo.CreditMemoNumber}", body, memo.CreditMemoNumber,
-            styles: translatedFooter ? Styles + TranslatedFooterStyles : Styles);
+            $"{labels.Title} {memo.CreditMemoNumber}", body, memo.CreditMemoNumber, styles: Styles,
+            pageWords: new PdfPageWords(labels.Page, labels.Of));
     }
-
-    private static Html TranslatedFooter(CreditMemo memo, CreditMemoPdfLabels labels)
-        => Html.Of($"<div class=\"translated-footer\">{memo.CreditMemoNumber} &middot; {labels.Page}<span class=\"page\"></span>{labels.Of}<span class=\"pages\"></span></div>");
 
     private static Html Header(CreditMemo memo, string? companyName, CreditMemoPdfLabels labels)
     {

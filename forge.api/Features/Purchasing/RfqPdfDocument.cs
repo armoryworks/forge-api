@@ -48,7 +48,7 @@ public static class RfqPdfDocument
             {Section("Special Instructions", rfq.SpecialInstructions)}
             {Response(rfq)}
             """);
-        return PdfHtml.Document($"Request for Quote {rfq.RfqNumber}", body, rfq.RfqNumber, styles: Styles);
+        return PdfHtml.Document($"Request for Quote {rfq.RfqNumber}", body, rfq.RfqNumber, styles: Styles, author: companyName);
     }
 
     private static string LineDescription(RequestForQuote rfq) =>

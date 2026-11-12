@@ -5,7 +5,9 @@ namespace Forge.Api.Services.Pdf;
 /// <summary>
 /// The page shell and stylesheet shared by printed documents: US Letter, a footer on every page with the
 /// document's label and the page count, and the fonts the API image installs. Lato prints Latin text; names
-/// in other scripts fall back to Noto CJK, Amiri and Noto Color Emoji.
+/// in other scripts fall back to Noto CJK, Amiri and Noto Color Emoji. A translated document passes its own
+/// <see cref="PdfPageWords"/>; a footer note prints above the page count on every page; the author is stored
+/// in the file's properties.
 /// </summary>
 public static class PdfHtml
 {
@@ -26,6 +28,7 @@ public static class PdfHtml
         .page-footer { position: running(page-footer); font-size: 8pt; color: #9e9e9e; text-align: center; }
         .page-footer .page::after { content: counter(page); }
         .page-footer .pages::after { content: counter(pages); }
+        .page-footer .footer-note { margin-bottom: 2pt; }
         .head, .parties { display: flex; justify-content: space-between; align-items: flex-start; }
         .head .company { font-size: 18pt; font-weight: 700; padding-right: 20pt; }
         .head .title { font-size: 24pt; font-weight: 700; color: #1976d2; line-height: 1.1; }
@@ -56,15 +59,26 @@ public static class PdfHtml
         .notes .body { margin-top: 4pt; white-space: pre-wrap; }
         """;
 
-    public static HtmlPdfDocument Document(string title, Html body, string? footerLabel = null, bool landscape = false, string? styles = null)
+    public static HtmlPdfDocument Document(
+        string title,
+        Html body,
+        string? footerLabel = null,
+        bool landscape = false,
+        string? styles = null,
+        PdfPageWords? pageWords = null,
+        Html? footerNote = null,
+        string? author = null)
     {
+        var words = pageWords ?? PdfPageWords.English;
         var label = string.IsNullOrWhiteSpace(footerLabel) ? Html.Empty : Html.Of($"{footerLabel} &middot; ");
+        var note = footerNote is { } text ? Html.Of($"<div class=\"footer-note\">{text}</div>") : Html.Empty;
+        var authorMeta = string.IsNullOrWhiteSpace(author) ? Html.Empty : Html.Of($"<meta name=\"author\" content=\"{author}\">");
         var html = Html.Of($"""
             <!doctype html>
             <html lang="en">
-            <head><meta charset="utf-8"><title>{title}</title><style>{new Html(Styles)}{new Html(styles ?? string.Empty)}</style></head>
+            <head><meta charset="utf-8"><title>{title}</title>{authorMeta}<style>{new Html(Styles)}{new Html(styles ?? string.Empty)}</style></head>
             <body class="{(landscape ? "landscape" : "portrait")}">
-            <div class="page-footer">{label}Page <span class="page"></span> of <span class="pages"></span></div>
+            <div class="page-footer">{note}{label}{words.BeforePage}<span class="page"></span>{words.BeforeTotal}<span class="pages"></span></div>
             {body}
             </body>
             </html>

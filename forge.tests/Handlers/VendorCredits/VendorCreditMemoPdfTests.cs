@@ -91,7 +91,8 @@ public class VendorCreditMemoPdfTests : IDisposable
         var html = WebUtility.HtmlDecode(
             VendorCreditMemoPdfDocument.Build(Memo(), "Forge Test Works", _usd, VendorDocumentPdfLabels.For("es-US")).Html);
 
-        html.Should().ContainAll("NOTA DE CRÉDITO DEL PROVEEDOR", "Fecha: 03/10/2026", "Factura n.º: BILL-0042", "Descripción", "Crédito total:");
+        html.Should().ContainAll("NOTA DE CRÉDITO DEL PROVEEDOR", "Fecha: 03/10/2026", "Factura n.º: BILL-0042", "Descripción", "Crédito total:",
+            "Página <span class=\"page\"></span> de <span class=\"pages\"></span></div>");
     }
 
     [Fact]

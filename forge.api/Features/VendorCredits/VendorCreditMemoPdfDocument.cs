@@ -20,7 +20,9 @@ public static class VendorCreditMemoPdfDocument
     {
         var title = memo.Kind == VendorCreditMemoKind.DebitMemo ? labels["debitMemo"] : labels["creditMemo"];
         var body = Html.Of($"{Header(memo, companyName, title, labels)}{Lines(memo, money, labels)}{Totals(memo, money, labels)}{Notes(memo, labels)}");
-        return PdfHtml.Document($"{title} {memo.MemoNumber}", body, memo.MemoNumber, styles: Styles);
+        return PdfHtml.Document(
+            $"{title} {memo.MemoNumber}", body, memo.MemoNumber, styles: Styles,
+            pageWords: new PdfPageWords($"{labels["page"]} ", $" {labels["of"]} "));
     }
 
     private static Html Header(VendorCreditMemo memo, string? companyName, string title, VendorDocumentPdfLabels labels)

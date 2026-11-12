@@ -64,7 +64,7 @@ public static class PurchaseOrderPdfDocument
             {Terms(po)}
             {Notes(po)}
             """);
-        return PdfHtml.Document($"Purchase Order {po.PONumber}", body, po.PONumber, styles: Styles);
+        return PdfHtml.Document($"Purchase Order {po.PONumber}", body, po.PONumber, styles: Styles, author: companyName);
     }
 
     public static string UomFor(PurchaseOrderLine line) =>

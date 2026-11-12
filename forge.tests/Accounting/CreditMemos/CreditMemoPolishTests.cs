@@ -123,9 +123,10 @@ public class CreditMemoPolishTests
         var english = await Text(new GenerateCreditMemoPdfQuery(memo.Id));
         var spanish = await Text(new GenerateCreditMemoPdfQuery(memo.Id, "es-US"));
 
-        english.Should().Contain("CREDIT MEMO").And.Contain("Total credit:").And.NotContain("translated-footer");
+        english.Should().Contain("CREDIT MEMO").And.Contain("Total credit:")
+            .And.Contain("<div class=\"page-footer\">" + memo.CreditMemoNumber + " · Page <span class=\"page\"></span> of <span class=\"pages\"></span></div>");
         spanish.Should().Contain("NOTA DE CRÉDITO").And.Contain("Crédito total:").And.NotContain("CREDIT MEMO");
-        spanish.Should().Contain("<div class=\"translated-footer\">" + memo.CreditMemoNumber + " · Página <span class=\"page\"></span> de <span class=\"pages\"></span></div>");
+        spanish.Should().Contain("<div class=\"page-footer\">" + memo.CreditMemoNumber + " · Página <span class=\"page\"></span> de <span class=\"pages\"></span></div>");
 
         ctx.Db.SupportedLanguages.Add(new SupportedLanguage { Code = "es", Name = "Spanish", NativeName = "Español", IsDefault = true });
         await ctx.Db.SaveChangesAsync();

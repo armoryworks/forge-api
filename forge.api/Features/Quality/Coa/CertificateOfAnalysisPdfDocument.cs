@@ -47,7 +47,8 @@ public static class CertificateOfAnalysisPdfDocument
     {
         var body = Html.Of($"{Header(certificate, companyName, labels)}{Facts(certificate, labels)}{Results(certificate, labels)}{Closing(certificate, generatedByName, labels)}");
         return PdfHtml.Document(
-            $"{labels.Title} {certificate.CertificateNumber}", body, certificate.CertificateNumber, styles: Styles);
+            $"{labels.Title} {certificate.CertificateNumber}", body, certificate.CertificateNumber, styles: Styles,
+            pageWords: new PdfPageWords(labels.Page, labels.Of));
     }
 
     private static string FormatDate(DateTimeOffset? value, CertificateOfAnalysisPdfLabels labels) =>

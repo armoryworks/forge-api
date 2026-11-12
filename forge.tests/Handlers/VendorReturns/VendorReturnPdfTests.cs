@@ -93,7 +93,8 @@ public class VendorReturnPdfTests : IDisposable
         var html = WebUtility.HtmlDecode(
             VendorReturnPdfDocument.Build(Return(), null, _usd, VendorDocumentPdfLabels.For("es")).Html);
 
-        html.Should().ContainAll("DEVOLUCIÓN AL PROVEEDOR", "Fecha de envío: 07/10/2026", "Desde ubicación", "Crédito esperado:", "Empacado por:");
+        html.Should().ContainAll("DEVOLUCIÓN AL PROVEEDOR", "Fecha de envío: 07/10/2026", "Desde ubicación", "Crédito esperado:", "Empacado por:",
+            "Página <span class=\"page\"></span> de <span class=\"pages\"></span></div>");
     }
 
     [Fact]
