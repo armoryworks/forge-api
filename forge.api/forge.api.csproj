@@ -31,17 +31,17 @@
          OpenAPI docs), which -warnaserror escalates to a build error. 2.7.5 is the
          first patched 2.x. Forge only generates OpenAPI docs, so the vuln surface
          doesn't apply — this pin just clears the NuGet audit gate. -->
-    <PackageReference Include="Microsoft.OpenApi" Version="2.13.0" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.13.1" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.15" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.1" />
     <PackageReference Include="Otp.NET" Version="1.4.1" />
     <PackageReference Include="QRCoder" Version="1.8.1" />
     <PackageReference Include="Riok.Mapperly" Version="4.3.1" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.20.0" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.21.0" />
     <PackageReference Include="Pgvector" Version="0.3.2" />
     <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
